@@ -1,0 +1,15 @@
+{
+  "name": "gacatboo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "가계부 웹 애플리케이션 (Household Ledger)",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix client run build",
+    "start": "npm --prefix server start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
