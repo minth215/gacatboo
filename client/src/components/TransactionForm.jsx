@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api } from '../lib/api.js';
+import { db } from '../lib/db.js';
+import { useAuth } from '../lib/auth.jsx';
 import { today } from '../lib/format.js';
 
 // 수입/지출 항목 작성·수정 폼. groupId 지정 시 그룹 항목으로 저장.
 export default function TransactionForm({ initial, groupId, onSaved, onClose }) {
+  const { user } = useAuth();
   const editing = !!initial?.id;
   const [type, setType] = useState(initial?.type || 'expense');
   const [date, setDate] = useState(initial?.date || today());
@@ -15,12 +17,13 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
 
   const [categories, setCategories] = useState([]);
   const [sources, setSources] = useState([]);
+  const [sourcesFlat, setSourcesFlat] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api.get('/categories').then((d) => setCategories(d.categories)).catch(() => {});
-    api.get('/sources').then((d) => setSources(d.sources)).catch(() => {});
+    db.listCategories().then(setCategories).catch(() => {});
+    db.listSources().then(({ tree, flat }) => { setSources(tree); setSourcesFlat(flat); }).catch(() => {});
   }, []);
 
   const catOptions = useMemo(() => categories.filter((c) => c.type === type), [categories, type]);
@@ -30,18 +33,17 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
     setError('');
     if (!amount || Number(amount) < 0) return setError('금액을 입력하세요.');
     setBusy(true);
+    const selCat = categories.find((c) => c.id === Number(categoryId));
     const payload = {
-      type, date, amount: Number(amount),
+      type, date, amount: Math.round(Number(amount)),
       category_id: categoryId ? Number(categoryId) : null,
+      category_name: selCat?.name || '',
       source_id: sourceId ? Number(sourceId) : null,
       content, memo,
+      group_id: groupId || null,
     };
     try {
-      if (editing) {
-        await api.put(`/transactions/${initial.id}`, payload);
-      } else {
-        await api.post('/transactions', { ...payload, group_id: groupId || null });
-      }
+      await db.saveTransaction({ id: initial?.id, userId: user.id, payload, sourcesFlat });
       onSaved?.();
     } catch (err) {
       setError(err.message);

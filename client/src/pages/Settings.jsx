@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { api } from '../lib/api.js';
+import { db } from '../lib/db.js';
+import { useAuth } from '../lib/auth.jsx';
 
 export default function Settings() {
+  const { user } = useAuth();
   const [categories, setCategories] = useState([]);
   const [sources, setSources] = useState([]);
   const [catType, setCatType] = useState('expense');
@@ -9,43 +11,43 @@ export default function Settings() {
   const [newTop, setNewTop] = useState('');
   const [childInputs, setChildInputs] = useState({}); // {parentId: value}
 
-  const loadCats = useCallback(() => api.get('/categories').then((d) => setCategories(d.categories)), []);
-  const loadSrcs = useCallback(() => api.get('/sources').then((d) => setSources(d.sources)), []);
+  const loadCats = useCallback(() => db.listCategories().then(setCategories), []);
+  const loadSrcs = useCallback(() => db.listSources().then(({ tree }) => setSources(tree)), []);
 
   useEffect(() => { loadCats(); loadSrcs(); }, [loadCats, loadSrcs]);
 
+  const wrap = (fn) => fn.catch((e) => alert(e.message));
+
   const addCat = async () => {
     if (!newCat.trim()) return;
-    await api.post('/categories', { type: catType, name: newCat.trim() });
-    setNewCat(''); loadCats();
+    await wrap(db.addCategory(user.id, catType, newCat.trim())); setNewCat(''); loadCats();
   };
   const editCat = async (c) => {
     const name = prompt('분류 이름', c.name);
-    if (name && name.trim() && name !== c.name) { await api.patch(`/categories/${c.id}`, { name: name.trim() }); loadCats(); }
+    if (name && name.trim() && name !== c.name) { await wrap(db.updateCategory(c.id, name.trim())); loadCats(); }
   };
   const delCat = async (c) => {
     if (!confirm(`'${c.name}' 분류를 삭제할까요?`)) return;
-    await api.del(`/categories/${c.id}`); loadCats();
+    await wrap(db.deleteCategory(c.id)); loadCats();
   };
 
   const addTop = async () => {
     if (!newTop.trim()) return;
-    await api.post('/sources', { name: newTop.trim() });
-    setNewTop(''); loadSrcs();
+    await wrap(db.addSource(user.id, newTop.trim(), null)); setNewTop(''); loadSrcs();
   };
   const addChild = async (parentId) => {
     const val = (childInputs[parentId] || '').trim();
     if (!val) return;
-    await api.post('/sources', { name: val, parent_id: parentId });
+    await wrap(db.addSource(user.id, val, parentId));
     setChildInputs({ ...childInputs, [parentId]: '' }); loadSrcs();
   };
   const editSrc = async (s) => {
     const name = prompt('원천 이름', s.name);
-    if (name && name.trim() && name !== s.name) { await api.patch(`/sources/${s.id}`, { name: name.trim() }); loadSrcs(); }
+    if (name && name.trim() && name !== s.name) { await wrap(db.updateSource(s.id, name.trim())); loadSrcs(); }
   };
   const delSrc = async (s) => {
     if (!confirm(`'${s.name}'${s.children?.length ? ' 및 하위 항목' : ''}을(를) 삭제할까요?`)) return;
-    await api.del(`/sources/${s.id}`); loadSrcs();
+    await wrap(db.deleteSource(s.id)); loadSrcs();
   };
 
   const shownCats = categories.filter((c) => c.type === catType);

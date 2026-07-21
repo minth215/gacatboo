@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { api } from '../lib/api.js';
+import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import Modal from '../components/Modal.jsx';
 
@@ -9,28 +9,32 @@ export default function Admin() {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ username: '', display_name: '', password: '', role: 'user' });
+  const [form, setForm] = useState({ email: '', username: '', display_name: '', password: '', role: 'user' });
   const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const load = useCallback(() => api.get('/admin/users').then((d) => setUsers(d.users)).catch(() => {}), []);
+  const load = useCallback(() => db.listUsers().then(setUsers).catch((e) => alert(e.message)), []);
   useEffect(() => { load(); }, [load]);
 
-  const setStatus = async (u, status) => { await api.patch(`/admin/users/${u.id}/status`, { status }); load(); };
+  const setStatus = async (u, status) => { try { await db.setUserStatus(u.id, status); load(); } catch (e) { alert(e.message); } };
   const setRole = async (u, role) => {
-    try { await api.patch(`/admin/users/${u.id}/role`, { role }); load(); } catch (e) { alert(e.message); }
+    if (u.role === 'admin' && role === 'user' && users.filter((x) => x.role === 'admin').length <= 1) {
+      return alert('최소 한 명의 관리자가 필요합니다.');
+    }
+    try { await db.setUserRole(u.id, role); load(); } catch (e) { alert(e.message); }
   };
   const remove = async (u) => {
     if (!confirm(`${u.display_name}(@${u.username}) 계정을 삭제할까요?`)) return;
-    try { await api.del(`/admin/users/${u.id}`); load(); } catch (e) { alert(e.message); }
+    try { await db.deleteUser(u.id); load(); } catch (e) { alert(e.message); }
   };
 
   const create = async (e) => {
     e.preventDefault();
-    setErr('');
+    setErr(''); setBusy(true);
     try {
-      await api.post('/admin/users', form);
-      setModal(false); setForm({ username: '', display_name: '', password: '', role: 'user' }); load();
-    } catch (e2) { setErr(e2.message); }
+      await db.createUser(form);
+      setModal(false); setForm({ email: '', username: '', display_name: '', password: '', role: 'user' }); load();
+    } catch (e2) { setErr(e2.message); } finally { setBusy(false); }
   };
 
   const pending = users.filter((u) => u.status === 'pending');
@@ -86,8 +90,10 @@ export default function Admin() {
       {modal && (
         <Modal title="계정 생성" onClose={() => setModal(false)}>
           <form onSubmit={create}>
+            <div className="field"><label>이메일</label>
+              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} autoFocus /></div>
             <div className="field"><label>아이디</label>
-              <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} autoFocus /></div>
+              <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></div>
             <div className="field"><label>이름</label>
               <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} /></div>
             <div className="field"><label>비밀번호</label>
@@ -98,9 +104,10 @@ export default function Admin() {
                 <option value="admin">관리자</option>
               </select></div>
             {err && <p className="error">{err}</p>}
+            <p className="small muted">계정 생성은 Edge Function(<code>admin</code>)이 배포되어 있어야 동작합니다.</p>
             <div className="row" style={{ marginTop: 6 }}>
               <button type="button" className="btn block" onClick={() => setModal(false)}>취소</button>
-              <button className="btn primary block">생성 (즉시 승인)</button>
+              <button className="btn primary block" disabled={busy}>{busy ? '생성 중…' : '생성 (즉시 승인)'}</button>
             </div>
           </form>
         </Modal>

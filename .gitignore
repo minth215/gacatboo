@@ -2,12 +2,14 @@ node_modules/
 dist/
 *.log
 
-# SQLite database
-server/data.sqlite
-server/data.sqlite-*
-*.sqlite
-*.sqlite-shm
-*.sqlite-wal
-
 .DS_Store
+
+# 환경 변수 (Supabase 키)
 .env
+.env.local
+client/.env
+client/.env.local
+
+# Supabase CLI
+supabase/.branches
+supabase/.temp

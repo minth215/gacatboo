@@ -1,17 +1,19 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Bar, Doughnut } from 'react-chartjs-2';
-import { api } from '../lib/api.js';
+import { db } from '../lib/db.js';
+import { useAuth } from '../lib/auth.jsx';
 import { PALETTE } from '../lib/chartSetup.js';
 import { currentMonth, shiftMonth, monthLabel, fmtWon } from '../lib/format.js';
 
 export default function Stats() {
+  const { user } = useAuth();
   const [month, setMonth] = useState(currentMonth());
   const [data, setData] = useState(null);
   const [tab, setTab] = useState('expense'); // expense | income
 
   const load = useCallback(() => {
-    api.get(`/stats/monthly?month=${month}`).then(setData).catch(() => setData(null));
-  }, [month]);
+    db.personalStats(month, user.id).then(setData).catch(() => setData(null));
+  }, [month, user.id]);
   useEffect(() => { load(); }, [load]);
 
   if (!data) return <div className="empty">불러오는 중…</div>;

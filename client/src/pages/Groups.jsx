@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../lib/api.js';
+import { db } from '../lib/db.js';
+import { useAuth } from '../lib/auth.jsx';
 import Modal from '../components/Modal.jsx';
 
 const CATS = ['여행', '구독', '동거', 'N빵', '기타'];
@@ -8,6 +9,7 @@ const CAT_ICON = { 여행: '✈️', 구독: '🔁', 동거: '🏠', 'N빵': '�
 
 export default function Groups() {
   const nav = useNavigate();
+  const { user } = useAuth();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -16,8 +18,8 @@ export default function Groups() {
 
   const load = useCallback(() => {
     setLoading(true);
-    api.get('/groups').then((d) => setGroups(d.groups)).catch(() => setGroups([])).finally(() => setLoading(false));
-  }, []);
+    db.listGroups(user.id).then(setGroups).catch(() => setGroups([])).finally(() => setLoading(false));
+  }, [user.id]);
   useEffect(() => { load(); }, [load]);
 
   const create = async (e) => {
@@ -25,10 +27,10 @@ export default function Groups() {
     setError('');
     if (!form.name.trim()) return setError('그룹명을 입력하세요.');
     try {
-      const d = await api.post('/groups', form);
+      const g = await db.createGroup(user.id, { ...form, name: form.name.trim() });
       setModal(false);
       setForm({ name: '', description: '', category: '여행' });
-      nav(`/groups/${d.id}`);
+      nav(`/groups/${g.id}`);
     } catch (err) { setError(err.message); }
   };
 

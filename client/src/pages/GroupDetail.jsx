@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
-import { api } from '../lib/api.js';
+import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { PALETTE } from '../lib/chartSetup.js';
 import { currentMonth, shiftMonth, monthLabel, fmtWon } from '../lib/format.js';
@@ -11,6 +11,7 @@ import TransactionList from '../components/TransactionList.jsx';
 
 export default function GroupDetail() {
   const { id } = useParams();
+  const gid = Number(id);
   const nav = useNavigate();
   const { user } = useAuth();
   const [tab, setTab] = useState('ledger'); // ledger | stats | members
@@ -26,41 +27,44 @@ export default function GroupDetail() {
   const isOwner = group && group.owner_id === user.id;
 
   const loadGroup = useCallback(() => {
-    api.get(`/groups/${id}`).then((d) => { setGroup(d.group); setMembers(d.members); })
+    db.getGroup(gid).then(({ group, members }) => { setGroup(group); setMembers(members); })
       .catch((e) => { alert(e.message); nav('/groups'); });
-  }, [id, nav]);
+  }, [gid, nav]);
 
   const loadTxs = useCallback(() => {
-    api.get(`/transactions?month=${month}&group_id=${id}`).then((d) => setTxs(d.transactions)).catch(() => setTxs([]));
-  }, [id, month]);
+    db.listTransactions({ month, groupId: gid }).then(setTxs).catch(() => setTxs([]));
+  }, [gid, month]);
 
   const loadStats = useCallback(() => {
-    api.get(`/groups/${id}/stats?month=${month}`).then(setStats).catch(() => setStats(null));
-  }, [id, month]);
+    if (!members.length) return;
+    db.groupStats(gid, month, members).then(setStats).catch(() => setStats(null));
+  }, [gid, month, members]);
 
   useEffect(() => { loadGroup(); }, [loadGroup]);
-  useEffect(() => { loadTxs(); loadStats(); }, [loadTxs, loadStats]);
+  useEffect(() => { loadTxs(); }, [loadTxs]);
+  useEffect(() => { loadStats(); }, [loadStats]);
 
   const canEdit = (t) => t.created_by === user.id;
   const removeTx = async (t) => {
     if (!confirm('이 항목을 삭제할까요?')) return;
-    try { await api.del(`/transactions/${t.id}`); loadTxs(); loadStats(); } catch (e) { alert(e.message); }
+    try { await db.deleteTransaction(t.id); loadTxs(); loadStats(); } catch (e) { alert(e.message); }
   };
 
   const addMember = async (e) => {
     e.preventDefault();
     setErr('');
     if (!newMember.trim()) return;
-    try { await api.post(`/groups/${id}/members`, { username: newMember.trim() }); setNewMember(''); loadGroup(); }
+    try { await db.addGroupMember(gid, newMember.trim()); setNewMember(''); loadGroup(); }
     catch (e2) { setErr(e2.message); }
   };
   const removeMember = async (m) => {
+    if (m.role === 'owner') return;
     if (!confirm(`${m.display_name}님을 그룹에서 제거할까요?`)) return;
-    try { await api.del(`/groups/${id}/members/${m.user_id}`); loadGroup(); } catch (e) { alert(e.message); }
+    try { await db.removeGroupMember(gid, m.user_id); loadGroup(); } catch (e) { alert(e.message); }
   };
   const deleteGroup = async () => {
     if (!confirm('그룹을 삭제하면 그룹 내 모든 항목이 삭제됩니다. 계속할까요?')) return;
-    try { await api.del(`/groups/${id}`); nav('/groups'); } catch (e) { alert(e.message); }
+    try { await db.deleteGroup(gid); nav('/groups'); } catch (e) { alert(e.message); }
   };
 
   if (!group) return <div className="empty">불러오는 중…</div>;
@@ -179,7 +183,7 @@ export default function GroupDetail() {
 
       {modal && (
         <Modal title={modal.tx ? '그룹 항목 수정' : '그룹 항목 추가'} onClose={() => setModal(null)}>
-          <TransactionForm initial={modal.tx} groupId={Number(id)}
+          <TransactionForm initial={modal.tx} groupId={gid}
             onSaved={() => { setModal(null); loadTxs(); loadStats(); }}
             onClose={() => setModal(null)} />
         </Modal>

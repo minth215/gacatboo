@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { api } from '../lib/api.js';
+import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { currentMonth, shiftMonth, monthLabel, fmtWon } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
@@ -15,23 +15,23 @@ export default function Ledger() {
 
   const load = useCallback(() => {
     setLoading(true);
-    api.get(`/transactions?month=${month}`)
-      .then((d) => setTxs(d.transactions))
+    db.listLedger({ month })
+      .then(setTxs)
       .catch(() => setTxs([]))
       .finally(() => setLoading(false));
   }, [month]);
 
   useEffect(() => { load(); }, [load]);
 
-  const income = txs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const expense = txs.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const income = txs.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+  const expense = txs.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
 
   // 개인 항목은 본인, 그룹 항목은 작성자만 수정
-  const canEdit = (t) => (t.group_id ? t.created_by === user.id : t.user_id === user.id);
+  const canEdit = (t) => t.created_by === user.id;
 
   const remove = async (t) => {
     if (!confirm('이 항목을 삭제할까요?')) return;
-    try { await api.del(`/transactions/${t.id}`); load(); }
+    try { await db.deleteTransaction(t.id); load(); }
     catch (e) { alert(e.message); }
   };
 
