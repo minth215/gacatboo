@@ -266,7 +266,7 @@ function DepositForm({ groupId, sub, cats, sources, members, onClose, onSave }) 
   const [f, setF] = useState({
     memberId: members[0] ? String(members[0].id) : '',
     date: today(), amount: sub?.deposit_amount ? String(sub.deposit_amount) : '',
-    periods: '1', categoryId: '', sourceId: '', depositSource: '', content: '', memo: '',
+    periods: '1', categoryId: '', sourceId: '', depositSourceId: '', content: '', memo: '',
   });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
 
@@ -281,7 +281,7 @@ function DepositForm({ groupId, sub, cats, sources, members, onClose, onSave }) 
         amount: Math.round(Number(f.amount)), periods: Math.max(Number(f.periods) || 1, 1),
         category_name: cat?.name || '', category_emoji: cat?.emoji || '',
         source_id: null, source_name: sourceNameOf(sources.flat, f.sourceId),
-        deposit_source_name: f.depositSource, content: f.content, memo: f.memo,
+        deposit_source_name: sourceNameOf(sources.flat, f.depositSourceId), content: f.content, memo: f.memo,
       });
     } catch (e) { setErr(e.message); setBusy(false); }
   };
@@ -310,7 +310,7 @@ function DepositForm({ groupId, sub, cats, sources, members, onClose, onSave }) 
       </div>
       <div className="field"><label>원천</label><SourceSelect sources={sources.tree} value={f.sourceId} onChange={(v) => setF({ ...f, sourceId: v })} /></div>
       <div className="field"><label>입금수단 <span className="small muted">(총대의 원천)</span></label>
-        <input value={f.depositSource} onChange={(e) => setF({ ...f, depositSource: e.target.value })} placeholder="예: 모임통장 / 총대 국민은행" />
+        <SourceSelect sources={sources.tree} value={f.depositSourceId} onChange={(v) => setF({ ...f, depositSourceId: v })} />
       </div>
       <div className="field"><label>내용</label><input value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} placeholder="예: 넷플릭스 회비" /></div>
       <div className="field"><label>메모</label><textarea value={f.memo} onChange={(e) => setF({ ...f, memo: e.target.value })} /></div>
