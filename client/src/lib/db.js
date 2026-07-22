@@ -103,7 +103,9 @@ export const db = {
 
   async saveTransaction({ id, userId, payload, sourcesFlat }) {
     const category_name = payload.category_name ?? '';
-    const source_name = sourceName(sourcesFlat || [], payload.source_id);
+    const source_name = payload.source_name !== undefined
+      ? payload.source_name
+      : sourceName(sourcesFlat || [], payload.source_id);
     const base = {
       type: payload.type,
       date: payload.date,

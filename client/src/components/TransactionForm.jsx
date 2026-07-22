@@ -4,6 +4,9 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { today } from '../lib/format.js';
 
+// 분류/원천에 id 는 없고 이름(스냅샷)만 있는 항목(그룹 자동기입 등)을 표시하기 위한 센티넬
+const SNAP = '__snap__';
+
 // 수입/지출 항목 작성·수정 폼. groupId 지정 시 그룹 항목으로 저장.
 export default function TransactionForm({ initial, groupId, onSaved, onClose }) {
   const { user } = useAuth();
@@ -12,8 +15,12 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
   const [type, setType] = useState(initial?.type || 'expense');
   const [date, setDate] = useState(initial?.date || today());
   const [amount, setAmount] = useState(initial?.amount ? String(initial.amount) : '');
-  const [categoryId, setCategoryId] = useState(initial?.category_id ? String(initial.category_id) : '');
-  const [sourceId, setSourceId] = useState(initial?.source_id ? String(initial.source_id) : '');
+  const [categoryId, setCategoryId] = useState(
+    initial?.category_id ? String(initial.category_id) : (initial?.category_name ? SNAP : '')
+  );
+  const [sourceId, setSourceId] = useState(
+    initial?.source_id ? String(initial.source_id) : (initial?.source_name ? SNAP : '')
+  );
   const [content, setContent] = useState(initial?.content || '');
   const [memo, setMemo] = useState(initial?.memo || '');
 
@@ -35,13 +42,33 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
     setError('');
     if (!amount || Number(amount) < 0) return setError('금액을 입력하세요.');
     setBusy(true);
-    const selCat = categories.find((c) => c.id === Number(categoryId));
+
+    // 분류 결정 (SNAP=기존 스냅샷 유지 / 실제 선택 / 선택 안 함)
+    let category_id = null, category_name = '', category_emoji = '';
+    if (categoryId === SNAP) {
+      category_name = initial?.category_name || '';
+      category_emoji = initial?.category_emoji || '';
+    } else if (categoryId) {
+      const c = categories.find((x) => String(x.id) === String(categoryId));
+      if (c) { category_id = Number(c.id); category_name = c.name; category_emoji = c.emoji || ''; }
+    }
+
+    // 원천 결정 (source_name 은 명시 전달 → db 가 그대로 사용)
+    let source_id = null, source_name = '';
+    if (sourceId === SNAP) {
+      source_name = initial?.source_name || '';
+    } else if (sourceId) {
+      source_id = Number(sourceId);
+      const s = sourcesFlat.find((x) => x.id === source_id);
+      if (s) source_name = s.parent_id
+        ? `${sourcesFlat.find((p) => p.id === s.parent_id)?.name || ''} > ${s.name}`
+        : s.name;
+    }
+
     const payload = {
       type, date, amount: Math.round(Number(amount)),
-      category_id: categoryId ? Number(categoryId) : null,
-      category_name: selCat?.name || '',
-      category_emoji: selCat?.emoji || '',
-      source_id: sourceId ? Number(sourceId) : null,
+      category_id, category_name, category_emoji,
+      source_id, source_name,
       content, memo,
       group_id: groupId || null,
     };
@@ -84,6 +111,9 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
           </div>
           <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
             <option value="">선택 안 함</option>
+            {categoryId === SNAP && (
+              <option value={SNAP}>{initial?.category_emoji ? `${initial.category_emoji} ` : ''}{initial?.category_name} (기존)</option>
+            )}
             {catOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
           </select>
         </div>
@@ -96,6 +126,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
         </div>
         <select value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
           <option value="">선택 안 함</option>
+          {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
           {sources.map((top) => (
             top.children?.length ? (
               <optgroup key={top.id} label={top.name}>
