@@ -11,14 +11,20 @@ alter table public.group_members add column if not exists nickname   text;
 alter table public.group_members add column if not exists start_date date;
 alter table public.group_members add column if not exists end_date   date;
 alter table public.group_members add column if not exists contact    text;
-alter table public.group_members alter column user_id drop not null;
 
--- 기존 복합 PK(group_id,user_id) → id 단일 PK 로 변경
+-- 순서 중요: (1) 복합 PK 제거 → (2) user_id NOT NULL 해제 → (3) id 단일 PK 추가
+-- (PK 에 속한 컬럼은 NOT NULL 을 뗄 수 없으므로 PK 를 먼저 제거해야 함)
 do $$
 begin
   if exists (select 1 from pg_constraint where conname = 'group_members_pkey') then
     alter table public.group_members drop constraint group_members_pkey;
   end if;
+end $$;
+
+alter table public.group_members alter column user_id drop not null;
+
+do $$
+begin
   if not exists (select 1 from pg_constraint where conname = 'group_members_id_pk') then
     alter table public.group_members add constraint group_members_id_pk primary key (id);
   end if;
