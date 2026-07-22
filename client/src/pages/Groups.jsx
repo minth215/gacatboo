@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
+import { leaderLabel } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 
 export default function Groups() {
@@ -64,7 +65,7 @@ export default function Groups() {
               <span className="chip gray">{g.category}</span>
             </div>
             <div className="small muted" style={{ marginTop: 10 }}>
-              총무 {g.owner_name} · 멤버 {g.member_count}명
+              {leaderLabel(g.category)} {g.owner_name} · 멤버 {g.member_count}명
             </div>
           </div>
         ))
@@ -106,7 +107,7 @@ export default function Groups() {
               <button type="button" className="btn block" onClick={() => setModal(false)}>취소</button>
               <button className="btn primary block">만들기</button>
             </div>
-            <p className="small muted center" style={{ marginTop: 10 }}>그룹을 만들면 내가 총무가 됩니다.</p>
+            <p className="small muted center" style={{ marginTop: 10 }}>그룹을 만들면 내가 {leaderLabel(form.category)}가 됩니다.</p>
           </form>
         </Modal>
       )}

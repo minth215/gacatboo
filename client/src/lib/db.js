@@ -162,24 +162,111 @@ export const db = {
   },
   async getGroup(id) {
     const group = unwrap(await supabase.from('groups').select('*, owner:profiles!groups_owner_id_fkey(display_name)').eq('id', id).single());
-    const members = unwrap(await supabase.from('group_members').select('user_id, role, profiles(username, display_name)').eq('group_id', id));
-    const mapped = members.map((m) => ({ user_id: m.user_id, role: m.role, username: m.profiles?.username, display_name: m.profiles?.display_name }))
-      .sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : (a.display_name || '').localeCompare(b.display_name || '')));
-    return { group: { ...group, owner_name: group.owner?.display_name || '' }, members: mapped };
+    const rows = unwrap(await supabase.from('group_members')
+      .select('id, user_id, role, nickname, start_date, end_date, contact, profiles(username, display_name)')
+      .eq('group_id', id));
+    // 메모는 총무/총대만 조회 가능(RLS). 아니면 빈 결과.
+    const notes = {};
+    (unwrap(await supabase.from('group_member_notes').select('member_id, memo').eq('group_id', id)) || [])
+      .forEach((n) => { notes[n.member_id] = n.memo; });
+    const members = rows.map((m) => ({
+      id: m.id, user_id: m.user_id, role: m.role,
+      nickname: m.nickname || m.profiles?.display_name || '멤버',
+      username: m.profiles?.username || null,
+      is_account: !!m.user_id,
+      start_date: m.start_date, end_date: m.end_date, contact: m.contact,
+      memo: notes[m.id] || '',
+    })).sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : (a.nickname || '').localeCompare(b.nickname || '')));
+    return { group: { ...group, owner_name: group.owner?.display_name || '' }, members };
   },
-  async addGroupMember(groupId, username) {
-    const prof = unwrap(await supabase.from('profiles').select('id, status').eq('username', username).maybeSingle());
-    if (!prof) throw new Error('사용자를 찾을 수 없습니다.');
-    if (prof.status !== 'approved') throw new Error('승인된 사용자만 추가할 수 있습니다.');
-    const exists = unwrap(await supabase.from('group_members').select('user_id').eq('group_id', groupId).eq('user_id', prof.id).maybeSingle());
-    if (exists) throw new Error('이미 멤버입니다.');
-    return unwrap(await supabase.from('group_members').insert({ group_id: groupId, user_id: prof.id, role: 'member' }));
+  async addMember(groupId, { nickname, start_date, end_date, contact, memo, username }) {
+    let user_id = null;
+    if (username && username.trim()) {
+      const prof = unwrap(await supabase.from('profiles').select('id, status').eq('username', username.trim()).maybeSingle());
+      if (!prof) throw new Error('해당 아이디의 사용자를 찾을 수 없습니다.');
+      if (prof.status !== 'approved') throw new Error('승인된 사용자만 연결할 수 있습니다.');
+      const exists = unwrap(await supabase.from('group_members').select('id').eq('group_id', groupId).eq('user_id', prof.id).maybeSingle());
+      if (exists) throw new Error('이미 멤버로 추가된 계정입니다.');
+      user_id = prof.id;
+    }
+    const row = unwrap(await supabase.from('group_members').insert({
+      group_id: groupId, user_id, role: 'member',
+      nickname: (nickname || '').trim(),
+      start_date: start_date || null, end_date: end_date || null,
+      contact: (contact || '').trim() || null,
+    }).select('id').single());
+    if (memo && memo.trim()) {
+      unwrap(await supabase.from('group_member_notes').insert({ member_id: row.id, group_id: groupId, memo: memo.trim() }));
+    }
+    return row;
   },
-  async removeGroupMember(groupId, userId) {
-    return unwrap(await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId));
+  async updateMember(memberId, groupId, { nickname, start_date, end_date, contact, memo }) {
+    unwrap(await supabase.from('group_members').update({
+      nickname: (nickname || '').trim(),
+      start_date: start_date || null, end_date: end_date || null,
+      contact: (contact || '').trim() || null,
+    }).eq('id', memberId));
+    unwrap(await supabase.from('group_member_notes').upsert({ member_id: memberId, group_id: groupId, memo: (memo || '').trim() }));
+  },
+  async removeMember(memberId) {
+    return unwrap(await supabase.from('group_members').delete().eq('id', memberId));
   },
   async deleteGroup(id) {
     return unwrap(await supabase.from('groups').delete().eq('id', id));
+  },
+
+  // ---------- 구독 설정 ----------
+  async getSubscription(groupId) {
+    return unwrap(await supabase.from('subscriptions').select('*').eq('group_id', groupId).maybeSingle());
+  },
+  async upsertSubscription(groupId, s) {
+    return unwrap(await supabase.from('subscriptions').upsert({ group_id: groupId, ...s }).select().single());
+  },
+
+  // ---------- 결제 내역 (총대 지출 자동기입) ----------
+  async listPayments(groupId) {
+    return unwrap(await supabase.from('subscription_payments').select('*')
+      .eq('group_id', groupId).order('date', { ascending: false }).order('id', { ascending: false }));
+  },
+  async createPayment(groupId, userId, p) {
+    const tx = unwrap(await supabase.from('transactions').insert({
+      user_id: userId, group_id: null, type: 'expense', date: p.date, amount: p.amount,
+      category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
+      source_id: p.source_id || null, source_name: p.source_name || '',
+      content: (p.content || '').trim(), memo: (p.memo || '').trim(), created_by: userId,
+    }).select('id').single());
+    return unwrap(await supabase.from('subscription_payments').insert({
+      group_id: groupId, date: p.date, amount: p.amount,
+      category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
+      source_id: p.source_id || null, source_name: p.source_name || '',
+      content: (p.content || '').trim(), memo: (p.memo || '').trim(), tx_id: tx.id, created_by: userId,
+    }).select().single());
+  },
+  async deletePayment(id) {
+    const pay = unwrap(await supabase.from('subscription_payments').select('tx_id').eq('id', id).single());
+    unwrap(await supabase.from('subscription_payments').delete().eq('id', id));
+    if (pay?.tx_id) unwrap(await supabase.from('transactions').delete().eq('id', pay.tx_id));
+  },
+
+  // ---------- 입금 내역 (총대 수입 + 멤버 지출 자동기입, RPC) ----------
+  async listDeposits(groupId) {
+    return unwrap(await supabase.from('subscription_deposits')
+      .select('*, member:group_members(nickname)')
+      .eq('group_id', groupId).order('date', { ascending: false }).order('id', { ascending: false }));
+  },
+  async createDeposit(p) {
+    const { data, error } = await supabase.rpc('create_subscription_deposit', {
+      p_group_id: p.group_id, p_member_id: p.member_id, p_date: p.date, p_amount: p.amount,
+      p_periods: p.periods, p_category_name: p.category_name || '', p_category_emoji: p.category_emoji || '',
+      p_source_id: p.source_id || null, p_source_name: p.source_name || '',
+      p_deposit_source_name: p.deposit_source_name || '', p_content: p.content || '', p_memo: p.memo || '',
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+  async deleteDeposit(id) {
+    const { error } = await supabase.rpc('delete_subscription_deposit', { p_id: id });
+    if (error) throw new Error(error.message);
   },
 
   // ---------- 관리자 ----------

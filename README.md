@@ -50,6 +50,7 @@ client (React + Vite)  ──supabase-js──▶  Supabase
 2. **SQL Editor** 에서 마이그레이션을 순서대로 실행
    - [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — 테이블 · RLS 정책 · 트리거 · 기본값 시드
    - [`supabase/migrations/0002_emoji_group_categories.sql`](supabase/migrations/0002_emoji_group_categories.sql) — 분류 이모지 · 사용자 편집형 그룹 카테고리 (기존 사용자 백필 포함)
+   - [`supabase/migrations/0003_members_subscriptions.sql`](supabase/migrations/0003_members_subscriptions.sql) — 외부 멤버(계정 없는 멤버) · 멤버 메모(총무 전용) · 구독형 그룹(설정/결제/입금) · 입금 RPC
 3. **Authentication > Providers > Email** 활성화. 테스트 편의를 위해
    **Authentication > Sign In / Providers > "Confirm email"** 을 끄면 가입 즉시 로그인 흐름을 확인하기 쉽습니다.
 
