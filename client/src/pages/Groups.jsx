@@ -4,16 +4,14 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import Modal from '../components/Modal.jsx';
 
-const CATS = ['여행', '구독', '동거', 'N빵', '기타'];
-const CAT_ICON = { 여행: '✈️', 구독: '🔁', 동거: '🏠', 'N빵': '🍕', 기타: '📦' };
-
 export default function Groups() {
   const nav = useNavigate();
   const { user } = useAuth();
   const [groups, setGroups] = useState([]);
+  const [groupCats, setGroupCats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', category: '여행' });
+  const [form, setForm] = useState({ name: '', description: '', category: '', category_emoji: '' });
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
@@ -21,6 +19,14 @@ export default function Groups() {
     db.listGroups(user.id).then(setGroups).catch(() => setGroups([])).finally(() => setLoading(false));
   }, [user.id]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { db.listGroupCategories().then(setGroupCats).catch(() => setGroupCats([])); }, []);
+
+  const openModal = () => {
+    const first = groupCats[0];
+    setForm({ name: '', description: '', category: first?.name || '기타', category_emoji: first?.emoji || '' });
+    setError('');
+    setModal(true);
+  };
 
   const create = async (e) => {
     e.preventDefault();
@@ -29,7 +35,6 @@ export default function Groups() {
     try {
       const g = await db.createGroup(user.id, { ...form, name: form.name.trim() });
       setModal(false);
-      setForm({ name: '', description: '', category: '여행' });
       nav(`/groups/${g.id}`);
     } catch (err) { setError(err.message); }
   };
@@ -38,7 +43,7 @@ export default function Groups() {
     <div>
       <div className="between" style={{ margin: '4px 2px 14px' }}>
         <h2 style={{ margin: 0, fontSize: 20 }}>그룹</h2>
-        <button className="btn primary sm" onClick={() => setModal(true)}>＋ 그룹 만들기</button>
+        <button className="btn primary sm" onClick={openModal}>＋ 그룹 만들기</button>
       </div>
 
       {loading ? (
@@ -50,7 +55,7 @@ export default function Groups() {
           <div className="card" key={g.id} style={{ cursor: 'pointer' }} onClick={() => nav(`/groups/${g.id}`)}>
             <div className="between">
               <div className="row">
-                <span style={{ fontSize: 26 }}>{CAT_ICON[g.category] || '📦'}</span>
+                <span style={{ fontSize: 26 }}>{g.category_emoji || '📦'}</span>
                 <div>
                   <div style={{ fontWeight: 800, fontSize: 16 }}>{g.name}</div>
                   <div className="small muted">{g.description || '설명 없음'}</div>
@@ -77,15 +82,24 @@ export default function Groups() {
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="그룹 설명 (선택)" />
             </div>
             <div className="field">
-              <label>카테고리</label>
-              <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
-                {CATS.map((c) => (
-                  <button type="button" key={c} className={`chip ${form.category === c ? '' : 'gray'}`}
-                    onClick={() => setForm({ ...form, category: c })} style={{ border: 'none' }}>
-                    {CAT_ICON[c]} {c}
-                  </button>
-                ))}
+              <div className="field-label-row">
+                <label>카테고리</label>
+                <button type="button" className="edit-link" onClick={() => nav('/settings/group-categories')}>편집 ›</button>
               </div>
+              {groupCats.length === 0 ? (
+                <p className="small muted">카테고리가 없습니다. 우측 상단 편집에서 추가하세요.</p>
+              ) : (
+                <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+                  {groupCats.map((c) => (
+                    <button type="button" key={c.id}
+                      className={`chip ${form.category === c.name ? '' : 'gray'}`}
+                      onClick={() => setForm({ ...form, category: c.name, category_emoji: c.emoji })}
+                      style={{ border: 'none' }}>
+                      {c.emoji} {c.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {error && <p className="error">{error}</p>}
             <div className="row" style={{ marginTop: 8 }}>

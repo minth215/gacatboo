@@ -9,6 +9,7 @@ export default function Settings() {
     { label: '수입 분류 관리', desc: '월급·부수입 등 수입 분류 편집', to: '/settings/categories/income', ico: '📈' },
     { label: '지출 분류 관리', desc: '식당·교통 등 지출 분류 편집', to: '/settings/categories/expense', ico: '📉' },
     { label: '원천 관리', desc: '현금·은행·카드 및 세부 항목 편집', to: '/settings/sources', ico: '🏦' },
+    { label: '그룹 카테고리 관리', desc: '여행·구독 등 그룹 카테고리 편집', to: '/settings/group-categories', ico: '👥' },
   ];
   if (user.role === 'admin') {
     items.push({ label: '회원 관리', desc: '가입 승인·역할·계정 관리', to: '/admin', ico: '🛡️' });

@@ -46,13 +46,13 @@ export const db = {
     if (type) q = q.eq('type', type);
     return unwrap(await q);
   },
-  async addCategory(userId, type, name) {
+  async addCategory(userId, type, name, emoji = '') {
     const existing = unwrap(await supabase.from('categories').select('sort_order').eq('type', type).order('sort_order', { ascending: false }).limit(1));
     const next = (existing[0]?.sort_order ?? -1) + 1;
-    return unwrap(await supabase.from('categories').insert({ user_id: userId, type, name, sort_order: next }).select().single());
+    return unwrap(await supabase.from('categories').insert({ user_id: userId, type, name, emoji, sort_order: next }).select().single());
   },
-  async updateCategory(id, name) {
-    return unwrap(await supabase.from('categories').update({ name }).eq('id', id).select().single());
+  async updateCategory(id, patch) {
+    return unwrap(await supabase.from('categories').update(patch).eq('id', id).select().single());
   },
   async deleteCategory(id) {
     return unwrap(await supabase.from('categories').delete().eq('id', id));
@@ -110,6 +110,7 @@ export const db = {
       amount: payload.amount,
       category_id: payload.category_id || null,
       category_name,
+      category_emoji: payload.category_emoji ?? '',
       source_id: payload.source_id || null,
       source_name,
       content: (payload.content || '').trim(),
@@ -136,10 +137,28 @@ export const db = {
       member_count: g.group_members?.[0]?.count ?? 0,
     }));
   },
-  async createGroup(userId, { name, description, category }) {
-    const g = unwrap(await supabase.from('groups').insert({ name, description: description || '', category, owner_id: userId }).select().single());
+  async createGroup(userId, { name, description, category, category_emoji }) {
+    const g = unwrap(await supabase.from('groups').insert({
+      name, description: description || '', category, category_emoji: category_emoji || '', owner_id: userId,
+    }).select().single());
     unwrap(await supabase.from('group_members').insert({ group_id: g.id, user_id: userId, role: 'owner' }));
     return g;
+  },
+
+  // ---------- 그룹 카테고리 (사용자별 선택지) ----------
+  async listGroupCategories() {
+    return unwrap(await supabase.from('group_categories').select('*').order('sort_order').order('id'));
+  },
+  async addGroupCategory(userId, name, emoji = '') {
+    const existing = unwrap(await supabase.from('group_categories').select('sort_order').order('sort_order', { ascending: false }).limit(1));
+    const next = (existing[0]?.sort_order ?? -1) + 1;
+    return unwrap(await supabase.from('group_categories').insert({ user_id: userId, name, emoji, sort_order: next }).select().single());
+  },
+  async updateGroupCategory(id, patch) {
+    return unwrap(await supabase.from('group_categories').update(patch).eq('id', id).select().single());
+  },
+  async deleteGroupCategory(id) {
+    return unwrap(await supabase.from('group_categories').delete().eq('id', id));
   },
   async getGroup(id) {
     const group = unwrap(await supabase.from('groups').select('*, owner:profiles!groups_owner_id_fkey(display_name)').eq('id', id).single());

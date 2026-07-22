@@ -21,7 +21,9 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
             const editable = canEdit ? canEdit(t) : true;
             return (
               <div className="tx" key={t.id} onClick={() => editable && onEdit(t)} style={{ cursor: editable ? 'pointer' : 'default' }}>
-                <span className="dot" style={{ background: t.type === 'income' ? 'var(--income)' : 'var(--expense)' }} />
+                {t.category_emoji
+                  ? <span className="cat-emoji">{t.category_emoji}</span>
+                  : <span className="dot" style={{ background: t.type === 'income' ? 'var(--income)' : 'var(--expense)' }} />}
                 <div className="tx-main">
                   <div className="tx-title">
                     {t.content || t.category_name || (t.type === 'income' ? '수입' : '지출')}

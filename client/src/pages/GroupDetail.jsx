@@ -5,8 +5,6 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { PALETTE } from '../lib/chartSetup.js';
 import { currentMonth, shiftMonth, monthLabel, fmtWon } from '../lib/format.js';
-import Modal from '../components/Modal.jsx';
-import TransactionForm from '../components/TransactionForm.jsx';
 import TransactionList from '../components/TransactionList.jsx';
 
 export default function GroupDetail() {
@@ -20,7 +18,6 @@ export default function GroupDetail() {
   const [members, setMembers] = useState([]);
   const [txs, setTxs] = useState([]);
   const [stats, setStats] = useState(null);
-  const [modal, setModal] = useState(null);
   const [newMember, setNewMember] = useState('');
   const [err, setErr] = useState('');
 
@@ -78,7 +75,7 @@ export default function GroupDetail() {
             <div style={{ fontWeight: 800, fontSize: 18 }}>{group.name}</div>
             <div className="small muted" style={{ marginTop: 2 }}>{group.description || '설명 없음'}</div>
           </div>
-          <span className="chip">{group.category}</span>
+          <span className="chip">{group.category_emoji ? `${group.category_emoji} ` : ''}{group.category}</span>
         </div>
         <div className="small muted" style={{ marginTop: 10 }}>총무 {group.owner_name} · 멤버 {members.length}명</div>
       </div>
@@ -99,8 +96,8 @@ export default function GroupDetail() {
 
       {tab === 'ledger' && (
         <>
-          <TransactionList transactions={txs} canEdit={canEdit} onEdit={(t) => setModal({ tx: t })} onDelete={removeTx} />
-          <button className="fab" onClick={() => setModal({})} aria-label="추가">＋</button>
+          <TransactionList transactions={txs} canEdit={canEdit} onEdit={(t) => nav(`/tx/${t.id}`)} onDelete={removeTx} />
+          <button className="fab" onClick={() => nav(`/new?group=${gid}`)} aria-label="추가">＋</button>
         </>
       )}
 
@@ -179,14 +176,6 @@ export default function GroupDetail() {
             <button className="btn danger block" style={{ marginTop: 16 }} onClick={deleteGroup}>그룹 삭제</button>
           )}
         </div>
-      )}
-
-      {modal && (
-        <Modal title={modal.tx ? '그룹 항목 수정' : '그룹 항목 추가'} onClose={() => setModal(null)}>
-          <TransactionForm initial={modal.tx} groupId={gid}
-            onSaved={() => { setModal(null); loadTxs(); loadStats(); }}
-            onClose={() => setModal(null)} />
-        </Modal>
       )}
     </div>
   );

@@ -40,6 +40,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
       type, date, amount: Math.round(Number(amount)),
       category_id: categoryId ? Number(categoryId) : null,
       category_name: selCat?.name || '',
+      category_emoji: selCat?.emoji || '',
       source_id: sourceId ? Number(sourceId) : null,
       content, memo,
       group_id: groupId || null,
@@ -83,7 +84,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
           </div>
           <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
             <option value="">선택 안 함</option>
-            {catOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {catOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
           </select>
         </div>
       </div>

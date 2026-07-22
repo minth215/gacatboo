@@ -222,6 +222,15 @@ a { color: inherit; text-decoration: none; }
   font-size: 12px; font-weight: 700; padding: 2px 4px;
 }
 
+/* ---------- Emoji picker ---------- */
+.emoji-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.emoji-pick {
+  width: 38px; height: 38px; font-size: 20px; line-height: 1;
+  border: 1px solid var(--line); background: #fff; border-radius: 9px;
+}
+.emoji-pick.active { border-color: var(--primary); background: var(--primary-weak); }
+.cat-emoji { font-size: 18px; width: 24px; text-align: center; display: inline-block; }
+
 .chart-box { position: relative; height: 240px; }
 .legend-list { margin-top: 12px; }
 .legend-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; }
