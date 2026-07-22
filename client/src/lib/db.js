@@ -237,12 +237,24 @@ export const db = {
       source_id: p.source_id || null, source_name: p.source_name || '',
       content: (p.content || '').trim(), memo: (p.memo || '').trim(), created_by: userId,
     }).select('id').single());
-    return unwrap(await supabase.from('subscription_payments').insert({
+    const pay = unwrap(await supabase.from('subscription_payments').insert({
       group_id: groupId, date: p.date, amount: p.amount,
       category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
       source_id: p.source_id || null, source_name: p.source_name || '',
       content: (p.content || '').trim(), memo: (p.memo || '').trim(), tx_id: tx.id, created_by: userId,
     }).select().single());
+    // 미러 tx 에 원본 링크
+    unwrap(await supabase.from('transactions').update({ origin_type: 'payment', origin_id: pay.id, origin_group_id: groupId }).eq('id', tx.id));
+    return pay;
+  },
+  // 결제 수정 → 트리거가 미러 tx 동기화
+  async updatePayment(id, p) {
+    return unwrap(await supabase.from('subscription_payments').update({
+      date: p.date, amount: p.amount,
+      category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
+      source_id: p.source_id || null, source_name: p.source_name || '',
+      content: (p.content || '').trim(), memo: (p.memo || '').trim(),
+    }).eq('id', id).select().single());
   },
   async deletePayment(id) {
     const pay = unwrap(await supabase.from('subscription_payments').select('tx_id').eq('id', id).single());
@@ -265,6 +277,15 @@ export const db = {
     });
     if (error) throw new Error(error.message);
     return data;
+  },
+  // 입금 수정 → 트리거가 총대/멤버 미러 tx 동기화 (RLS: 총대 또는 본인)
+  async updateDeposit(id, p) {
+    return unwrap(await supabase.from('subscription_deposits').update({
+      date: p.date, amount: p.amount, periods: Math.max(Number(p.periods) || 1, 1),
+      category_name: p.category_name || '', category_emoji: p.category_emoji || '',
+      source_name: p.source_name || '', deposit_source_name: p.deposit_source_name || '',
+      content: (p.content || '').trim(), memo: (p.memo || '').trim(),
+    }).eq('id', id).select().single());
   },
   async deleteDeposit(id) {
     const { error } = await supabase.rpc('delete_subscription_deposit', { p_id: id });

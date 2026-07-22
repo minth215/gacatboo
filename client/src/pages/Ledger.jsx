@@ -25,8 +25,13 @@ export default function Ledger() {
   const income = txs.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
   const expense = txs.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
 
-  // 개인 항목은 본인, 그룹 항목은 작성자만 수정
-  const canEdit = (t) => t.created_by === user.id;
+  // 개인 항목은 본인, 그룹 항목은 작성자만 수정. 구독 미러 항목은 그룹 편집기로 연결(항상 클릭 가능).
+  const canEdit = (t) => (t.origin_type ? true : t.created_by === user.id);
+
+  const openEdit = (t) => {
+    if (t.origin_type) nav(`/groups/${t.origin_group_id}?edit=${t.origin_type}:${t.origin_id}`);
+    else nav(`/tx/${t.id}`);
+  };
 
   const remove = async (t) => {
     if (!confirm('이 항목을 삭제할까요?')) return;
@@ -54,7 +59,7 @@ export default function Ledger() {
         <TransactionList
           transactions={txs}
           canEdit={canEdit}
-          onEdit={(t) => nav(`/tx/${t.id}`)}
+          onEdit={openEdit}
           onDelete={remove}
         />
       )}

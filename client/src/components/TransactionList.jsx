@@ -19,6 +19,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
           <div className="tx-group-date">{formatDate(date)}</div>
           {groups[date].map((t) => {
             const editable = canEdit ? canEdit(t) : true;
+            const linked = !!t.origin_type; // 구독 결제/입금 연동 항목
             return (
               <div className="tx" key={t.id} onClick={() => editable && onEdit(t)} style={{ cursor: editable ? 'pointer' : 'default' }}>
                 {t.category_emoji
@@ -28,6 +29,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
                   <div className="tx-title">
                     {t.content || t.category_name || (t.type === 'income' ? '수입' : '지출')}
                     {t.group_name && <span className="tag-group">{t.group_name}</span>}
+                    {linked && <span className="tag-group" style={{ background: '#eef0ff', color: 'var(--primary)' }}>🔁 구독</span>}
                   </div>
                   <div className="tx-sub">
                     {[t.category_name, t.source_name, t.author_name && t.group_name ? `by ${t.author_name}` : null]
@@ -37,7 +39,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
                 <div className={`tx-amt ${t.type}`}>
                   {t.type === 'income' ? '+' : '-'}{fmtWon(t.amount)}
                 </div>
-                {editable && onDelete && (
+                {editable && !linked && onDelete && (
                   <button
                     className="btn sm ghost"
                     style={{ color: 'var(--muted)' }}
