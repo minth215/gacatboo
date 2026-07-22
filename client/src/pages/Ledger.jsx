@@ -1,17 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { currentMonth, shiftMonth, monthLabel, fmtWon } from '../lib/format.js';
-import Modal from '../components/Modal.jsx';
-import TransactionForm from '../components/TransactionForm.jsx';
 import TransactionList from '../components/TransactionList.jsx';
 
 export default function Ledger() {
   const { user } = useAuth();
+  const nav = useNavigate();
   const [month, setMonth] = useState(currentMonth());
   const [txs, setTxs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(null); // null | {tx?}
 
   const load = useCallback(() => {
     setLoading(true);
@@ -55,22 +54,12 @@ export default function Ledger() {
         <TransactionList
           transactions={txs}
           canEdit={canEdit}
-          onEdit={(t) => setModal({ tx: t })}
+          onEdit={(t) => nav(`/tx/${t.id}`)}
           onDelete={remove}
         />
       )}
 
-      <button className="fab" onClick={() => setModal({})} aria-label="추가">＋</button>
-
-      {modal && (
-        <Modal title={modal.tx ? '항목 수정' : '항목 추가'} onClose={() => setModal(null)}>
-          <TransactionForm
-            initial={modal.tx}
-            onSaved={() => { setModal(null); load(); }}
-            onClose={() => setModal(null)}
-          />
-        </Modal>
-      )}
+      <button className="fab" onClick={() => nav('/new')} aria-label="추가">＋</button>
     </div>
   );
 }

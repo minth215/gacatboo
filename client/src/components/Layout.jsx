@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
 
 const NAV = [
@@ -10,7 +10,6 @@ const NAV = [
 
 export default function Layout() {
   const { user, logout } = useAuth();
-  const loc = useLocation();
 
   return (
     <div className="app">
@@ -33,12 +32,6 @@ export default function Layout() {
             {n.label}
           </NavLink>
         ))}
-        {user?.role === 'admin' && (
-          <NavLink to="/admin" className={loc.pathname === '/admin' ? 'active' : ''}>
-            <span className="ico">🛡️</span>
-            관리
-          </NavLink>
-        )}
       </nav>
     </div>
   );

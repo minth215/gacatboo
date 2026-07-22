@@ -9,16 +9,24 @@ export default function Stats() {
   const { user } = useAuth();
   const [month, setMonth] = useState(currentMonth());
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('expense'); // expense | income
 
+  const EMPTY = { totals: { income: 0, expense: 0, balance: 0 }, incomeByCategory: [], expenseByCategory: [], trend: [] };
+
   const load = useCallback(() => {
-    db.personalStats(month, user.id).then(setData).catch(() => setData(null));
+    setLoading(true);
+    db.personalStats(month, user.id)
+      .then(setData)
+      .catch((e) => { console.error(e); setData(EMPTY); }) // 에러/무데이터여도 페이지는 표시
+      .finally(() => setLoading(false));
   }, [month, user.id]);
   useEffect(() => { load(); }, [load]);
 
-  if (!data) return <div className="empty">불러오는 중…</div>;
+  if (loading && !data) return <div className="empty">불러오는 중…</div>;
+  const view = data || EMPTY;
 
-  const { totals, trend, incomeByCategory, expenseByCategory } = data;
+  const { totals, trend, incomeByCategory, expenseByCategory } = view;
   const byCat = tab === 'expense' ? expenseByCategory : incomeByCategory;
 
   const trendData = {

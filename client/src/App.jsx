@@ -4,8 +4,11 @@ import Layout from './components/Layout.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Ledger from './pages/Ledger.jsx';
+import TransactionEdit from './pages/TransactionEdit.jsx';
 import Stats from './pages/Stats.jsx';
 import Settings from './pages/Settings.jsx';
+import CategoryManage from './pages/CategoryManage.jsx';
+import SourceManage from './pages/SourceManage.jsx';
 import Groups from './pages/Groups.jsx';
 import GroupDetail from './pages/GroupDetail.jsx';
 import Admin from './pages/Admin.jsx';
@@ -28,10 +31,14 @@ export default function App() {
 
       <Route element={<Protected><Layout /></Protected>}>
         <Route path="/" element={<Ledger />} />
+        <Route path="/new" element={<TransactionEdit />} />
+        <Route path="/tx/:id" element={<TransactionEdit />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/groups" element={<Groups />} />
         <Route path="/groups/:id" element={<GroupDetail />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/settings/categories/:type" element={<CategoryManage />} />
+        <Route path="/settings/sources" element={<SourceManage />} />
         <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
       </Route>
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { today } from '../lib/format.js';
@@ -6,6 +7,7 @@ import { today } from '../lib/format.js';
 // 수입/지출 항목 작성·수정 폼. groupId 지정 시 그룹 항목으로 저장.
 export default function TransactionForm({ initial, groupId, onSaved, onClose }) {
   const { user } = useAuth();
+  const nav = useNavigate();
   const editing = !!initial?.id;
   const [type, setType] = useState(initial?.type || 'expense');
   const [date, setDate] = useState(initial?.date || today());
@@ -75,7 +77,10 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
         <div className="field">
-          <label>분류</label>
+          <div className="field-label-row">
+            <label>분류</label>
+            <button type="button" className="edit-link" onClick={() => nav(`/settings/categories/${type}`)}>편집 ›</button>
+          </div>
           <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
             <option value="">선택 안 함</option>
             {catOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -84,7 +89,10 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
       </div>
 
       <div className="field">
-        <label>원천</label>
+        <div className="field-label-row">
+          <label>원천</label>
+          <button type="button" className="edit-link" onClick={() => nav('/settings/sources')}>편집 ›</button>
+        </div>
         <select value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
           <option value="">선택 안 함</option>
           {sources.map((top) => (

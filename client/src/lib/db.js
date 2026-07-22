@@ -6,7 +6,14 @@ function unwrap({ data, error }) {
   return data;
 }
 
-const monthRange = (month) => ({ start: `${month}-01`, end: `${month}-31` });
+// 월 경계 [start, endExclusive). endExclusive = 다음 달 1일.
+// Postgres date 는 '2026-06-31' 같은 잘못된 날짜를 거부하므로 상한을 배타적으로 둔다.
+function monthBounds(month) {
+  const [y, m] = month.split('-').map(Number);
+  const next = new Date(Date.UTC(y, m, 1));
+  const endExclusive = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-01`;
+  return { start: `${month}-01`, endExclusive };
+}
 
 // 원천 id → "부모 > 자식" 형태의 스냅샷 이름 (플랫 목록 기준)
 function sourceName(flat, id) {
@@ -73,8 +80,8 @@ export const db = {
 
   // ---------- 트랜잭션 ----------
   async listTransactions({ month, groupId = null }) {
-    const { start, end } = monthRange(month);
-    let q = supabase.from('transactions').select(TX_SELECT).gte('date', start).lte('date', end)
+    const { start, endExclusive } = monthBounds(month);
+    let q = supabase.from('transactions').select(TX_SELECT).gte('date', start).lt('date', endExclusive)
       .order('date', { ascending: false }).order('id', { ascending: false });
     if (groupId) q = q.eq('group_id', groupId);
     else q = q.is('group_id', null);
@@ -83,11 +90,15 @@ export const db = {
 
   // 개인 가계부: 개인 항목 + 내가 속한 그룹 항목(반영)
   async listLedger({ month }) {
-    const { start, end } = monthRange(month);
+    const { start, endExclusive } = monthBounds(month);
     const rows = unwrap(await supabase.from('transactions').select(TX_SELECT)
-      .gte('date', start).lte('date', end)
+      .gte('date', start).lt('date', endExclusive)
       .order('date', { ascending: false }).order('id', { ascending: false }));
     return flattenTx(rows);
+  },
+
+  async getTransaction(id) {
+    return unwrap(await supabase.from('transactions').select(TX_SELECT).eq('id', id).single());
   },
 
   async saveTransaction({ id, userId, payload, sourcesFlat }) {
@@ -168,9 +179,10 @@ export const db = {
     const [y, m] = month.split('-').map(Number);
     const startDate = new Date(Date.UTC(y, m - 6, 1)); // 최근 6개월
     const startMonth = `${startDate.getUTCFullYear()}-${String(startDate.getUTCMonth() + 1).padStart(2, '0')}`;
+    const { endExclusive } = monthBounds(month);
     const rows = unwrap(await supabase.from('transactions').select('type, amount, date, category_name')
       .is('group_id', null).eq('user_id', userId)
-      .gte('date', `${startMonth}-01`).lte('date', `${month}-31`));
+      .gte('date', `${startMonth}-01`).lt('date', endExclusive));
 
     const inMonth = (r) => r.date.slice(0, 7) === month;
     const cur = rows.filter(inMonth);
@@ -204,9 +216,9 @@ export const db = {
   },
 
   async groupStats(groupId, month, members) {
-    const { start, end } = monthRange(month);
+    const { start, endExclusive } = monthBounds(month);
     const rows = unwrap(await supabase.from('transactions').select('type, amount, category_name, user_id')
-      .eq('group_id', groupId).gte('date', start).lte('date', end));
+      .eq('group_id', groupId).gte('date', start).lt('date', endExclusive));
     const sum = (arr, t) => arr.filter((r) => r.type === t).reduce((s, r) => s + Number(r.amount), 0);
     const income = sum(rows, 'income');
     const expense = sum(rows, 'expense');
