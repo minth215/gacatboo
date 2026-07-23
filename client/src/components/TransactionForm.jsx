@@ -65,9 +65,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
     } else if (sourceId) {
       source_id = Number(sourceId);
       const s = sourcesFlat.find((x) => x.id === source_id);
-      if (s) source_name = s.parent_id
-        ? `${sourcesFlat.find((p) => p.id === s.parent_id)?.name || ''} > ${s.name}`
-        : s.name;
+      if (s) source_name = s.name; // 세부 항목명만
     }
 
     const payload = {
@@ -137,7 +135,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
             top.children?.length ? (
               <optgroup key={top.id} label={top.name}>
                 <option value={top.id}>{top.name} (전체)</option>
-                {top.children.map((c) => <option key={c.id} value={c.id}>{top.name} &gt; {c.name}</option>)}
+                {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </optgroup>
             ) : (
               <option key={top.id} value={top.id}>{top.name}</option>

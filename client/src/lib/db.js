@@ -19,12 +19,7 @@ function monthBounds(month) {
 function sourceName(flat, id) {
   if (!id) return '';
   const s = flat.find((x) => x.id === id);
-  if (!s) return '';
-  if (s.parent_id) {
-    const p = flat.find((x) => x.id === s.parent_id);
-    return p ? `${p.name} > ${s.name}` : s.name;
-  }
-  return s.name;
+  return s ? s.name : ''; // 세부 항목명만(상위 항목 표기 없이)
 }
 
 const TX_SELECT =

@@ -18,7 +18,7 @@ function SourceSelect({ sources, value, onChange, keepLabel }) {
         top.children?.length ? (
           <optgroup key={top.id} label={top.name}>
             <option value={top.id}>{top.name} (전체)</option>
-            {top.children.map((c) => <option key={c.id} value={c.id}>{top.name} &gt; {c.name}</option>)}
+            {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </optgroup>
         ) : <option key={top.id} value={top.id}>{top.name}</option>
       ))}
@@ -37,9 +37,7 @@ function CategorySelect({ cats, value, onChange, keepLabel }) {
 function sourceNameOf(flat, id) {
   if (!id) return '';
   const s = flat.find((x) => x.id === Number(id));
-  if (!s) return '';
-  if (s.parent_id) { const p = flat.find((x) => x.id === s.parent_id); return p ? `${p.name} > ${s.name}` : s.name; }
-  return s.name;
+  return s ? s.name : ''; // 세부 항목명만
 }
 const matchCatId = (cats, name) => { const c = cats.find((x) => x.name === name); return c ? String(c.id) : ''; };
 

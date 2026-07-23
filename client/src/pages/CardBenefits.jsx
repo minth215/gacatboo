@@ -15,12 +15,8 @@ export default function CardBenefits() {
   const load = useCallback(() => {
     db.listSources().then(({ tree }) => {
       const cardTop = tree.find((t) => t.name === '카드');
-      const list = [];
-      if (cardTop) {
-        list.push({ id: cardTop.id, name: '카드 (전체)' });
-        (cardTop.children || []).forEach((c) => list.push({ id: c.id, name: c.name }));
-      }
-      setCards(list);
+      // 세부 항목(각 카드)만. 상위 '카드(전체)'는 제외.
+      setCards((cardTop?.children || []).map((c) => ({ id: c.id, name: c.name })));
     }).catch(() => setCards([]));
     db.listCardBenefits().then(setTiers).catch(() => setTiers([]));
   }, []);
