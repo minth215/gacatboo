@@ -18,7 +18,9 @@ export default function MemberDetail() {
   const [sub, setSub] = useState(null);
   const [deposits, setDeposits] = useState([]);
   const [cats, setCats] = useState([]);
+  const [incomeCats, setIncomeCats] = useState([]);
   const [sources, setSources] = useState({ tree: [], flat: [] });
+  const [recentExpenses, setRecentExpenses] = useState([]);
   const [editor, setEditor] = useState(null);    // 카드 수정
   const [depEditor, setDepEditor] = useState(null); // 입금 수정
 
@@ -37,8 +39,10 @@ export default function MemberDetail() {
   useEffect(() => { loadGroup(); loadDeps(); db.getSubscription(gid).then(setSub).catch(() => {}); }, [loadGroup, loadDeps, gid]);
   useEffect(() => {
     db.listCategories('expense').then(setCats).catch(() => {});
+    db.listCategories('income').then(setIncomeCats).catch(() => {});
     db.listSources().then(setSources).catch(() => {});
-  }, []);
+    db.listRecentExpenses(user.id).then(setRecentExpenses).catch(() => {});
+  }, [user.id]);
 
   if (!group || !member) return <div className="empty">불러오는 중…</div>;
 
@@ -125,7 +129,8 @@ export default function MemberDetail() {
       )}
 
       {depEditor && (
-        <DepositForm initial={depEditor} sub={sub} cats={cats} sources={sources} members={[member]}
+        <DepositForm initial={depEditor} sub={sub} cats={cats} incomeCats={incomeCats} sources={sources}
+          members={[member]} recentExpenses={recentExpenses} isOwner={isOwner}
           onClose={() => setDepEditor(null)}
           onSave={async (p) => { await db.updateDeposit(depEditor.id, p); setDepEditor(null); loadDeps(); }} />
       )}

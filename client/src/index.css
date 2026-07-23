@@ -154,6 +154,10 @@ a { color: inherit; text-decoration: none; }
 .field .with-suffix { position: relative; }
 .field .with-suffix .suffix { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; }
 
+/* 폼 영역 구분 (멤버/총대 가계부) */
+.form-section { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; background: #fbfbfe; }
+.form-section-title { font-size: 12px; font-weight: 800; color: var(--primary); margin-bottom: 8px; }
+
 .error { color: var(--expense); font-size: 13px; }
 .success { color: #12894f; font-size: 13px; }
 

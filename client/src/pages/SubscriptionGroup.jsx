@@ -52,6 +52,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   const [cats, setCats] = useState([]);
   const [incomeCats, setIncomeCats] = useState([]);
   const [sources, setSources] = useState({ tree: [], flat: [] });
+  const [recentExpenses, setRecentExpenses] = useState([]);
 
   const [payEditor, setPayEditor] = useState(null); // null | {rec?}
   const [depEditor, setDepEditor] = useState(null);
@@ -68,7 +69,8 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
     db.listCategories('expense').then(setCats).catch(() => {});
     db.listCategories('income').then(setIncomeCats).catch(() => {});
     db.listSources().then(setSources).catch(() => {});
-  }, []);
+    db.listRecentExpenses(user.id).then(setRecentExpenses).catch(() => {});
+  }, [user.id]);
 
   // 가계부에서 넘어온 편집 요청: ?edit=payment:ID | deposit:ID
   useEffect(() => {
@@ -217,8 +219,8 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
           }} />
       )}
       {depEditor && (
-        <DepositForm initial={depEditor.rec} sub={sub} cats={cats} sources={sources}
-          members={isOwner ? memberList : (myMember ? [myMember] : [])}
+        <DepositForm initial={depEditor.rec} sub={sub} cats={cats} incomeCats={incomeCats} sources={sources}
+          members={isOwner ? memberList : (myMember ? [myMember] : [])} recentExpenses={recentExpenses} isOwner={isOwner}
           onClose={() => setDepEditor(null)}
           onSave={async (p) => {
             if (depEditor.rec) await db.updateDeposit(depEditor.rec.id, p);
@@ -283,34 +285,69 @@ function PaymentForm({ initial, cats, sources, onClose, onSave }) {
   );
 }
 
-export function DepositForm({ initial, sub, cats, sources, members, onClose, onSave }) {
+export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onClose, onSave }) {
   const editing = !!initial;
+  const defMemberCat = cats.find((c) => c.name === '구독');     // 멤버 지출 기본 '구독'
+  const defLeaderCat = incomeCats.find((c) => c.name === sub?.deposit_category); // 총대 수입 기본 = 입금분류
   const [f, setF] = useState(() => editing ? {
     memberId: String(initial.member_id), date: initial.date, amount: String(initial.amount), periods: String(initial.periods || 1),
-    categoryId: matchCatId(cats, initial.category_name) || (initial.category_name ? KEEP : ''),
-    sourceId: initial.source_name ? KEEP : '', depositSourceId: initial.deposit_source_name ? KEEP : '',
+    // 멤버 영역
+    mCatId: matchCatId(cats, initial.category_name) || (initial.category_name ? KEEP : ''),
+    mSourceId: initial.source_name ? KEEP : '',
+    // 총대 영역
+    lCatId: matchCatId(incomeCats, initial.leader_category_name) || (initial.leader_category_name ? KEEP : ''),
+    lSettleId: initial.leader_settlement_target_id ? String(initial.leader_settlement_target_id) : '',
+    lSourceId: initial.deposit_source_name ? KEEP : '',
     content: initial.content || '', memo: initial.memo || '',
   } : {
     memberId: members[0] ? String(members[0].id) : '', date: today(),
     amount: sub?.deposit_amount ? String(sub.deposit_amount) : '', periods: '1',
-    categoryId: '', sourceId: '', depositSourceId: '', content: '', memo: '',
+    mCatId: defMemberCat ? String(defMemberCat.id) : '', mSourceId: '',
+    lCatId: defLeaderCat ? String(defLeaderCat.id) : '', lSettleId: '', lSourceId: '',
+    content: '', memo: '',
   });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
+
+  const leaderCat = f.lCatId === KEEP
+    ? { name: initial?.leader_category_name, emoji: initial?.leader_category_emoji }
+    : incomeCats.find((c) => String(c.id) === f.lCatId);
+  const leaderIsSettle = leaderCat?.name === '정산';
 
   const submit = async () => {
     if (!f.memberId) return setErr('멤버를 선택하세요.');
     if (!f.amount || Number(f.amount) < 0) return setErr('금액을 입력하세요.');
-    let category_name = '', category_emoji = '';
-    if (f.categoryId === KEEP) { category_name = initial.category_name; category_emoji = initial.category_emoji; }
-    else if (f.categoryId) { const c = cats.find((x) => String(x.id) === f.categoryId); if (c) { category_name = c.name; category_emoji = c.emoji || ''; } }
-    const source_name = f.sourceId === KEEP ? (initial?.source_name || '') : sourceNameOf(sources.flat, f.sourceId);
-    const deposit_source_name = f.depositSourceId === KEEP ? (initial?.deposit_source_name || '') : sourceNameOf(sources.flat, f.depositSourceId);
+
+    // 멤버 가계부(지출) 필드
+    let m_name = '', m_emoji = '', m_source = '';
+    if (isOwner) {
+      if (editing) { m_name = initial.category_name; m_emoji = initial.category_emoji; m_source = initial.source_name; }
+      else { m_name = '구독'; m_emoji = defMemberCat?.emoji || ''; m_source = ''; }
+    } else {
+      if (f.mCatId === KEEP) { m_name = initial.category_name; m_emoji = initial.category_emoji; }
+      else if (f.mCatId) { const c = cats.find((x) => String(x.id) === f.mCatId); if (c) { m_name = c.name; m_emoji = c.emoji || ''; } }
+      m_source = f.mSourceId === KEEP ? (initial?.source_name || '') : sourceNameOf(sources.flat, f.mSourceId);
+    }
+
+    // 총대 가계부(수입) 필드
+    let l_name = '', l_emoji = '', l_settle = null, l_source = '';
+    if (isOwner) {
+      if (f.lCatId === KEEP) { l_name = initial.leader_category_name; l_emoji = initial.leader_category_emoji; }
+      else if (f.lCatId) { const c = incomeCats.find((x) => String(x.id) === f.lCatId); if (c) { l_name = c.name; l_emoji = c.emoji || ''; } }
+      l_settle = (l_name === '정산' && f.lSettleId) ? Number(f.lSettleId) : null;
+      l_source = f.lSourceId === KEEP ? (initial?.deposit_source_name || '') : sourceNameOf(sources.flat, f.lSourceId);
+    } else {
+      if (editing) { l_name = initial.leader_category_name; l_emoji = initial.leader_category_emoji; l_settle = initial.leader_settlement_target_id || null; l_source = initial.deposit_source_name; }
+      else { l_name = sub?.deposit_category || ''; l_emoji = sub?.deposit_category_emoji || ''; l_settle = null; l_source = ''; }
+    }
+
     setBusy(true); setErr('');
     try {
       await onSave({
         member_id: Number(f.memberId), date: f.date, amount: Math.round(Number(f.amount)),
         periods: Math.max(Number(f.periods) || 1, 1),
-        category_name, category_emoji, source_id: null, source_name, deposit_source_name,
+        category_name: m_name, category_emoji: m_emoji, source_id: null, source_name: m_source,
+        deposit_source_name: l_source,
+        leader_category_name: l_name, leader_category_emoji: l_emoji, leader_settlement_target_id: l_settle,
         content: f.content, memo: f.memo,
       });
     } catch (e) { setErr(e.message); setBusy(false); }
@@ -318,6 +355,7 @@ export function DepositForm({ initial, sub, cats, sources, members, onClose, onS
 
   return (
     <Modal title={editing ? '입금 내역 수정' : '입금 내역 추가'} onClose={onClose}>
+      {/* 공통 */}
       <div className="field"><label>멤버</label>
         <select value={f.memberId} onChange={(e) => setF({ ...f, memberId: e.target.value })} disabled={editing || members.length <= 1}>
           {members.map((m) => <option key={m.id} value={m.id}>{m.nickname}</option>)}
@@ -330,18 +368,42 @@ export function DepositForm({ initial, sub, cats, sources, members, onClose, onS
         </div>
         <div className="field"><label>기간(회차)</label><input type="number" min="1" value={f.periods} onChange={(e) => setF({ ...f, periods: e.target.value })} /></div>
       </div>
-      <div className="grid2">
-        <div className="field"><label>날짜</label><input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></div>
-        <div className="field"><label>분류</label>
-          <CategorySelect cats={cats} value={f.categoryId} onChange={(v) => setF({ ...f, categoryId: v })} keepLabel={initial?.category_name} />
+      <div className="field"><label>날짜</label><input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></div>
+
+      {isOwner ? (
+        /* 총대 가계부 영역 */
+        <div className="form-section">
+          <div className="form-section-title">총대 가계부 (수입)</div>
+          <div className="field"><label>분류</label>
+            <CategorySelect cats={incomeCats} value={f.lCatId} onChange={(v) => setF({ ...f, lCatId: v })} keepLabel={initial?.leader_category_name} />
+          </div>
+          {leaderIsSettle && (
+            <div className="field"><label>정산 대상 <span className="small muted">(정산할 지출 선택)</span></label>
+              <select value={f.lSettleId} onChange={(e) => setF({ ...f, lSettleId: e.target.value })}>
+                <option value="">선택 안 함</option>
+                {recentExpenses.map((x) => (
+                  <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="field"><label>원천</label>
+            <SourceSelect sources={sources.tree} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} />
+          </div>
         </div>
-      </div>
-      <div className="field"><label>원천</label>
-        <SourceSelect sources={sources.tree} value={f.sourceId} onChange={(v) => setF({ ...f, sourceId: v })} keepLabel={initial?.source_name} />
-      </div>
-      <div className="field"><label>입금수단 <span className="small muted">(총대의 원천)</span></label>
-        <SourceSelect sources={sources.tree} value={f.depositSourceId} onChange={(v) => setF({ ...f, depositSourceId: v })} keepLabel={initial?.deposit_source_name} />
-      </div>
+      ) : (
+        /* 멤버 가계부 영역 */
+        <div className="form-section">
+          <div className="form-section-title">내 가계부 (지출)</div>
+          <div className="field"><label>분류</label>
+            <CategorySelect cats={cats} value={f.mCatId} onChange={(v) => setF({ ...f, mCatId: v })} keepLabel={initial?.category_name} />
+          </div>
+          <div className="field"><label>원천</label>
+            <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} />
+          </div>
+        </div>
+      )}
+
       <div className="field"><label>내용</label><input value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} placeholder="예: 넷플릭스 회비" /></div>
       <div className="field"><label>메모</label><textarea value={f.memo} onChange={(e) => setF({ ...f, memo: e.target.value })} /></div>
       {err && <p className="error">{err}</p>}

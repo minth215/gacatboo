@@ -56,6 +56,7 @@ client (React + Vite)  ──supabase-js──▶  Supabase
    - [`supabase/migrations/0006_member_detail.sql`](supabase/migrations/0006_member_detail.sql) — 멤버 다음 입금일 수동 지정(next_due_override) · 멤버 수정 RLS 정책 보강
    - [`supabase/migrations/0007_group_dates_card_benefits.sql`](supabase/migrations/0007_group_dates_card_benefits.sql) — 그룹 시작/종료일 · 카드 실적(혜택 구간) 테이블
    - [`supabase/migrations/0008_source_name_child_only.sql`](supabase/migrations/0008_source_name_child_only.sql) — 원천 표기를 세부 항목명만으로 정리(기존 데이터)
+   - [`supabase/migrations/0009_deposit_leader_fields.sql`](supabase/migrations/0009_deposit_leader_fields.sql) — 입금 내역에 총대 가계부 분류/정산대상 분리 저장(RPC/트리거 갱신)
 3. **Authentication > Providers > Email** 활성화. 테스트 편의를 위해
    **Authentication > Sign In / Providers > "Confirm email"** 을 끄면 가입 즉시 로그인 흐름을 확인하기 쉽습니다.
 

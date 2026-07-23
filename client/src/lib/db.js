@@ -320,6 +320,8 @@ export const db = {
       p_periods: p.periods, p_category_name: p.category_name || '', p_category_emoji: p.category_emoji || '',
       p_source_id: p.source_id || null, p_source_name: p.source_name || '',
       p_deposit_source_name: p.deposit_source_name || '', p_content: p.content || '', p_memo: p.memo || '',
+      p_leader_category_name: p.leader_category_name || '', p_leader_category_emoji: p.leader_category_emoji || '',
+      p_leader_settlement_target_id: p.leader_settlement_target_id || null,
     });
     if (error) throw new Error(error.message);
     return data;
@@ -331,6 +333,8 @@ export const db = {
       category_name: p.category_name || '', category_emoji: p.category_emoji || '',
       source_name: p.source_name || '', deposit_source_name: p.deposit_source_name || '',
       content: (p.content || '').trim(), memo: (p.memo || '').trim(),
+      leader_category_name: p.leader_category_name || '', leader_category_emoji: p.leader_category_emoji || '',
+      leader_settlement_target_id: p.leader_settlement_target_id || null,
     }).eq('id', id).select().single());
   },
   async deleteDeposit(id) {
