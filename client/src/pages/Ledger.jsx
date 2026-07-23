@@ -12,18 +12,26 @@ export default function Ledger() {
   const [txs, setTxs] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [summary, setSummary] = useState({ income: 0, expense: 0 });
+
   const load = useCallback(() => {
     setLoading(true);
     db.listLedger({ month })
-      .then(setTxs)
-      .catch(() => setTxs([]))
+      .then(async (list) => {
+        setTxs(list);
+        // 정산 반영: 정산 수입은 수입에서 제외, 대상 지출은 정산액만큼 차감
+        const map = await db.settlementsByTarget(list.filter((t) => t.type === 'expense').map((t) => t.id));
+        const income = list.filter((t) => t.type === 'income' && t.settlement_target_id == null).reduce((s, t) => s + Number(t.amount), 0);
+        const expense = list.filter((t) => t.type === 'expense').reduce((s, t) => s + Math.max(0, Number(t.amount) - (map[t.id] || 0)), 0);
+        setSummary({ income, expense });
+      })
+      .catch(() => { setTxs([]); setSummary({ income: 0, expense: 0 }); })
       .finally(() => setLoading(false));
   }, [month]);
 
   useEffect(() => { load(); }, [load]);
 
-  const income = txs.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
-  const expense = txs.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+  const { income, expense } = summary;
 
   // 개인 항목은 본인, 그룹 항목은 작성자만 수정. 구독 미러 항목은 그룹 편집기로 연결(항상 클릭 가능).
   const canEdit = (t) => (t.origin_type ? true : t.created_by === user.id);

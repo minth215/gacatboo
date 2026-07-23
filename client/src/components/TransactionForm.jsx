@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { today } from '../lib/format.js';
+import { today, fmtWon } from '../lib/format.js';
 
 // 분류/원천에 id 는 없고 이름(스냅샷)만 있는 항목(그룹 자동기입 등)을 표시하기 위한 센티넬
 const SNAP = '__snap__';
@@ -23,19 +23,24 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
   );
   const [content, setContent] = useState(initial?.content || '');
   const [memo, setMemo] = useState(initial?.memo || '');
+  const [settlementTargetId, setSettlementTargetId] = useState(initial?.settlement_target_id ? String(initial.settlement_target_id) : '');
 
   const [categories, setCategories] = useState([]);
   const [sources, setSources] = useState([]);
   const [sourcesFlat, setSourcesFlat] = useState([]);
+  const [recentExpenses, setRecentExpenses] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     db.listCategories().then(setCategories).catch(() => {});
     db.listSources().then(({ tree, flat }) => { setSources(tree); setSourcesFlat(flat); }).catch(() => {});
+    db.listRecentExpenses(user.id, { includeId: initial?.settlement_target_id || null }).then(setRecentExpenses).catch(() => {});
   }, []);
 
   const catOptions = useMemo(() => categories.filter((c) => c.type === type), [categories, type]);
+  const selCategory = categories.find((c) => String(c.id) === String(categoryId));
+  const isSettlement = type === 'income' && selCategory?.name === '정산';
 
   const submit = async (e) => {
     e.preventDefault();
@@ -70,6 +75,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
       category_id, category_name, category_emoji,
       source_id, source_name,
       content, memo,
+      settlement_target_id: (isSettlement && settlementTargetId) ? Number(settlementTargetId) : null,
       group_id: groupId || null,
     };
     try {
@@ -139,6 +145,21 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
           ))}
         </select>
       </div>
+
+      {isSettlement && (
+        <div className="field">
+          <label>정산 대상 <span className="small muted">(정산할 지출 선택)</span></label>
+          <select value={settlementTargetId} onChange={(e) => setSettlementTargetId(e.target.value)}>
+            <option value="">선택 안 함</option>
+            {recentExpenses.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.date.slice(5)} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})
+              </option>
+            ))}
+          </select>
+          <p className="small muted" style={{ margin: '4px 2px 0' }}>선택한 지출에서 이 금액만큼 차감되고, 이 수입은 통계에서 제외됩니다.</p>
+        </div>
+      )}
 
       <div className="field">
         <label>내용</label>

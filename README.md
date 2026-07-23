@@ -52,6 +52,7 @@ client (React + Vite)  ──supabase-js──▶  Supabase
    - [`supabase/migrations/0002_emoji_group_categories.sql`](supabase/migrations/0002_emoji_group_categories.sql) — 분류 이모지 · 사용자 편집형 그룹 카테고리 (기존 사용자 백필 포함)
    - [`supabase/migrations/0003_members_subscriptions.sql`](supabase/migrations/0003_members_subscriptions.sql) — 외부 멤버(계정 없는 멤버) · 멤버 메모(총무 전용) · 구독형 그룹(설정/결제/입금) · 입금 RPC
    - [`supabase/migrations/0004_subscription_sync.sql`](supabase/migrations/0004_subscription_sync.sql) — 구독 결제/입금 ↔ 개인 가계부 양방향 동기화(원본 링크 컬럼 · 동기화 트리거 · 수정 권한)
+   - [`supabase/migrations/0005_settlement.sql`](supabase/migrations/0005_settlement.sql) — 정산(N빵) 수입 분류 · 대상 지출 링크(settlement_target_id) · 통계 차감
 3. **Authentication > Providers > Email** 활성화. 테스트 편의를 위해
    **Authentication > Sign In / Providers > "Confirm email"** 을 끄면 가입 즉시 로그인 흐름을 확인하기 쉽습니다.
 

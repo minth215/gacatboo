@@ -101,6 +101,35 @@ export const db = {
     return unwrap(await supabase.from('transactions').select(TX_SELECT).eq('id', id).single());
   },
 
+  // ---------- 정산 ----------
+  // 정산 대상 선택용: 최근 개인 지출 목록 (기본 최근 120일)
+  async listRecentExpenses(userId, { days = 120, includeId = null } = {}) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - days);
+    const since = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    const rows = unwrap(await supabase.from('transactions')
+      .select('id, date, amount, content, category_name, category_emoji')
+      .eq('user_id', userId).is('group_id', null).eq('type', 'expense')
+      .gte('date', since).order('date', { ascending: false }).order('id', { ascending: false }));
+    // 편집 중인 대상이 기간 밖이면 포함
+    if (includeId && !rows.some((r) => r.id === includeId)) {
+      const one = unwrap(await supabase.from('transactions')
+        .select('id, date, amount, content, category_name, category_emoji').eq('id', includeId).maybeSingle());
+      if (one) rows.unshift(one);
+    }
+    return rows;
+  },
+  // 대상 지출 id 들에 매겨진 정산(수입) 합계 맵 { targetId: sum }
+  async settlementsByTarget(expenseIds) {
+    if (!expenseIds || !expenseIds.length) return {};
+    const rows = unwrap(await supabase.from('transactions')
+      .select('settlement_target_id, amount')
+      .eq('type', 'income').in('settlement_target_id', expenseIds));
+    const map = {};
+    (rows || []).forEach((r) => { map[r.settlement_target_id] = (map[r.settlement_target_id] || 0) + Number(r.amount); });
+    return map;
+  },
+
   async saveTransaction({ id, userId, payload, sourcesFlat }) {
     const category_name = payload.category_name ?? '';
     const source_name = payload.source_name !== undefined
@@ -117,6 +146,7 @@ export const db = {
       source_name,
       content: (payload.content || '').trim(),
       memo: (payload.memo || '').trim(),
+      settlement_target_id: payload.settlement_target_id ?? null,
     };
     if (id) {
       return unwrap(await supabase.from('transactions').update(base).eq('id', id).select(TX_SELECT).single());
@@ -305,42 +335,35 @@ export const db = {
   },
   // ---------- 통계 (클라이언트 집계) ----------
   async personalStats(month, userId) {
-    const [y, m] = month.split('-').map(Number);
-    const startDate = new Date(Date.UTC(y, m - 6, 1)); // 최근 6개월
-    const startMonth = `${startDate.getUTCFullYear()}-${String(startDate.getUTCMonth() + 1).padStart(2, '0')}`;
-    const { endExclusive } = monthBounds(month);
-    const rows = unwrap(await supabase.from('transactions').select('type, amount, date, category_name')
+    const { start, endExclusive } = monthBounds(month);
+    const rows = unwrap(await supabase.from('transactions')
+      .select('id, type, amount, category_name, settlement_target_id')
       .is('group_id', null).eq('user_id', userId)
-      .gte('date', `${startMonth}-01`).lt('date', endExclusive));
+      .gte('date', start).lt('date', endExclusive));
 
-    const inMonth = (r) => r.date.slice(0, 7) === month;
-    const cur = rows.filter(inMonth);
-    const sum = (arr, t) => arr.filter((r) => r.type === t).reduce((s, r) => s + Number(r.amount), 0);
-    const income = sum(cur, 'income');
-    const expense = sum(cur, 'expense');
+    const expenses = rows.filter((r) => r.type === 'expense');
+    // 이 달 지출들에 매겨진 정산(수입) 합계 — 정산은 다른 달일 수도 있으므로 전 기간 조회
+    const settleMap = await this.settlementsByTarget(expenses.map((r) => r.id));
 
-    const byCat = (type) => {
+    // 정산 수입(대상 지정된 income)은 수입에서 제외
+    const incomeRows = rows.filter((r) => r.type === 'income' && r.settlement_target_id == null);
+    const income = incomeRows.reduce((s, r) => s + Number(r.amount), 0);
+
+    // 대상 지출은 정산액만큼 차감(0 하한)
+    const effExpense = (r) => Math.max(0, Number(r.amount) - (settleMap[r.id] || 0));
+    const expense = expenses.reduce((s, r) => s + effExpense(r), 0);
+
+    const groupCat = (items, valueOf) => {
       const map = {};
-      cur.filter((r) => r.type === type).forEach((r) => {
-        const n = r.category_name || '미분류';
-        map[n] = (map[n] || 0) + Number(r.amount);
-      });
-      return Object.entries(map).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total);
+      items.forEach((r) => { const n = r.category_name || '미분류'; map[n] = (map[n] || 0) + valueOf(r); });
+      return Object.entries(map).map(([name, total]) => ({ name, total }))
+        .filter((x) => x.total > 0).sort((a, b) => b.total - a.total);
     };
-
-    const trend = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(Date.UTC(y, m - 1 - i, 1));
-      const mm = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-      const mrows = rows.filter((r) => r.date.slice(0, 7) === mm);
-      trend.push({ month: mm, income: sum(mrows, 'income'), expense: sum(mrows, 'expense') });
-    }
 
     return {
       totals: { income, expense, balance: income - expense },
-      incomeByCategory: byCat('income'),
-      expenseByCategory: byCat('expense'),
-      trend,
+      incomeByCategory: groupCat(incomeRows, (r) => Number(r.amount)),
+      expenseByCategory: groupCat(expenses, effExpense),
     };
   },
 
