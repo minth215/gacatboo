@@ -19,10 +19,12 @@ export default function Ledger() {
     db.listLedger({ month })
       .then(async (list) => {
         setTxs(list);
-        // 정산 반영: 정산 수입은 수입에서 제외, 대상 지출은 정산액만큼 차감
-        const map = await db.settlementsByTarget(list.filter((t) => t.type === 'expense').map((t) => t.id));
-        const income = list.filter((t) => t.type === 'income' && t.settlement_target_id == null).reduce((s, t) => s + Number(t.amount), 0);
-        const expense = list.filter((t) => t.type === 'expense').reduce((s, t) => s + Math.max(0, Number(t.amount) - (map[t.id] || 0)), 0);
+        // 정산 반영: 정산 수입은 수입에서 제외, 대상 지출은 정산액만큼 차감(초과분은 수입으로)
+        const exList = list.filter((t) => t.type === 'expense');
+        const map = await db.settlementsByTarget(exList.map((t) => t.id));
+        const expense = exList.reduce((s, t) => s + Math.max(0, Number(t.amount) - (map[t.id] || 0)), 0);
+        const excess = exList.reduce((s, t) => s + Math.max(0, (map[t.id] || 0) - Number(t.amount)), 0);
+        const income = list.filter((t) => t.type === 'income' && t.settlement_target_id == null).reduce((s, t) => s + Number(t.amount), 0) + excess;
         setSummary({ income, expense });
       })
       .catch(() => { setTxs([]); setSummary({ income: 0, expense: 0 }); })

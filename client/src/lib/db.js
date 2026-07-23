@@ -387,11 +387,13 @@ export const db = {
 
     // 정산 수입(대상 지정된 income)은 수입에서 제외
     const incomeRows = rows.filter((r) => r.type === 'income' && r.settlement_target_id == null);
-    const income = incomeRows.reduce((s, r) => s + Number(r.amount), 0);
 
-    // 대상 지출은 정산액만큼 차감(0 하한)
+    // 대상 지출은 정산액만큼 차감(0 하한). 정산액이 지출보다 크면 초과분은 수입으로 계상.
     const effExpense = (r) => Math.max(0, Number(r.amount) - (settleMap[r.id] || 0));
+    const excessOf = (r) => Math.max(0, (settleMap[r.id] || 0) - Number(r.amount));
     const expense = expenses.reduce((s, r) => s + effExpense(r), 0);
+    const settleExcess = expenses.reduce((s, r) => s + excessOf(r), 0);
+    const income = incomeRows.reduce((s, r) => s + Number(r.amount), 0) + settleExcess;
 
     const groupCat = (items, valueOf) => {
       const map = {};
@@ -413,11 +415,20 @@ export const db = {
     const grossBySourceId = {};
     expenses.forEach((r) => { if (r.source_id != null) grossBySourceId[r.source_id] = (grossBySourceId[r.source_id] || 0) + Number(r.amount); });
 
+    const incomeByCategory = groupCat(incomeRows, (r) => Number(r.amount));
+    const incomeBySource = groupSrc(incomeRows, (r) => Number(r.amount));
+    if (settleExcess > 0) { // 정산 초과분은 '정산' 수입으로 표기
+      incomeByCategory.push({ name: '정산', total: settleExcess });
+      incomeByCategory.sort((a, b) => b.total - a.total);
+      incomeBySource.push({ source_id: null, name: '정산', total: settleExcess });
+      incomeBySource.sort((a, b) => b.total - a.total);
+    }
+
     return {
       totals: { income, expense, balance: income - expense },
-      incomeByCategory: groupCat(incomeRows, (r) => Number(r.amount)),
+      incomeByCategory,
       expenseByCategory: groupCat(expenses, effExpense),
-      incomeBySource: groupSrc(incomeRows, (r) => Number(r.amount)),
+      incomeBySource,
       expenseBySource: groupSrc(expenses, effExpense),
       grossBySourceId,
     };
