@@ -30,16 +30,29 @@ export default function GroupDetail() {
 
   const header = (
     <>
-      <button className="btn sm ghost" onClick={() => nav('/groups')} style={{ marginBottom: 8, paddingLeft: 0 }}>‹ 그룹 목록</button>
+      <div className="between" style={{ marginBottom: 8 }}>
+        <button className="btn sm ghost" onClick={() => nav('/groups')} style={{ paddingLeft: 0 }}>‹ 그룹 목록</button>
+        {isOwner && (
+          <button className="btn sm ghost" onClick={() => nav(`/groups/${gid}/edit`)} aria-label="그룹 정보 수정" style={{ display: 'inline-flex', padding: 6 }}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
+        )}
+      </div>
       <div className="card">
         <div className="between">
           <div>
-            <div style={{ fontWeight: 800, fontSize: 18 }}>{group.name}</div>
+            <div style={{ fontWeight: 800, fontSize: 18 }}>{group.name}{group.end_date && <span className="badge rejected" style={{ marginLeft: 6 }}>종료</span>}</div>
             <div className="small muted" style={{ marginTop: 2 }}>{group.description || '설명 없음'}</div>
           </div>
           <span className="chip">{group.category_emoji ? `${group.category_emoji} ` : ''}{group.category}</span>
         </div>
-        <div className="small muted" style={{ marginTop: 10 }}>{leaderName} {group.owner_name} · 멤버 {members.length}명</div>
+        <div className="small muted" style={{ marginTop: 10 }}>
+          {leaderName} {group.owner_name} · 멤버 {members.length}명
+          {group.start_date && <> · {group.start_date}{group.end_date ? ` ~ ${group.end_date}` : ' ~'}</>}
+        </div>
       </div>
     </>
   );

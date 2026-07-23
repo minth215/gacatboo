@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { leaderLabel } from '../lib/format.js';
+import { leaderLabel, today } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 
 export default function Groups() {
@@ -12,7 +12,7 @@ export default function Groups() {
   const [groupCats, setGroupCats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', category: '', category_emoji: '' });
+  const [form, setForm] = useState({ name: '', description: '', category: '', category_emoji: '', start_date: today() });
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
@@ -24,7 +24,7 @@ export default function Groups() {
 
   const openModal = () => {
     const first = groupCats[0];
-    setForm({ name: '', description: '', category: first?.name || '기타', category_emoji: first?.emoji || '' });
+    setForm({ name: '', description: '', category: first?.name || '기타', category_emoji: first?.emoji || '', start_date: today() });
     setError('');
     setModal(true);
   };
@@ -81,6 +81,10 @@ export default function Groups() {
             <div className="field">
               <label>설명</label>
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="그룹 설명 (선택)" />
+            </div>
+            <div className="field">
+              <label>시작일자</label>
+              <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
             </div>
             <div className="field">
               <div className="field-label-row">

@@ -5,36 +5,65 @@ import { useAuth } from '../lib/auth.jsx';
 import { PALETTE } from '../lib/chartSetup.js';
 import { currentMonth, shiftMonth, monthLabel, fmtWon } from '../lib/format.js';
 
+const EMPTY = {
+  totals: { income: 0, expense: 0, balance: 0 },
+  incomeByCategory: [], expenseByCategory: [], incomeBySource: [], expenseBySource: [], grossBySourceId: {},
+};
+
 export default function Stats() {
   const { user } = useAuth();
   const [month, setMonth] = useState(currentMonth());
   const [data, setData] = useState(null);
+  const [tiers, setTiers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('expense'); // expense | income
-
-  const EMPTY = { totals: { income: 0, expense: 0, balance: 0 }, incomeByCategory: [], expenseByCategory: [], trend: [] };
 
   const load = useCallback(() => {
     setLoading(true);
     db.personalStats(month, user.id)
       .then(setData)
-      .catch((e) => { console.error(e); setData(EMPTY); }) // 에러/무데이터여도 페이지는 표시
+      .catch((e) => { console.error(e); setData(EMPTY); })
       .finally(() => setLoading(false));
   }, [month, user.id]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { db.listCardBenefits().then(setTiers).catch(() => setTiers([])); }, []);
 
   if (loading && !data) return <div className="empty">불러오는 중…</div>;
   const view = data || EMPTY;
-
-  const { totals, incomeByCategory, expenseByCategory } = view;
+  const { totals, incomeByCategory, expenseByCategory, incomeBySource, expenseBySource, grossBySourceId } = view;
   const byCat = tab === 'expense' ? expenseByCategory : incomeByCategory;
+  const bySrc = tab === 'expense' ? expenseBySource : incomeBySource;
+
+  // source_id 별 카드 실적 구간
+  const tiersBySource = {};
+  tiers.forEach((t) => { (tiersBySource[t.source_id] ||= []).push(t); });
+  Object.values(tiersBySource).forEach((arr) => arr.sort((a, b) => a.threshold - b.threshold));
 
   const doughnut = {
     labels: byCat.map((c) => c.name),
     datasets: [{ data: byCat.map((c) => c.total), backgroundColor: PALETTE, borderWidth: 2, borderColor: '#fff' }],
   };
-
   const totalCat = byCat.reduce((s, c) => s + c.total, 0);
+  const totalSrc = bySrc.reduce((s, c) => s + c.total, 0);
+
+  const cardProgress = (sourceId) => {
+    const arr = tiersBySource[sourceId];
+    if (!arr || !arr.length) return null;
+    const gross = grossBySourceId[sourceId] || 0;
+    const achieved = [...arr].filter((t) => gross >= Number(t.threshold)).pop();
+    const next = arr.find((t) => gross < Number(t.threshold));
+    const ratio = next ? Math.min(100, Math.round((gross / Number(next.threshold)) * 100)) : 100;
+    return (
+      <div style={{ margin: '4px 0 10px', paddingLeft: 20 }}>
+        <div className="prog"><i style={{ width: `${ratio}%` }} /></div>
+        <div className="small muted" style={{ marginTop: 4 }}>
+          사용 {fmtWon(gross)}
+          {achieved ? ` · ✅ ${achieved.benefit || '혜택'}` : ''}
+          {next ? ` · 다음 ${next.benefit || '혜택'}까지 ${fmtWon(Number(next.threshold) - gross)}` : (achieved ? ' · 최고 혜택 달성' : '')}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -50,18 +79,17 @@ export default function Stats() {
         <div className="box"><div className="lbl">합계</div><div className="val">{fmtWon(totals.balance)}</div></div>
       </div>
 
-      <div className="card">
-        <div className="between" style={{ marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>분류별 {tab === 'expense' ? '지출' : '수입'}</h3>
-          <div className="pill-toggle">
-            <button className={tab === 'income' ? 'income active' : ''} onClick={() => setTab('income')}>수입</button>
-            <button className={tab === 'expense' ? 'expense active' : ''} onClick={() => setTab('expense')}>지출</button>
-          </div>
+      <div className="center" style={{ marginBottom: 14 }}>
+        <div className="pill-toggle">
+          <button className={tab === 'income' ? 'income active' : ''} onClick={() => setTab('income')}>수입</button>
+          <button className={tab === 'expense' ? 'expense active' : ''} onClick={() => setTab('expense')}>지출</button>
         </div>
+      </div>
 
-        {byCat.length === 0 ? (
-          <div className="empty">해당 월 데이터가 없습니다.</div>
-        ) : (
+      {/* 분류별 */}
+      <div className="card">
+        <h3>분류별 {tab === 'expense' ? '지출' : '수입'}</h3>
+        {byCat.length === 0 ? <div className="empty">해당 월 데이터가 없습니다.</div> : (
           <>
             <div className="chart-box">
               <Doughnut data={doughnut} options={{
@@ -80,6 +108,26 @@ export default function Stats() {
               ))}
             </div>
           </>
+        )}
+      </div>
+
+      {/* 원천별 */}
+      <div className="card">
+        <h3>원천별 {tab === 'expense' ? '지출' : '수입'}</h3>
+        {bySrc.length === 0 ? <div className="empty">해당 월 데이터가 없습니다.</div> : (
+          <div className="legend-list">
+            {bySrc.map((s, i) => (
+              <div key={s.source_id != null ? `id${s.source_id}` : `nm${s.name}`}>
+                <div className="legend-row">
+                  <span className="sw" style={{ background: PALETTE[i % PALETTE.length] }} />
+                  <span className="lname">{s.name}</span>
+                  <span className="muted small">{totalSrc ? Math.round((s.total / totalSrc) * 100) : 0}%</span>
+                  <span className="lval">{fmtWon(s.total)}</span>
+                </div>
+                {tab === 'expense' && s.source_id != null && cardProgress(s.source_id)}
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

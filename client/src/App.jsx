@@ -9,9 +9,11 @@ import Stats from './pages/Stats.jsx';
 import Settings from './pages/Settings.jsx';
 import CategoryManage from './pages/CategoryManage.jsx';
 import SourceManage from './pages/SourceManage.jsx';
+import CardBenefits from './pages/CardBenefits.jsx';
 import GroupCategoryManage from './pages/GroupCategoryManage.jsx';
 import Groups from './pages/Groups.jsx';
 import GroupDetail from './pages/GroupDetail.jsx';
+import GroupEdit from './pages/GroupEdit.jsx';
 import MemberDetail from './pages/MemberDetail.jsx';
 import Admin from './pages/Admin.jsx';
 
@@ -38,10 +40,12 @@ export default function App() {
         <Route path="/stats" element={<Stats />} />
         <Route path="/groups" element={<Groups />} />
         <Route path="/groups/:id" element={<GroupDetail />} />
+        <Route path="/groups/:id/edit" element={<GroupEdit />} />
         <Route path="/groups/:id/member/:memberId" element={<MemberDetail />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/categories/:type" element={<CategoryManage />} />
         <Route path="/settings/sources" element={<SourceManage />} />
+        <Route path="/settings/card-benefits" element={<CardBenefits />} />
         <Route path="/settings/group-categories" element={<GroupCategoryManage />} />
         <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
       </Route>

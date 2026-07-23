@@ -273,6 +273,10 @@ a { color: inherit; text-decoration: none; }
 .legend-row .lname { flex: 1; }
 .legend-row .lval { font-weight: 700; }
 
+/* 카드 실적 진행 바 */
+.prog { height: 7px; background: #eef0f4; border-radius: 999px; overflow: hidden; }
+.prog > i { display: block; height: 100%; background: var(--primary); border-radius: 999px; transition: width 0.3s; }
+
 @media (min-width: 560px) {
   .month-nav .mlabel { min-width: 160px; }
 }

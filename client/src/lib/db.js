@@ -169,12 +169,20 @@ export const db = {
       member_count: g.group_members?.[0]?.count ?? 0,
     }));
   },
-  async createGroup(userId, { name, description, category, category_emoji }) {
+  async createGroup(userId, { name, description, category, category_emoji, start_date, end_date }) {
     const g = unwrap(await supabase.from('groups').insert({
       name, description: description || '', category, category_emoji: category_emoji || '', owner_id: userId,
+      start_date: start_date || null, end_date: end_date || null,
     }).select().single());
     unwrap(await supabase.from('group_members').insert({ group_id: g.id, user_id: userId, role: 'owner' }));
     return g;
+  },
+  async updateGroup(id, patch) {
+    return unwrap(await supabase.from('groups').update({
+      name: patch.name?.trim(), description: (patch.description || '').trim(),
+      category: patch.category, category_emoji: patch.category_emoji || '',
+      start_date: patch.start_date || null, end_date: patch.end_date || null,
+    }).eq('id', id).select().single());
   },
 
   // ---------- 그룹 카테고리 (사용자별 선택지) ----------
@@ -338,11 +346,31 @@ export const db = {
   async setUserRole(id, role) {
     return unwrap(await supabase.from('profiles').update({ role }).eq('id', id));
   },
+  // ---------- 카드 실적(혜택 구간) ----------
+  async listCardBenefits() {
+    return unwrap(await supabase.from('card_benefit_tiers').select('*')
+      .order('source_id').order('threshold'));
+  },
+  async addCardTier(userId, sourceId, { threshold, benefit }) {
+    return unwrap(await supabase.from('card_benefit_tiers').insert({
+      user_id: userId, source_id: sourceId,
+      threshold: Math.max(Math.round(Number(threshold) || 0), 0), benefit: (benefit || '').trim(),
+    }).select().single());
+  },
+  async updateCardTier(id, { threshold, benefit }) {
+    return unwrap(await supabase.from('card_benefit_tiers').update({
+      threshold: Math.max(Math.round(Number(threshold) || 0), 0), benefit: (benefit || '').trim(),
+    }).eq('id', id).select().single());
+  },
+  async deleteCardTier(id) {
+    return unwrap(await supabase.from('card_benefit_tiers').delete().eq('id', id));
+  },
+
   // ---------- 통계 (클라이언트 집계) ----------
   async personalStats(month, userId) {
     const { start, endExclusive } = monthBounds(month);
     const rows = unwrap(await supabase.from('transactions')
-      .select('id, type, amount, category_name, settlement_target_id')
+      .select('id, type, amount, category_name, source_id, source_name, settlement_target_id')
       .is('group_id', null).eq('user_id', userId)
       .gte('date', start).lt('date', endExclusive));
 
@@ -364,11 +392,27 @@ export const db = {
       return Object.entries(map).map(([name, total]) => ({ name, total }))
         .filter((x) => x.total > 0).sort((a, b) => b.total - a.total);
     };
+    const groupSrc = (items, valueOf) => {
+      const map = {};
+      items.forEach((r) => {
+        const key = r.source_id != null ? `id:${r.source_id}` : `nm:${r.source_name || '미지정'}`;
+        if (!map[key]) map[key] = { source_id: r.source_id ?? null, name: r.source_name || '미지정', total: 0 };
+        map[key].total += valueOf(r);
+      });
+      return Object.values(map).filter((x) => x.total > 0).sort((a, b) => b.total - a.total);
+    };
+
+    // 카드 실적용: 원천 id 별 총 사용액(정산 차감 없는 원금)
+    const grossBySourceId = {};
+    expenses.forEach((r) => { if (r.source_id != null) grossBySourceId[r.source_id] = (grossBySourceId[r.source_id] || 0) + Number(r.amount); });
 
     return {
       totals: { income, expense, balance: income - expense },
       incomeByCategory: groupCat(incomeRows, (r) => Number(r.amount)),
       expenseByCategory: groupCat(expenses, effExpense),
+      incomeBySource: groupSrc(incomeRows, (r) => Number(r.amount)),
+      expenseBySource: groupSrc(expenses, effExpense),
+      grossBySourceId,
     };
   },
 

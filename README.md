@@ -54,6 +54,7 @@ client (React + Vite)  ──supabase-js──▶  Supabase
    - [`supabase/migrations/0004_subscription_sync.sql`](supabase/migrations/0004_subscription_sync.sql) — 구독 결제/입금 ↔ 개인 가계부 양방향 동기화(원본 링크 컬럼 · 동기화 트리거 · 수정 권한)
    - [`supabase/migrations/0005_settlement.sql`](supabase/migrations/0005_settlement.sql) — 정산(N빵) 수입 분류 · 대상 지출 링크(settlement_target_id) · 통계 차감
    - [`supabase/migrations/0006_member_detail.sql`](supabase/migrations/0006_member_detail.sql) — 멤버 다음 입금일 수동 지정(next_due_override) · 멤버 수정 RLS 정책 보강
+   - [`supabase/migrations/0007_group_dates_card_benefits.sql`](supabase/migrations/0007_group_dates_card_benefits.sql) — 그룹 시작/종료일 · 카드 실적(혜택 구간) 테이블
 3. **Authentication > Providers > Email** 활성화. 테스트 편의를 위해
    **Authentication > Sign In / Providers > "Confirm email"** 을 끄면 가입 즉시 로그인 흐름을 확인하기 쉽습니다.
 
