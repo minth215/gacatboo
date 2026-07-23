@@ -18,7 +18,7 @@ export default function GroupCategoryManage() {
     const name = editor.name.trim();
     if (!name) return alert('이름을 입력하세요.');
     try {
-      if (editor.id) await db.updateGroupCategory(editor.id, { name, emoji: editor.emoji });
+      if (editor.id) await db.updateGroupCategory(editor.id, { name, emoji: editor.emoji, oldName: editor.oldName });
       else await db.addGroupCategory(user.id, name, editor.emoji);
       setEditor(null); load();
     } catch (e) { alert(e.message); }
@@ -44,7 +44,7 @@ export default function GroupCategoryManage() {
           <div className="list-item" key={c.id}>
             <span className="cat-emoji">{c.emoji || '·'}</span>
             <span className="li-main">{c.name}</span>
-            <button className="btn sm ghost" onClick={() => setEditor({ id: c.id, name: c.name, emoji: c.emoji || '' })}>수정</button>
+            <button className="btn sm ghost" onClick={() => setEditor({ id: c.id, name: c.name, emoji: c.emoji || '', oldName: c.name })}>수정</button>
             <button className="btn sm ghost" onClick={() => del(c)} style={{ color: 'var(--expense)' }}>삭제</button>
           </div>
         ))}

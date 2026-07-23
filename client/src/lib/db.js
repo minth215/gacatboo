@@ -47,7 +47,10 @@ export const db = {
     return unwrap(await supabase.from('categories').insert({ user_id: userId, type, name, emoji, sort_order: next }).select().single());
   },
   async updateCategory(id, patch) {
-    return unwrap(await supabase.from('categories').update(patch).eq('id', id).select().single());
+    const cat = unwrap(await supabase.from('categories').update(patch).eq('id', id).select().single());
+    // 이 분류로 등록된 기존 거래의 스냅샷(이름/이모지)도 함께 갱신
+    await supabase.from('transactions').update({ category_name: cat.name, category_emoji: cat.emoji || '' }).eq('category_id', id);
+    return cat;
   },
   async deleteCategory(id) {
     return unwrap(await supabase.from('categories').delete().eq('id', id));
@@ -189,8 +192,13 @@ export const db = {
     const next = (existing[0]?.sort_order ?? -1) + 1;
     return unwrap(await supabase.from('group_categories').insert({ user_id: userId, name, emoji, sort_order: next }).select().single());
   },
-  async updateGroupCategory(id, patch) {
-    return unwrap(await supabase.from('group_categories').update(patch).eq('id', id).select().single());
+  async updateGroupCategory(id, { name, emoji, oldName }) {
+    const gc = unwrap(await supabase.from('group_categories').update({ name, emoji }).eq('id', id).select().single());
+    // 이 카테고리를 쓰는 (내가 소유한) 기존 그룹의 이름/이모지도 함께 갱신
+    if (oldName) {
+      await supabase.from('groups').update({ category: gc.name, category_emoji: gc.emoji || '' }).eq('category', oldName);
+    }
+    return gc;
   },
   async deleteGroupCategory(id) {
     return unwrap(await supabase.from('group_categories').delete().eq('id', id));
