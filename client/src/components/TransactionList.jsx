@@ -39,7 +39,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
                 <div className={`tx-amt ${t.type}`}>
                   {t.type === 'income' ? '+' : '-'}{fmtWon(t.amount)}
                 </div>
-                {editable && !linked && onDelete && (
+                {editable && onDelete && (
                   <button
                     className="btn sm ghost"
                     style={{ color: 'var(--muted)' }}

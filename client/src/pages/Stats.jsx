@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Bar, Doughnut } from 'react-chartjs-2';
+import { Doughnut } from 'react-chartjs-2';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { PALETTE } from '../lib/chartSetup.js';
@@ -26,16 +26,8 @@ export default function Stats() {
   if (loading && !data) return <div className="empty">불러오는 중…</div>;
   const view = data || EMPTY;
 
-  const { totals, trend, incomeByCategory, expenseByCategory } = view;
+  const { totals, incomeByCategory, expenseByCategory } = view;
   const byCat = tab === 'expense' ? expenseByCategory : incomeByCategory;
-
-  const trendData = {
-    labels: trend.map((t) => `${Number(t.month.slice(5))}월`),
-    datasets: [
-      { label: '수입', data: trend.map((t) => t.income), backgroundColor: '#2563eb', borderRadius: 6, maxBarThickness: 22 },
-      { label: '지출', data: trend.map((t) => t.expense), backgroundColor: '#e5484d', borderRadius: 6, maxBarThickness: 22 },
-    ],
-  };
 
   const doughnut = {
     labels: byCat.map((c) => c.name),
@@ -56,17 +48,6 @@ export default function Stats() {
         <div className="box"><div className="lbl">수입</div><div className="val income">{fmtWon(totals.income)}</div></div>
         <div className="box"><div className="lbl">지출</div><div className="val expense">{fmtWon(totals.expense)}</div></div>
         <div className="box"><div className="lbl">합계</div><div className="val">{fmtWon(totals.balance)}</div></div>
-      </div>
-
-      <div className="card">
-        <h3>최근 6개월 추이</h3>
-        <div className="chart-box">
-          <Bar data={trendData} options={{
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 12 } } } },
-            scales: { y: { ticks: { callback: (v) => (v >= 10000 ? `${v / 10000}만` : v) } } },
-          }} />
-        </div>
       </div>
 
       <div className="card">

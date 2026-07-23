@@ -34,9 +34,17 @@ export default function Ledger() {
   };
 
   const remove = async (t) => {
-    if (!confirm('이 항목을 삭제할까요?')) return;
-    try { await db.deleteTransaction(t.id); load(); }
-    catch (e) { alert(e.message); }
+    const linked = !!t.origin_type;
+    const msg = linked
+      ? '이 항목을 삭제하면 그룹의 결제/입금 내역과 연결된 다른 가계부 항목도 함께 삭제됩니다. 계속할까요?'
+      : '이 항목을 삭제할까요?';
+    if (!confirm(msg)) return;
+    try {
+      if (t.origin_type === 'payment') await db.deletePayment(t.origin_id);
+      else if (t.origin_type === 'deposit') await db.deleteDeposit(t.origin_id);
+      else await db.deleteTransaction(t.id);
+      load();
+    } catch (e) { alert(e.message); }
   };
 
   return (
