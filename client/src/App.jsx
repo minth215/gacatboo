@@ -12,6 +12,7 @@ import SourceManage from './pages/SourceManage.jsx';
 import GroupCategoryManage from './pages/GroupCategoryManage.jsx';
 import Groups from './pages/Groups.jsx';
 import GroupDetail from './pages/GroupDetail.jsx';
+import MemberDetail from './pages/MemberDetail.jsx';
 import Admin from './pages/Admin.jsx';
 
 function Protected({ children, adminOnly }) {
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="/stats" element={<Stats />} />
         <Route path="/groups" element={<Groups />} />
         <Route path="/groups/:id" element={<GroupDetail />} />
+        <Route path="/groups/:id/member/:memberId" element={<MemberDetail />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/categories/:type" element={<CategoryManage />} />
         <Route path="/settings/sources" element={<SourceManage />} />

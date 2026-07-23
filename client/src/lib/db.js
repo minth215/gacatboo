@@ -195,7 +195,7 @@ export const db = {
   async getGroup(id) {
     const group = unwrap(await supabase.from('groups').select('*, owner:profiles!groups_owner_id_fkey(display_name)').eq('id', id).single());
     const rows = unwrap(await supabase.from('group_members')
-      .select('id, user_id, role, nickname, start_date, end_date, contact, profiles(username, display_name)')
+      .select('id, user_id, role, nickname, start_date, end_date, contact, next_due_override, profiles(username, display_name)')
       .eq('group_id', id));
     // 메모는 총무/총대만 조회 가능(RLS). 아니면 빈 결과.
     const notes = {};
@@ -207,6 +207,7 @@ export const db = {
       username: m.profiles?.username || null,
       is_account: !!m.user_id,
       start_date: m.start_date, end_date: m.end_date, contact: m.contact,
+      next_due_override: m.next_due_override,
       memo: notes[m.id] || '',
     })).sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : (a.nickname || '').localeCompare(b.nickname || '')));
     return { group: { ...group, owner_name: group.owner?.display_name || '' }, members };
@@ -232,13 +233,17 @@ export const db = {
     }
     return row;
   },
-  async updateMember(memberId, groupId, { nickname, start_date, end_date, contact, memo }) {
-    unwrap(await supabase.from('group_members').update({
-      nickname: (nickname || '').trim(),
-      start_date: start_date || null, end_date: end_date || null,
-      contact: (contact || '').trim() || null,
-    }).eq('id', memberId));
-    unwrap(await supabase.from('group_member_notes').upsert({ member_id: memberId, group_id: groupId, memo: (memo || '').trim() }));
+  async updateMember(memberId, groupId, patch) {
+    const upd = {
+      nickname: (patch.nickname || '').trim(),
+      start_date: patch.start_date || null, end_date: patch.end_date || null,
+      contact: (patch.contact || '').trim() || null,
+    };
+    if ('next_due_override' in patch) upd.next_due_override = patch.next_due_override || null;
+    unwrap(await supabase.from('group_members').update(upd).eq('id', memberId));
+    if ('memo' in patch) {
+      unwrap(await supabase.from('group_member_notes').upsert({ member_id: memberId, group_id: groupId, memo: (patch.memo || '').trim() }));
+    }
   },
   async removeMember(memberId) {
     return unwrap(await supabase.from('group_members').delete().eq('id', memberId));

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtWon, today, addInterval, PERIOD_LABEL } from '../lib/format.js';
@@ -45,6 +45,7 @@ const matchCatId = (cats, name) => { const c = cats.find((x) => x.name === name)
 
 export default function SubscriptionGroup({ gid, group, members, isOwner, leaderName, header, reloadMembers, onDeletedGroup }) {
   const { user } = useAuth();
+  const nav = useNavigate();
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState('payments');
   const [sub, setSub] = useState(null);
@@ -109,8 +110,9 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
     const periods = ds.reduce((s, d) => s + Number(d.periods || 0), 0);
     const last = ds.length ? ds.map((d) => d.date).sort().slice(-1)[0] : null;
     const base = m.start_date || (ds.length ? ds.map((d) => d.date).sort()[0] : null);
-    const next = base && sub ? addInterval(base, sub.period_unit, sub.period_count, periods) : (base || null);
-    return { nickname: m.nickname, cum, last, next };
+    const auto = base && sub ? addInterval(base, sub.period_unit, sub.period_count, periods) : (base || null);
+    const next = m.next_due_override || auto;
+    return { id: m.id, nickname: m.nickname, cum, last, next };
   });
 
   return (
@@ -188,8 +190,10 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                 <table className="stat-table">
                   <thead><tr><th>닉네임</th><th>누적입금액</th><th>마지막 입금일</th><th>다음 입금일</th></tr></thead>
                   <tbody>
-                    {memberStats.map((m, i) => (
-                      <tr key={i}><td>{m.nickname}</td><td>{fmtWon(m.cum)}</td><td className="muted">{m.last || '-'}</td><td>{m.next || '-'}</td></tr>
+                    {memberStats.map((m) => (
+                      <tr key={m.id} onClick={() => nav(`/groups/${gid}/member/${m.id}`)} style={{ cursor: 'pointer' }}>
+                        <td>{m.nickname} ›</td><td>{fmtWon(m.cum)}</td><td className="muted">{m.last || '-'}</td><td>{m.next || '-'}</td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -281,7 +285,7 @@ function PaymentForm({ initial, cats, sources, onClose, onSave }) {
   );
 }
 
-function DepositForm({ initial, sub, cats, sources, members, onClose, onSave }) {
+export function DepositForm({ initial, sub, cats, sources, members, onClose, onSave }) {
   const editing = !!initial;
   const [f, setF] = useState(() => editing ? {
     memberId: String(initial.member_id), date: initial.date, amount: String(initial.amount), periods: String(initial.periods || 1),
