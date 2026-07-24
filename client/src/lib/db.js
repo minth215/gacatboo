@@ -99,6 +99,19 @@ export const db = {
     return unwrap(await supabase.from('transactions').select(TX_SELECT).eq('id', id).single());
   },
 
+  // 내용 자동완성용: 과거에 쓴 내용(중복 제거, 최신순)
+  async listContentSuggestions(userId) {
+    const rows = unwrap(await supabase.from('transactions').select('content')
+      .eq('user_id', userId).neq('content', '')
+      .order('date', { ascending: false }).order('id', { ascending: false }).limit(500));
+    const seen = new Set(); const out = [];
+    for (const r of rows || []) {
+      const c = (r.content || '').trim();
+      if (c && !seen.has(c)) { seen.add(c); out.push(c); if (out.length >= 100) break; }
+    }
+    return out;
+  },
+
   // ---------- 정산 ----------
   // 정산 대상 선택용: 최근 개인 지출 목록 (기본 최근 120일)
   async listRecentExpenses(userId, { days = 120, includeId = null } = {}) {

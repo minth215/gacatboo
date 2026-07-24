@@ -29,6 +29,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
   const [sources, setSources] = useState([]);
   const [sourcesFlat, setSourcesFlat] = useState([]);
   const [recentExpenses, setRecentExpenses] = useState([]);
+  const [contentSuggestions, setContentSuggestions] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -36,6 +37,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
     db.listCategories().then(setCategories).catch(() => {});
     db.listSources().then(({ tree, flat }) => { setSources(tree); setSourcesFlat(flat); }).catch(() => {});
     db.listRecentExpenses(user.id, { includeId: initial?.settlement_target_id || null }).then(setRecentExpenses).catch(() => {});
+    db.listContentSuggestions(user.id).then(setContentSuggestions).catch(() => {});
   }, []);
 
   const catOptions = useMemo(() => categories.filter((c) => c.type === type), [categories, type]);
@@ -161,7 +163,10 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
 
       <div className="field">
         <label>내용</label>
-        <input value={content} onChange={(e) => setContent(e.target.value)} placeholder="가계부에 표시될 내용" />
+        <input list="tx-content-list" value={content} onChange={(e) => setContent(e.target.value)} placeholder="가계부에 표시될 내용" autoComplete="off" />
+        <datalist id="tx-content-list">
+          {contentSuggestions.map((s) => <option key={s} value={s} />)}
+        </datalist>
       </div>
 
       <div className="field">
