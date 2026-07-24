@@ -99,6 +99,18 @@ export const db = {
     return unwrap(await supabase.from('transactions').select(TX_SELECT).eq('id', id).single());
   },
 
+  // 전체 기간 검색 (개인+참여그룹, RLS 범위). 구조 필터는 서버, 텍스트는 화면에서.
+  async searchTransactions({ from, to, type, category, source } = {}) {
+    let query = supabase.from('transactions').select(TX_SELECT)
+      .order('date', { ascending: false }).order('id', { ascending: false }).limit(2000);
+    if (from) query = query.gte('date', from);
+    if (to) query = query.lte('date', to);
+    if (type === 'income' || type === 'expense') query = query.eq('type', type);
+    if (category) query = query.eq('category_name', category);
+    if (source) query = query.eq('source_name', source);
+    return flattenTx(unwrap(await query));
+  },
+
   // 내용 자동완성용: 과거에 쓴 내용(중복 제거, 최신순)
   async listContentSuggestions(userId) {
     const rows = unwrap(await supabase.from('transactions').select('content')

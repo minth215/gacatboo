@@ -4,6 +4,7 @@ import Layout from './components/Layout.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Ledger from './pages/Ledger.jsx';
+import Search from './pages/Search.jsx';
 import TransactionEdit from './pages/TransactionEdit.jsx';
 import Stats from './pages/Stats.jsx';
 import Settings from './pages/Settings.jsx';
@@ -35,6 +36,7 @@ export default function App() {
 
       <Route element={<Protected><Layout /></Protected>}>
         <Route path="/" element={<Ledger />} />
+        <Route path="/search" element={<Search />} />
         <Route path="/new" element={<TransactionEdit />} />
         <Route path="/tx/:id" element={<TransactionEdit />} />
         <Route path="/stats" element={<Stats />} />

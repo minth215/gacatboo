@@ -13,7 +13,7 @@ export default function Ledger() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({ income: 0, expense: 0 });
 
-  // 검색 / 필터
+  // 검색(전체 기간) / 이 달 필터
   const [q, setQ] = useState('');
   const [typeFilter, setTypeFilter] = useState('all'); // all | income | expense
   const [catFilter, setCatFilter] = useState('');
@@ -43,22 +43,19 @@ export default function Ledger() {
   const catOptions = useMemo(() => [...new Set(txs.map((t) => t.category_name).filter(Boolean))].sort(), [txs]);
   const srcOptions = useMemo(() => [...new Set(txs.map((t) => t.source_name).filter(Boolean))].sort(), [txs]);
 
-  const active = q.trim() || typeFilter !== 'all' || catFilter || srcFilter;
+  const active = typeFilter !== 'all' || catFilter || srcFilter;
   const filtered = useMemo(() => txs.filter((t) => {
     if (typeFilter !== 'all' && t.type !== typeFilter) return false;
     if (catFilter && (t.category_name || '') !== catFilter) return false;
     if (srcFilter && (t.source_name || '') !== srcFilter) return false;
-    if (q.trim()) {
-      const hay = [t.content, t.category_name, t.source_name, t.memo].filter(Boolean).join(' ').toLowerCase();
-      if (!hay.includes(q.trim().toLowerCase())) return false;
-    }
     return true;
-  }), [txs, q, typeFilter, catFilter, srcFilter]);
+  }), [txs, typeFilter, catFilter, srcFilter]);
 
   const fIncome = filtered.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
   const fExpense = filtered.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
 
-  const reset = () => { setQ(''); setTypeFilter('all'); setCatFilter(''); setSrcFilter(''); };
+  const reset = () => { setTypeFilter('all'); setCatFilter(''); setSrcFilter(''); };
+  const runSearch = () => nav(`/search${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`);
 
   const canEdit = (t) => (t.origin_type ? true : t.created_by === user.id);
   const openEdit = (t) => {
@@ -95,10 +92,17 @@ export default function Ledger() {
         <div className="box"><div className="lbl">합계</div><div className="val">{fmtWon(income - expense)}</div></div>
       </div>
 
-      {/* 검색 / 필터 */}
+      {/* 검색(전체 기간) / 이 달 필터 */}
       <div className="card" style={{ padding: 10, marginBottom: 12 }}>
         <div className="row">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="내용·분류·원천 검색" style={inputStyle} />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') runSearch(); }}
+            placeholder="전체 기간 검색"
+            style={inputStyle}
+          />
+          <button className="btn sm primary" onClick={runSearch}>검색</button>
           <button className="btn sm" onClick={() => setShowFilter((v) => !v)}>필터{active ? ' •' : ''}</button>
         </div>
         {showFilter && (
