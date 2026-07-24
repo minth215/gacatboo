@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { fmtWon, today, addInterval, PERIOD_LABEL } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
+import SwipeRow from '../components/SwipeRow.jsx';
 
 const PERIOD_UNITS = ['day', 'week', 'month', 'year'];
 const KEEP = '__keep__'; // id 없이 이름만 있는 원천/분류(스냅샷) 유지용 센티넬
@@ -129,15 +130,16 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
       {tab === 'payments' && (
         <>
           {payments.length === 0 ? <div className="empty">결제 내역이 없습니다.</div> : payments.map((p) => (
-            <div className="tx" key={p.id} onClick={() => isOwner && setPayEditor({ rec: p })} style={{ cursor: isOwner ? 'pointer' : 'default' }}>
-              <span className="cat-emoji">{p.category_emoji || '💳'}</span>
-              <div className="tx-main">
-                <div className="tx-title">{p.content || p.category_name}</div>
-                <div className="tx-sub">{p.date} · {[p.category_name, p.source_name].filter(Boolean).join(' · ')}</div>
+            <SwipeRow key={p.id} deletable={isOwner} onDelete={() => delPayment(p)} onTap={() => isOwner && setPayEditor({ rec: p })}>
+              <div className="tx" style={{ cursor: isOwner ? 'pointer' : 'default' }}>
+                <span className="cat-emoji">{p.category_emoji || '💳'}</span>
+                <div className="tx-main">
+                  <div className="tx-title">{p.content || p.category_name}</div>
+                  <div className="tx-sub">{p.date} · {[p.category_name, p.source_name].filter(Boolean).join(' · ')}</div>
+                </div>
+                <div className="tx-amt expense">-{fmtWon(p.amount)}</div>
               </div>
-              <div className="tx-amt expense">-{fmtWon(p.amount)}</div>
-              {isOwner && <button className="btn sm ghost" style={{ color: 'var(--muted)' }} onClick={(e) => { e.stopPropagation(); delPayment(p); }}>🗑</button>}
-            </div>
+            </SwipeRow>
           ))}
           {isOwner && <button className="fab" onClick={() => setPayEditor({})} aria-label="결제 추가">＋</button>}
         </>
@@ -162,14 +164,15 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
           {deposits.length === 0 ? <div className="empty">입금 내역이 없습니다.</div> : deposits.map((d) => {
             const mine = isOwner || (myMember && d.member_id === myMember.id);
             return (
-              <div className="tx" key={d.id} onClick={() => mine && setDepEditor({ rec: d })} style={{ cursor: mine ? 'pointer' : 'default' }}>
-                <span className="cat-emoji">{d.category_emoji || '💸'}</span>
-                <div className="tx-main">
-                  <div className="tx-title">{d.member?.nickname || '멤버'} · {fmtWon(d.amount)} <span className="tag-group">{d.periods}회차</span></div>
-                  <div className="tx-sub">{d.date} · {[d.content, d.category_name, d.deposit_source_name].filter(Boolean).join(' · ')}</div>
+              <SwipeRow key={d.id} deletable={mine} onDelete={() => delDeposit(d)} onTap={() => mine && setDepEditor({ rec: d })}>
+                <div className="tx" style={{ cursor: mine ? 'pointer' : 'default' }}>
+                  <span className="cat-emoji">{d.category_emoji || '💸'}</span>
+                  <div className="tx-main">
+                    <div className="tx-title">{d.member?.nickname || '멤버'} · {fmtWon(d.amount)} <span className="tag-group">{d.periods}회차</span></div>
+                    <div className="tx-sub">{d.date} · {[d.content, d.category_name, d.deposit_source_name].filter(Boolean).join(' · ')}</div>
+                  </div>
                 </div>
-                {mine && <button className="btn sm ghost" style={{ color: 'var(--muted)' }} onClick={(e) => { e.stopPropagation(); delDeposit(d); }}>🗑</button>}
-              </div>
+              </SwipeRow>
             );
           })}
           {(isOwner || myMember) && <button className="fab" onClick={() => setDepEditor({})} aria-label="입금 추가">＋</button>}
