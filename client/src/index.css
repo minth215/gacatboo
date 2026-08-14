@@ -106,6 +106,10 @@ a { color: inherit; text-decoration: none; }
 .center { text-align: center; }
 .stack > * + * { margin-top: 10px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* flex/grid 자식은 기본 min-width:auto 라 내용(예: date 입력) 폭 때문에 넘칠 수 있어 축소 허용 */
+.grid2 > * { min-width: 0; }
+.row > input, .row > select { min-width: 0; }
+.btn { white-space: nowrap; }
 .spacer { flex: 1; }
 
 /* ---------- Buttons ---------- */
