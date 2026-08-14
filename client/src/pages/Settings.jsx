@@ -33,15 +33,18 @@ export default function Settings() {
         ))}
       </div>
 
-      <div className="card">
-        <div className="between">
-          <div>
-            <div style={{ fontWeight: 700 }}>{user.display_name}</div>
-            <div className="small muted">@{user.username}{user.role === 'admin' ? ' · 관리자' : ''}</div>
-          </div>
-          <button className="btn sm" onClick={logout}>로그아웃</button>
-        </div>
+      <div className="card" style={{ padding: 6, marginTop: 14 }}>
+        <button className="menu-row" onClick={() => nav('/settings/profile')}>
+          <span className="menu-ico">👤</span>
+          <span className="menu-main">
+            <span className="menu-label">내 정보</span>
+            <span className="menu-desc">{user.display_name} · @{user.username}{user.role === 'admin' ? ' · 관리자' : ''}</span>
+          </span>
+          <span className="menu-chevron">›</span>
+        </button>
       </div>
+
+      <button className="btn block" style={{ marginTop: 4 }} onClick={logout}>로그아웃</button>
     </div>
   );
 }
