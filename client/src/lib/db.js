@@ -401,9 +401,9 @@ export const db = {
   // ---------- 통계 (클라이언트 집계) ----------
   async personalStats(month, userId) {
     const { start, endExclusive } = monthBounds(month);
+    // 가계부(listLedger)와 동일한 범위: 내 개인 항목 + 내가 속한 그룹 항목(RLS 범위)
     const rows = unwrap(await supabase.from('transactions')
       .select('id, type, amount, category_name, source_id, source_name, settlement_target_id')
-      .is('group_id', null).eq('user_id', userId)
       .gte('date', start).lt('date', endExclusive));
 
     const expenses = rows.filter((r) => r.type === 'expense');
