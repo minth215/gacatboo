@@ -150,7 +150,7 @@ export default function Ledger() {
   const label = `${yy} 년 ${Number(mm)} 월`;
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '44px 0 12px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* 상단바 (가계부 · 검색 · 필터) — 스크롤 무관 고정 */}
       <div className="ledger-topbar">
         <div className="lt-title" style={{ opacity: searchOpen ? 0 : 1, transition: 'opacity 0.26s ease', pointerEvents: searchOpen ? 'none' : 'auto' }}>가계부</div>
@@ -272,40 +272,42 @@ export default function Ledger() {
             </div>
           </div>
 
-          {loading ? (
-            <div className="empty">불러오는 중…</div>
-          ) : view === 'calendar' ? (
-            <>
-              <div style={{ marginTop: 16, background: '#fff', borderRadius: 20, padding: '14px 12px 12px', boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', textAlign: 'center', fontSize: 10.5, fontWeight: 700, color: '#a29ead' }}>
-                  <span style={{ color: '#e0607a' }}>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span style={{ color: '#7b93c9' }}>토</span>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: (!loading && view === 'list' && filtered.length === 0) ? 'center' : 'flex-start' }}>
+            {loading ? (
+              <div className="empty">불러오는 중…</div>
+            ) : view === 'calendar' ? (
+              <>
+                <div style={{ marginTop: 16, background: '#fff', borderRadius: 20, padding: '14px 12px 12px', boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', textAlign: 'center', fontSize: 10.5, fontWeight: 700, color: '#a29ead' }}>
+                    <span style={{ color: '#e0607a' }}>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span style={{ color: '#7b93c9' }}>토</span>
+                  </div>
+                  <div style={{ marginTop: 7, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
+                    {Array.from({ length: firstDow }).map((_, i) => <div key={`b${i}`} />)}
+                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                      const day = i + 1;
+                      const pd = perDay[day];
+                      const sel = selDay === day;
+                      return (
+                        <div key={day} onClick={() => setSelDay(sel ? null : day)}
+                          style={{ minHeight: 54, borderRadius: 10, padding: '5px 2px 3px', textAlign: 'center', cursor: 'pointer', background: sel ? '#FFF0DC' : 'transparent' }}>
+                          <div style={{ fontSize: 11, fontWeight: sel ? 800 : 600, color: sel ? '#191722' : '#6c6779' }}>{day}</div>
+                          {pd?.expense > 0 && <div style={{ marginTop: 2, fontSize: 8, fontWeight: 700, letterSpacing: '-.3px', color: '#FF4358' }}>-{fmtNum(pd.expense)}</div>}
+                          {pd?.income > 0 && <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '-.3px', color: '#2CDDB9' }}>+{fmtNum(pd.income)}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div style={{ marginTop: 7, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
-                  {Array.from({ length: firstDow }).map((_, i) => <div key={`b${i}`} />)}
-                  {Array.from({ length: daysInMonth }).map((_, i) => {
-                    const day = i + 1;
-                    const pd = perDay[day];
-                    const sel = selDay === day;
-                    return (
-                      <div key={day} onClick={() => setSelDay(sel ? null : day)}
-                        style={{ minHeight: 54, borderRadius: 10, padding: '5px 2px 3px', textAlign: 'center', cursor: 'pointer', background: sel ? '#FFF0DC' : 'transparent' }}>
-                        <div style={{ fontSize: 11, fontWeight: sel ? 800 : 600, color: sel ? '#191722' : '#6c6779' }}>{day}</div>
-                        {pd?.expense > 0 && <div style={{ marginTop: 2, fontSize: 8, fontWeight: 700, letterSpacing: '-.3px', color: '#FF4358' }}>-{fmtNum(pd.expense)}</div>}
-                        {pd?.income > 0 && <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '-.3px', color: '#2CDDB9' }}>+{fmtNum(pd.income)}</div>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              {selDay && (
-                <div style={{ marginTop: 6 }}>
-                  <TransactionList transactions={dayTxs} canEdit={canEdit} onEdit={openEdit} onDelete={remove} />
-                </div>
-              )}
-            </>
-          ) : (
-            <TransactionList transactions={filtered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} />
-          )}
+                {selDay && (
+                  <div style={{ marginTop: 6 }}>
+                    <TransactionList transactions={dayTxs} canEdit={canEdit} onEdit={openEdit} onDelete={remove} />
+                  </div>
+                )}
+              </>
+            ) : (
+              <TransactionList transactions={filtered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} emptyText="기록이 없습니다." />
+            )}
+          </div>
 
           <button className="fab" onClick={() => nav('/new')} aria-label="추가">＋</button>
         </>

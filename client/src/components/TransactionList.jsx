@@ -24,9 +24,9 @@ const marqueeOff = (e) => {
   el.style.removeProperty('--sw');
 };
 
-export default function TransactionList({ transactions, onEdit, onDelete, canEdit, dateFormat }) {
+export default function TransactionList({ transactions, onEdit, onDelete, canEdit, dateFormat, emptyText }) {
   if (!transactions.length) {
-    return <div className="empty">항목이 없습니다.<br />＋ 버튼으로 첫 항목을 추가해 보세요.</div>;
+    return <div className="empty">{emptyText || <>항목이 없습니다.<br />＋ 버튼으로 첫 항목을 추가해 보세요.</>}</div>;
   }
 
   const groups = {};
