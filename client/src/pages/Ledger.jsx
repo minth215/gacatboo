@@ -94,6 +94,8 @@ export default function Ledger() {
     if (srcFilter && (t.source_name || '') !== srcFilter) return false;
     return true;
   }), [txs, typeFilter, catFilter, srcFilter]);
+  // 상단(상단바+연월+요약카드)·하단(하단탭) 영역을 뺀 나머지 화면 정중앙에 빈 상태 문구 배치
+  const isEmptyMonthList = !loading && view === 'list' && filtered.length === 0;
 
   // 검색 결과: 서버 구조 필터 + 화면 텍스트 필터
   const sFiltered = useMemo(() => {
@@ -150,7 +152,7 @@ export default function Ledger() {
   const label = `${yy} 년 ${Number(mm)} 월`;
 
   return (
-    <div style={{ padding: '44px 0 12px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: '44px 0 12px' }}>
       {/* 상단바 (가계부 · 검색 · 필터) — 스크롤 무관 고정 */}
       <div className="ledger-topbar">
         <div className="lt-title" style={{ opacity: searchOpen ? 0 : 1, transition: 'opacity 0.26s ease', pointerEvents: searchOpen ? 'none' : 'auto' }}>가계부</div>
@@ -272,7 +274,7 @@ export default function Ledger() {
             </div>
           </div>
 
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: (!loading && view === 'list' && filtered.length === 0) ? 'center' : 'flex-start' }}>
+          <div style={isEmptyMonthList ? { minHeight: 'calc(100vh - 302px - env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', justifyContent: 'center' } : undefined}>
             {loading ? (
               <div className="empty">불러오는 중…</div>
             ) : view === 'calendar' ? (

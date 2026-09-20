@@ -90,11 +90,14 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
 
   return (
     <form onSubmit={submit}>
-      <div className="center" style={{ marginBottom: 16 }}>
-        <div className="pill-toggle">
-          <button type="button" className={`income ${type === 'income' ? 'active' : ''}`} onClick={() => { setType('income'); setCategoryId(''); }}>수입</button>
-          <button type="button" className={`expense ${type === 'expense' ? 'active' : ''}`} onClick={() => { setType('expense'); setCategoryId(''); }}>지출</button>
-        </div>
+      <div className="type-pill">
+        <button type="button" className={`income ${type === 'income' ? 'active' : ''}`} onClick={() => { setType('income'); setCategoryId(''); }}>수입</button>
+        <button type="button" className={`expense ${type === 'expense' ? 'active' : ''}`} onClick={() => { setType('expense'); setCategoryId(''); }}>지출</button>
+      </div>
+
+      <div className="field">
+        <label>날짜</label>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </div>
 
       <div className="field">
@@ -105,24 +108,18 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
         </div>
       </div>
 
-      <div className="grid2">
-        <div className="field">
-          <label>날짜</label>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      <div className="field">
+        <div className="field-label-row">
+          <label>분류</label>
+          <button type="button" className="edit-link" onClick={() => nav(`/settings/categories/${type}`)}>편집 ›</button>
         </div>
-        <div className="field">
-          <div className="field-label-row">
-            <label>분류</label>
-            <button type="button" className="edit-link" onClick={() => nav(`/settings/categories/${type}`)}>편집 ›</button>
-          </div>
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">선택 안 함</option>
-            {categoryId === SNAP && (
-              <option value={SNAP}>{initial?.category_emoji ? `${initial.category_emoji} ` : ''}{initial?.category_name} (기존)</option>
-            )}
-            {catOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
-          </select>
-        </div>
+        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+          <option value="">선택 안 함</option>
+          {categoryId === SNAP && (
+            <option value={SNAP}>{initial?.category_emoji ? `${initial.category_emoji} ` : ''}{initial?.category_name} (기존)</option>
+          )}
+          {catOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
+        </select>
       </div>
 
       <div className="field">
@@ -175,10 +172,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
       </div>
 
       {error && <p className="error">{error}</p>}
-      <div className="row" style={{ marginTop: 6 }}>
-        <button type="button" className="btn block" onClick={onClose}>취소</button>
-        <button className="btn primary block" disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
-      </div>
+      <button className="btn-ink-pill" disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
     </form>
   );
 }

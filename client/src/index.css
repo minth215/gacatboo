@@ -149,6 +149,21 @@ a { color: inherit; text-decoration: none; }
 
 @keyframes cat-blink { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
 
+/* ---------- 단순 상단바 (뒤로 + 제목) ---------- */
+.simple-topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 30;
+  max-width: 720px; margin: 0 auto;
+  height: 56px; display: flex; align-items: center; gap: 10px;
+  padding: 0 16px;
+  background: rgba(254, 252, 252, 0.94); backdrop-filter: blur(10px);
+}
+.simple-topbar .back-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: none; background: #fff;
+  box-shadow: 0 3px 12px rgba(25, 23, 34, 0.1); color: #191722;
+  display: flex; align-items: center; justify-content: center; padding: 0; flex: none;
+}
+.simple-topbar .title { font-size: 18px; font-weight: 800; color: #191722; letter-spacing: -0.4px; }
+
 /* ---------- Cards & common ---------- */
 .card {
   background: var(--card); border: 1px solid var(--line);
@@ -200,6 +215,26 @@ a { color: inherit; text-decoration: none; }
 .pill-toggle button.active { background: #fff; box-shadow: var(--shadow); }
 .pill-toggle button.income.active { color: var(--income); }
 .pill-toggle button.expense.active { color: var(--expense); }
+
+/* 수입/지출 전체폭 알약 토글 (기록 작성 페이지) */
+.type-pill { display: flex; width: 100%; height: 52px; background: #F1F0F4; border-radius: 999px; padding: 4px; gap: 4px; margin-bottom: 20px; }
+.type-pill button {
+  flex: 1; border: none; background: transparent; border-radius: 999px;
+  font-weight: 800; font-size: 15px; color: #8b8798; cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.type-pill button.income.active { background: #2CDDB9; color: #fff; }
+.type-pill button.expense.active { background: #FF4358; color: #fff; }
+
+/* 저장 버튼: 알약 모양 먹색 */
+.btn-ink-pill {
+  width: 100%; height: 56px; border: none; border-radius: 999px;
+  background: #191722; color: #fff; font-weight: 700; font-size: 15px;
+  cursor: pointer; margin-top: 8px; font-family: inherit;
+}
+.btn-ink-pill:hover { background: #2c2938; }
+.btn-ink-pill:active { transform: scale(0.985); }
+.btn-ink-pill:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* ---------- Forms ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }

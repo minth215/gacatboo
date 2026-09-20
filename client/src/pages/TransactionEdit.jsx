@@ -32,21 +32,22 @@ export default function TransactionEdit() {
     nav(target ? `/groups/${target}` : '/');
   };
 
-  if (loading) return <div className="empty">불러오는 중…</div>;
-  if (error) return (
-    <div>
-      <button className="btn sm ghost" onClick={() => nav(-1)} style={{ paddingLeft: 0 }}>‹ 뒤로</button>
-      <div className="empty">{error}</div>
-    </div>
-  );
-
   return (
-    <div>
-      <button className="btn sm ghost" onClick={done} style={{ marginBottom: 8, paddingLeft: 0 }}>‹ 뒤로</button>
-      <h2 style={{ margin: '4px 2px 14px', fontSize: 20 }}>{editing ? '항목 수정' : '항목 추가'}</h2>
-      <div className="card">
-        <TransactionForm initial={initial} groupId={groupId} onSaved={done} onClose={done} />
+    <div style={{ padding: '44px 0 12px' }}>
+      <div className="simple-topbar">
+        <button className="back-btn" onClick={done} aria-label="뒤로">
+          <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
+        </button>
+        <div className="title">{editing ? '기록 수정' : '기록'}</div>
       </div>
+
+      {loading ? (
+        <div className="empty">불러오는 중…</div>
+      ) : error ? (
+        <div className="empty">{error}</div>
+      ) : (
+        <TransactionForm initial={initial} groupId={groupId} onSaved={done} onClose={done} />
+      )}
     </div>
   );
 }
