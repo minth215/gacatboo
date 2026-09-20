@@ -249,9 +249,9 @@ export default function Ledger() {
             </div>
           )}
 
-          {/* 요약 카드 + 고양이/말풍선 (박스 위에 붙어 함께 이동) */}
-          <div style={{ position: 'relative', marginTop: 30 }}>
-            <div style={{ position: 'absolute', right: 8, bottom: '100%', marginBottom: -14, display: 'flex', alignItems: 'flex-end', gap: 3, zIndex: 3 }}>
+          {/* 요약 카드 + 고양이/말풍선 (고양이 하단이 박스 상단에 딱 붙어 함께 이동) */}
+          <div style={{ position: 'relative', marginTop: 16 }}>
+            <div style={{ position: 'absolute', right: 8, bottom: '100%', marginBottom: 0, display: 'flex', alignItems: 'flex-end', gap: 3, zIndex: 3 }}>
               <button aria-label="뷰 전환" onClick={() => setView((v) => (v === 'list' ? 'calendar' : 'list'))}
                 style={{ position: 'relative', width: 34, height: 26, borderRadius: 12, border: 'none', background: '#eceae7', color: '#4a4640', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flex: 'none', marginBottom: 8 }}>
                 <svg width="8" height="7.5" viewBox="0 0 8 7.5" style={{ position: 'absolute', right: 3, bottom: -4.5, pointerEvents: 'none' }} aria-hidden="true"><path d="M1.1 0 Q-0.8 5.3 7.9 6.8 Q4.7 4.7 4.2 0 Z" fill="#eceae7" /></svg>
