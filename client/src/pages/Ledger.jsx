@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -21,6 +21,8 @@ export default function Ledger() {
   const [summary, setSummary] = useState({ income: 0, expense: 0 });
   const [view, setView] = useState('list'); // list | calendar
   const [selDay, setSelDay] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef(null);
 
   // 검색어(전체 기간) / 이 달 필터
   const [q, setQ] = useState('');
@@ -62,6 +64,9 @@ export default function Ledger() {
 
   const reset = () => { setTypeFilter('all'); setCatFilter(''); setSrcFilter(''); };
   const runSearch = () => nav(`/search${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`);
+  const openSearch = () => { setSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 260); };
+  const closeSearch = () => { setSearchOpen(false); setQ(''); };
+  const onSearchClick = () => { if (searchOpen) runSearch(); else openSearch(); };
 
   const canEdit = (t) => (t.origin_type ? true : t.created_by === user.id);
   const openEdit = (t) => {
@@ -100,22 +105,32 @@ export default function Ledger() {
   const label = `${yy} 년 ${Number(mm)} 월`;
 
   return (
-    <div style={{ padding: '4px 0 12px' }}>
-      {/* 헤더 */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 21, fontWeight: 800, letterSpacing: '-.6px', color: '#191722' }}>가계부</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button aria-label="검색" onClick={runSearch} style={roundBtn(36)}>
+    <div style={{ padding: '0 0 12px' }}>
+      {/* 상단바 (가계부 · 검색 · 필터) */}
+      <div className="ledger-topbar">
+        <div className="lt-title">가계부</div>
+        <button aria-label="필터" className={`lt-filter${active ? ' on' : ''}`} onClick={() => setShowFilter((v) => !v)}>
+          <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="7" x2="20" y2="7" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="17" x2="14" y2="17" /></svg>
+        </button>
+        <div className={`lt-search${searchOpen ? ' open' : ''}`}>
+          <button aria-label="검색" className="lt-search-icon" onClick={onSearchClick}>
             <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="16.2" y1="16.2" x2="21" y2="21" /></svg>
           </button>
-          <button aria-label="필터" onClick={() => setShowFilter((v) => !v)} style={{ ...roundBtn(36), color: active ? '#FF3B5C' : '#6c6779' }}>
-            <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="7" x2="20" y2="7" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="17" x2="14" y2="17" /></svg>
-          </button>
+          <input
+            ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') runSearch(); if (e.key === 'Escape') closeSearch(); }}
+            placeholder="전체 기간 검색" tabIndex={searchOpen ? 0 : -1}
+          />
+          {searchOpen && (
+            <button aria-label="닫기" className="lt-search-close" onClick={closeSearch}>
+              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+            </button>
+          )}
         </div>
       </div>
 
       {/* 월 이동 */}
-      <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
         <button aria-label="이전 달" onClick={() => { setMonth(shiftMonth(month, -1)); setSelDay(null); }} style={roundBtn(32)}>
           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
         </button>
