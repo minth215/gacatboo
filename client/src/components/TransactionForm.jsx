@@ -103,7 +103,12 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
       <div className="field">
         <label>금액</label>
         <div className="with-suffix">
-          <input type="number" inputMode="numeric" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" autoFocus />
+          <input
+            type="text" inputMode="numeric"
+            value={amount ? Number(amount).toLocaleString('ko-KR') : ''}
+            onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, ''))}
+            placeholder="0" autoFocus
+          />
           <span className="suffix">원</span>
         </div>
       </div>

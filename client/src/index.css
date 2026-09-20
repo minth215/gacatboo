@@ -223,8 +223,8 @@ a { color: inherit; text-decoration: none; }
   font-weight: 800; font-size: 15px; color: #8b8798; cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease;
 }
-.type-pill button.income.active { background: #2CDDB9; color: #fff; }
-.type-pill button.expense.active { background: #FF4358; color: #fff; }
+.type-pill button.income.active { background: #fff; color: #2CDDB9; box-shadow: 0 2px 8px rgba(25,23,34,.08); }
+.type-pill button.expense.active { background: #fff; color: #FF4358; box-shadow: 0 2px 8px rgba(25,23,34,.08); }
 
 /* 저장 버튼: 알약 모양 먹색 */
 .btn-ink-pill {
@@ -240,9 +240,12 @@ a { color: inherit; text-decoration: none; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .field label { font-size: 13px; font-weight: 600; color: var(--muted); }
 .field input, .field select, .field textarea {
-  width: 100%; padding: 11px 12px; border: 1px solid var(--line);
+  width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box;
+  padding: 11px 12px; border: 1px solid var(--line);
   border-radius: 10px; background: #fff; color: var(--text); outline: none;
+  font-size: 14px;
 }
+.field input[type="date"] { -webkit-appearance: none; appearance: none; }
 .field input:focus, .field select:focus, .field textarea:focus {
   border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-weak);
 }
