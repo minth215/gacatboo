@@ -53,6 +53,7 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   font-size: 15px;
+  overscroll-behavior-y: none; /* 당김(rubber-band) 시 고정 상단바 흔들림 방지 */
 }
 
 button { font-family: inherit; cursor: pointer; }
@@ -83,27 +84,30 @@ a { color: inherit; text-decoration: none; }
 
 /* ---------- Ledger 상단바 + 확장 검색 ---------- */
 .ledger-topbar {
-  position: sticky; top: 0; z-index: 20;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 30;
+  max-width: 720px; margin: 0 auto; /* .container 와 동일 폭으로 중앙 정렬 */
   height: 56px; display: flex; align-items: center;
-  padding: 0 16px; margin: -16px -16px 6px; /* .container 패딩 상쇄해 상단 flush + 폭 꽉 채움 */
-  background: rgba(254, 252, 252, 0.92); backdrop-filter: blur(10px);
+  padding: 0 16px;
+  background: rgba(254, 252, 252, 0.94); backdrop-filter: blur(10px);
 }
 .lt-title { font-size: 21px; font-weight: 800; letter-spacing: -0.6px; color: #191722; }
+/* 필터 버튼: 항상 맨 오른쪽 고정 */
 .lt-filter {
-  position: absolute; right: 64px; top: 50%; transform: translateY(-50%);
+  position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
   width: 40px; height: 40px; border-radius: 50%; border: none; background: #fff;
   box-shadow: 0 3px 12px rgba(25, 23, 34, 0.1); color: #6c6779;
   display: flex; align-items: center; justify-content: center; padding: 0;
 }
 .lt-filter.on { color: var(--accent); }
+/* 검색: 오른쪽 끝(필터 왼쪽)에서 왼쪽으로만 늘어남 */
 .lt-search {
-  position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+  position: absolute; right: 64px; top: 50%; transform: translateY(-50%);
   height: 40px; width: 40px; border-radius: 999px; background: #fff;
   box-shadow: 0 3px 12px rgba(25, 23, 34, 0.1);
   display: flex; align-items: center; overflow: hidden;
   transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.lt-search.open { width: calc(100% - 32px); }
+.lt-search.open { width: calc(100% - 80px); }
 .lt-search-icon {
   flex: none; width: 40px; height: 40px; border: none; background: transparent;
   color: #6c6779; display: flex; align-items: center; justify-content: center; padding: 0;
@@ -116,7 +120,7 @@ a { color: inherit; text-decoration: none; }
 .lt-search:not(.open) input { pointer-events: none; }
 .lt-search.open input { opacity: 1; }
 .lt-search-close {
-  flex: none; width: 40px; height: 40px; border: none; background: transparent;
+  flex: none; width: 36px; height: 40px; border: none; background: transparent;
   color: #8b8798; display: flex; align-items: center; justify-content: center; padding: 0;
 }
 

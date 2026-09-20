@@ -10,7 +10,7 @@ const tileBg = (key) => {
   return TILE_BG[h % TILE_BG.length];
 };
 
-export default function TransactionList({ transactions, onEdit, onDelete, canEdit }) {
+export default function TransactionList({ transactions, onEdit, onDelete, canEdit, dateFormat }) {
   if (!transactions.length) {
     return <div className="empty">항목이 없습니다.<br />＋ 버튼으로 첫 항목을 추가해 보세요.</div>;
   }
@@ -27,7 +27,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
         return (
           <div key={date}>
             <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date, dateFormat)}</span>
               <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>{net >= 0 ? '+' : '-'}{fmtNum(Math.abs(net))}</span>
             </div>
             <div className="tx-daycard">
@@ -64,8 +64,10 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
   );
 }
 
-function formatDate(d) {
+function formatDate(d, fmt) {
   const dt = new Date(d + 'T00:00:00');
   const days = ['일', '월', '화', '수', '목', '금', '토'];
-  return `${Number(d.slice(8, 10))} 일 ${days[dt.getDay()]}요일`;
+  const w = `${days[dt.getDay()]}요일`;
+  if (fmt === 'full') return `${d.slice(0, 4)} 년 ${d.slice(5, 7)} 월 ${d.slice(8, 10)} 일 ${w}`;
+  return `${Number(d.slice(8, 10))} 일 ${w}`;
 }
