@@ -73,7 +73,6 @@ export default function Login() {
           <div style={{ marginTop: 18, textAlign: 'center', fontSize: 12.25, color: '#8b8798' }}>
             계정이 없나요? <Link to="/register" style={{ color: '#FF3B5C', fontWeight: 600 }}>가입 요청하기</Link>
           </div>
-          <div style={{ marginTop: 6, textAlign: 'center', fontSize: 11.5, color: '#b6b2c0' }}>가입 후 관리자 승인이 필요합니다.</div>
         </div>
       </div>
     </div>
