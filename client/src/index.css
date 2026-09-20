@@ -56,7 +56,9 @@ body {
   overscroll-behavior-y: none; /* 당김(rubber-band) 시 고정 상단바 흔들림 방지 */
 }
 
-button { font-family: inherit; cursor: pointer; }
+button { font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+/* 탭 시 나타나는 회색 사각형 하이라이트 제거 */
+* { -webkit-tap-highlight-color: transparent; }
 input, select, textarea { font-family: inherit; font-size: 16px; }
 /* 전역: 모든 입력/셀렉트/텍스트영역 아웃라인 제거 */
 input, select, textarea,
@@ -123,6 +125,9 @@ a { color: inherit; text-decoration: none; }
   flex: none; width: 36px; height: 40px; border: none; background: transparent;
   color: #8b8798; display: flex; align-items: center; justify-content: center; padding: 0;
 }
+.lt-search-icon:focus, .lt-search-close:focus, .lt-filter:focus,
+.lt-search-icon:active, .lt-search-close:active, .lt-filter:active { outline: none; background: transparent; }
+.lt-filter:active { background: #fff; }
 
 /* Bottom navigation — 놀깅 스타일 플로팅 알약 탭바 */
 .bottomnav {
