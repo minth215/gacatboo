@@ -239,8 +239,19 @@ a { color: inherit; text-decoration: none; }
 .tx-daycard .swipe-fg { background: #fff; }
 .tx-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #fff; }
 .tx-tile { width: 38px; height: 38px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; flex: none; }
-.tx-row-title { font-size: 13.5px; font-weight: 600; color: #191722; display: flex; align-items: center; gap: 6px; overflow: hidden; }
-.tx-row-title > :first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tx-row-title { font-size: 13.5px; font-weight: 600; color: #191722; overflow: hidden; }
+.tx-row-title .ttext { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* PC(마우스) 환경: 내용이 잘렸을 때 오버하면 텍스트가 흐르며 전체가 보임 */
+@media (hover: hover) and (pointer: fine) {
+  .tx-row-title.marquee .ttext {
+    overflow: visible; text-overflow: clip; width: max-content;
+    animation: tx-marquee 3.2s ease-in-out infinite alternate;
+  }
+}
+@keyframes tx-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(-1 * var(--sw, 0px))); }
+}
 .tx-row-sub { margin-top: 2px; font-size: 11px; color: #a29ead; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tx-group-date { font-size: 12px; font-weight: 700; color: var(--muted); margin: 14px 2px 6px; }
 .tx {

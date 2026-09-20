@@ -10,6 +10,20 @@ const tileBg = (key) => {
   return TILE_BG[h % TILE_BG.length];
 };
 
+// PC 마우스 오버 시 내용이 잘렸으면 텍스트를 흐르게(marquee) 표시
+const marqueeOn = (e) => {
+  const el = e.currentTarget;
+  const t = el.querySelector('.ttext');
+  if (!t) return;
+  const over = t.scrollWidth - t.clientWidth;
+  if (over > 1) { el.style.setProperty('--sw', `${over}px`); el.classList.add('marquee'); }
+};
+const marqueeOff = (e) => {
+  const el = e.currentTarget;
+  el.classList.remove('marquee');
+  el.style.removeProperty('--sw');
+};
+
 export default function TransactionList({ transactions, onEdit, onDelete, canEdit, dateFormat }) {
   if (!transactions.length) {
     return <div className="empty">항목이 없습니다.<br />＋ 버튼으로 첫 항목을 추가해 보세요.</div>;
@@ -42,15 +56,15 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
                       style={{
                         borderTop: i > 0 ? '1px solid #f2f1f5' : 'none',
                         cursor: editable ? 'pointer' : 'default',
-                        background: isGroup ? 'linear-gradient(135deg, #FFEAD5 0%, #FFE0E6 100%)' : '#fff',
+                        background: isGroup ? 'linear-gradient(135deg, #FFF1F3 0%, #FFF6EA 100%)' : '#fff',
                       }}
                     >
-                      <span className="tx-tile" style={{ background: t.category_emoji ? (isGroup ? 'rgba(255,255,255,.65)' : tileBg(t.category_name)) : (isGroup ? 'rgba(255,255,255,.65)' : '#f2f1f5') }}>
+                      <span className="tx-tile" style={{ background: t.category_emoji ? (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name)) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}>
                         {t.category_emoji || (t.type === 'income' ? '💰' : '💸')}
                       </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="tx-row-title">
-                          {t.content || t.category_name || (t.type === 'income' ? '수입' : '지출')}
+                        <div className="tx-row-title" onMouseEnter={marqueeOn} onMouseLeave={marqueeOff}>
+                          <span className="ttext">{t.content || t.category_name || (t.type === 'income' ? '수입' : '지출')}</span>
                         </div>
                         <div className="tx-row-sub">{sub}</div>
                       </div>
