@@ -73,6 +73,6 @@ function formatDate(d, fmt) {
   const dt = new Date(d + 'T00:00:00');
   const days = ['일', '월', '화', '수', '목', '금', '토'];
   const w = `${days[dt.getDay()]}요일`;
-  if (fmt === 'full') return `${d.slice(0, 4)} 년 ${d.slice(5, 7)} 월 ${d.slice(8, 10)} 일 ${w}`;
+  if (fmt === 'full') return `${d.slice(0, 4)} 년 ${Number(d.slice(5, 7))} 월 ${Number(d.slice(8, 10))} 일 ${w}`;
   return `${Number(d.slice(8, 10))} 일 ${w}`;
 }

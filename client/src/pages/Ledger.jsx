@@ -153,24 +153,24 @@ export default function Ledger() {
     <div style={{ padding: '44px 0 12px' }}>
       {/* 상단바 (가계부 · 검색 · 필터) — 스크롤 무관 고정 */}
       <div className="ledger-topbar">
-        <div className="lt-title">가계부</div>
+        <div className="lt-title" style={{ opacity: searchOpen ? 0 : 1, transition: 'opacity 0.26s ease', pointerEvents: searchOpen ? 'none' : 'auto' }}>가계부</div>
         <button aria-label="필터" className={`lt-filter${filterActive ? ' on' : ''}`} onClick={onFilterClick}>
           <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="7" x2="20" y2="7" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="17" x2="14" y2="17" /></svg>
         </button>
         <div className={`lt-search${searchOpen ? ' open' : ''}`}>
+          <button aria-label="검색" className="lt-search-icon" onClick={onSearchIcon}>
+            <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="16.2" y1="16.2" x2="21" y2="21" /></svg>
+          </button>
+          <input
+            ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') closeSearch(); }}
+            placeholder="검색어 입력" tabIndex={searchOpen ? 0 : -1}
+          />
           {searchOpen && (
             <button aria-label="닫기" className="lt-search-close" onClick={closeSearch}>
               <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
             </button>
           )}
-          <input
-            ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Escape') closeSearch(); }}
-            placeholder="전체 기간 검색" tabIndex={searchOpen ? 0 : -1}
-          />
-          <button aria-label="검색" className="lt-search-icon" onClick={onSearchIcon}>
-            <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="16.2" y1="16.2" x2="21" y2="21" /></svg>
-          </button>
         </div>
       </div>
 
