@@ -33,19 +33,24 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
             <div className="tx-daycard">
               {items.map((t, i) => {
                 const editable = canEdit ? canEdit(t) : true;
-                const linked = !!t.origin_type;
+                const isGroup = !!(t.group_name || t.origin_type); // 그룹에서 입력/반영된 항목
                 const sub = [t.category_name, t.source_name, t.author_name && t.group_name ? `by ${t.author_name}` : null].filter(Boolean).join(' · ') || '—';
                 return (
                   <SwipeRow key={t.id} deletable={editable && !!onDelete} onDelete={() => onDelete(t)} onTap={() => editable && onEdit(t)}>
-                    <div className="tx-row" style={{ borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: editable ? 'pointer' : 'default' }}>
-                      <span className="tx-tile" style={{ background: t.category_emoji ? tileBg(t.category_name) : '#f2f1f5' }}>
+                    <div
+                      className="tx-row"
+                      style={{
+                        borderTop: i > 0 ? '1px solid #f2f1f5' : 'none',
+                        cursor: editable ? 'pointer' : 'default',
+                        background: isGroup ? 'linear-gradient(135deg, #FFEAD5 0%, #FFE0E6 100%)' : '#fff',
+                      }}
+                    >
+                      <span className="tx-tile" style={{ background: t.category_emoji ? (isGroup ? 'rgba(255,255,255,.65)' : tileBg(t.category_name)) : (isGroup ? 'rgba(255,255,255,.65)' : '#f2f1f5') }}>
                         {t.category_emoji || (t.type === 'income' ? '💰' : '💸')}
                       </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div className="tx-row-title">
                           {t.content || t.category_name || (t.type === 'income' ? '수입' : '지출')}
-                          {t.group_name && <span className="tag-group">{t.group_name}</span>}
-                          {linked && <span className="tag-group" style={{ background: '#eef0ff', color: '#7363e8' }}>🔁 구독</span>}
                         </div>
                         <div className="tx-row-sub">{sub}</div>
                       </div>
