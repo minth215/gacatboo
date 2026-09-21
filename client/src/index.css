@@ -90,7 +90,8 @@ a { color: inherit; text-decoration: none; }
   max-width: 720px; margin: 0 auto; /* .container 와 동일 폭으로 중앙 정렬 */
   height: 56px; display: flex; align-items: center;
   padding: 0 16px;
-  background: rgba(254, 252, 252, 0.94); backdrop-filter: blur(10px);
+  background: rgba(254, 252, 252, 0.94);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
 }
 .lt-title { font-size: 21px; font-weight: 800; letter-spacing: -0.6px; color: #191722; }
 /* 필터 버튼: 항상 맨 오른쪽 고정 */
@@ -155,7 +156,8 @@ a { color: inherit; text-decoration: none; }
   max-width: 720px; margin: 0 auto;
   height: 56px; display: flex; align-items: center; gap: 10px;
   padding: 0 16px;
-  background: rgba(254, 252, 252, 0.94); backdrop-filter: blur(10px);
+  background: rgba(254, 252, 252, 0.94);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
 }
 .simple-topbar .back-btn {
   width: 36px; height: 36px; border-radius: 50%; border: none; background: #fff;
@@ -217,10 +219,10 @@ a { color: inherit; text-decoration: none; }
 .pill-toggle button.expense.active { color: var(--expense); }
 
 /* 수입/지출 전체폭 알약 토글 (기록 작성 페이지) */
-.type-pill { display: flex; width: 100%; height: 52px; background: #F1F0F4; border-radius: 999px; padding: 4px; gap: 4px; margin-bottom: 20px; }
+.type-pill { display: flex; width: 100%; height: 40px; background: #F1F0F4; border-radius: 999px; padding: 3px; gap: 3px; margin-bottom: 20px; }
 .type-pill button {
   flex: 1; border: none; background: transparent; border-radius: 999px;
-  font-weight: 800; font-size: 15px; color: #8b8798; cursor: pointer;
+  font-weight: 800; font-size: 14px; color: #8b8798; cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease;
 }
 .type-pill button.income.active { background: #fff; color: #2CDDB9; box-shadow: 0 2px 8px rgba(25,23,34,.08); }
@@ -238,16 +240,16 @@ a { color: inherit; text-decoration: none; }
 
 /* ---------- Forms ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-.field label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.field label { font-size: 13px; font-weight: 600; color: #191722; }
 .field input, .field select, .field textarea {
   width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box;
-  padding: 11px 12px; border: 1px solid var(--line);
-  border-radius: 10px; background: #fff; color: var(--text); outline: none;
+  padding: 11px 12px; border: 1px solid transparent;
+  border-radius: 10px; background: rgb(244, 243, 247); color: var(--text); outline: none;
   font-size: 14px;
 }
 .field input[type="date"] { -webkit-appearance: none; appearance: none; }
 .field input:focus, .field select:focus, .field textarea:focus {
-  border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-weak);
+  background: #fff; border-color: rgb(25, 23, 34); outline: none; box-shadow: none;
 }
 .field textarea { resize: vertical; min-height: 64px; }
 .field .with-suffix { position: relative; }
