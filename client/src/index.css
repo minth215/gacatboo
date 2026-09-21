@@ -162,7 +162,8 @@ a { color: inherit; text-decoration: none; }
   background: rgba(254, 252, 252, 0.94);
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
 }
-.simple-topbar .back-btn {
+/* 상단바 원형 아이콘 버튼(뒤로가기·+ 추가 등 공통) */
+.simple-topbar .tb-icon-btn {
   width: 36px; height: 36px; border-radius: 50%; border: none; background: #fff;
   box-shadow: 0 3px 12px rgba(25, 23, 34, 0.1); color: #191722;
   display: flex; align-items: center; justify-content: center; padding: 0; flex: none;

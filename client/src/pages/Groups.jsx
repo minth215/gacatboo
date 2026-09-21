@@ -4,6 +4,7 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { leaderLabel, today } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 
 export default function Groups() {
   const nav = useNavigate();
@@ -41,11 +42,12 @@ export default function Groups() {
   };
 
   return (
-    <div>
-      <div className="between" style={{ margin: '4px 2px 14px' }}>
-        <h2 style={{ margin: 0, fontSize: 20 }}>그룹</h2>
-        <button className="btn primary sm" onClick={openModal}>＋ 그룹 만들기</button>
-      </div>
+    <div style={{ padding: '0 0 12px' }}>
+      <PageHeader title="그룹" showBack={false} right={
+        <button className="tb-icon-btn" onClick={openModal} aria-label="그룹 만들기">
+          <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
+      } />
 
       {loading ? (
         <div className="empty">불러오는 중…</div>

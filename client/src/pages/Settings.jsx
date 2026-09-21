@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 
 export default function Settings() {
   const { user, logout } = useAuth();
@@ -17,10 +18,10 @@ export default function Settings() {
   }
 
   return (
-    <div>
-      <h2 style={{ margin: '4px 2px 14px', fontSize: 20 }}>설정</h2>
+    <div style={{ padding: '0 0 12px' }}>
+      <PageHeader title="설정" showBack={false} />
 
-      <div className="card" style={{ padding: 6 }}>
+      <div className="card" style={{ padding: 6, marginTop: 14 }}>
         {items.map((it) => (
           <button key={it.to} className="menu-row" onClick={() => nav(it.to)}>
             <span className="menu-ico">{it.ico}</span>
