@@ -4,6 +4,7 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtWon } from '../lib/format.js';
 import TransactionList from '../components/TransactionList.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 
 export default function Search() {
   const { user } = useAuth();
@@ -94,9 +95,8 @@ export default function Search() {
   const selStyle = { padding: 10, border: '1px solid var(--line)', borderRadius: 10, background: '#fff' };
 
   return (
-    <div>
-      <button className="btn sm ghost" onClick={() => nav('/')} style={{ marginBottom: 8, paddingLeft: 0 }}>‹ 가계부</button>
-      <h2 style={{ margin: '4px 2px 14px', fontSize: 20 }}>검색</h2>
+    <div style={{ padding: '44px 0 12px' }}>
+      <PageHeader title="검색" />
 
       <div className="card" style={{ padding: 10, marginBottom: 12 }}>
         <div className="row">

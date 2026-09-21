@@ -4,6 +4,7 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtWon, addInterval } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 import { DepositForm } from './SubscriptionGroup.jsx';
 
 export default function MemberDetail() {
@@ -67,8 +68,8 @@ export default function MemberDetail() {
   };
 
   return (
-    <div>
-      <button className="btn sm ghost" onClick={() => nav(`/groups/${gid}`)} style={{ marginBottom: 8, paddingLeft: 0 }}>‹ {group.name}</button>
+    <div style={{ padding: '44px 0 12px' }}>
+      <PageHeader title={group.name} />
 
       {/* 상단 카드 */}
       <div className="card">

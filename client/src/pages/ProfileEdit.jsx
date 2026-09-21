@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
 import { supabase } from '../lib/supabase.js';
+import PageHeader from '../components/PageHeader.jsx';
 
 export default function ProfileEdit() {
   const { user } = useAuth();
-  const nav = useNavigate();
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [error, setError] = useState('');
@@ -31,9 +30,8 @@ export default function ProfileEdit() {
   };
 
   return (
-    <div>
-      <button className="btn sm ghost" onClick={() => nav('/settings')} style={{ marginBottom: 8, paddingLeft: 0 }}>‹ 설정</button>
-      <h2 style={{ margin: '4px 2px 14px', fontSize: 20 }}>내 정보 수정</h2>
+    <div style={{ padding: '44px 0 12px' }}>
+      <PageHeader title="내 정보 수정" />
 
       <div className="card">
         <div style={{ fontWeight: 700 }}>{user.display_name}</div>

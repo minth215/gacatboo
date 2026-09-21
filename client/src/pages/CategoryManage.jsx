@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import Modal from '../components/Modal.jsx';
 import EmojiField from '../components/EmojiField.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 
 export default function CategoryManage() {
   const { type } = useParams(); // income | expense
-  const nav = useNavigate();
   const { user } = useAuth();
   const [categories, setCategories] = useState([]);
   const [editor, setEditor] = useState(null); // null | {id?, name, emoji}
@@ -38,12 +38,10 @@ export default function CategoryManage() {
   if (!valid) return <div className="empty">잘못된 접근입니다.</div>;
 
   return (
-    <div>
-      <button className="btn sm ghost" onClick={() => nav('/settings')} style={{ marginBottom: 8, paddingLeft: 0 }}>‹ 설정</button>
-      <div className="between" style={{ margin: '4px 2px 14px' }}>
-        <h2 style={{ margin: 0, fontSize: 20 }}>{kind} 분류 관리</h2>
+    <div style={{ padding: '44px 0 12px' }}>
+      <PageHeader title={`${kind} 분류 관리`} right={
         <button className="btn primary sm" onClick={() => setEditor({ name: '', emoji: '' })}>＋ 추가</button>
-      </div>
+      } />
 
       <div className="card">
         {categories.length === 0 ? (

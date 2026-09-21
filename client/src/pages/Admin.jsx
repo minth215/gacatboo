@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import Modal from '../components/Modal.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 
 const STATUS_LABEL = { approved: '승인됨', pending: '대기중', rejected: '거부됨' };
 
@@ -40,11 +41,10 @@ export default function Admin() {
   const pending = users.filter((u) => u.status === 'pending');
 
   return (
-    <div>
-      <div className="between" style={{ margin: '4px 2px 14px' }}>
-        <h2 style={{ margin: 0, fontSize: 20 }}>회원 관리</h2>
+    <div style={{ padding: '44px 0 12px' }}>
+      <PageHeader title="회원 관리" right={
         <button className="btn primary sm" onClick={() => setModal(true)}>＋ 계정 생성</button>
-      </div>
+      } />
 
       {pending.length > 0 && (
         <div className="card" style={{ borderColor: '#ffe0b2', background: '#fffdf8' }}>

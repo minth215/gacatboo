@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import TransactionForm from '../components/TransactionForm.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 
-// 항목 작성/수정 전용 페이지 (하단 시트가 아닌 별도 화면).
+// 항목 작성/수정 전용 화면 (하단 시트가 아닌 별도 화면).
 // /new            → 개인 항목 추가
 // /new?group=ID   → 그룹 항목 추가
 // /tx/:id         → 기존 항목 수정
@@ -26,7 +27,7 @@ export default function TransactionEdit() {
       .finally(() => setLoading(false));
   }, [editing, id]);
 
-  // 저장/취소 후 이동: 그룹 항목이면 그룹으로, 아니면 가계부로.
+  // 저장 후 이동: 그룹 항목이면 그룹으로, 아니면 가계부로.
   const done = () => {
     const target = groupId || initial?.group_id;
     nav(target ? `/groups/${target}` : '/');
@@ -34,19 +35,14 @@ export default function TransactionEdit() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <div className="simple-topbar">
-        <button className="back-btn" onClick={done} aria-label="뒤로">
-          <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
-        </button>
-        <div className="title">{editing ? '기록 수정' : '기록'}</div>
-      </div>
+      <PageHeader title={editing ? '기록 수정' : '기록'} />
 
       {loading ? (
         <div className="empty">불러오는 중…</div>
       ) : error ? (
         <div className="empty">{error}</div>
       ) : (
-        <TransactionForm initial={initial} groupId={groupId} onSaved={done} onClose={done} />
+        <TransactionForm initial={initial} groupId={groupId} onSaved={done} onClose={() => nav(-1)} />
       )}
     </div>
   );

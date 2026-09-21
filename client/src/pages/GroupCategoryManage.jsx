@@ -1,12 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import Modal from '../components/Modal.jsx';
 import EmojiField from '../components/EmojiField.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 
 export default function GroupCategoryManage() {
-  const nav = useNavigate();
   const { user } = useAuth();
   const [cats, setCats] = useState([]);
   const [editor, setEditor] = useState(null); // null | {id?, name, emoji}
@@ -29,12 +28,10 @@ export default function GroupCategoryManage() {
   };
 
   return (
-    <div>
-      <button className="btn sm ghost" onClick={() => nav('/settings')} style={{ marginBottom: 8, paddingLeft: 0 }}>‹ 설정</button>
-      <div className="between" style={{ margin: '4px 2px 14px' }}>
-        <h2 style={{ margin: 0, fontSize: 20 }}>그룹 카테고리 관리</h2>
+    <div style={{ padding: '44px 0 12px' }}>
+      <PageHeader title="그룹 카테고리 관리" right={
         <button className="btn primary sm" onClick={() => setEditor({ name: '', emoji: '' })}>＋ 추가</button>
-      </div>
+      } />
       <p className="small muted" style={{ margin: '0 2px 14px' }}>그룹을 만들 때 선택할 수 있는 카테고리 목록입니다.</p>
 
       <div className="card">

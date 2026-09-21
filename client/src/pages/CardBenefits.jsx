@@ -1,12 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtWon } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 
 export default function CardBenefits() {
-  const nav = useNavigate();
   const { user } = useAuth();
   const [cards, setCards] = useState([]);   // 카드 원천 목록 [{id, name}]
   const [tiers, setTiers] = useState([]);
@@ -38,9 +37,8 @@ export default function CardBenefits() {
   };
 
   return (
-    <div>
-      <button className="btn sm ghost" onClick={() => nav('/settings')} style={{ marginBottom: 8, paddingLeft: 0 }}>‹ 설정</button>
-      <h2 style={{ margin: '4px 2px 4px', fontSize: 20 }}>카드 실적 관리</h2>
+    <div style={{ padding: '44px 0 12px' }}>
+      <PageHeader title="카드 실적 관리" />
       <p className="small muted" style={{ margin: '0 2px 14px' }}>
         원천 관리의 &lsquo;카드&rsquo; 항목별로 실적(사용액) 구간에 따른 혜택을 등록합니다. 통계의 지출 원천별 화면에서 달성 현황을 볼 수 있습니다.
       </p>

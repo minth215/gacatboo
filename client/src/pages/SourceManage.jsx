@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 
 export default function SourceManage() {
-  const nav = useNavigate();
   const { user } = useAuth();
   const [sources, setSources] = useState([]);
   const [newTop, setNewTop] = useState('');
@@ -35,9 +34,8 @@ export default function SourceManage() {
   };
 
   return (
-    <div>
-      <button className="btn sm ghost" onClick={() => nav('/settings')} style={{ marginBottom: 8, paddingLeft: 0 }}>‹ 설정</button>
-      <h2 style={{ margin: '4px 2px 4px', fontSize: 20 }}>원천 관리</h2>
+    <div style={{ padding: '44px 0 12px' }}>
+      <PageHeader title="원천 관리" />
       <p className="small muted" style={{ margin: '0 2px 14px' }}>
         카테고리(현금/은행/카드/기타) 안에 세부 항목(우리은행, 삼성카드 등)을 추가할 수 있습니다.
       </p>

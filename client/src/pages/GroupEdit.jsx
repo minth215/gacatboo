@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 
 export default function GroupEdit() {
   const { id } = useParams();
@@ -37,9 +38,8 @@ export default function GroupEdit() {
   };
 
   return (
-    <div>
-      <button className="btn sm ghost" onClick={() => nav(`/groups/${gid}`)} style={{ marginBottom: 8, paddingLeft: 0 }}>‹ 그룹</button>
-      <h2 style={{ margin: '4px 2px 14px', fontSize: 20 }}>그룹 정보 수정</h2>
+    <div style={{ padding: '44px 0 12px' }}>
+      <PageHeader title="그룹 정보 수정" />
 
       <div className="card">
         <div className="field">
