@@ -8,11 +8,14 @@ import { today, fmtWon } from '../lib/format.js';
 const SNAP = '__snap__';
 
 // 수입/지출 항목 작성·수정 폼. groupId 지정 시 그룹 항목으로 저장.
-export default function TransactionForm({ initial, groupId, onSaved, onClose }) {
+// fixedType 지정 시 수입/지출 토글을 숨기고 해당 유형으로 고정(예: 그룹 결제=지출).
+// defaultCategoryName 지정 시 신규 작성 때 해당 이름의 분류를 기본 선택.
+// onSubmit 지정 시 db.saveTransaction 대신 이 함수로 저장을 위임(그룹 결제 등 별도 저장 로직).
+export default function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, onSubmit, topNotice }) {
   const { user } = useAuth();
   const nav = useNavigate();
   const editing = !!initial?.id;
-  const [type, setType] = useState(initial?.type || 'expense');
+  const [type, setType] = useState(fixedType || initial?.type || 'expense');
   const [date, setDate] = useState(initial?.date || today());
   const [amount, setAmount] = useState(initial?.amount ? String(initial.amount) : '');
   const [categoryId, setCategoryId] = useState(
@@ -34,7 +37,14 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    db.listCategories().then(setCategories).catch(() => {});
+    db.listCategories().then((cs) => {
+      setCategories(cs);
+      // 신규 작성 시 기본 분류 자동 선택(예: 그룹 결제 → '구독')
+      if (!editing && !categoryId && defaultCategoryName) {
+        const c = cs.find((x) => x.type === (fixedType || type) && x.name === defaultCategoryName);
+        if (c) setCategoryId(String(c.id));
+      }
+    }).catch(() => {});
     db.listSources().then(({ tree, flat }) => { setSources(tree); setSourcesFlat(flat); }).catch(() => {});
     db.listRecentExpenses(user.id, { includeId: initial?.settlement_target_id || null }).then(setRecentExpenses).catch(() => {});
     db.listContentSuggestions(user.id).then(setContentSuggestions).catch(() => {});
@@ -79,7 +89,8 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
       group_id: groupId || null,
     };
     try {
-      await db.saveTransaction({ id: initial?.id, userId: user.id, payload, sourcesFlat });
+      if (onSubmit) await onSubmit(payload);
+      else await db.saveTransaction({ id: initial?.id, userId: user.id, payload, sourcesFlat });
       onSaved?.();
     } catch (err) {
       setError(err.message);
@@ -90,10 +101,14 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose }) 
 
   return (
     <form onSubmit={submit}>
-      <div className="type-pill">
-        <button type="button" className={`income ${type === 'income' ? 'active' : ''}`} onClick={() => { setType('income'); setCategoryId(''); }}>수입</button>
-        <button type="button" className={`expense ${type === 'expense' ? 'active' : ''}`} onClick={() => { setType('expense'); setCategoryId(''); }}>지출</button>
-      </div>
+      {topNotice}
+
+      {!fixedType && (
+        <div className="type-pill">
+          <button type="button" className={`income ${type === 'income' ? 'active' : ''}`} onClick={() => { setType('income'); setCategoryId(''); }}>수입</button>
+          <button type="button" className={`expense ${type === 'expense' ? 'active' : ''}`} onClick={() => { setType('expense'); setCategoryId(''); }}>지출</button>
+        </div>
+      )}
 
       <div className="field">
         <label>날짜</label>

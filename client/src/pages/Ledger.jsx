@@ -116,7 +116,8 @@ export default function Ledger() {
 
   const canEdit = (t) => (t.origin_type ? true : t.created_by === user.id);
   const openEdit = (t) => {
-    if (t.origin_type) nav(`/groups/${t.origin_group_id}?edit=${t.origin_type}:${t.origin_id}`);
+    if (t.origin_type === 'payment') nav(`/tx/${t.origin_id}?group=${t.origin_group_id}&kind=payment`);
+    else if (t.origin_type) nav(`/groups/${t.origin_group_id}?edit=${t.origin_type}:${t.origin_id}`);
     else nav(`/tx/${t.id}`);
   };
   const remove = async (t) => {

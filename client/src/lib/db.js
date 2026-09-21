@@ -301,6 +301,9 @@ export const db = {
     return unwrap(await supabase.from('subscription_payments').select('*')
       .eq('group_id', groupId).order('date', { ascending: false }).order('id', { ascending: false }));
   },
+  async getPayment(id) {
+    return unwrap(await supabase.from('subscription_payments').select('*').eq('id', id).single());
+  },
   async createPayment(groupId, userId, p) {
     const tx = unwrap(await supabase.from('transactions').insert({
       user_id: userId, group_id: null, type: 'expense', date: p.date, amount: p.amount,
