@@ -92,7 +92,7 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
   const statMembers = members.map((m) => ({ user_id: m.user_id, display_name: m.nickname }));
 
   return (
-    <div style={{ padding: '0 0 12px' }}>
+    <div style={{ padding: '44px 0 12px' }}>
       {header}
 
       <div className="pill-toggle" style={{ display: 'flex', width: '100%', marginBottom: 14 }}>

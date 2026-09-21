@@ -28,7 +28,7 @@ export default function GroupCategoryManage() {
   };
 
   return (
-    <div style={{ padding: '0 0 12px' }}>
+    <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="그룹 카테고리 관리" right={
         <button className="btn primary sm" onClick={() => setEditor({ name: '', emoji: '' })}>＋ 추가</button>
       } />

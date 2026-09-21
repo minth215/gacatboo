@@ -18,7 +18,7 @@ export default function Settings() {
   }
 
   return (
-    <div style={{ padding: '0 0 12px' }}>
+    <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="설정" showBack={false} />
 
       <div className="card" style={{ padding: 6, marginTop: 14 }}>

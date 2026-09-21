@@ -95,7 +95,7 @@ export default function Search() {
   const selStyle = { padding: 10, border: '1px solid var(--line)', borderRadius: 10, background: '#fff' };
 
   return (
-    <div style={{ padding: '0 0 12px' }}>
+    <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="검색" />
 
       <div className="card" style={{ padding: 10, marginBottom: 12 }}>

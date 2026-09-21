@@ -34,7 +34,7 @@ export default function TransactionEdit() {
   };
 
   return (
-    <div style={{ padding: '0 0 12px' }}>
+    <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title={editing ? '기록 수정' : '기록'} />
 
       {loading ? (

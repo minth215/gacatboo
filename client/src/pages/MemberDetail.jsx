@@ -68,7 +68,7 @@ export default function MemberDetail() {
   };
 
   return (
-    <div style={{ padding: '0 0 12px' }}>
+    <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title={group.name} />
 
       {/* 상단 카드 */}
