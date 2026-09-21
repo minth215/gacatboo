@@ -117,7 +117,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   });
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '0 0 12px' }}>
       {header}
 
       <div className="pill-toggle" style={{ display: 'flex', width: '100%', marginBottom: 14 }}>

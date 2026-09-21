@@ -38,7 +38,7 @@ export default function GroupEdit() {
   };
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '0 0 12px' }}>
       <PageHeader title="그룹 정보 수정" />
 
       <div className="card">

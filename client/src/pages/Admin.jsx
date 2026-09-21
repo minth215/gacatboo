@@ -41,7 +41,7 @@ export default function Admin() {
   const pending = users.filter((u) => u.status === 'pending');
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '0 0 12px' }}>
       <PageHeader title="회원 관리" right={
         <button className="btn primary sm" onClick={() => setModal(true)}>＋ 계정 생성</button>
       } />

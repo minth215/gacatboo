@@ -30,7 +30,7 @@ export default function ProfileEdit() {
   };
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '0 0 12px' }}>
       <PageHeader title="내 정보 수정" />
 
       <div className="card">

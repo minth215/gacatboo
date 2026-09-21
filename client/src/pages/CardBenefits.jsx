@@ -37,7 +37,7 @@ export default function CardBenefits() {
   };
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '0 0 12px' }}>
       <PageHeader title="카드 실적 관리" />
       <p className="small muted" style={{ margin: '0 2px 14px' }}>
         원천 관리의 &lsquo;카드&rsquo; 항목별로 실적(사용액) 구간에 따른 혜택을 등록합니다. 통계의 지출 원천별 화면에서 달성 현황을 볼 수 있습니다.

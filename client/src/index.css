@@ -150,10 +150,13 @@ a { color: inherit; text-decoration: none; }
 
 @keyframes cat-blink { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
 
-/* ---------- 단순 상단바 (뒤로 + 제목) ---------- */
+/* ---------- 단순 상단바 (뒤로 + 제목) ----------
+   iOS Safari 는 position:fixed 요소가 키패드 오픈 시 페이지 스크롤과 함께
+   밀려 올라가는 버그가 있어(레이아웃 뷰포트 vs 비주얼 뷰포트 어긋남),
+   sticky 로 전환 — 정상 문서 흐름에 참여해 키패드가 올라와도 흔들리지 않음. */
 .simple-topbar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 30;
-  max-width: 720px; margin: 0 auto;
+  position: sticky; top: 0; z-index: 30;
+  margin: -16px -16px 0; /* .container 16px 패딩 상쇄 → 화면 가장자리까지 배경 확장 */
   height: 56px; display: flex; align-items: center; gap: 10px;
   padding: 0 16px;
   background: rgba(254, 252, 252, 0.94);

@@ -38,7 +38,7 @@ export default function CategoryManage() {
   if (!valid) return <div className="empty">잘못된 접근입니다.</div>;
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '0 0 12px' }}>
       <PageHeader title={`${kind} 분류 관리`} right={
         <button className="btn primary sm" onClick={() => setEditor({ name: '', emoji: '' })}>＋ 추가</button>
       } />
