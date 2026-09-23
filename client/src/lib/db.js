@@ -366,6 +366,10 @@ export const db = {
       .select('*, member:group_members(nickname)')
       .eq('group_id', groupId).order('date', { ascending: false }).order('id', { ascending: false }));
   },
+  async getDeposit(id) {
+    return unwrap(await supabase.from('subscription_deposits')
+      .select('*, member:group_members(nickname)').eq('id', id).single());
+  },
   async createDeposit(p) {
     const { data, error } = await supabase.rpc('create_subscription_deposit', {
       p_group_id: p.group_id, p_member_id: p.member_id, p_date: p.date, p_amount: p.amount,

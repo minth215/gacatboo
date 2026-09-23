@@ -5,7 +5,6 @@ import { useAuth } from '../lib/auth.jsx';
 import { fmtWon, addInterval } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 import PageHeader from '../components/PageHeader.jsx';
-import { DepositForm } from './SubscriptionGroup.jsx';
 
 export default function MemberDetail() {
   const { id, memberId } = useParams();
@@ -18,12 +17,7 @@ export default function MemberDetail() {
   const [member, setMember] = useState(null);
   const [sub, setSub] = useState(null);
   const [deposits, setDeposits] = useState([]);
-  const [cats, setCats] = useState([]);
-  const [incomeCats, setIncomeCats] = useState([]);
-  const [sources, setSources] = useState({ tree: [], flat: [] });
-  const [recentExpenses, setRecentExpenses] = useState([]);
   const [editor, setEditor] = useState(null);    // 카드 수정
-  const [depEditor, setDepEditor] = useState(null); // 입금 수정
 
   const loadGroup = useCallback(() => {
     db.getGroup(gid).then(({ group, members }) => {
@@ -38,12 +32,6 @@ export default function MemberDetail() {
   }, [gid, mid]);
 
   useEffect(() => { loadGroup(); loadDeps(); db.getSubscription(gid).then(setSub).catch(() => {}); }, [loadGroup, loadDeps, gid]);
-  useEffect(() => {
-    db.listCategories('expense').then(setCats).catch(() => {});
-    db.listCategories('income').then(setIncomeCats).catch(() => {});
-    db.listSources().then(setSources).catch(() => {});
-    db.listRecentExpenses(user.id).then(setRecentExpenses).catch(() => {});
-  }, [user.id]);
 
   if (!group || !member) return <div className="empty">불러오는 중…</div>;
 
@@ -95,7 +83,7 @@ export default function MemberDetail() {
       {/* 입금 내역 */}
       <h3 style={{ margin: '18px 2px 10px', fontSize: 16 }}>입금 내역</h3>
       {deposits.length === 0 ? <div className="empty">입금 내역이 없습니다.</div> : deposits.map((d) => (
-        <div className="tx" key={d.id} onClick={() => canEditDep && setDepEditor(d)} style={{ cursor: canEditDep ? 'pointer' : 'default' }}>
+        <div className="tx" key={d.id} onClick={() => canEditDep && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)} style={{ cursor: canEditDep ? 'pointer' : 'default' }}>
           <span className="cat-emoji">{d.category_emoji || '💸'}</span>
           <div className="tx-main">
             <div className="tx-title">{fmtWon(d.amount)} <span className="tag-group">{d.periods}회차</span></div>
@@ -127,13 +115,6 @@ export default function MemberDetail() {
             <button className="btn primary block" onClick={saveEdit}>저장</button>
           </div>
         </Modal>
-      )}
-
-      {depEditor && (
-        <DepositForm initial={depEditor} sub={sub} cats={cats} incomeCats={incomeCats} sources={sources}
-          members={[member]} recentExpenses={recentExpenses} isOwner={isOwner}
-          onClose={() => setDepEditor(null)}
-          onSave={async (p) => { await db.updateDeposit(depEditor.id, p); setDepEditor(null); loadDeps(); }} />
       )}
     </div>
   );

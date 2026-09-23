@@ -46,16 +46,17 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   const { user } = useAuth();
   const nav = useNavigate();
   const [params, setParams] = useSearchParams();
-  const [tab, setTab] = useState('payments');
+  const tab = params.get('tab') || 'payments';
+  const setTab = useCallback((t) => {
+    const next = new URLSearchParams(params);
+    next.set('tab', t);
+    setParams(next, { replace: true });
+  }, [params, setParams]);
   const [sub, setSub] = useState(null);
   const [payments, setPayments] = useState([]);
   const [deposits, setDeposits] = useState([]);
-  const [cats, setCats] = useState([]);
   const [incomeCats, setIncomeCats] = useState([]);
-  const [sources, setSources] = useState({ tree: [], flat: [] });
-  const [recentExpenses, setRecentExpenses] = useState([]);
 
-  const [depEditor, setDepEditor] = useState(null);
   const [setModal, setSetModal] = useState(false);
 
   const myMember = members.find((m) => m.user_id === user.id && m.role !== 'owner');
@@ -66,23 +67,8 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   const loadDep = useCallback(() => db.listDeposits(gid).then(setDeposits).catch(() => setDeposits([])), [gid]);
   useEffect(() => { loadSub(); loadPay(); loadDep(); }, [loadSub, loadPay, loadDep]);
   useEffect(() => {
-    db.listCategories('expense').then(setCats).catch(() => {});
     db.listCategories('income').then(setIncomeCats).catch(() => {});
-    db.listSources().then(setSources).catch(() => {});
-    db.listRecentExpenses(user.id).then(setRecentExpenses).catch(() => {});
   }, [user.id]);
-
-  // 가계부에서 넘어온 편집 요청: ?edit=deposit:ID (결제 내역은 /tx 페이지에서 직접 수정)
-  useEffect(() => {
-    const edit = params.get('edit');
-    if (!edit) return;
-    const [kind, idStr] = edit.split(':');
-    const id = Number(idStr);
-    if (kind === 'deposit') {
-      const rec = deposits.find((d) => d.id === id);
-      if (rec) { setTab('deposits'); setDepEditor({ rec }); setParams({}, { replace: true }); }
-    }
-  }, [params, deposits, setParams]);
 
   const usedAmount = payments.reduce((s, p) => s + Number(p.amount), 0);
   const totalAmount = deposits.reduce((s, d) => s + Number(d.amount), 0);
@@ -164,7 +150,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
           {deposits.length === 0 ? <div className="empty">입금 내역이 없습니다.</div> : deposits.map((d) => {
             const mine = isOwner || (myMember && d.member_id === myMember.id);
             return (
-              <SwipeRow key={d.id} deletable={mine} onDelete={() => delDeposit(d)} onTap={() => mine && setDepEditor({ rec: d })}>
+              <SwipeRow key={d.id} deletable={mine} onDelete={() => delDeposit(d)} onTap={() => mine && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)}>
                 <div className="tx" style={{ cursor: mine ? 'pointer' : 'default' }}>
                   <span className="cat-emoji">{d.category_emoji || '💸'}</span>
                   <div className="tx-main">
@@ -176,7 +162,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
             );
           })}
           {(isOwner || myMember) && (
-            <button className="fab" onClick={() => setDepEditor({})} aria-label="입금 추가">
+            <button className="fab" onClick={() => nav(`/new?group=${gid}&kind=deposit`)} aria-label="입금 추가">
               <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             </button>
           )}
@@ -217,16 +203,6 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
         </>
       )}
 
-      {depEditor && (
-        <DepositForm initial={depEditor.rec} sub={sub} cats={cats} incomeCats={incomeCats} sources={sources}
-          members={isOwner ? memberList : (myMember ? [myMember] : [])} recentExpenses={recentExpenses} isOwner={isOwner}
-          onClose={() => setDepEditor(null)}
-          onSave={async (p) => {
-            if (depEditor.rec) await db.updateDeposit(depEditor.rec.id, p);
-            else await db.createDeposit({ ...p, group_id: gid });
-            setDepEditor(null); loadDep();
-          }} />
-      )}
       {setModal && (
         <SettingsForm sub={sub} incomeCats={incomeCats} onClose={() => setSetModal(false)}
           onSave={async (s) => { await db.upsertSubscription(gid, s); setSetModal(false); loadSub(); }} />
@@ -235,7 +211,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   );
 }
 
-export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onClose, onSave }) {
+export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, topNotice }) {
   const editing = !!initial;
   const defMemberCat = cats.find((c) => c.name === '구독');     // 멤버 지출 기본 '구독'
   const defLeaderCat = incomeCats.find((c) => c.name === sub?.deposit_category); // 총대 수입 기본 = 입금분류
@@ -300,11 +276,13 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
         leader_category_name: l_name, leader_category_emoji: l_emoji, leader_settlement_target_id: l_settle,
         content: f.content, memo: f.memo,
       });
+      onSaved?.();
     } catch (e) { setErr(e.message); setBusy(false); }
   };
 
   return (
-    <Modal title={editing ? '입금 내역 수정' : '입금 내역 추가'} onClose={onClose}>
+    <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
+      {topNotice}
       {/* 공통 */}
       <div className="field"><label>멤버</label>
         <select value={f.memberId} onChange={(e) => setF({ ...f, memberId: e.target.value })} disabled={editing || members.length <= 1}>
@@ -357,12 +335,8 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
       <div className="field"><label>내용</label><input value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} placeholder="예: 넷플릭스 회비" /></div>
       <div className="field"><label>메모</label><textarea value={f.memo} onChange={(e) => setF({ ...f, memo: e.target.value })} /></div>
       {err && <p className="error">{err}</p>}
-      <p className="small muted">총대(수입)·멤버(지출) 가계부와 자동 동기화됩니다.</p>
-      <div className="row" style={{ marginTop: 6 }}>
-        <button className="btn block" onClick={onClose}>취소</button>
-        <button className="btn primary block" disabled={busy} onClick={submit}>{busy ? '저장 중…' : '저장'}</button>
-      </div>
-    </Modal>
+      <button className="btn-ink-pill" disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
+    </form>
   );
 }
 
