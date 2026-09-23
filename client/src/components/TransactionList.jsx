@@ -3,7 +3,7 @@ import SwipeRow from './SwipeRow.jsx';
 
 // 분류명 → 부드러운 타일 배경 (시안의 파스텔 톤)
 const TILE_BG = ['#fff1e6', '#eef1fb', '#e8f6ee', '#fde8ee', '#f3ecff', '#e7f5fb', '#fdf3e0'];
-const tileBg = (key) => {
+export const tileBg = (key) => {
   const s = key || '';
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
@@ -83,7 +83,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
   );
 }
 
-function formatDate(d, fmt) {
+export function formatDate(d, fmt) {
   const dt = new Date(d + 'T00:00:00');
   const days = ['일', '월', '화', '수', '목', '금', '토'];
   const w = `${days[dt.getDay()]}요일`;

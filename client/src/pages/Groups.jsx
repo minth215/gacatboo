@@ -55,7 +55,7 @@ export default function Groups() {
         <div className="empty">아직 참여 중인 그룹이 없습니다.<br />여행·구독·N빵 등을 그룹으로 함께 관리해 보세요.</div>
       ) : (
         groups.map((g) => (
-          <div className="card" key={g.id} style={{ cursor: 'pointer' }} onClick={() => nav(`/groups/${g.id}`)}>
+          <div className="group-card" key={g.id} onClick={() => nav(`/groups/${g.id}`)}>
             <div className="between">
               <div className="row">
                 <span style={{ fontSize: 26 }}>{g.category_emoji || '📦'}</span>
