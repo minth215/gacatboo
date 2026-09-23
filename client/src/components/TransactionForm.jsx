@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { today, fmtWon } from '../lib/format.js';
+import { today, fmtWon, renderTemplate } from '../lib/format.js';
 
 // 분류/원천에 id 는 없고 이름(스냅샷)만 있는 항목(그룹 자동기입 등)을 표시하기 위한 센티넬
 const SNAP = '__snap__';
@@ -10,8 +10,10 @@ const SNAP = '__snap__';
 // 수입/지출 항목 작성·수정 폼. groupId 지정 시 그룹 항목으로 저장.
 // fixedType 지정 시 수입/지출 토글을 숨기고 해당 유형으로 고정(예: 그룹 결제=지출).
 // defaultCategoryName 지정 시 신규 작성 때 해당 이름의 분류를 기본 선택.
+// defaultContentTemplate 지정 시 신규 작성 때 "내용"을 이 템플릿({연}/{월}/{일} 변수 지원)으로 자동 채우고,
+// 날짜를 바꾸면 그 날짜 기준으로 다시 채워짐.
 // onSubmit 지정 시 db.saveTransaction 대신 이 함수로 저장을 위임(그룹 결제 등 별도 저장 로직).
-export default function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, onSubmit, topNotice }) {
+export default function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultContentTemplate, onSubmit, topNotice }) {
   const { user } = useAuth();
   const nav = useNavigate();
   const editing = !!initial?.id;
@@ -49,6 +51,16 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
     db.listRecentExpenses(user.id, { includeId: initial?.settlement_target_id || null }).then(setRecentExpenses).catch(() => {});
     db.listContentSuggestions(user.id).then(setContentSuggestions).catch(() => {});
   }, []);
+
+  // 신규 작성 시 "내용" 기본값 템플릿 적용(비동기로 나중에 도착해도 반영)
+  useEffect(() => {
+    if (!editing && !content && defaultContentTemplate) setContent(renderTemplate(defaultContentTemplate, date));
+  }, [defaultContentTemplate]);
+
+  const onDateChange = (v) => {
+    setDate(v);
+    if (!editing && defaultContentTemplate) setContent(renderTemplate(defaultContentTemplate, v));
+  };
 
   const catOptions = useMemo(() => categories.filter((c) => c.type === type), [categories, type]);
   const selCategory = categories.find((c) => String(c.id) === String(categoryId));
@@ -112,7 +124,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
 
       <div className="field">
         <label>날짜</label>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} />
       </div>
 
       <div className="field">

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, today, addInterval, PERIOD_LABEL } from '../lib/format.js';
+import { fmtWon, today, addInterval, PERIOD_LABEL, renderTemplate } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import SwipeRow from '../components/SwipeRow.jsx';
@@ -206,10 +206,12 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
 
       {tab === 'stats' && (
         <>
-          <div className="summary" style={{ marginBottom: 16 }}>
-            <div className="box"><div className="lbl">잔여 금액</div><div className="val">{fmtWon(remain)}</div></div>
-            <div className="box"><div className="lbl">총 금액</div><div className="val income">{fmtWon(totalAmount)}</div></div>
-            <div className="box"><div className="lbl">사용 금액</div><div className="val expense">{fmtWon(usedAmount)}</div></div>
+          <div className="summary-card">
+            <div className="col"><div className="lbl">총 금액</div><div className="val income">{fmtWon(totalAmount)}</div></div>
+            <div className="divider" />
+            <div className="col"><div className="lbl">사용 금액</div><div className="val expense">{fmtWon(usedAmount)}</div></div>
+            <div className="divider" />
+            <div className="col"><div className="lbl">잔여 금액</div><div className="val">{fmtWon(remain)}</div></div>
           </div>
           <div className="card">
             <h3>멤버별 입금 현황</h3>
@@ -264,8 +266,10 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     memberId: members[0] ? String(members[0].id) : '', date: today(),
     amount: sub?.deposit_amount ? String(sub.deposit_amount) : '', periods: '1',
     mCatId: defMemberCat ? String(defMemberCat.id) : '', mSourceId: '',
-    lCatId: defLeaderCat ? String(defLeaderCat.id) : '', lSettleId: '', lSourceId: '',
-    content: '', memo: '',
+    lCatId: defLeaderCat ? String(defLeaderCat.id) : '', lSettleId: '',
+    lSourceId: sub?.deposit_source_id ? String(sub.deposit_source_id) : '',
+    content: sub?.deposit_content_template ? renderTemplate(sub.deposit_content_template, today()) : '',
+    memo: '',
   });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
 
@@ -277,6 +281,14 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
       ...prev,
       amount,
       periods: defaultAmount > 0 && amount ? String(Math.round(Number(amount) / defaultAmount)) : prev.periods,
+    }));
+  };
+  // 신규 작성 시 날짜 변경에 따라 "내용" 기본값 템플릿({연}/{월}/{일}) 재계산
+  const onDateChange = (date) => {
+    setF((prev) => ({
+      ...prev,
+      date,
+      content: (!editing && sub?.deposit_content_template) ? renderTemplate(sub.deposit_content_template, date) : prev.content,
     }));
   };
 
@@ -309,7 +321,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
       l_source = f.lSourceId === KEEP ? (initial?.deposit_source_name || '') : sourceNameOf(sources.flat, f.lSourceId);
     } else {
       if (editing) { l_name = initial.leader_category_name; l_emoji = initial.leader_category_emoji; l_settle = initial.leader_settlement_target_id || null; l_source = initial.deposit_source_name; }
-      else { l_name = sub?.deposit_category || ''; l_emoji = sub?.deposit_category_emoji || ''; l_settle = null; l_source = ''; }
+      else { l_name = sub?.deposit_category || ''; l_emoji = sub?.deposit_category_emoji || ''; l_settle = null; l_source = sub?.deposit_source_name || ''; }
     }
 
     setBusy(true); setErr('');
@@ -336,7 +348,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
           {editing && !members.some((m) => String(m.id) === String(f.memberId)) && <option value={f.memberId}>{initial.member?.nickname || '멤버'}</option>}
         </select>
       </div>
-      <div className="field"><label>날짜</label><input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></div>
+      <div className="field"><label>날짜</label><input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} /></div>
       <div className="grid2">
         <div className="field"><label>금액</label>
           <div className="with-suffix">
@@ -401,10 +413,16 @@ function SettingsForm({ sub, incomeCats, onClose, onSave }) {
     deposit_amount: sub?.deposit_amount ? String(sub.deposit_amount) : '',
     period_count: sub?.period_count ? String(sub.period_count) : '1',
     period_unit: sub?.period_unit || 'month',
+    deposit_source_id: sub?.deposit_source_id ? String(sub.deposit_source_id) : '',
+    deposit_content_template: sub?.deposit_content_template || '',
+    payment_content_template: sub?.payment_content_template || '',
   });
   const initCat = incomeCats.find((c) => c.name === sub?.deposit_category);
   const [depositCatId, setDepositCatId] = useState(initCat ? String(initCat.id) : '');
+  const [sources, setSources] = useState({ tree: [], flat: [] });
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => { db.listSources().then(setSources).catch(() => {}); }, []);
 
   const submit = async () => {
     const cat = incomeCats.find((c) => c.id === Number(depositCatId));
@@ -417,6 +435,10 @@ function SettingsForm({ sub, incomeCats, onClose, onSave }) {
         deposit_amount: f.deposit_amount ? Math.round(Number(f.deposit_amount)) : null,
         period_unit: f.period_unit, period_count: Math.max(Number(f.period_count) || 1, 1),
         deposit_category: cat?.name || '', deposit_category_emoji: cat?.emoji || '',
+        deposit_source_id: f.deposit_source_id ? Number(f.deposit_source_id) : null,
+        deposit_source_name: sourceNameOf(sources.flat, f.deposit_source_id),
+        deposit_content_template: f.deposit_content_template.trim(),
+        payment_content_template: f.payment_content_template.trim(),
       });
     } catch (e) { alert(e.message); setBusy(false); }
   };
@@ -456,6 +478,16 @@ function SettingsForm({ sub, incomeCats, onClose, onSave }) {
           <option value="">선택 안 함</option>
           {incomeCats.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
         </select>
+      </div>
+      <div className="field"><label>입금 원천 <span className="small muted">(총대 수입 원천 기본값)</span></label>
+        <SourceSelect sources={sources.tree} value={f.deposit_source_id} onChange={(v) => setF({ ...f, deposit_source_id: v })} keepLabel={sub?.deposit_source_name} />
+      </div>
+      <div className="field"><label>입금 내용 기본값</label>
+        <input value={f.deposit_content_template} onChange={(e) => setF({ ...f, deposit_content_template: e.target.value })} placeholder="예: {월}월 회비" />
+      </div>
+      <div className="field"><label>결제 내용 기본값</label>
+        <input value={f.payment_content_template} onChange={(e) => setF({ ...f, payment_content_template: e.target.value })} placeholder="예: {월}월 정기결제" />
+        <p className="small muted" style={{ margin: '4px 2px 0' }}>{'내용에 {연}, {월}, {일} 을 넣으면 입력한 날짜 기준으로 자동 치환됩니다.'}</p>
       </div>
       <div className="row" style={{ marginTop: 6 }}>
         <button className="btn block" onClick={onClose}>취소</button>

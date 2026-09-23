@@ -44,8 +44,12 @@ export default function TransactionEdit() {
   }, [isPayment, isDeposit, groupId]);
 
   useEffect(() => {
-    if (!isDeposit || !groupId) return;
+    if ((!isPayment && !isDeposit) || !groupId) return;
     db.getSubscription(groupId).then(setSub).catch(() => {});
+  }, [isPayment, isDeposit, groupId]);
+
+  useEffect(() => {
+    if (!isDeposit || !groupId) return;
     db.listCategories('expense').then(setCats).catch(() => {});
     db.listCategories('income').then(setIncomeCats).catch(() => {});
     db.listSources().then(setSources).catch(() => {});
@@ -111,6 +115,7 @@ export default function TransactionEdit() {
           initial={initial} groupId={isPayment ? null : groupId} onSaved={done} onClose={() => nav(-1)}
           fixedType={isPayment ? 'expense' : undefined}
           defaultCategoryName={isPayment ? '구독' : undefined}
+          defaultContentTemplate={isPayment ? sub?.payment_content_template : undefined}
           onSubmit={isPayment ? savePayment : undefined}
           topNotice={isPayment && group && (
             <div className="form-section">

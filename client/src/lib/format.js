@@ -41,6 +41,16 @@ export function addInterval(dateStr, unit, count, n = 1) {
 
 export const PERIOD_LABEL = { day: '일', week: '주', month: '개월', year: '년' };
 
+// "내용" 기본값 템플릿의 날짜 변수 치환: {연}/{월}/{일} (날짜: YYYY-MM-DD)
+export function renderTemplate(template, dateStr) {
+  if (!template) return '';
+  const [y, m, d] = (dateStr || '').split('-').map(Number);
+  return template
+    .split('{연}').join(y ? String(y) : '')
+    .split('{월}').join(m ? String(m) : '')
+    .split('{일}').join(d ? String(d) : '');
+}
+
 // 그룹 유형(카테고리)에 따른 리더 명칭 / 구독형 여부
 export const isSubscription = (category) => category === '구독';
 export const leaderLabel = (category) => (isSubscription(category) ? '총대' : '총무');

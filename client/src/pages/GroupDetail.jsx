@@ -141,10 +141,12 @@ function GroupStatsView({ gid, month, members }) {
   if (!stats) return <div className="empty">데이터가 없습니다.</div>;
   return (
     <>
-      <div className="summary" style={{ marginBottom: 16 }}>
-        <div className="box"><div className="lbl">수입</div><div className="val income">{fmtWon(stats.totals.income)}</div></div>
-        <div className="box"><div className="lbl">지출</div><div className="val expense">{fmtWon(stats.totals.expense)}</div></div>
-        <div className="box"><div className="lbl">합계</div><div className="val">{fmtWon(stats.totals.balance)}</div></div>
+      <div className="summary-card">
+        <div className="col"><div className="lbl">수입</div><div className="val income">{fmtWon(stats.totals.income)}</div></div>
+        <div className="divider" />
+        <div className="col"><div className="lbl">지출</div><div className="val expense">{fmtWon(stats.totals.expense)}</div></div>
+        <div className="divider" />
+        <div className="col"><div className="lbl">합계</div><div className="val">{fmtWon(stats.totals.balance)}</div></div>
       </div>
       <div className="card">
         <h3>멤버별 지출/수입</h3>
