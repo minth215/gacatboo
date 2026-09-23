@@ -78,10 +78,12 @@ export default function Stats() {
   const [yy, mm] = month.split('-');
   const label = `${yy} 년 ${Number(mm)} 월`;
 
-  const summaryBtn = (active, color) => ({
-    flex: 1, border: 'none', padding: '2px 0', cursor: 'pointer',
-    borderRadius: 12, transition: 'background 0.15s ease',
-    background: active ? `${color}1c` : 'transparent',
+  const segStyle = (active, clickable = true) => ({
+    flex: 1, border: 'none', padding: '10px 4px', margin: 0,
+    borderRadius: 14, transition: 'background 0.15s ease, box-shadow 0.15s ease',
+    cursor: clickable ? 'pointer' : 'default',
+    background: active ? '#fff' : 'transparent',
+    boxShadow: active ? '0 2px 8px rgba(25,23,34,.08)' : 'none',
   });
 
   return (
@@ -113,18 +115,16 @@ export default function Stats() {
           </button>
           <CatMascot width={70} />
         </div>
-        <div style={{ background: '#fff', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgba(25,23,34,.07)', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
-          <button type="button" onClick={() => setTab('income')} style={summaryBtn(tab === 'income', '#2CDDB9')}>
+        <div style={{ background: '#F1F0F4', borderRadius: 20, padding: 6, boxShadow: '0 6px 20px rgba(25,23,34,.07)', display: 'flex', alignItems: 'stretch', textAlign: 'center', gap: 4 }}>
+          <button type="button" onClick={() => setTab('income')} style={segStyle(tab === 'income')}>
             <div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>수입</div>
             <div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtNum(totals.income)}</div>
           </button>
-          <div style={{ width: 1, height: 30, background: '#efeef2' }} />
-          <button type="button" onClick={() => setTab('expense')} style={summaryBtn(tab === 'expense', '#FF4358')}>
+          <button type="button" onClick={() => setTab('expense')} style={segStyle(tab === 'expense')}>
             <div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>지출</div>
             <div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtNum(totals.expense)}</div>
           </button>
-          <div style={{ width: 1, height: 30, background: '#efeef2' }} />
-          <div style={{ flex: 1 }}>
+          <div style={segStyle(false, false)}>
             <div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>합계</div>
             <div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#191722' }}>{fmtNum(totals.balance)}</div>
           </div>
