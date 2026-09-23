@@ -18,10 +18,11 @@ import GroupDetail from './pages/GroupDetail.jsx';
 import GroupEdit from './pages/GroupEdit.jsx';
 import MemberDetail from './pages/MemberDetail.jsx';
 import Admin from './pages/Admin.jsx';
+import Spinner from './components/Spinner.jsx';
 
 function Protected({ children, adminOnly }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="empty">불러오는 중…</div>;
+  if (loading) return <Spinner />;
   if (!user) return <Navigate to="/login" replace />;
   if (adminOnly && user.role !== 'admin') return <Navigate to="/" replace />;
   return children;

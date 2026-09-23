@@ -6,6 +6,7 @@ import { PALETTE } from '../lib/chartSetup.js';
 import { currentMonth, shiftMonth, fmtWon, fmtNum } from '../lib/format.js';
 import PageHeader from '../components/PageHeader.jsx';
 import CatMascot from '../components/CatMascot.jsx';
+import Spinner from '../components/Spinner.jsx';
 
 const EMPTY = {
   totals: { income: 0, expense: 0, balance: 0 },
@@ -37,7 +38,7 @@ export default function Stats() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { db.listCardBenefits().then(setTiers).catch(() => setTiers([])); }, []);
 
-  if (loading && !data) return <div className="empty">불러오는 중…</div>;
+  if (loading && !data) return <Spinner />;
   const view = data || EMPTY;
   const { totals, incomeByCategory, expenseByCategory, incomeBySource, expenseBySource, grossBySourceId } = view;
   const byCat = tab === 'expense' ? expenseByCategory : incomeByCategory;

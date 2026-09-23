@@ -2,9 +2,10 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { currentMonth, shiftMonth, fmtNum } from '../lib/format.js';
+import { currentMonth, shiftMonth, fmtNum, today } from '../lib/format.js';
 import TransactionList from '../components/TransactionList.jsx';
 import CatMascot from '../components/CatMascot.jsx';
+import Spinner from '../components/Spinner.jsx';
 
 const roundBtn = (size = 36) => ({
   width: size, height: size, borderRadius: '50%', border: 'none', background: '#fff',
@@ -148,6 +149,8 @@ export default function Ledger() {
   const [y, m] = month.split('-').map(Number);
   const daysInMonth = new Date(y, m, 0).getDate();
   const firstDow = new Date(y, m - 1, 1).getDay();
+  const todayStr = today();
+  const todayDay = todayStr.slice(0, 7) === month ? Number(todayStr.slice(8, 10)) : null;
   const perDay = useMemo(() => {
     const map = {};
     for (const t of filtered) {
@@ -221,7 +224,7 @@ export default function Ledger() {
           </div>
 
           {sLoading ? (
-            <div className="empty">불러오는 중…</div>
+            <Spinner />
           ) : (
             <TransactionList transactions={sFiltered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} dateFormat="full" />
           )}
@@ -287,7 +290,7 @@ export default function Ledger() {
 
           <div style={isEmptyMonthList ? { minHeight: 'calc(100vh - 302px - env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', justifyContent: 'center' } : undefined}>
             {loading ? (
-              <div className="empty">불러오는 중…</div>
+              <Spinner />
             ) : view === 'calendar' ? (
               <>
                 <div style={{ marginTop: 16, background: '#fff', borderRadius: 20, padding: '14px 12px 12px', boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
@@ -300,9 +303,14 @@ export default function Ledger() {
                       const day = i + 1;
                       const pd = perDay[day];
                       const sel = selDay === day;
+                      const isToday = day === todayDay;
                       return (
                         <div key={day} onClick={() => setSelDay(sel ? null : day)}
-                          style={{ minHeight: 54, borderRadius: 10, padding: '5px 2px 3px', textAlign: 'center', cursor: 'pointer', background: sel ? '#FFF0DC' : 'transparent' }}>
+                          style={{
+                            minHeight: 54, borderRadius: 10, padding: '5px 2px 3px', textAlign: 'center', cursor: 'pointer',
+                            background: sel ? '#FFF0DC' : 'transparent',
+                            border: isToday ? '1.5px solid #FF8A00' : '1.5px solid transparent',
+                          }}>
                           <div style={{ fontSize: 11, fontWeight: sel ? 800 : 600, color: sel ? '#191722' : '#6c6779' }}>{day}</div>
                           {pd?.expense > 0 && <div style={{ marginTop: 2, fontSize: 8, fontWeight: 700, letterSpacing: '-.3px', color: '#FF4358' }}>-{fmtNum(pd.expense)}</div>}
                           {pd?.income > 0 && <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '-.3px', color: '#2CDDB9' }}>+{fmtNum(pd.income)}</div>}
@@ -311,11 +319,9 @@ export default function Ledger() {
                     })}
                   </div>
                 </div>
-                {selDay && (
-                  <div style={{ marginTop: 6 }}>
-                    <TransactionList transactions={dayTxs} canEdit={canEdit} onEdit={openEdit} onDelete={remove} />
-                  </div>
-                )}
+                <div style={{ marginTop: 6 }}>
+                  <TransactionList transactions={selDay ? dayTxs : filtered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} emptyText="기록이 없습니다." />
+                </div>
               </>
             ) : (
               <TransactionList transactions={filtered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} emptyText="기록이 없습니다." />

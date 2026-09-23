@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { fmtWon } from '../lib/format.js';
 import TransactionList from '../components/TransactionList.jsx';
 import PageHeader from '../components/PageHeader.jsx';
+import Spinner from '../components/Spinner.jsx';
 
 export default function Search() {
   const { user } = useAuth();
@@ -147,7 +148,7 @@ export default function Search() {
       </div>
 
       {loading ? (
-        <div className="empty">불러오는 중…</div>
+        <Spinner />
       ) : (
         <TransactionList
           transactions={filtered}

@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { fmtWon, addInterval } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 import PageHeader from '../components/PageHeader.jsx';
+import Spinner from '../components/Spinner.jsx';
 
 export default function MemberDetail() {
   const { id, memberId } = useParams();
@@ -33,7 +34,7 @@ export default function MemberDetail() {
 
   useEffect(() => { loadGroup(); loadDeps(); db.getSubscription(gid).then(setSub).catch(() => {}); }, [loadGroup, loadDeps, gid]);
 
-  if (!group || !member) return <div className="empty">불러오는 중…</div>;
+  if (!group || !member) return <Spinner />;
 
   const isOwner = group.owner_id === user.id;
   const canEditDep = isOwner || member.user_id === user.id;

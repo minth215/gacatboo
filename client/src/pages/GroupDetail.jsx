@@ -8,6 +8,7 @@ import { currentMonth, shiftMonth, monthLabel, fmtWon, isSubscription, leaderLab
 import TransactionList from '../components/TransactionList.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import PageHeader from '../components/PageHeader.jsx';
+import Spinner from '../components/Spinner.jsx';
 import SubscriptionGroup from './SubscriptionGroup.jsx';
 
 export default function GroupDetail() {
@@ -24,7 +25,7 @@ export default function GroupDetail() {
   }, [gid, nav]);
   useEffect(() => { loadGroup(); }, [loadGroup]);
 
-  if (!group) return <div className="empty">불러오는 중…</div>;
+  if (!group) return <Spinner />;
 
   const isOwner = group.owner_id === user.id;
   const leaderName = leaderLabel(group.category);

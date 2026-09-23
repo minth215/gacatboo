@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { leaderLabel, today } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 import PageHeader from '../components/PageHeader.jsx';
+import Spinner from '../components/Spinner.jsx';
 
 export default function Groups() {
   const nav = useNavigate();
@@ -50,7 +51,7 @@ export default function Groups() {
       } />
 
       {loading ? (
-        <div className="empty">불러오는 중…</div>
+        <Spinner />
       ) : groups.length === 0 ? (
         <div className="empty">아직 참여 중인 그룹이 없습니다.<br />여행·구독·N빵 등을 그룹으로 함께 관리해 보세요.</div>
       ) : (

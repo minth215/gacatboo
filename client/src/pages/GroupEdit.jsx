@@ -4,6 +4,7 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtWon, PERIOD_LABEL, isSubscription } from '../lib/format.js';
 import PageHeader from '../components/PageHeader.jsx';
+import Spinner from '../components/Spinner.jsx';
 import { SettingsForm } from './SubscriptionGroup.jsx';
 
 export default function GroupEdit() {
@@ -35,7 +36,7 @@ export default function GroupEdit() {
     db.listCategories('income').then(setIncomeCats).catch(() => {});
   }, [gid]);
 
-  if (!form) return <div className="empty">불러오는 중…</div>;
+  if (!form) return <Spinner />;
 
   const save = async () => {
     if (!form.name.trim()) return setErr('그룹명을 입력하세요.');
