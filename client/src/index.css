@@ -257,7 +257,7 @@ a { color: inherit; text-decoration: none; }
   border-radius: 10px; background: rgb(244, 243, 247); color: var(--text); outline: none;
   font-size: 14px;
 }
-.field input[type="date"] { -webkit-appearance: none; appearance: none; }
+.field input[type="date"] { -webkit-appearance: none; appearance: none; height: 42px; }
 .field input:focus, .field select:focus, .field textarea:focus {
   background: #fff; border-color: rgb(25, 23, 34); outline: none; box-shadow: none;
 }

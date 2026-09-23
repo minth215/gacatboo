@@ -63,9 +63,6 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   const [sub, setSub] = useState(null);
   const [payments, setPayments] = useState([]);
   const [deposits, setDeposits] = useState([]);
-  const [incomeCats, setIncomeCats] = useState([]);
-
-  const [setModal, setSetModal] = useState(false);
 
   const myMember = members.find((m) => m.user_id === user.id && m.role !== 'owner');
   const memberList = members.filter((m) => m.role !== 'owner');
@@ -74,9 +71,6 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   const loadPay = useCallback(() => db.listPayments(gid).then(setPayments).catch(() => setPayments([])), [gid]);
   const loadDep = useCallback(() => db.listDeposits(gid).then(setDeposits).catch(() => setDeposits([])), [gid]);
   useEffect(() => { loadSub(); loadPay(); loadDep(); }, [loadSub, loadPay, loadDep]);
-  useEffect(() => {
-    db.listCategories('income').then(setIncomeCats).catch(() => {});
-  }, [user.id]);
 
   const usedAmount = payments.reduce((s, p) => s + Number(p.amount), 0);
   const totalAmount = deposits.reduce((s, d) => s + Number(d.amount), 0);
@@ -154,20 +148,6 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
 
       {tab === 'deposits' && (
         <>
-          <div className="card">
-            <div className="between" style={{ marginBottom: 8 }}>
-              <h3 style={{ margin: 0 }}>구독 설정</h3>
-              {isOwner && <button className="btn sm" onClick={() => setSetModal(true)}>설정</button>}
-            </div>
-            {sub ? (
-              <div className="small muted" style={{ lineHeight: 1.7 }}>
-                방식: <b>{sub.mode === 'common' ? '공통(모임통장)' : '개인'}</b> · 정기결제일: {sub.billing_day ? `${sub.billing_day}일` : '-'}<br />
-                정기결제금액: {sub.billing_amount ? fmtWon(sub.billing_amount) : '-'} · 정기입금액: {sub.deposit_amount ? fmtWon(sub.deposit_amount) : '-'}<br />
-                주기: {sub.period_count}{PERIOD_LABEL[sub.period_unit]} · 입금분류: {sub.deposit_category ? `${sub.deposit_category_emoji || ''} ${sub.deposit_category}` : '-'}
-              </div>
-            ) : <div className="small muted">{isOwner ? '설정 버튼으로 구독을 설정하세요.' : '설정 전입니다.'}</div>}
-          </div>
-
           {deposits.length === 0 ? <div className="empty">입금 내역이 없습니다.</div> : groupByDate(deposits).map(([date, items]) => {
             const net = items.reduce((s, d) => s + Number(d.amount), 0);
             return (
@@ -238,11 +218,6 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
           <MembersPanel groupId={gid} members={members} isOwner={isOwner} leaderName={leaderName} onReload={reloadMembers} />
           {isOwner && <button className="btn danger block" onClick={deleteGroup}>그룹 삭제</button>}
         </>
-      )}
-
-      {setModal && (
-        <SettingsForm sub={sub} incomeCats={incomeCats} onClose={() => setSetModal(false)}
-          onSave={async (s) => { await db.upsertSubscription(gid, s); setSetModal(false); loadSub(); }} />
       )}
     </div>
   );
@@ -405,7 +380,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
   );
 }
 
-function SettingsForm({ sub, incomeCats, onClose, onSave }) {
+export function SettingsForm({ sub, incomeCats, onClose, onSave }) {
   const [f, setF] = useState({
     mode: sub?.mode || 'personal',
     billing_day: sub?.billing_day ? String(sub.billing_day) : '',

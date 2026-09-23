@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
+import { fmtWon, PERIOD_LABEL, isSubscription } from '../lib/format.js';
 import PageHeader from '../components/PageHeader.jsx';
+import { SettingsForm } from './SubscriptionGroup.jsx';
 
 export default function GroupEdit() {
   const { id } = useParams();
@@ -11,8 +13,13 @@ export default function GroupEdit() {
   const { user } = useAuth();
   const [form, setForm] = useState(null);
   const [groupCats, setGroupCats] = useState([]);
+  const [sub, setSub] = useState(null);
+  const [incomeCats, setIncomeCats] = useState([]);
+  const [setModal, setSetModal] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const loadSub = () => db.getSubscription(gid).then(setSub).catch(() => {});
 
   useEffect(() => {
     db.getGroup(gid).then(({ group }) => {
@@ -24,6 +31,8 @@ export default function GroupEdit() {
       });
     }).catch((e) => { alert(e.message); nav('/groups'); });
     db.listGroupCategories().then(setGroupCats).catch(() => {});
+    loadSub();
+    db.listCategories('income').then(setIncomeCats).catch(() => {});
   }, [gid]);
 
   if (!form) return <div className="empty">불러오는 중…</div>;
@@ -39,53 +48,70 @@ export default function GroupEdit() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title="그룹 정보 수정" />
+      <PageHeader title="그룹 정보" />
 
-      <div className="card">
-        <div className="field">
-          <label>그룹명</label>
-          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      <div className="field">
+        <label>그룹명</label>
+        <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      </div>
+      <div className="field">
+        <label>설명</label>
+        <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="그룹 설명 (선택)" />
+      </div>
+      <div className="field">
+        <div className="field-label-row">
+          <label>카테고리</label>
+          <button type="button" className="edit-link" onClick={() => nav('/settings/group-categories')}>편집 ›</button>
         </div>
-        <div className="field">
-          <label>설명</label>
-          <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="그룹 설명 (선택)" />
-        </div>
-        <div className="field">
-          <div className="field-label-row">
-            <label>카테고리</label>
-            <button type="button" className="edit-link" onClick={() => nav('/settings/group-categories')}>편집 ›</button>
-          </div>
-          <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
-            {groupCats.map((c) => (
-              <button type="button" key={c.id}
-                className={`chip ${form.category === c.name ? '' : 'gray'}`}
-                onClick={() => setForm({ ...form, category: c.name, category_emoji: c.emoji })}
-                style={{ border: 'none' }}>
-                {c.emoji} {c.name}
-              </button>
-            ))}
-            {!groupCats.some((c) => c.name === form.category) && form.category && (
-              <span className="chip">{form.category_emoji} {form.category}</span>
-            )}
-          </div>
-        </div>
-        <div className="grid2">
-          <div className="field">
-            <label>시작일자</label>
-            <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
-          </div>
-          <div className="field">
-            <label>종료일자 <span className="small muted">(선택)</span></label>
-            <input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
-          </div>
-        </div>
-        {form.end_date && <p className="small muted" style={{ marginTop: -4 }}>종료일자를 입력하면 종료된 그룹으로 표시됩니다.</p>}
-        {err && <p className="error">{err}</p>}
-        <div className="row" style={{ marginTop: 6 }}>
-          <button className="btn block" onClick={() => nav(`/groups/${gid}`)}>취소</button>
-          <button className="btn primary block" disabled={busy} onClick={save}>{busy ? '저장 중…' : '저장'}</button>
+        <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+          {groupCats.map((c) => (
+            <button type="button" key={c.id}
+              className={`chip ${form.category === c.name ? '' : 'gray'}`}
+              onClick={() => setForm({ ...form, category: c.name, category_emoji: c.emoji })}
+              style={{ border: 'none' }}>
+              {c.emoji} {c.name}
+            </button>
+          ))}
+          {!groupCats.some((c) => c.name === form.category) && form.category && (
+            <span className="chip">{form.category_emoji} {form.category}</span>
+          )}
         </div>
       </div>
+      <div className="grid2">
+        <div className="field">
+          <label>시작일자</label>
+          <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>종료일자 <span className="small muted">(선택)</span></label>
+          <input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+        </div>
+      </div>
+      {form.end_date && <p className="small muted" style={{ marginTop: -4 }}>종료일자를 입력하면 종료된 그룹으로 표시됩니다.</p>}
+
+      {isSubscription(form.category) && (
+        <div className="form-section-card">
+          <div className="between" style={{ marginBottom: 8 }}>
+            <div className="form-section-title" style={{ marginBottom: 0 }}>구독 설정</div>
+            <button type="button" className="btn sm" onClick={() => setSetModal(true)}>설정</button>
+          </div>
+          {sub ? (
+            <div className="small muted" style={{ lineHeight: 1.7 }}>
+              방식: <b>{sub.mode === 'common' ? '공통(모임통장)' : '개인'}</b> · 정기결제일: {sub.billing_day ? `${sub.billing_day}일` : '-'}<br />
+              정기결제금액: {sub.billing_amount ? fmtWon(sub.billing_amount) : '-'} · 정기입금액: {sub.deposit_amount ? fmtWon(sub.deposit_amount) : '-'}<br />
+              주기: {sub.period_count}{PERIOD_LABEL[sub.period_unit]} · 입금분류: {sub.deposit_category ? `${sub.deposit_category_emoji || ''} ${sub.deposit_category}` : '-'}
+            </div>
+          ) : <div className="small muted">설정 버튼으로 구독을 설정하세요.</div>}
+        </div>
+      )}
+
+      {err && <p className="error">{err}</p>}
+      <button className="btn-ink-pill" disabled={busy} onClick={save}>{busy ? '저장 중…' : '저장'}</button>
+
+      {setModal && (
+        <SettingsForm sub={sub} incomeCats={incomeCats} onClose={() => setSetModal(false)}
+          onSave={async (s) => { await db.upsertSubscription(gid, s); setSetModal(false); loadSub(); }} />
+      )}
     </div>
   );
 }
