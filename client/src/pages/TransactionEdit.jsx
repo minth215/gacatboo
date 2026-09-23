@@ -104,7 +104,7 @@ export default function TransactionEdit() {
           members={isOwner ? memberList : (myMember ? [myMember] : [])} recentExpenses={recentExpenses}
           isOwner={isOwner} onSave={saveDeposit} onSaved={done}
           topNotice={group && (
-            <div className="form-section">
+            <div className="form-section-group">
               <div className="form-section-title">{group.name}</div>
               <p className="small muted" style={{ margin: 0 }}>총대(수입)·멤버(지출) 가계부와 자동 동기화됩니다.</p>
             </div>
@@ -119,7 +119,7 @@ export default function TransactionEdit() {
           defaultContentTemplate={isPayment ? sub?.payment_content_template : undefined}
           onSubmit={isPayment ? savePayment : undefined}
           topNotice={isPayment && group && (
-            <div className="form-section">
+            <div className="form-section-group">
               <div className="form-section-title">{group.name}</div>
               <p className="small muted" style={{ margin: 0 }}>총대 개인 가계부의 지출과 자동 동기화됩니다.</p>
             </div>
