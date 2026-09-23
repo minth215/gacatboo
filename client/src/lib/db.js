@@ -152,6 +152,30 @@ export const db = {
     (rows || []).forEach((r) => { map[r.settlement_target_id] = (map[r.settlement_target_id] || 0) + Number(r.amount); });
     return map;
   },
+  // 정산 수입 건별 초과분(수입으로 계상되는 금액) 맵 { 정산수입행ID: 초과분 }
+  // 한 지출에 여러 정산 수입이 걸린 경우 날짜순으로 지출액을 먼저 소진시키고, 남는 만큼을 각 건의 초과분으로 계상
+  // → 초과분이 지출 월이 아니라 '정산 수입이 들어온 달'의 수입으로 잡히도록 함
+  async settlementExcessByRow(targetIds) {
+    const ids = [...new Set((targetIds || []).filter((v) => v != null))];
+    if (!ids.length) return {};
+    const targets = unwrap(await supabase.from('transactions').select('id, amount').in('id', ids));
+    const settleRows = unwrap(await supabase.from('transactions')
+      .select('id, date, amount, settlement_target_id')
+      .eq('type', 'income').in('settlement_target_id', ids)
+      .order('date', { ascending: true }).order('id', { ascending: true }));
+    const remaining = {};
+    (targets || []).forEach((t) => { remaining[t.id] = Number(t.amount); });
+    const excessMap = {};
+    (settleRows || []).forEach((r) => {
+      const tid = r.settlement_target_id;
+      const rem = remaining[tid] || 0;
+      const amt = Number(r.amount);
+      const consumed = Math.min(rem, amt);
+      excessMap[r.id] = amt - consumed;
+      remaining[tid] = rem - consumed;
+    });
+    return excessMap;
+  },
 
   async saveTransaction({ id, userId, payload, sourcesFlat }) {
     const category_name = payload.category_name ?? '';
@@ -415,12 +439,15 @@ export const db = {
 
     // 정산 수입(대상 지정된 income)은 수입에서 제외
     const incomeRows = rows.filter((r) => r.type === 'income' && r.settlement_target_id == null);
+    // 이 달에 들어온 정산 수입들 — 초과분(+가 되는 금액)은 대상 지출의 달이 아니라
+    // 정산 수입이 실제로 들어온 이 달의 수입으로 계상
+    const settleIncomeRows = rows.filter((r) => r.type === 'income' && r.settlement_target_id != null);
+    const excessMap = await this.settlementExcessByRow(settleIncomeRows.map((r) => r.settlement_target_id));
 
-    // 대상 지출은 정산액만큼 차감(0 하한). 정산액이 지출보다 크면 초과분은 수입으로 계상.
+    // 대상 지출은 정산액만큼 차감(0 하한).
     const effExpense = (r) => Math.max(0, Number(r.amount) - (settleMap[r.id] || 0));
-    const excessOf = (r) => Math.max(0, (settleMap[r.id] || 0) - Number(r.amount));
     const expense = expenses.reduce((s, r) => s + effExpense(r), 0);
-    const settleExcess = expenses.reduce((s, r) => s + excessOf(r), 0);
+    const settleExcess = settleIncomeRows.reduce((s, r) => s + (excessMap[r.id] || 0), 0);
     const income = incomeRows.reduce((s, r) => s + Number(r.amount), 0) + settleExcess;
 
     const groupCat = (items, valueOf) => {
