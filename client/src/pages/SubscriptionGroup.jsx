@@ -124,7 +124,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
             return (
               <div key={date}>
                 <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date, 'full')}</span>
                   <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>-{fmtWon(net)}</span>
                 </div>
                 <div className="tx-daycard">
@@ -173,7 +173,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
             return (
               <div key={date}>
                 <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date, 'full')}</span>
                   <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>+{fmtWon(net)}</span>
                 </div>
                 <div className="tx-daycard">
@@ -424,6 +424,12 @@ function SettingsForm({ sub, incomeCats, onClose, onSave }) {
 
   useEffect(() => { db.listSources().then(setSources).catch(() => {}); }, []);
 
+  // 금액 입력 시 천단위 콤마 자동 표시
+  const setAmountField = (key) => (e) => {
+    const v = e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
+    setF((prev) => ({ ...prev, [key]: v }));
+  };
+
   const submit = async () => {
     const cat = incomeCats.find((c) => c.id === Number(depositCatId));
     setBusy(true);
@@ -457,12 +463,18 @@ function SettingsForm({ sub, incomeCats, onClose, onSave }) {
           <div className="with-suffix"><input type="number" min="1" max="31" value={f.billing_day} onChange={(e) => setF({ ...f, billing_day: e.target.value })} /><span className="suffix">일</span></div>
         </div>
         <div className="field"><label>정기결제금액</label>
-          <div className="with-suffix"><input type="number" min="0" value={f.billing_amount} onChange={(e) => setF({ ...f, billing_amount: e.target.value })} /><span className="suffix">원</span></div>
+          <div className="with-suffix">
+            <input type="text" inputMode="numeric" value={f.billing_amount ? Number(f.billing_amount).toLocaleString('ko-KR') : ''} onChange={setAmountField('billing_amount')} />
+            <span className="suffix">원</span>
+          </div>
         </div>
       </div>
       <div className="grid2">
         <div className="field"><label>정기입금액</label>
-          <div className="with-suffix"><input type="number" min="0" value={f.deposit_amount} onChange={(e) => setF({ ...f, deposit_amount: e.target.value })} /><span className="suffix">원</span></div>
+          <div className="with-suffix">
+            <input type="text" inputMode="numeric" value={f.deposit_amount ? Number(f.deposit_amount).toLocaleString('ko-KR') : ''} onChange={setAmountField('deposit_amount')} />
+            <span className="suffix">원</span>
+          </div>
         </div>
         <div className="field"><label>주기</label>
           <div className="row">
