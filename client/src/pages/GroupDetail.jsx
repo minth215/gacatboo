@@ -155,7 +155,7 @@ function GroupStatsView({ gid, month, members }) {
             <Bar data={{
               labels: stats.byMember.map((m) => m.name),
               datasets: [
-                { label: '수입', data: stats.byMember.map((m) => m.income), backgroundColor: '#2563eb', borderRadius: 6, maxBarThickness: 26 },
+                { label: '수입', data: stats.byMember.map((m) => m.income), backgroundColor: '#191722', borderRadius: 6, maxBarThickness: 26 },
                 { label: '지출', data: stats.byMember.map((m) => m.expense), backgroundColor: '#e5484d', borderRadius: 6, maxBarThickness: 26 },
               ],
             }} options={{

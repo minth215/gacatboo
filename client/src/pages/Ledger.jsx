@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { currentMonth, shiftMonth, fmtNum } from '../lib/format.js';
@@ -16,7 +16,13 @@ const selStyle = { padding: 10, border: '1px solid var(--line)', borderRadius: 1
 export default function Ledger() {
   const { user } = useAuth();
   const nav = useNavigate();
-  const [month, setMonth] = useState(currentMonth());
+  const [params, setParams] = useSearchParams();
+  const month = params.get('month') || currentMonth();
+  const setMonth = useCallback((m) => {
+    const next = new URLSearchParams(params);
+    next.set('month', m);
+    setParams(next, { replace: true });
+  }, [params, setParams]);
   const [txs, setTxs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({ income: 0, expense: 0 });

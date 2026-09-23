@@ -40,10 +40,11 @@ export default function TransactionEdit() {
       .finally(() => setLoading(false));
   }, [editing, id, isPayment]);
 
-  // 저장 후 이동: 그룹 항목이면 그룹으로, 아니면 가계부로.
+  // 저장 후 이동: 그룹 항목이면 그룹으로, 아니면 원래 보던 페이지(가계부 등)로 돌아감.
   const done = () => {
     const target = groupId || initial?.group_id;
-    nav(target ? `/groups/${target}` : '/');
+    if (target) nav(`/groups/${target}`);
+    else nav(-1);
   };
 
   // 결제 내역 저장은 subscription_payments 테이블을 사용(일반 거래와 별도)
