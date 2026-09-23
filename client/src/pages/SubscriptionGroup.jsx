@@ -234,6 +234,17 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
   });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
 
+  // 금액 입력 시 기본 입금액 대비 회차 자동 계산
+  const defaultAmount = Number(sub?.deposit_amount) || 0;
+  const onAmountChange = (v) => {
+    const amount = v.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
+    setF((prev) => ({
+      ...prev,
+      amount,
+      periods: defaultAmount > 0 && amount ? String(Math.round(Number(amount) / defaultAmount)) : prev.periods,
+    }));
+  };
+
   const leaderCat = f.lCatId === KEEP
     ? { name: initial?.leader_category_name, emoji: initial?.leader_category_emoji }
     : incomeCats.find((c) => String(c.id) === f.lCatId);
@@ -290,17 +301,24 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
           {editing && !members.some((m) => String(m.id) === String(f.memberId)) && <option value={f.memberId}>{initial.member?.nickname || '멤버'}</option>}
         </select>
       </div>
+      <div className="field"><label>날짜</label><input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></div>
       <div className="grid2">
         <div className="field"><label>금액</label>
-          <div className="with-suffix"><input type="number" min="0" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /><span className="suffix">원</span></div>
+          <div className="with-suffix">
+            <input
+              type="text" inputMode="numeric"
+              value={f.amount ? Number(f.amount).toLocaleString('ko-KR') : ''}
+              onChange={(e) => onAmountChange(e.target.value)}
+            />
+            <span className="suffix">원</span>
+          </div>
         </div>
         <div className="field"><label>기간(회차)</label><input type="number" min="1" value={f.periods} onChange={(e) => setF({ ...f, periods: e.target.value })} /></div>
       </div>
-      <div className="field"><label>날짜</label><input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></div>
 
       {isOwner ? (
         /* 총대 가계부 영역 */
-        <div className="form-section">
+        <div className="form-section-card">
           <div className="form-section-title">총대 가계부 (수입)</div>
           <div className="field"><label>분류</label>
             <CategorySelect cats={incomeCats} value={f.lCatId} onChange={(v) => setF({ ...f, lCatId: v })} keepLabel={initial?.leader_category_name} />

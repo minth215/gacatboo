@@ -262,6 +262,7 @@ a { color: inherit; text-decoration: none; }
 
 /* 폼 영역 구분 (멤버/총대 가계부) */
 .form-section { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; background: #fbfbfe; }
+.form-section-card { border: none; border-radius: var(--radius); padding: 16px; margin-bottom: 12px; background: var(--card); box-shadow: var(--shadow); }
 .form-section-title { font-size: 12px; font-weight: 800; color: var(--primary); margin-bottom: 8px; }
 
 .error { color: var(--expense); font-size: 13px; }
