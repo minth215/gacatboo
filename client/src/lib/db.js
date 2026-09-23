@@ -328,6 +328,14 @@ export const db = {
   async getPayment(id) {
     return unwrap(await supabase.from('subscription_payments').select('*').eq('id', id).single());
   },
+  // 정산 대상 후보: 이 그룹에서 입력된 결제 내역(지출)만, tx_id(가계부 지출 항목 id) 기준
+  async listGroupPaymentExpenses(groupId) {
+    const rows = unwrap(await supabase.from('subscription_payments')
+      .select('tx_id, date, amount, content, category_name, category_emoji')
+      .eq('group_id', groupId).not('tx_id', 'is', null)
+      .order('date', { ascending: false }).order('tx_id', { ascending: false }));
+    return (rows || []).map((r) => ({ id: r.tx_id, date: r.date, amount: r.amount, content: r.content, category_name: r.category_name, category_emoji: r.category_emoji }));
+  },
   async createPayment(groupId, userId, p) {
     const tx = unwrap(await supabase.from('transactions').insert({
       user_id: userId, group_id: null, type: 'expense', date: p.date, amount: p.amount,

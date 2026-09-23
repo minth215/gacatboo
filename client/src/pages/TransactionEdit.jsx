@@ -53,8 +53,8 @@ export default function TransactionEdit() {
     db.listCategories('expense').then(setCats).catch(() => {});
     db.listCategories('income').then(setIncomeCats).catch(() => {});
     db.listSources().then(setSources).catch(() => {});
-    db.listRecentExpenses(user.id).then(setRecentExpenses).catch(() => {});
-  }, [isDeposit, groupId, user.id]);
+    db.listGroupPaymentExpenses(groupId).then(setRecentExpenses).catch(() => {});
+  }, [isDeposit, groupId]);
 
   useEffect(() => {
     if (!editing) return;
