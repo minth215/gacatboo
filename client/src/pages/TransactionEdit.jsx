@@ -115,6 +115,7 @@ export default function TransactionEdit() {
           initial={initial} groupId={isPayment ? null : groupId} onSaved={done} onClose={() => nav(-1)}
           fixedType={isPayment ? 'expense' : undefined}
           defaultCategoryName={isPayment ? '구독' : undefined}
+          defaultAmount={isPayment ? sub?.billing_amount : undefined}
           defaultContentTemplate={isPayment ? sub?.payment_content_template : undefined}
           onSubmit={isPayment ? savePayment : undefined}
           topNotice={isPayment && group && (

@@ -10,10 +10,11 @@ const SNAP = '__snap__';
 // 수입/지출 항목 작성·수정 폼. groupId 지정 시 그룹 항목으로 저장.
 // fixedType 지정 시 수입/지출 토글을 숨기고 해당 유형으로 고정(예: 그룹 결제=지출).
 // defaultCategoryName 지정 시 신규 작성 때 해당 이름의 분류를 기본 선택.
+// defaultAmount 지정 시 신규 작성 때 "금액"을 이 값으로 자동 채움(예: 그룹 결제 → 정기결제금액).
 // defaultContentTemplate 지정 시 신규 작성 때 "내용"을 이 템플릿({연}/{월}/{일} 변수 지원)으로 자동 채우고,
 // 날짜를 바꾸면 그 날짜 기준으로 다시 채워짐.
 // onSubmit 지정 시 db.saveTransaction 대신 이 함수로 저장을 위임(그룹 결제 등 별도 저장 로직).
-export default function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultContentTemplate, onSubmit, topNotice }) {
+export default function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate, onSubmit, topNotice }) {
   const { user } = useAuth();
   const nav = useNavigate();
   const editing = !!initial?.id;
@@ -56,6 +57,11 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
   useEffect(() => {
     if (!editing && !content && defaultContentTemplate) setContent(renderTemplate(defaultContentTemplate, date));
   }, [defaultContentTemplate]);
+
+  // 신규 작성 시 "금액" 기본값 적용(비동기로 나중에 도착해도 반영)
+  useEffect(() => {
+    if (!editing && !amount && defaultAmount) setAmount(String(defaultAmount));
+  }, [defaultAmount]);
 
   const onDateChange = (v) => {
     setDate(v);

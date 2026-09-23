@@ -238,15 +238,42 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     lSourceId: initial.deposit_source_name ? KEEP : '',
     content: initial.content || '', memo: initial.memo || '',
   } : {
-    memberId: members[0] ? String(members[0].id) : '', date: today(),
-    amount: sub?.deposit_amount ? String(sub.deposit_amount) : '', periods: '1',
-    mCatId: defMemberCat ? String(defMemberCat.id) : '', mSourceId: '',
-    lCatId: defLeaderCat ? String(defLeaderCat.id) : '', lSettleId: '',
-    lSourceId: sub?.deposit_source_id ? String(sub.deposit_source_id) : '',
-    content: sub?.deposit_content_template ? renderTemplate(sub.deposit_content_template, today()) : '',
+    memberId: '', date: today(),
+    amount: '', periods: '1',
+    mCatId: '', mSourceId: '',
+    lCatId: '', lSettleId: '',
+    lSourceId: '',
+    content: '',
     memo: '',
   });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
+
+  // 신규 작성 시 구독 설정/그룹 데이터가 비동기로 나중에 도착해도 기본값이 반영되도록
+  // 각 필드가 비어 있을 때만 채움(사용자가 이미 입력했으면 덮어쓰지 않음)
+  useEffect(() => {
+    if (editing || f.memberId || !members[0]) return;
+    setF((prev) => ({ ...prev, memberId: String(members[0].id) }));
+  }, [editing, members]);
+  useEffect(() => {
+    if (editing || f.amount || !sub?.deposit_amount) return;
+    setF((prev) => ({ ...prev, amount: String(sub.deposit_amount) }));
+  }, [editing, sub]);
+  useEffect(() => {
+    if (editing || f.mCatId || !defMemberCat) return;
+    setF((prev) => ({ ...prev, mCatId: String(defMemberCat.id) }));
+  }, [editing, cats]);
+  useEffect(() => {
+    if (editing || f.lCatId || !defLeaderCat) return;
+    setF((prev) => ({ ...prev, lCatId: String(defLeaderCat.id) }));
+  }, [editing, incomeCats, sub]);
+  useEffect(() => {
+    if (editing || f.lSourceId || !sub?.deposit_source_id) return;
+    setF((prev) => ({ ...prev, lSourceId: String(sub.deposit_source_id) }));
+  }, [editing, sub]);
+  useEffect(() => {
+    if (editing || f.content || !sub?.deposit_content_template) return;
+    setF((prev) => ({ ...prev, content: renderTemplate(sub.deposit_content_template, prev.date) }));
+  }, [editing, sub]);
 
   // 금액 입력 시 기본 입금액 대비 회차 자동 계산
   const defaultAmount = Number(sub?.deposit_amount) || 0;
