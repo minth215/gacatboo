@@ -105,8 +105,8 @@ export default function TransactionEdit() {
           isOwner={isOwner} onSave={saveDeposit} onSaved={done}
           topNotice={group && (
             <div className="form-section-group">
-              <div className="form-section-title">{group.name}</div>
-              <p className="small muted" style={{ margin: 0 }}>총대(수입)·멤버(지출) 가계부와 자동 동기화됩니다.</p>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#191722' }}>{group.name}</div>
+              <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>총대(수입)·멤버(지출) 가계부와 자동 동기화됩니다.</p>
             </div>
           )}
         />
@@ -120,8 +120,8 @@ export default function TransactionEdit() {
           onSubmit={isPayment ? savePayment : undefined}
           topNotice={isPayment && group && (
             <div className="form-section-group">
-              <div className="form-section-title">{group.name}</div>
-              <p className="small muted" style={{ margin: 0 }}>총대 개인 가계부의 지출과 자동 동기화됩니다.</p>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#191722' }}>{group.name}</div>
+              <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>총대 개인 가계부의 지출과 자동 동기화됩니다.</p>
             </div>
           )}
         />
