@@ -2,7 +2,7 @@ import { fmtNum } from '../lib/format.js';
 import SwipeRow from './SwipeRow.jsx';
 
 // 분류명 → 부드러운 타일 배경 (시안의 파스텔 톤)
-const TILE_BG = ['#fff1e6', '#eef1fb', '#e8f6ee', '#fde8ee', '#f3ecff', '#e7f5fb', '#fdf3e0'];
+export const TILE_BG = ['#fff1e6', '#eef1fb', '#e8f6ee', '#fde8ee', '#f3ecff', '#e7f5fb', '#fdf3e0'];
 export const tileBg = (key) => {
   const s = key || '';
   let h = 0;
@@ -59,7 +59,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
                         background: isGroup ? 'linear-gradient(135deg, #FFF1F3 0%, #FFF6EA 100%)' : '#fff',
                       }}
                     >
-                      <span className="tx-tile" style={{ background: t.category_emoji ? (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name)) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}>
+                      <span className="tx-tile" style={{ background: t.category_emoji ? (t.category_color || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}>
                         {t.category_emoji || (t.type === 'income' ? '💰' : '💸')}
                       </span>
                       <div style={{ flex: 1, minWidth: 0 }}>

@@ -4,7 +4,9 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import Modal from '../components/Modal.jsx';
 import EmojiField from '../components/EmojiField.jsx';
+import ColorField from '../components/ColorField.jsx';
 import PageHeader from '../components/PageHeader.jsx';
+import { tileBg } from '../components/TransactionList.jsx';
 
 export default function CategoryManage() {
   const { type } = useParams(); // income | expense
@@ -25,8 +27,8 @@ export default function CategoryManage() {
     const name = editor.name.trim();
     if (!name) return alert('이름을 입력하세요.');
     try {
-      if (editor.id) await db.updateCategory(editor.id, { name, emoji: editor.emoji });
-      else await db.addCategory(user.id, type, name, editor.emoji);
+      if (editor.id) await db.updateCategory(editor.id, { name, emoji: editor.emoji, color: editor.color });
+      else await db.addCategory(user.id, type, name, editor.emoji, editor.color);
       setEditor(null); load();
     } catch (e) { alert(e.message); }
   };
@@ -40,7 +42,7 @@ export default function CategoryManage() {
   return (
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title={`${kind} 분류 관리`} right={
-        <button className="btn primary sm" onClick={() => setEditor({ name: '', emoji: '' })}>＋ 추가</button>
+        <button className="btn primary sm" onClick={() => setEditor({ name: '', emoji: '', color: '' })}>＋ 추가</button>
       } />
 
       <div className="card">
@@ -48,9 +50,9 @@ export default function CategoryManage() {
           <div className="empty" style={{ padding: '20px 0' }}>분류가 없습니다.</div>
         ) : categories.map((c) => (
           <div className="list-item" key={c.id}>
-            <span className="cat-emoji">{c.emoji || '·'}</span>
+            <span className="cat-emoji" style={{ width: 28, height: 28, borderRadius: 8, background: c.color || tileBg(c.name), display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{c.emoji || '·'}</span>
             <span className="li-main">{c.name}</span>
-            <button className="btn sm ghost" onClick={() => setEditor({ id: c.id, name: c.name, emoji: c.emoji || '' })}>수정</button>
+            <button className="btn sm ghost" onClick={() => setEditor({ id: c.id, name: c.name, emoji: c.emoji || '', color: c.color || '' })}>수정</button>
             <button className="btn sm ghost" onClick={() => del(c)} style={{ color: 'var(--expense)' }}>삭제</button>
           </div>
         ))}
@@ -59,6 +61,7 @@ export default function CategoryManage() {
       {editor && (
         <Modal title={editor.id ? '분류 수정' : `${kind} 분류 추가`} onClose={() => setEditor(null)}>
           <EmojiField value={editor.emoji} onChange={(emoji) => setEditor({ ...editor, emoji })} />
+          <ColorField value={editor.color} onChange={(color) => setEditor({ ...editor, color })} />
           <div className="field">
             <label>이름</label>
             <input value={editor.name} onChange={(e) => setEditor({ ...editor, name: e.target.value })}

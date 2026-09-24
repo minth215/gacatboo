@@ -58,6 +58,7 @@ client (React + Vite)  ──supabase-js──▶  Supabase
    - [`supabase/migrations/0008_source_name_child_only.sql`](supabase/migrations/0008_source_name_child_only.sql) — 원천 표기를 세부 항목명만으로 정리(기존 데이터)
    - [`supabase/migrations/0009_deposit_leader_fields.sql`](supabase/migrations/0009_deposit_leader_fields.sql) — 입금 내역에 총대 가계부 분류/정산대상 분리 저장(RPC/트리거 갱신)
    - [`supabase/migrations/0010_subscription_defaults.sql`](supabase/migrations/0010_subscription_defaults.sql) — 구독 관리 설정에 입금 시 총대 원천 기본값 · 입금/결제 내용 기본값 템플릿 컬럼 추가
+   - [`supabase/migrations/0011_category_color.sql`](supabase/migrations/0011_category_color.sql) — 분류(수입/지출)에 아이콘 배경색 설정 컬럼 추가
 3. **Authentication > Providers > Email** 활성화. 테스트 편의를 위해
    **Authentication > Sign In / Providers > "Confirm email"** 을 끄면 가입 즉시 로그인 흐름을 확인하기 쉽습니다.
 

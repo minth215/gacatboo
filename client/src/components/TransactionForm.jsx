@@ -79,13 +79,14 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
     setBusy(true);
 
     // 분류 결정 (SNAP=기존 스냅샷 유지 / 실제 선택 / 선택 안 함)
-    let category_id = null, category_name = '', category_emoji = '';
+    let category_id = null, category_name = '', category_emoji = '', category_color = '';
     if (categoryId === SNAP) {
       category_name = initial?.category_name || '';
       category_emoji = initial?.category_emoji || '';
+      category_color = initial?.category_color || '';
     } else if (categoryId) {
       const c = categories.find((x) => String(x.id) === String(categoryId));
-      if (c) { category_id = Number(c.id); category_name = c.name; category_emoji = c.emoji || ''; }
+      if (c) { category_id = Number(c.id); category_name = c.name; category_emoji = c.emoji || ''; category_color = c.color || ''; }
     }
 
     // 원천 결정 (source_name 은 명시 전달 → db 가 그대로 사용)
@@ -100,7 +101,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
 
     const payload = {
       type, date, amount: Math.round(Number(amount)),
-      category_id, category_name, category_emoji,
+      category_id, category_name, category_emoji, category_color,
       source_id, source_name,
       content, memo,
       settlement_target_id: (isSettlement && settlementTargetId) ? Number(settlementTargetId) : null,

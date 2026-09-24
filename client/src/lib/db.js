@@ -41,15 +41,15 @@ export const db = {
     if (type) q = q.eq('type', type);
     return unwrap(await q);
   },
-  async addCategory(userId, type, name, emoji = '') {
+  async addCategory(userId, type, name, emoji = '', color = '') {
     const existing = unwrap(await supabase.from('categories').select('sort_order').eq('type', type).order('sort_order', { ascending: false }).limit(1));
     const next = (existing[0]?.sort_order ?? -1) + 1;
-    return unwrap(await supabase.from('categories').insert({ user_id: userId, type, name, emoji, sort_order: next }).select().single());
+    return unwrap(await supabase.from('categories').insert({ user_id: userId, type, name, emoji, color, sort_order: next }).select().single());
   },
   async updateCategory(id, patch) {
     const cat = unwrap(await supabase.from('categories').update(patch).eq('id', id).select().single());
-    // 이 분류로 등록된 기존 거래의 스냅샷(이름/이모지)도 함께 갱신
-    await supabase.from('transactions').update({ category_name: cat.name, category_emoji: cat.emoji || '' }).eq('category_id', id);
+    // 이 분류로 등록된 기존 거래의 스냅샷(이름/이모지/배경색)도 함께 갱신
+    await supabase.from('transactions').update({ category_name: cat.name, category_emoji: cat.emoji || '', category_color: cat.color || '' }).eq('category_id', id);
     return cat;
   },
   async deleteCategory(id) {
@@ -189,6 +189,7 @@ export const db = {
       category_id: payload.category_id || null,
       category_name,
       category_emoji: payload.category_emoji ?? '',
+      category_color: payload.category_color ?? '',
       source_id: payload.source_id || null,
       source_name,
       content: (payload.content || '').trim(),
