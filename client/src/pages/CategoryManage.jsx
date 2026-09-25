@@ -60,7 +60,7 @@ export default function CategoryManage() {
 
       {editor && (
         <Modal title={editor.id ? '분류 수정' : `${kind} 분류 추가`} onClose={() => setEditor(null)}>
-          <EmojiField value={editor.emoji} onChange={(emoji) => setEditor({ ...editor, emoji })} />
+          <EmojiField value={editor.emoji} onChange={(emoji) => setEditor({ ...editor, emoji })} showQuick={false} />
           <ColorField value={editor.color} onChange={(color) => setEditor({ ...editor, color })} />
           <div className="field">
             <label>이름</label>

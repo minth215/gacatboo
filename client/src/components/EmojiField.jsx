@@ -5,7 +5,7 @@ const QUICK = [
   '💳', '🎮', '🐶', '🚗', '🏋️', '💊', '🍺', '🧾', '❤️', '🎓',
 ];
 
-export default function EmojiField({ value, onChange }) {
+export default function EmojiField({ value, onChange, showQuick = true }) {
   return (
     <div className="field">
       <label>이모지</label>
@@ -18,11 +18,13 @@ export default function EmojiField({ value, onChange }) {
         />
         {value && <button type="button" className="btn sm ghost" onClick={() => onChange('')}>지우기</button>}
       </div>
-      <div className="emoji-quick">
-        {QUICK.map((e) => (
-          <button type="button" key={e} className={`emoji-pick ${value === e ? 'active' : ''}`} onClick={() => onChange(e)}>{e}</button>
-        ))}
-      </div>
+      {showQuick && (
+        <div className="emoji-quick">
+          {QUICK.map((e) => (
+            <button type="button" key={e} className={`emoji-pick ${value === e ? 'active' : ''}`} onClick={() => onChange(e)}>{e}</button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
