@@ -434,7 +434,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                   <div key={date}>
                     <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
-                      <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>-{fmtWon(net)}</span>
+                      <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>-{fmtNum(net)}</span>
                     </div>
                     <div className="tx-daygroup">
                       {items.map((p, i) => (
@@ -451,7 +451,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                               </div>
                               <div className="tx-row-sub">{[p.category_name, p.source_name].filter(Boolean).join(' · ') || '—'}</div>
                             </div>
-                            <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: 'var(--expense)' }}>-{fmtWon(p.amount)}</span>
+                            <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: 'var(--expense)' }}>-{fmtNum(p.amount)}</span>
                         </DayCardRow>
                       ))}
                     </div>
