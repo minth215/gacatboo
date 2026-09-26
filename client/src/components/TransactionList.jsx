@@ -56,6 +56,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
               <SwipeRow
                 key={t.id} deletable={editable && !!onDelete} onDelete={() => onDelete(t)} onTap={() => editable && onEdit(t)}
                 isOpen={openId === t.id} onOpenChange={(open) => setOpenId(open ? t.id : null)}
+                shrink
               >
                 <div
                   className="tx-row"
@@ -74,7 +75,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
                     </div>
                     <div className="tx-row-sub">{sub}</div>
                   </div>
-                  <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : '#FF4358' }}>
+                  <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: t.type === 'income' ? '#2CDDB9' : '#FF4358' }}>
                     {t.type === 'income' ? '+' : '-'}{fmtNum(t.amount)}
                   </span>
                 </div>
