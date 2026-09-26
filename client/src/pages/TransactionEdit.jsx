@@ -51,12 +51,17 @@ export default function TransactionEdit() {
   }, [isPayment, isDeposit, groupId]);
 
   useEffect(() => {
-    if (!isDeposit || !groupId) return;
+    if (!isDeposit || !groupId || !group) return;
     db.listCategories('expense').then(setCats).catch(() => {});
     db.listCategories('income').then(setIncomeCats).catch(() => {});
     db.listSources().then(setSources).catch(() => {});
-    db.listGroupPaymentExpenses(groupId).then(setRecentExpenses).catch(() => {});
-  }, [isDeposit, groupId]);
+    // 정산 그룹은 결제 내역이 일반 거래(transactions)이므로 그룹 전체 거래에서 지출만 뽑아 정산 대상 후보로 사용
+    if (isSettlement(group.category)) {
+      db.listGroupTransactionsAll(groupId).then((rows) => setRecentExpenses(rows.filter((t) => t.type === 'expense'))).catch(() => {});
+    } else {
+      db.listGroupPaymentExpenses(groupId).then(setRecentExpenses).catch(() => {});
+    }
+  }, [isDeposit, groupId, group]);
 
   useEffect(() => {
     if (!editing) return;

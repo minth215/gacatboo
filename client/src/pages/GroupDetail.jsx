@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -56,7 +56,13 @@ export default function GroupDetail() {
 // ---------- 일반 그룹 (내역/통계/멤버, 정산 카테고리는 내역/입금 내역/정산/멤버) ----------
 function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, user, reloadMembers }) {
   const settlementMode = isSettlement(group.category);
-  const [tab, setTab] = useState('ledger');
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') || 'ledger';
+  const setTab = useCallback((t) => {
+    const next = new URLSearchParams(params);
+    next.set('tab', t);
+    setParams(next, { replace: true });
+  }, [params, setParams]);
   const [month, setMonth] = useState(currentMonth());
   const [allTxs, setAllTxs] = useState([]);
   const [deposits, setDeposits] = useState([]);

@@ -84,6 +84,8 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
     const remaining = Math.max(owed - paid, 0);
     return { ...m, owed, paid, remaining, settled: remaining <= 0 };
   });
+  const totalSettled = rows.reduce((s, r) => s + r.paid, 0);
+  const totalRemaining = rows.reduce((s, r) => s + r.remaining, 0);
 
   const startEdit = (m) => { setEditingId(m.id); setEditDraft(String(m.owed)); };
   const cancelEdit = () => setEditingId(null);
@@ -97,6 +99,9 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
 
   const poke = (m) => alert(`${m.nickname}님에게 정산 알림을 보냈습니다. (푸시 알림 기능은 추후 제공될 예정입니다)`);
 
+  // 결제 내역이 한 건뿐이면 그 항목을 정산 대상으로 자동 지정
+  const soleSettlementTargetId = payments.length === 1 ? payments[0].id : null;
+
   const markPaid = async (m) => {
     if (m.remaining <= 0) return;
     if (!confirm(`${m.nickname}님의 입금(${fmtWon(m.remaining)})을 완료 처리할까요?`)) return;
@@ -104,6 +109,7 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
       await db.createDeposit({
         group_id: gid, member_id: m.id, date: today(), amount: m.remaining, periods: 1,
         category_name: '정산', category_emoji: '', leader_category_name: '정산', leader_category_emoji: '',
+        leader_settlement_target_id: soleSettlementTargetId,
         content: '정산',
       });
       loadDep();
@@ -119,9 +125,11 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
   return (
     <>
       <div className="summary-card" style={{ marginTop: 14 }}>
-        <div className="col"><div className="lbl">총 결제 금액</div><div className="val expense">{fmtWon(totalPaid)}</div></div>
+        <div className="col"><div className="lbl">총 결제 금액</div><div className="val expense">{fmtNum(totalPaid)}</div></div>
         <div className="divider" />
-        <div className="col"><div className="lbl">1인당 기본 정산액</div><div className="val">{fmtWon(defaultShare)}</div></div>
+        <div className="col"><div className="lbl">정산 완료 금액</div><div className="val income">{fmtNum(totalSettled)}</div></div>
+        <div className="divider" />
+        <div className="col"><div className="lbl">남은 정산 금액</div><div className="val">{fmtNum(totalRemaining)}</div></div>
       </div>
 
       {rows.length === 0 ? <div className="empty">멤버가 없습니다.</div> : rows.map((m) => (
@@ -152,15 +160,17 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
                 type="button" disabled={!isOwner} onClick={() => startEdit(m)}
                 style={{ border: 'none', background: 'transparent', padding: 0, fontSize: 13.25, fontWeight: 700, color: '#191722', cursor: isOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}
               >
-                {fmtWon(m.owed)}
+                {fmtNum(m.owed)}
               </button>
             )}
           </div>
-          <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>입금 {fmtWon(m.paid)} · 남은 금액 {fmtWon(m.remaining)}</div>
-          {m.role !== 'owner' && (isOwner || userId === m.user_id) && (
+          <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
+            {fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span>
+          </div>
+          {m.role !== 'owner' && !m.settled && (isOwner || userId === m.user_id) && (
             <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-              {isOwner && <button type="button" className="btn sm ghost" disabled={!m.is_account || m.settled} onClick={() => poke(m)}>콕 찌르기</button>}
-              {(isOwner || userId === m.user_id) && <button type="button" className="btn sm" disabled={m.settled} onClick={() => markPaid(m)}>입금 완료</button>}
+              {isOwner && <button type="button" className="btn sm ghost" disabled={!m.is_account} onClick={() => poke(m)}>콕 찌르기</button>}
+              {(isOwner || userId === m.user_id) && <button type="button" className="btn sm" onClick={() => markPaid(m)}>입금 완료</button>}
             </div>
           )}
         </div>
@@ -188,7 +198,7 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav }) 
               <div key={date}>
                 <div style={{ margin: '14px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>+{fmtWon(net)}</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>+{fmtNum(net)}</span>
                 </div>
                 <div className="tx-daycard" style={{ borderRadius: 16, padding: '4px 14px' }}>
                   {items.map((d, i) => {
@@ -203,7 +213,7 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav }) 
                             </div>
                             <div className="tx-row-sub" style={{ fontSize: 10.25 }}>{[d.category_name, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
                           </div>
-                          <span style={{ fontSize: 14.25, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--income)' }}>+{fmtWon(d.amount)}</span>
+                          <span style={{ fontSize: 14.25, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--income)' }}>+{fmtNum(d.amount)}</span>
                         </div>
                       </SwipeRow>
                     );
