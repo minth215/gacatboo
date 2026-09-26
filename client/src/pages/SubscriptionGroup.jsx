@@ -6,7 +6,7 @@ import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate, dotDa
 import Modal from '../components/Modal.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import SwipeRow from '../components/SwipeRow.jsx';
-import { tileBg, formatDate } from '../components/TransactionList.jsx';
+import { tileBg, formatDate, DayCardRow } from '../components/TransactionList.jsx';
 
 const PERIOD_UNITS = ['day', 'week', 'month', 'year'];
 const KEEP = '__keep__'; // id 없이 이름만 있는 원천/분류(스냅샷) 유지용 센티넬
@@ -297,6 +297,7 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
 // 입금 내역 탭: 구독 그룹뿐 아니라 정산 카테고리 그룹의 그룹 상세 페이지에서도 재사용
 // (정산 그룹은 회차 개념이 없으므로 showPeriods=false 로 배지를 숨김)
 export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, showPeriods = true, emptyCenter = false }) {
+  const [openId, setOpenId] = useState(null); // 한 번에 하나의 카드만 밀려 있도록
   const delDeposit = async (d) => {
     if (!confirm('입금 내역을 삭제할까요? (연결된 가계부 항목도 삭제됩니다)')) return;
     try { await db.deleteDeposit(d.id); loadDep(); } catch (e) { alert(e.message); }
@@ -314,12 +315,16 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
                   <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>+{fmtNum(net)}</span>
                 </div>
-                <div className="tx-daycard">
+                <div className="tx-daygroup">
                   {items.map((d, i) => {
                     const mine = isOwner || (myMember && d.member_id === myMember.id);
                     return (
-                      <SwipeRow key={d.id} deletable={mine} onDelete={() => delDeposit(d)} onTap={() => mine && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)}>
-                        <div className="tx-row" style={{ background: '#fff', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: mine ? 'pointer' : 'default' }}>
+                      <DayCardRow
+                        key={d.id} index={i} count={items.length}
+                        isOpen={openId === d.id} onOpenChange={(open) => setOpenId(open ? d.id : null)}
+                        clickable={mine} onTap={() => mine && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)}
+                        onDelete={mine ? () => delDeposit(d) : undefined}
+                      >
                           <span className="tx-tile" style={{ background: d.category_emoji ? tileBg(d.category_name) : '#f2f1f5' }}>{d.category_emoji || '💸'}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div className="tx-row-title">
@@ -330,9 +335,8 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
                             </div>
                             <div className="tx-row-sub">{[d.category_name, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
                           </div>
-                          <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--income)' }}>+{fmtNum(d.amount)}</span>
-                        </div>
-                      </SwipeRow>
+                          <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: 'var(--income)' }}>+{fmtNum(d.amount)}</span>
+                      </DayCardRow>
                     );
                   })}
                 </div>
@@ -364,6 +368,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   const [sub, setSub] = useState(null);
   const [payments, setPayments] = useState([]);
   const [deposits, setDeposits] = useState([]);
+  const [openPayId, setOpenPayId] = useState(null); // 결제 내역: 한 번에 하나의 카드만 밀려 있도록
 
   const myMember = members.find((m) => m.user_id === user.id && m.role !== 'owner');
 
@@ -431,10 +436,14 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
                       <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>-{fmtWon(net)}</span>
                     </div>
-                    <div className="tx-daycard">
+                    <div className="tx-daygroup">
                       {items.map((p, i) => (
-                        <SwipeRow key={p.id} deletable={isOwner} onDelete={() => delPayment(p)} onTap={() => isOwner && nav(`/tx/${p.id}?group=${gid}&kind=payment`)}>
-                          <div className="tx-row" style={{ background: '#fff', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: isOwner ? 'pointer' : 'default' }}>
+                        <DayCardRow
+                          key={p.id} index={i} count={items.length}
+                          isOpen={openPayId === p.id} onOpenChange={(open) => setOpenPayId(open ? p.id : null)}
+                          clickable={isOwner} onTap={() => isOwner && nav(`/tx/${p.id}?group=${gid}&kind=payment`)}
+                          onDelete={isOwner ? () => delPayment(p) : undefined}
+                        >
                             <span className="tx-tile" style={{ background: p.category_emoji ? tileBg(p.category_name) : '#f2f1f5' }}>{p.category_emoji || '💳'}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div className="tx-row-title">
@@ -442,9 +451,8 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                               </div>
                               <div className="tx-row-sub">{[p.category_name, p.source_name].filter(Boolean).join(' · ') || '—'}</div>
                             </div>
-                            <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--expense)' }}>-{fmtWon(p.amount)}</span>
-                          </div>
-                        </SwipeRow>
+                            <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: 'var(--expense)' }}>-{fmtWon(p.amount)}</span>
+                        </DayCardRow>
                       ))}
                     </div>
                   </div>
