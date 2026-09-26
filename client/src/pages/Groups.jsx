@@ -131,7 +131,11 @@ export default function Groups() {
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
                 <span style={{ fontSize: 11, color: '#8b8798', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.description || '설명 없음'}</span>
-                <span style={{ fontSize: 10.5, color: '#a29ead', flex: 'none', whiteSpace: 'nowrap' }}>{g.start_date ? `${g.start_date}${g.end_date ? ` ~ ${g.end_date}` : ' ~'}` : ''}</span>
+                <span style={{ fontSize: 10.5, color: '#a29ead', flex: 'none', whiteSpace: 'nowrap' }}>
+                  {g.start_date
+                    ? (!g.end_date ? `${dotDate(g.start_date)} ~` : g.end_date === g.start_date ? dotDate(g.start_date) : `${dotDate(g.start_date)} ~ ${dotDate(g.end_date)}`)
+                    : ''}
+                </span>
               </div>
             </div>
           </div>

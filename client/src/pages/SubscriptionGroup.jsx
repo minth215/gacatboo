@@ -134,55 +134,76 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
         <div className="col"><div className="lbl">남은 정산 금액</div><div className="val">{fmtNum(totalRemaining)}</div></div>
       </div>
 
-      {rows.length === 0 ? <div className="empty">멤버가 없습니다.</div> : rows.map((m) => (
-        <div key={m.id} className="tx-daycard" style={{ borderRadius: 16, padding: '14px 16px', marginTop: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
-              {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>총무</span>}
-              {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
-              {m.role !== 'owner' && (
-                m.settled
-                  ? <span style={{ fontSize: 9, fontWeight: 700, color: '#1FAE85', background: '#E3F7EF', borderRadius: 999, padding: '2px 6px' }}>완료</span>
-                  : <span style={{ fontSize: 9, fontWeight: 700, color: '#a29ead', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>미완료</span>
+      {rows.length === 0 ? <div className="empty">멤버가 없습니다.</div> : rows.map((m) => {
+        const isMe = userId === m.user_id;
+        // 총무 화면: 콕 찌르기/입금 완료는 카드를 왼쪽으로 밀어야 보임. 멤버 화면: 본인 카드는 눌러서 바로 입금 완료.
+        const swipeForOwner = isOwner && m.role !== 'owner' && !m.settled && editingId !== m.id;
+        const tapForSelf = !isOwner && isMe && m.role !== 'owner' && !m.settled;
+
+        const cardInner = (
+          <div style={{ padding: '14px 16px', background: '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
+                {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>총무</span>}
+                {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
+                {m.role !== 'owner' && (
+                  m.settled
+                    ? <span style={{ fontSize: 9, fontWeight: 700, color: '#1FAE85', background: '#E3F7EF', borderRadius: 999, padding: '2px 6px' }}>완료</span>
+                    : <span style={{ fontSize: 9, fontWeight: 700, color: '#a29ead', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>미완료</span>
+                )}
+              </div>
+              {isOwner && editingId === m.id ? (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input
+                    value={editDraft} onChange={(e) => setEditDraft(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="inline-edit-input" style={{ width: 90 }} autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && saveEdit(m)}
+                  />
+                  <button className="inline-cancel-btn" onClick={cancelEdit}>취소</button>
+                  <button className="inline-save-btn" onClick={() => saveEdit(m)}>저장</button>
+                </div>
+              ) : (
+                <button
+                  type="button" disabled={!isOwner} onClick={() => startEdit(m)}
+                  style={{ border: 'none', background: 'transparent', padding: 0, fontSize: 13.25, fontWeight: 700, color: '#191722', cursor: isOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}
+                >
+                  {fmtNum(m.owed)}
+                </button>
               )}
             </div>
-            {isOwner && editingId === m.id ? (
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input
-                  value={editDraft} onChange={(e) => setEditDraft(e.target.value.replace(/[^0-9]/g, ''))}
-                  className="inline-edit-input" style={{ width: 90 }} autoFocus
-                  onKeyDown={(e) => e.key === 'Enter' && saveEdit(m)}
-                />
-                <button className="inline-cancel-btn" onClick={cancelEdit}>취소</button>
-                <button className="inline-save-btn" onClick={() => saveEdit(m)}>저장</button>
-              </div>
-            ) : (
-              <button
-                type="button" disabled={!isOwner} onClick={() => startEdit(m)}
-                style={{ border: 'none', background: 'transparent', padding: 0, fontSize: 13.25, fontWeight: 700, color: '#191722', cursor: isOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}
-              >
-                {fmtNum(m.owed)}
-              </button>
-            )}
-          </div>
-          <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
-            {m.role === 'owner' ? (
-              <>{fmtNum(totalPaid)} 원 결제 · 남은 금액 {fmtNum(totalRemaining)} 원</>
-            ) : m.settled ? (
-              <>{fmtNum(m.paid)} 원 입금 · 정산 완료</>
-            ) : (
-              <>{fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span></>
-            )}
-          </div>
-          {m.role !== 'owner' && !m.settled && (isOwner || userId === m.user_id) && (
-            <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-              {isOwner && <button type="button" className="btn sm ghost" disabled={!m.is_account} onClick={() => poke(m)}>콕 찌르기</button>}
-              {(isOwner || userId === m.user_id) && <button type="button" className="btn sm" onClick={() => markPaid(m)}>입금 완료</button>}
+            <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
+              {m.role === 'owner' ? (
+                <>{fmtNum(totalPaid)} 원 결제 · 남은 금액 {fmtNum(totalRemaining)} 원</>
+              ) : m.settled ? (
+                <>{fmtNum(m.paid)} 원 입금 · 정산 완료</>
+              ) : (
+                <>{fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span></>
+              )}
             </div>
-          )}
-        </div>
-      ))}
+          </div>
+        );
+
+        return (
+          <div key={m.id} className="tx-daycard" style={{ borderRadius: 16, marginTop: 10 }}>
+            {swipeForOwner ? (
+              <SwipeRow
+                actionsWidth={196}
+                actions={
+                  <div style={{ display: 'flex', gap: 6, padding: '0 10px' }}>
+                    <button type="button" className="inline-cancel-btn" disabled={!m.is_account} onClick={() => poke(m)}>콕 찌르기</button>
+                    <button type="button" className="inline-save-btn" onClick={() => markPaid(m)}>입금 완료</button>
+                  </div>
+                }
+              >
+                {cardInner}
+              </SwipeRow>
+            ) : tapForSelf ? (
+              <div onClick={() => markPaid(m)} style={{ cursor: 'pointer' }}>{cardInner}</div>
+            ) : cardInner}
+          </div>
+        );
+      })}
 
       {isOwner && <button className="btn-ink-pill" style={{ marginTop: 14 }} onClick={requestSettlement}>정산 요청하기</button>}
     </>

@@ -1,9 +1,12 @@
 import { useRef, useState } from 'react';
 
-const OPEN = 72; // 스와이프 시 드러나는 삭제 영역 폭(px)
+const DEFAULT_OPEN = 72; // 스와이프 시 드러나는 영역 기본 폭(px)
 
-// 왼쪽으로 스와이프하면 흰 배경 + 빨간 휴지통 삭제 버튼이 나오는 행
-export default function SwipeRow({ children, deletable, onDelete, onTap }) {
+// 왼쪽으로 스와이프하면 액션 영역이 드러나는 행.
+// actions 를 주면 기본 삭제 버튼 대신 그 내용을 보여준다(폭은 actionsWidth).
+export default function SwipeRow({ children, deletable, onDelete, onTap, actions, actionsWidth = DEFAULT_OPEN }) {
+  const OPEN = actions ? actionsWidth : DEFAULT_OPEN;
+  const swipeEnabled = deletable || !!actions;
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const st = useRef(null);
@@ -11,7 +14,7 @@ export default function SwipeRow({ children, deletable, onDelete, onTap }) {
   const openRef = useRef(false);
 
   const down = (e) => {
-    if (!deletable) return;
+    if (!swipeEnabled) return;
     st.current = { x: e.clientX, y: e.clientY, base: openRef.current ? -OPEN : 0 };
     moved.current = false;
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -43,20 +46,22 @@ export default function SwipeRow({ children, deletable, onDelete, onTap }) {
     onTap?.();
   };
 
-  if (!deletable) return <div className="swipe-wrap">{children}</div>;
+  if (!swipeEnabled) return <div className="swipe-wrap">{children}</div>;
 
   return (
     <div className="swipe-wrap">
-      <div className="swipe-del">
-        <button onClick={onDelete} aria-label="삭제">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 6h18" />
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            <line x1="10" y1="11" x2="10" y2="17" />
-            <line x1="14" y1="11" x2="14" y2="17" />
-          </svg>
-        </button>
+      <div className="swipe-del" style={actions ? { width: OPEN } : undefined}>
+        {actions || (
+          <button onClick={onDelete} aria-label="삭제">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+          </button>
+        )}
       </div>
       <div
         className="swipe-fg"
