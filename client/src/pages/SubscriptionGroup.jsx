@@ -252,7 +252,6 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
               {swipeForOwner ? (
                 <SwipeRow
                   actionsWidth={104}
-                  fullSwipe
                   actions={(progress) => (
                     <div className="settle-swipe-actions" style={{ opacity: progress }}>
                       <button type="button" className={`settle-icon-btn${m.is_account ? '' : ' is-disabled'}`} onClick={() => poke(m)} aria-label="콕 찌르기">
