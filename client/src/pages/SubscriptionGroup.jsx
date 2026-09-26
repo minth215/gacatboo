@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef, Fragment } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -73,6 +73,9 @@ const matchCatId = (cats, name) => { const c = cats.find((x) => x.name === name)
 export function SettlementTab({ gid, members, isOwner, userId, payments, deposits, reloadMembers, loadDep }) {
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState('');
+  const [toast, setToast] = useState('');
+  const [toastKey, setToastKey] = useState(0);
+  const toastTimer = useRef(null);
 
   const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
   const memberCount = members.length || 1;
@@ -89,6 +92,17 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
   const totalSettled = nonOwnerRows.reduce((s, r) => s + r.paid, 0);
   const totalRemaining = nonOwnerRows.reduce((s, r) => s + r.remaining, 0);
 
+  // 총무는 항상 맨 위, 정산 완료된 멤버는 맨 마지막으로 재정렬
+  const sortedRows = [...rows].sort((a, b) => {
+    if (a.role === 'owner') return -1;
+    if (b.role === 'owner') return 1;
+    if (a.settled === b.settled) return 0;
+    return a.settled ? 1 : -1;
+  });
+  const dividerIdx = sortedRows.findIndex((r) => r.role !== 'owner' && r.settled);
+  const hasUnsettled = sortedRows.some((r) => r.role !== 'owner' && !r.settled);
+  const showDivider = dividerIdx !== -1 && hasUnsettled;
+
   const startEdit = (m) => { setEditingId(m.id); setEditDraft(String(m.owed)); };
   const cancelEdit = () => setEditingId(null);
   const saveEdit = async (m) => {
@@ -99,7 +113,17 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
     } catch (e) { alert(e.message); }
   };
 
-  const poke = (m) => alert(`${m.nickname}님에게 정산 알림을 보냈습니다. (푸시 알림 기능은 추후 제공될 예정입니다)`);
+  const showToast = (msg) => {
+    setToast(msg);
+    setToastKey((k) => k + 1);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(''), 2200);
+  };
+
+  const poke = (m) => {
+    if (!m.is_account) { showToast('외부 멤버에게는 알림을 보낼 수 없습니다.'); return; }
+    alert(`${m.nickname}님에게 정산 알림을 보냈습니다. (푸시 알림 기능은 추후 제공될 예정입니다)`);
+  };
 
   // 결제 내역이 한 건뿐이면 그 항목을 정산 대상으로 자동 지정
   const soleSettlementTargetId = payments.length === 1 ? payments[0].id : null;
@@ -134,7 +158,7 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
         <div className="col"><div className="lbl">남은 정산 금액</div><div className="val">{fmtNum(totalRemaining)}</div></div>
       </div>
 
-      {rows.length === 0 ? <div className="empty">멤버가 없습니다.</div> : rows.map((m) => {
+      {sortedRows.length === 0 ? <div className="empty">멤버가 없습니다.</div> : sortedRows.map((m, idx) => {
         const isMe = userId === m.user_id;
         // 총무 화면: 콕 찌르기/입금 완료는 카드를 왼쪽으로 밀어야 보임. 멤버 화면: 본인 카드는 눌러서 바로 입금 완료.
         const swipeForOwner = isOwner && m.role !== 'owner' && !m.settled && editingId !== m.id;
@@ -147,29 +171,34 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
                 <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
                 {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>총무</span>}
                 {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
-                {m.role !== 'owner' && (
-                  m.settled
-                    ? <span style={{ fontSize: 9, fontWeight: 700, color: '#1FAE85', background: '#E3F7EF', borderRadius: 999, padding: '2px 6px' }}>완료</span>
-                    : <span style={{ fontSize: 9, fontWeight: 700, color: '#a29ead', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>미완료</span>
-                )}
               </div>
               {isOwner && editingId === m.id ? (
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <div className="settle-edit-inline">
                   <input
-                    value={editDraft} onChange={(e) => setEditDraft(e.target.value.replace(/[^0-9]/g, ''))}
-                    className="inline-edit-input" style={{ width: 90 }} autoFocus
+                    value={editDraft === '' ? '' : fmtNum(editDraft)}
+                    onChange={(e) => setEditDraft(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="settle-edit-input" autoFocus inputMode="numeric"
                     onKeyDown={(e) => e.key === 'Enter' && saveEdit(m)}
                   />
-                  <button className="inline-cancel-btn" onClick={cancelEdit}>취소</button>
-                  <button className="inline-save-btn" onClick={() => saveEdit(m)}>저장</button>
+                  <button type="button" className="settle-edit-icon-btn" onClick={cancelEdit} aria-label="취소">
+                    <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6 L18 18 M18 6 L6 18" /></svg>
+                  </button>
+                  <button type="button" className="settle-edit-icon-btn settle-edit-icon-btn--save" onClick={() => saveEdit(m)} aria-label="저장">
+                    <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>
+                  </button>
                 </div>
               ) : (
-                <button
-                  type="button" disabled={!isOwner} onClick={() => startEdit(m)}
-                  style={{ border: 'none', background: 'transparent', padding: 0, fontSize: 13.25, fontWeight: 700, color: '#191722', cursor: isOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}
-                >
-                  {fmtNum(m.owed)}
-                </button>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
+                  {isOwner && (
+                    <button type="button" className="settle-pencil-btn" onClick={() => startEdit(m)} aria-label="정산 금액 수정">
+                      <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                      </svg>
+                    </button>
+                  )}
+                </span>
               )}
             </div>
             <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
@@ -187,39 +216,50 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
         const cardBox = <div className="settle-card">{cardInner}</div>;
 
         return (
-          <div key={m.id} className="settle-swipe-wrap" style={{ marginTop: 10 }}>
-            {swipeForOwner ? (
-              <SwipeRow
-                actionsWidth={104}
-                actions={(progress) => (
-                  <div className="settle-swipe-actions" style={{ opacity: progress }}>
-                    <button type="button" className="settle-icon-btn" disabled={!m.is_account} onClick={() => poke(m)} aria-label="콕 찌르기">
-                      <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M22 14a8 8 0 0 1-8 8" />
-                        <path d="M18 11v-1a2 2 0 0 0-2-2 2 2 0 0 0-2 2" />
-                        <path d="M14 10V9a2 2 0 0 0-2-2 2 2 0 0 0-2 2v1" />
-                        <path d="M10 9.5V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v10" />
-                        <path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
-                      </svg>
-                    </button>
-                    <button type="button" className="settle-icon-btn mint" onClick={() => markPaid(m)} aria-label="입금 완료">
-                      <svg width="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 13l4 4L19 7" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-              >
-                {cardBox}
-              </SwipeRow>
-            ) : tapForSelf ? (
-              <div onClick={() => markPaid(m)} style={{ cursor: 'pointer' }}>{cardBox}</div>
-            ) : cardBox}
-          </div>
+          <Fragment key={m.id}>
+            {showDivider && idx === dividerIdx && (
+              <div className="settle-divider">
+                <span className="settle-divider-line" />
+                <span className="settle-divider-pill">정산 미완료</span>
+                <span className="settle-divider-line" />
+              </div>
+            )}
+            <div className="settle-swipe-wrap" style={{ marginTop: 10 }}>
+              {swipeForOwner ? (
+                <SwipeRow
+                  actionsWidth={104}
+                  actions={(progress) => (
+                    <div className="settle-swipe-actions" style={{ opacity: progress }}>
+                      <button type="button" className={`settle-icon-btn${m.is_account ? '' : ' is-disabled'}`} onClick={() => poke(m)} aria-label="콕 찌르기">
+                        <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M22 14a8 8 0 0 1-8 8" />
+                          <path d="M18 11v-1a2 2 0 0 0-2-2 2 2 0 0 0-2 2" />
+                          <path d="M14 10V9a2 2 0 0 0-2-2 2 2 0 0 0-2 2v1" />
+                          <path d="M10 9.5V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v10" />
+                          <path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+                        </svg>
+                      </button>
+                      <button type="button" className="settle-icon-btn mint" onClick={() => markPaid(m)} aria-label="입금 완료">
+                        <svg width="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 13l4 4L19 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                >
+                  {cardBox}
+                </SwipeRow>
+              ) : tapForSelf ? (
+                <div onClick={() => markPaid(m)} style={{ cursor: 'pointer' }}>{cardBox}</div>
+              ) : cardBox}
+            </div>
+          </Fragment>
         );
       })}
 
       {isOwner && <button className="btn-ink-pill" style={{ marginTop: 14 }} onClick={requestSettlement}>정산 요청하기</button>}
+
+      {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
     </>
   );
 }
