@@ -63,7 +63,7 @@ export default function CategoryManage() {
         </button>
       } />
 
-      <div className="tx-daycard" style={{ margin: '14px 20px 0' }}>
+      <div className="tx-daycard" style={{ marginTop: 14 }}>
         {categories.length === 0 ? (
           <div className="empty" style={{ padding: '20px 0' }}>분류가 없습니다.</div>
         ) : categories.map((c, i) => (

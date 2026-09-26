@@ -14,7 +14,7 @@ const RepeatIcon = () => (
 );
 
 export default function Settings() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const nav = useNavigate();
 
   const groups = [
@@ -56,7 +56,7 @@ export default function Settings() {
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="설정" showBack={false} />
 
-      <div className="settings-profile-card" style={{ margin: '14px 20px 0' }} onClick={() => nav('/settings/profile')}>
+      <div className="settings-profile-card" style={{ marginTop: 14 }} onClick={() => nav('/settings/profile')}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 15, fontWeight: 800, color: '#191722', lineHeight: 1 }}>{user.display_name}</span>
@@ -68,7 +68,7 @@ export default function Settings() {
       </div>
 
       {groups.map((g) => (
-        <div key={g.label} style={{ margin: '26px 20px 0' }}>
+        <div key={g.label} style={{ marginTop: 26 }}>
           <div className="settings-group-label">{g.label}</div>
           <div className="tx-daycard">
             {g.items.map((it, i) => (
@@ -87,8 +87,6 @@ export default function Settings() {
           </div>
         </div>
       ))}
-
-      <button className="btn block" style={{ margin: '26px 20px 0', width: 'calc(100% - 40px)' }} onClick={logout}>로그아웃</button>
     </div>
   );
 }

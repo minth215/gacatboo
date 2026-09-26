@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase.js';
 import PageHeader from '../components/PageHeader.jsx';
 
 export default function ProfileEdit() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [error, setError] = useState('');
@@ -31,7 +31,7 @@ export default function ProfileEdit() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title="내 정보 수정" />
+      <PageHeader title="내 정보" />
 
       <div className="card">
         <div style={{ fontWeight: 700 }}>{user.display_name}</div>
@@ -52,6 +52,8 @@ export default function ProfileEdit() {
         {done && <p className="small" style={{ color: 'var(--income)', fontWeight: 700 }}>{done}</p>}
         <button className="btn primary block" disabled={busy}>{busy ? '변경 중…' : '비밀번호 변경'}</button>
       </form>
+
+      <button className="btn block" style={{ marginTop: 4 }} onClick={logout}>로그아웃</button>
     </div>
   );
 }
