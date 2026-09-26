@@ -77,6 +77,7 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
   const [toast, setToast] = useState('');
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
   const memberCount = members.length || 1;
@@ -92,6 +93,7 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
   const nonOwnerRows = rows.filter((r) => r.role !== 'owner');
   const totalSettled = nonOwnerRows.reduce((s, r) => s + r.paid, 0);
   const totalRemaining = nonOwnerRows.reduce((s, r) => s + r.remaining, 0);
+  const anyUnsettled = nonOwnerRows.some((r) => !r.settled);
 
   // 총무는 항상 맨 위, 정산 완료된 멤버는 그 다음, 미완료 멤버는 "정산 미완료" 구분선 아래로
   const sortedRows = [...rows].sort((a, b) => {
@@ -149,6 +151,25 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
     alert(`${targets.length}명에게 정산 요청 알림을 보냈습니다. (푸시 알림 기능은 추후 제공될 예정입니다)`);
   };
 
+  const settleAll = async () => {
+    const targets = nonOwnerRows.filter((r) => !r.settled);
+    if (!targets.length) return;
+    if (!confirm(`미완료 멤버 ${targets.length}명의 정산을 모두 완료 처리할까요?`)) return;
+    setBulkBusy(true);
+    try {
+      for (const m of targets) {
+        await db.createDeposit({
+          group_id: gid, member_id: m.id, date: today(), amount: m.remaining, periods: 1,
+          category_name: '정산', category_emoji: '', leader_category_name: '정산', leader_category_emoji: '',
+          leader_settlement_target_id: soleSettlementTargetId,
+          content: '정산',
+        });
+      }
+      loadDep();
+    } catch (e) { alert(e.message); }
+    finally { setBulkBusy(false); }
+  };
+
   return (
     <>
       <div className="summary-card" style={{ marginTop: 14 }}>
@@ -204,7 +225,9 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
             </div>
             <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
               {m.role === 'owner' ? (
-                <>{fmtNum(totalPaid)} 원 결제 · 남은 금액 {fmtNum(totalRemaining)} 원</>
+                totalRemaining <= 0
+                  ? <>{fmtNum(totalPaid)} 원 결제 · <span style={{ color: 'var(--income)' }}>정산 완료</span></>
+                  : <>{fmtNum(totalPaid)} 원 결제 · 남은 금액 {fmtNum(totalRemaining)} 원</>
               ) : m.settled ? (
                 <>{fmtNum(m.paid)} 원 입금 · 정산 완료</>
               ) : (
@@ -259,7 +282,14 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
         );
       })}
 
-      {isOwner && <button className="btn-ink-pill" style={{ marginTop: 14 }} onClick={requestSettlement}>정산 요청하기</button>}
+      {isOwner && anyUnsettled && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <button type="button" className="btn-settle-all" style={{ flex: 1 }} disabled={bulkBusy} onClick={settleAll}>
+            {bulkBusy ? '처리 중…' : '정산 일괄 완료'}
+          </button>
+          <button type="button" className="btn-ink-pill" style={{ flex: 1, marginTop: 0 }} onClick={requestSettlement}>정산 요청하기</button>
+        </div>
+      )}
 
       {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
     </>

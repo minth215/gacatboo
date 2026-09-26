@@ -252,6 +252,14 @@ a { color: inherit; text-decoration: none; }
 .btn-ink-pill:active { transform: scale(0.985); }
 .btn-ink-pill:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.btn-settle-all {
+  width: 100%; height: 56px; border: none; border-radius: 999px;
+  background: linear-gradient(90deg, #FF5C77, #FFA24C); color: #fff;
+  font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 8px; font-family: inherit;
+}
+.btn-settle-all:active { transform: scale(0.985); }
+.btn-settle-all:disabled { opacity: 0.6; cursor: not-allowed; }
+
 /* ---------- Forms ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .field label { font-size: 13px; font-weight: 600; color: #191722; }
