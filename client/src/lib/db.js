@@ -267,7 +267,7 @@ export const db = {
   async getGroup(id) {
     const group = unwrap(await supabase.from('groups').select('*, owner:profiles!groups_owner_id_fkey(display_name)').eq('id', id).single());
     const rows = unwrap(await supabase.from('group_members')
-      .select('id, user_id, role, nickname, start_date, end_date, contact, next_due_override, profiles(username, display_name)')
+      .select('id, user_id, role, nickname, start_date, end_date, contact, next_due_override, settlement_override, profiles(username, display_name)')
       .eq('group_id', id));
     // 메모는 총무/총대만 조회 가능(RLS). 아니면 빈 결과.
     const notes = {};
@@ -279,7 +279,7 @@ export const db = {
       username: m.profiles?.username || null,
       is_account: !!m.user_id,
       start_date: m.start_date, end_date: m.end_date, contact: m.contact,
-      next_due_override: m.next_due_override,
+      next_due_override: m.next_due_override, settlement_override: m.settlement_override,
       memo: notes[m.id] || '',
     })).sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : (a.nickname || '').localeCompare(b.nickname || '')));
     return { group: { ...group, owner_name: group.owner?.display_name || '' }, members };
@@ -316,6 +316,12 @@ export const db = {
     if ('memo' in patch) {
       unwrap(await supabase.from('group_member_notes').upsert({ member_id: memberId, group_id: groupId, memo: (patch.memo || '').trim() }));
     }
+  },
+  // 정산 탭: 멤버별 정산 금액 수동 조정(null 이면 기본 균등분배 금액 사용)
+  async updateMemberSettlementOverride(memberId, amount) {
+    return unwrap(await supabase.from('group_members')
+      .update({ settlement_override: amount == null ? null : Math.max(Math.round(Number(amount)) || 0, 0) })
+      .eq('id', memberId));
   },
   async removeMember(memberId) {
     return unwrap(await supabase.from('group_members').delete().eq('id', memberId));

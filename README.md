@@ -61,6 +61,7 @@ client (React + Vite)  ──supabase-js──▶  Supabase
    - [`supabase/migrations/0011_category_color.sql`](supabase/migrations/0011_category_color.sql) — 분류(수입/지출)에 아이콘 배경색 설정 컬럼 추가
    - [`supabase/migrations/0012_group_color.sql`](supabase/migrations/0012_group_color.sql) — 그룹 아이콘 타일 배경색 설정 컬럼 추가
    - [`supabase/migrations/0013_payment_periods.sql`](supabase/migrations/0013_payment_periods.sql) — 결제 내역에 기간(회차) 컬럼 추가
+   - [`supabase/migrations/0014_settlement.sql`](supabase/migrations/0014_settlement.sql) — 정산 그룹의 멤버별 정산 금액 수동 조정 컬럼 추가
 3. **Authentication > Providers > Email** 활성화. 테스트 편의를 위해
    **Authentication > Sign In / Providers > "Confirm email"** 을 끄면 가입 즉시 로그인 흐름을 확인하기 쉽습니다.
 

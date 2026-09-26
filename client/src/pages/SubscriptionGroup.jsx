@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate, dotDate, monthPillLabel } from '../lib/format.js';
+import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate, dotDate, monthPillLabel, isSettlement } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import SwipeRow from '../components/SwipeRow.jsx';
@@ -68,9 +68,165 @@ function sourceNameOf(flat, id) {
 }
 const matchCatId = (cats, name) => { const c = cats.find((x) => x.name === name); return c ? String(c.id) : ''; };
 
+// 정산 탭: 결제 총액을 멤버 수로 나눈 기본 정산액 기준으로 멤버별 입금 현황을 관리
+// (정산 카테고리 그룹의 그룹 상세 페이지에서도 재사용)
+export function SettlementTab({ gid, members, isOwner, userId, payments, deposits, reloadMembers, loadDep }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState('');
+
+  const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
+  const memberCount = members.length || 1;
+  const defaultShare = Math.round(totalPaid / memberCount);
+
+  const rows = members.map((m) => {
+    const owed = m.settlement_override != null ? Number(m.settlement_override) : defaultShare;
+    const paid = deposits.filter((d) => d.member_id === m.id).reduce((s, d) => s + Number(d.amount), 0);
+    const remaining = Math.max(owed - paid, 0);
+    return { ...m, owed, paid, remaining, settled: remaining <= 0 };
+  });
+
+  const startEdit = (m) => { setEditingId(m.id); setEditDraft(String(m.owed)); };
+  const cancelEdit = () => setEditingId(null);
+  const saveEdit = async (m) => {
+    try {
+      await db.updateMemberSettlementOverride(m.id, editDraft === '' ? null : Number(editDraft));
+      setEditingId(null);
+      reloadMembers();
+    } catch (e) { alert(e.message); }
+  };
+
+  const poke = (m) => alert(`${m.nickname}님에게 정산 알림을 보냈습니다. (푸시 알림 기능은 추후 제공될 예정입니다)`);
+
+  const markPaid = async (m) => {
+    if (m.remaining <= 0) return;
+    if (!confirm(`${m.nickname}님의 입금(${fmtWon(m.remaining)})을 완료 처리할까요?`)) return;
+    try {
+      await db.createDeposit({
+        group_id: gid, member_id: m.id, date: today(), amount: m.remaining, periods: 1,
+        category_name: '정산', category_emoji: '', leader_category_name: '정산', leader_category_emoji: '',
+        content: '정산',
+      });
+      loadDep();
+    } catch (e) { alert(e.message); }
+  };
+
+  const requestSettlement = () => {
+    const targets = rows.filter((r) => r.role !== 'owner' && r.is_account && !r.settled);
+    if (!targets.length) return alert('알림을 보낼 대상이 없습니다.');
+    alert(`${targets.length}명에게 정산 요청 알림을 보냈습니다. (푸시 알림 기능은 추후 제공될 예정입니다)`);
+  };
+
+  return (
+    <>
+      <div className="summary-card" style={{ marginTop: 14 }}>
+        <div className="col"><div className="lbl">총 결제 금액</div><div className="val expense">{fmtWon(totalPaid)}</div></div>
+        <div className="divider" />
+        <div className="col"><div className="lbl">1인당 기본 정산액</div><div className="val">{fmtWon(defaultShare)}</div></div>
+      </div>
+
+      {rows.length === 0 ? <div className="empty">멤버가 없습니다.</div> : rows.map((m) => (
+        <div key={m.id} className="tx-daycard" style={{ borderRadius: 16, padding: '14px 16px', marginTop: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
+              {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>총무</span>}
+              {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
+              {m.role !== 'owner' && (
+                m.settled
+                  ? <span style={{ fontSize: 9, fontWeight: 700, color: '#1FAE85', background: '#E3F7EF', borderRadius: 999, padding: '2px 6px' }}>완료</span>
+                  : <span style={{ fontSize: 9, fontWeight: 700, color: '#a29ead', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>미완료</span>
+              )}
+            </div>
+            {isOwner && editingId === m.id ? (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  value={editDraft} onChange={(e) => setEditDraft(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="inline-edit-input" style={{ width: 90 }} autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && saveEdit(m)}
+                />
+                <button className="inline-cancel-btn" onClick={cancelEdit}>취소</button>
+                <button className="inline-save-btn" onClick={() => saveEdit(m)}>저장</button>
+              </div>
+            ) : (
+              <button
+                type="button" disabled={!isOwner} onClick={() => startEdit(m)}
+                style={{ border: 'none', background: 'transparent', padding: 0, fontSize: 13.25, fontWeight: 700, color: '#191722', cursor: isOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}
+              >
+                {fmtWon(m.owed)}
+              </button>
+            )}
+          </div>
+          <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>입금 {fmtWon(m.paid)} · 남은 금액 {fmtWon(m.remaining)}</div>
+          {m.role !== 'owner' && (isOwner || userId === m.user_id) && (
+            <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+              {isOwner && <button type="button" className="btn sm ghost" disabled={!m.is_account || m.settled} onClick={() => poke(m)}>콕 찌르기</button>}
+              {(isOwner || userId === m.user_id) && <button type="button" className="btn sm" disabled={m.settled} onClick={() => markPaid(m)}>입금 완료</button>}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {isOwner && <button className="btn-ink-pill" style={{ marginTop: 14 }} onClick={requestSettlement}>정산 요청하기</button>}
+    </>
+  );
+}
+
+// 입금 내역 탭: 구독 그룹뿐 아니라 정산 카테고리 그룹의 그룹 상세 페이지에서도 재사용
+export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav }) {
+  const delDeposit = async (d) => {
+    if (!confirm('입금 내역을 삭제할까요? (연결된 가계부 항목도 삭제됩니다)')) return;
+    try { await db.deleteDeposit(d.id); loadDep(); } catch (e) { alert(e.message); }
+  };
+  return (
+    <>
+      {deposits.length === 0 ? <div className="empty">입금 내역이 없습니다.</div> : groupByMonthThenDate(deposits).map(([mo, dateGroups]) => (
+        <div key={mo}>
+          <div className="month-pill-wrap" style={{ margin: '16px 0 8px' }}><span className="month-pill">{monthPillLabel(mo)}</span></div>
+          {dateGroups.map(([date, items]) => {
+            const net = items.reduce((s, d) => s + Number(d.amount), 0);
+            return (
+              <div key={date}>
+                <div style={{ margin: '14px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>+{fmtWon(net)}</span>
+                </div>
+                <div className="tx-daycard" style={{ borderRadius: 16, padding: '4px 14px' }}>
+                  {items.map((d, i) => {
+                    const mine = isOwner || (myMember && d.member_id === myMember.id);
+                    return (
+                      <SwipeRow key={d.id} deletable={mine} onDelete={() => delDeposit(d)} onTap={() => mine && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)}>
+                        <div className="tx-row" style={{ padding: '12px 0', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: mine ? 'pointer' : 'default' }}>
+                          <span className="tx-tile" style={{ background: d.category_emoji ? tileBg(d.category_name) : '#f2f1f5' }}>{d.category_emoji || '💸'}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="tx-row-title" style={{ fontSize: 12.75 }}>
+                              <span className="ttext">{d.content || d.category_name || '입금'} - {d.member?.nickname || '멤버'} <span className="tag-periods">{d.periods} 회분</span></span>
+                            </div>
+                            <div className="tx-row-sub" style={{ fontSize: 10.25 }}>{[d.category_name, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
+                          </div>
+                          <span style={{ fontSize: 14.25, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--income)' }}>+{fmtWon(d.amount)}</span>
+                        </div>
+                      </SwipeRow>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+      {(isOwner || myMember) && (
+        <button className="fab" onClick={() => nav(`/new?group=${gid}&kind=deposit`)} aria-label="입금 추가">
+          <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
+      )}
+    </>
+  );
+}
+
 export default function SubscriptionGroup({ gid, group, members, isOwner, leaderName, header, reloadMembers }) {
   const { user } = useAuth();
   const nav = useNavigate();
+  const settlementMode = isSettlement(group?.category);
   const [params, setParams] = useSearchParams();
   const tab = params.get('tab') || 'payments';
   const setTab = useCallback((t) => {
@@ -96,10 +252,6 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   const delPayment = async (p) => {
     if (!confirm('결제 내역을 삭제할까요? (총대 가계부의 해당 지출도 삭제됩니다)')) return;
     try { await db.deletePayment(p.id); loadPay(); } catch (e) { alert(e.message); }
-  };
-  const delDeposit = async (d) => {
-    if (!confirm('입금 내역을 삭제할까요? (연결된 가계부 항목도 삭제됩니다)')) return;
-    try { await db.deleteDeposit(d.id); loadDep(); } catch (e) { alert(e.message); }
   };
   const todayStr = today();
   const memberStats = members.map((m) => {
@@ -131,7 +283,11 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
       <div className="underline-tabs">
         <button className={tab === 'payments' ? 'active' : ''} onClick={() => setTab('payments')}>결제 내역</button>
         <button className={tab === 'deposits' ? 'active' : ''} onClick={() => setTab('deposits')}>입금 내역</button>
-        <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>통계</button>
+        {settlementMode ? (
+          <button className={tab === 'settlement' ? 'active' : ''} onClick={() => setTab('settlement')}>정산</button>
+        ) : (
+          <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>통계</button>
+        )}
         <button className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>멤버</button>
       </div>
 
@@ -178,51 +334,10 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
       )}
 
       {tab === 'deposits' && (
-        <>
-          {deposits.length === 0 ? <div className="empty">입금 내역이 없습니다.</div> : groupByMonthThenDate(deposits).map(([mo, dateGroups]) => (
-            <div key={mo}>
-              <div className="month-pill-wrap" style={{ margin: '16px 0 8px' }}><span className="month-pill">{monthPillLabel(mo)}</span></div>
-              {dateGroups.map(([date, items]) => {
-                const net = items.reduce((s, d) => s + Number(d.amount), 0);
-                return (
-                  <div key={date}>
-                    <div style={{ margin: '14px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
-                      <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>+{fmtWon(net)}</span>
-                    </div>
-                    <div className="tx-daycard" style={{ borderRadius: 16, padding: '4px 14px' }}>
-                      {items.map((d, i) => {
-                        const mine = isOwner || (myMember && d.member_id === myMember.id);
-                        return (
-                          <SwipeRow key={d.id} deletable={mine} onDelete={() => delDeposit(d)} onTap={() => mine && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)}>
-                            <div className="tx-row" style={{ padding: '12px 0', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: mine ? 'pointer' : 'default' }}>
-                              <span className="tx-tile" style={{ background: d.category_emoji ? tileBg(d.category_name) : '#f2f1f5' }}>{d.category_emoji || '💸'}</span>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div className="tx-row-title" style={{ fontSize: 12.75 }}>
-                                  <span className="ttext">{d.content || d.category_name || '입금'} - {d.member?.nickname || '멤버'} <span className="tag-periods">{d.periods} 회분</span></span>
-                                </div>
-                                <div className="tx-row-sub" style={{ fontSize: 10.25 }}>{[d.category_name, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
-                              </div>
-                              <span style={{ fontSize: 14.25, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--income)' }}>+{fmtWon(d.amount)}</span>
-                            </div>
-                          </SwipeRow>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-          {(isOwner || myMember) && (
-            <button className="fab" onClick={() => nav(`/new?group=${gid}&kind=deposit`)} aria-label="입금 추가">
-              <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-            </button>
-          )}
-        </>
+        <DepositsTab gid={gid} deposits={deposits} isOwner={isOwner} myMember={myMember} loadDep={loadDep} nav={nav} />
       )}
 
-      {tab === 'stats' && (
+      {!settlementMode && tab === 'stats' && (
         <>
           <div className="summary-card" style={{ marginTop: 14 }}>
             <div className="col"><div className="lbl">총 금액</div><div className="val income">{fmtWon(totalAmount)}</div></div>
@@ -253,6 +368,13 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
         </>
       )}
 
+      {settlementMode && tab === 'settlement' && (
+        <SettlementTab
+          gid={gid} members={members} isOwner={isOwner} userId={user.id}
+          payments={payments} deposits={deposits} reloadMembers={reloadMembers} loadDep={loadDep}
+        />
+      )}
+
       {tab === 'members' && (
         <MembersPanel groupId={gid} members={members} isOwner={isOwner} leaderName={leaderName} onReload={reloadMembers} />
       )}
@@ -260,10 +382,10 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   );
 }
 
-export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, topNotice }) {
+export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, topNotice, defaultCategoryName = '구독' }) {
   const editing = !!initial;
-  const defMemberCat = cats.find((c) => c.name === '구독');     // 멤버 지출 기본 '구독'
-  const defLeaderCat = incomeCats.find((c) => c.name === sub?.deposit_category); // 총대 수입 기본 = 입금분류
+  const defMemberCat = cats.find((c) => c.name === defaultCategoryName);     // 멤버 지출 기본(구독/정산 등)
+  const defLeaderCat = incomeCats.find((c) => c.name === (sub?.deposit_category || defaultCategoryName)); // 총대 수입 기본 = 입금분류(없으면 동일 기본값)
   const [f, setF] = useState(() => editing ? {
     memberId: String(initial.member_id), date: initial.date, amount: String(initial.amount), periods: String(initial.periods || 1),
     // 멤버 영역
@@ -344,7 +466,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     let m_name = '', m_emoji = '', m_source = '';
     if (isOwner) {
       if (editing) { m_name = initial.category_name; m_emoji = initial.category_emoji; m_source = initial.source_name; }
-      else { m_name = '구독'; m_emoji = defMemberCat?.emoji || ''; m_source = ''; }
+      else { m_name = defaultCategoryName; m_emoji = defMemberCat?.emoji || ''; m_source = ''; }
     } else {
       if (f.mCatId === KEEP) { m_name = initial.category_name; m_emoji = initial.category_emoji; }
       else if (f.mCatId) { const c = cats.find((x) => String(x.id) === f.mCatId); if (c) { m_name = c.name; m_emoji = c.emoji || ''; } }

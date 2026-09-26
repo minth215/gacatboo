@@ -62,4 +62,5 @@ export function renderTemplate(template, dateStr) {
 
 // 그룹 유형(카테고리)에 따른 리더 명칭 / 구독형 여부
 export const isSubscription = (category) => category === '구독';
+export const isSettlement = (category) => category === '정산';
 export const leaderLabel = (category) => (isSubscription(category) ? '총대' : '총무');

@@ -4,12 +4,12 @@ import { Bar } from 'react-chartjs-2';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { PALETTE } from '../lib/chartSetup.js';
-import { currentMonth, shiftMonth, monthLabel, fmtWon, isSubscription, leaderLabel } from '../lib/format.js';
+import { currentMonth, shiftMonth, monthLabel, fmtWon, isSubscription, isSettlement, leaderLabel } from '../lib/format.js';
 import TransactionList from '../components/TransactionList.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
-import SubscriptionGroup from './SubscriptionGroup.jsx';
+import SubscriptionGroup, { DepositsTab, SettlementTab } from './SubscriptionGroup.jsx';
 
 export default function GroupDetail() {
   const { id } = useParams();
@@ -53,16 +53,25 @@ export default function GroupDetail() {
   return <GenericGroup gid={gid} group={group} members={members} isOwner={isOwner} leaderName={leaderName} header={header} nav={nav} user={user} reloadMembers={loadGroup} />;
 }
 
-// ---------- 일반 그룹 (내역/통계/멤버) ----------
+// ---------- 일반 그룹 (내역/통계/멤버, 정산 카테고리는 내역/입금 내역/정산/멤버) ----------
 function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, user, reloadMembers }) {
+  const settlementMode = isSettlement(group.category);
   const [tab, setTab] = useState('ledger');
   const [month, setMonth] = useState(currentMonth());
   const [allTxs, setAllTxs] = useState([]);
+  const [deposits, setDeposits] = useState([]);
+
+  const myMember = members.find((m) => m.user_id === user.id && m.role !== 'owner');
 
   const loadTxs = useCallback(() => {
     db.listGroupTransactionsAll(gid).then(setAllTxs).catch(() => setAllTxs([]));
   }, [gid]);
+  const loadDep = useCallback(() => {
+    if (!settlementMode) return;
+    db.listDeposits(gid).then(setDeposits).catch(() => setDeposits([]));
+  }, [gid, settlementMode]);
   useEffect(() => { loadTxs(); }, [loadTxs]);
+  useEffect(() => { loadDep(); }, [loadDep]);
 
   const canEdit = (t) => t.created_by === user.id;
   const removeTx = async (t) => {
@@ -71,18 +80,24 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
   };
   // 멤버별 통계용 이름 매핑
   const statMembers = members.map((m) => ({ user_id: m.user_id, display_name: m.nickname }));
+  const paidTxs = allTxs.filter((t) => t.type === 'expense');
 
   return (
     <div style={{ padding: '84px 0 12px' }}>
       {header}
 
       <div className="underline-tabs">
-        <button className={tab === 'ledger' ? 'active' : ''} onClick={() => setTab('ledger')}>내역</button>
-        <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>통계</button>
+        <button className={tab === 'ledger' ? 'active' : ''} onClick={() => setTab('ledger')}>{settlementMode ? '결제 내역' : '내역'}</button>
+        {settlementMode && <button className={tab === 'deposits' ? 'active' : ''} onClick={() => setTab('deposits')}>입금 내역</button>}
+        {settlementMode ? (
+          <button className={tab === 'settlement' ? 'active' : ''} onClick={() => setTab('settlement')}>정산</button>
+        ) : (
+          <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>통계</button>
+        )}
         <button className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>멤버</button>
       </div>
 
-      {tab === 'stats' && (
+      {!settlementMode && tab === 'stats' && (
         <div className="month-nav" style={{ marginTop: 14 }}>
           <button onClick={() => setMonth(shiftMonth(month, -1))}>‹</button>
           <div className="mlabel">{monthLabel(month)}</div>
@@ -99,8 +114,19 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
         </>
       )}
 
-      {tab === 'stats' && (
+      {settlementMode && tab === 'deposits' && (
+        <DepositsTab gid={gid} deposits={deposits} isOwner={isOwner} myMember={myMember} loadDep={loadDep} nav={nav} />
+      )}
+
+      {!settlementMode && tab === 'stats' && (
         <GroupStatsView gid={gid} month={month} members={statMembers} />
+      )}
+
+      {settlementMode && tab === 'settlement' && (
+        <SettlementTab
+          gid={gid} members={members} isOwner={isOwner} userId={user.id}
+          payments={paidTxs} deposits={deposits} reloadMembers={reloadMembers} loadDep={loadDep}
+        />
       )}
 
       {tab === 'members' && (

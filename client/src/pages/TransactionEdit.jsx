@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
+import { isSubscription, isSettlement, leaderLabel } from '../lib/format.js';
 import TransactionForm from '../components/TransactionForm.jsx';
 import { DepositForm } from './SubscriptionGroup.jsx';
 import PageHeader from '../components/PageHeader.jsx';
@@ -104,10 +105,11 @@ export default function TransactionEdit() {
           initial={initial} sub={sub} cats={cats} incomeCats={incomeCats} sources={sources}
           members={isOwner ? memberList : (myMember ? [myMember] : [])} recentExpenses={recentExpenses}
           isOwner={isOwner} onSave={saveDeposit} onSaved={done}
+          defaultCategoryName={isSettlement(group?.category) ? '정산' : '구독'}
           topNotice={group && (
             <div className="form-section-group">
               <div style={{ fontSize: 16, fontWeight: 800, color: '#191722' }}>{group.name}</div>
-              <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>총대(수입)·멤버(지출) 가계부와 자동 동기화됩니다.</p>
+              <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>{leaderLabel(group.category)}(수입)·멤버(지출) 가계부와 자동 동기화됩니다.</p>
             </div>
           )}
         />
@@ -115,15 +117,15 @@ export default function TransactionEdit() {
         <TransactionForm
           initial={initial} groupId={isPayment ? null : groupId} onSaved={done} onClose={() => nav(-1)}
           fixedType={isPayment ? 'expense' : undefined}
-          defaultCategoryName={isPayment ? '구독' : undefined}
+          defaultCategoryName={isPayment ? (isSettlement(group?.category) ? '정산' : '구독') : undefined}
           defaultAmount={isPayment ? sub?.billing_amount : undefined}
           defaultContentTemplate={isPayment ? sub?.payment_content_template : undefined}
           onSubmit={isPayment ? savePayment : undefined}
-          showPeriods={isPayment}
+          showPeriods={isPayment && isSubscription(group?.category)}
           topNotice={isPayment && group && (
             <div className="form-section-group">
               <div style={{ fontSize: 16, fontWeight: 800, color: '#191722' }}>{group.name}</div>
-              <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>총대 개인 가계부의 지출과 자동 동기화됩니다.</p>
+              <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>{leaderLabel(group.category)} 개인 가계부의 지출과 자동 동기화됩니다.</p>
             </div>
           )}
         />
