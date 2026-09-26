@@ -67,6 +67,7 @@ function sourceNameOf(flat, id) {
   return s ? s.name : ''; // 세부 항목명만
 }
 const matchCatId = (cats, name) => { const c = cats.find((x) => x.name === name); return c ? String(c.id) : ''; };
+const matchSourceId = (flat, name) => { const s = flat.find((x) => x.name === name); return s ? String(s.id) : ''; };
 
 // 정산 탭: 결제 총액을 멤버 수로 나눈 기본 정산액 기준으로 멤버별 입금 현황을 관리
 // (정산 카테고리 그룹의 그룹 상세 페이지에서도 재사용)
@@ -487,11 +488,11 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     memberId: String(initial.member_id), date: initial.date, amount: String(initial.amount), periods: String(initial.periods || 1),
     // 멤버 영역
     mCatId: matchCatId(cats, initial.category_name) || (initial.category_name ? KEEP : ''),
-    mSourceId: initial.source_name ? KEEP : '',
+    mSourceId: matchSourceId(sources.flat, initial.source_name) || (initial.source_name ? KEEP : ''),
     // 총대 영역
     lCatId: matchCatId(incomeCats, initial.leader_category_name) || (initial.leader_category_name ? KEEP : ''),
     lSettleId: initial.leader_settlement_target_id ? String(initial.leader_settlement_target_id) : '',
-    lSourceId: initial.deposit_source_name ? KEEP : '',
+    lSourceId: matchSourceId(sources.flat, initial.deposit_source_name) || (initial.deposit_source_name ? KEEP : ''),
     content: initial.content || '', memo: initial.memo || '',
   } : {
     memberId: '', date: today(),
@@ -526,6 +527,28 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     if (editing || f.lSourceId || !sub?.deposit_source_id) return;
     setF((prev) => ({ ...prev, lSourceId: String(sub.deposit_source_id) }));
   }, [editing, sub]);
+  // 수정 화면 진입 시 분류/원천 목록이 initial 보다 늦게 도착해 "(기존)"으로만
+  // 표시되던 문제 보정: 목록이 도착한 뒤 실제로 일치하는 항목이 있으면 교체
+  useEffect(() => {
+    if (!editing || f.mCatId !== KEEP) return;
+    const id = matchCatId(cats, initial.category_name);
+    if (id) setF((prev) => (prev.mCatId === KEEP ? { ...prev, mCatId: id } : prev));
+  }, [editing, cats]);
+  useEffect(() => {
+    if (!editing || f.lCatId !== KEEP) return;
+    const id = matchCatId(incomeCats, initial.leader_category_name);
+    if (id) setF((prev) => (prev.lCatId === KEEP ? { ...prev, lCatId: id } : prev));
+  }, [editing, incomeCats]);
+  useEffect(() => {
+    if (!editing || f.mSourceId !== KEEP) return;
+    const id = matchSourceId(sources.flat, initial.source_name);
+    if (id) setF((prev) => (prev.mSourceId === KEEP ? { ...prev, mSourceId: id } : prev));
+  }, [editing, sources]);
+  useEffect(() => {
+    if (!editing || f.lSourceId !== KEEP) return;
+    const id = matchSourceId(sources.flat, initial.deposit_source_name);
+    if (id) setF((prev) => (prev.lSourceId === KEEP ? { ...prev, lSourceId: id } : prev));
+  }, [editing, sources]);
   useEffect(() => {
     if (editing || f.content || !sub?.deposit_content_template) return;
     setF((prev) => ({ ...prev, content: renderTemplate(sub.deposit_content_template, prev.date) }));

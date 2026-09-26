@@ -69,7 +69,11 @@ export default function Groups() {
       if (!showEnded && isEnded(g)) return false;
       return true;
     })
-    .sort((a, b) => (isEnded(a) ? 1 : 0) - (isEnded(b) ? 1 : 0));
+    .sort((a, b) => {
+      const endedDiff = (isEnded(a) ? 1 : 0) - (isEnded(b) ? 1 : 0);
+      if (endedDiff !== 0) return endedDiff;
+      return (b.start_date || '').localeCompare(a.start_date || '');
+    });
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
