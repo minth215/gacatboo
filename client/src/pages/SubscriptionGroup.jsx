@@ -184,23 +184,37 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
           </div>
         );
 
+        const cardBox = <div className="settle-card">{cardInner}</div>;
+
         return (
-          <div key={m.id} className="tx-daycard" style={{ borderRadius: 16, marginTop: 10 }}>
+          <div key={m.id} className="settle-swipe-wrap" style={{ marginTop: 10 }}>
             {swipeForOwner ? (
               <SwipeRow
-                actionsWidth={196}
+                actionsWidth={108}
                 actions={
-                  <div style={{ display: 'flex', gap: 6, padding: '0 10px' }}>
-                    <button type="button" className="inline-cancel-btn" disabled={!m.is_account} onClick={() => poke(m)}>콕 찌르기</button>
-                    <button type="button" className="inline-save-btn" onClick={() => markPaid(m)}>입금 완료</button>
+                  <div className="settle-swipe-actions">
+                    <button type="button" className="settle-icon-btn" disabled={!m.is_account} onClick={() => poke(m)} aria-label="콕 찌르기">
+                      <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 14a8 8 0 0 1-8 8" />
+                        <path d="M18 11v-1a2 2 0 0 0-2-2 2 2 0 0 0-2 2" />
+                        <path d="M14 10V9a2 2 0 0 0-2-2 2 2 0 0 0-2 2v1" />
+                        <path d="M10 9.5V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v10" />
+                        <path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+                      </svg>
+                    </button>
+                    <button type="button" className="settle-icon-btn mint" onClick={() => markPaid(m)} aria-label="입금 완료">
+                      <svg width="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 13l4 4L19 7" />
+                      </svg>
+                    </button>
                   </div>
                 }
               >
-                {cardInner}
+                {cardBox}
               </SwipeRow>
             ) : tapForSelf ? (
-              <div onClick={() => markPaid(m)} style={{ cursor: 'pointer' }}>{cardInner}</div>
-            ) : cardInner}
+              <div onClick={() => markPaid(m)} style={{ cursor: 'pointer' }}>{cardBox}</div>
+            ) : cardBox}
           </div>
         );
       })}
