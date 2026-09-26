@@ -10,9 +10,7 @@ const DEFAULT_OPEN = 72; // 스와이프 시 드러나는 영역 기본 폭(px)
 // isOpen/onOpenChange 를 주면(선택) 목록 쪽에서 "한 번에 하나만 열림"을 제어할 수 있다.
 // 이 행이 스스로 열리면 onOpenChange(true) 로 알리고, 부모가 isOpen 을 false 로 바꾸면
 // (다른 행이 열려서) 자동으로 닫힌다.
-// shrink 를 주면 카드를 transform 으로 밀어서 왼쪽 내용을 가리는 대신, 카드 자체의 폭을
-// 오른쪽에서부터 줄여서 왼쪽 내용은 항상 그대로 온전히 보이고 오른쪽에만 배경+버튼이 드러난다.
-export default function SwipeRow({ children, deletable, onDelete, onTap, actions, actionsWidth = DEFAULT_OPEN, fullSwipe = false, shrink = false, isOpen, onOpenChange }) {
+export default function SwipeRow({ children, deletable, onDelete, onTap, actions, actionsWidth = DEFAULT_OPEN, fullSwipe = false, isOpen, onOpenChange }) {
   const revealWidth = actions ? actionsWidth : DEFAULT_OPEN;
   const swipeEnabled = deletable || !!actions;
   const wrapRef = useRef(null);
@@ -91,9 +89,7 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
       </div>
       <div
         className="swipe-fg"
-        style={shrink
-          ? { width: `calc(100% + ${dx}px)`, transition: dragging ? 'none' : 'width 0.2s' }
-          : { transform: `translateX(${dx}px)`, transition: dragging ? 'none' : 'transform 0.2s' }}
+        style={{ transform: `translateX(${dx}px)`, transition: dragging ? 'none' : 'transform 0.2s' }}
         onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
         onClick={tap}
       >
