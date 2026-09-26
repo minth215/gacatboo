@@ -28,7 +28,7 @@ export default function Groups() {
 
   const openModal = () => {
     setForm({
-      emoji: '📦', color: PALETTE[0], name: '', category: groupCats[0]?.name || '기타',
+      emoji: '📦', color: PALETTE[0], name: '', category: '',
       description: '', start_date: today(), end_date: '',
     });
     setError('');
@@ -39,6 +39,7 @@ export default function Groups() {
   const create = async () => {
     const name = form.name.trim();
     if (!name) return setError('그룹명을 입력하세요.');
+    if (!form.category) return setError('카테고리를 선택하세요.');
     setBusy(true); setError('');
     try {
       const g = await db.createGroup(user.id, { ...form, name, category_emoji: form.emoji });
@@ -65,9 +66,9 @@ export default function Groups() {
         groups.map((g) => (
           <div
             key={g.id} className="group-card" onClick={() => nav(`/groups/${g.id}`)}
-            style={{ display: 'flex', gap: 12, alignItems: 'flex-start', opacity: isEnded(g) ? 0.55 : 1, filter: isEnded(g) ? 'grayscale(0.6)' : 'none' }}
+            style={{ display: 'flex', gap: 12, alignItems: 'center', opacity: isEnded(g) ? 0.55 : 1, filter: isEnded(g) ? 'grayscale(0.6)' : 'none' }}
           >
-            <span style={{ width: 44, height: 44, borderRadius: 14, background: g.color || '#f4f2f0', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flex: 'none' }}>{g.category_emoji || '📦'}</span>
+            <span style={{ width: 38, height: 38, borderRadius: 12, background: g.color || '#f4f2f0', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16.5, flex: 'none' }}>{g.category_emoji || '📦'}</span>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
@@ -131,6 +132,7 @@ export default function Groups() {
               </div>
             ) : (
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="catmodal-name-input" style={{ flex: 'none', appearance: 'none' }}>
+                <option value="" disabled>카테고리 선택</option>
                 {groupCats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
             )}
@@ -141,11 +143,11 @@ export default function Groups() {
             />
 
             <div style={{ display: 'flex', gap: 10 }}>
-              <label style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>시작일자</span>
                 <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="catmodal-name-input" />
               </label>
-              <label style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>종료일자 (선택)</span>
                 <input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="catmodal-name-input" />
               </label>

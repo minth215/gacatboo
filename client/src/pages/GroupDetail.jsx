@@ -45,7 +45,7 @@ export default function GroupDetail() {
     return (
       <SubscriptionGroup
         gid={gid} group={group} members={members} isOwner={isOwner} leaderName={leaderName}
-        header={header} reloadMembers={loadGroup} onDeletedGroup={() => nav('/groups')}
+        header={header} reloadMembers={loadGroup}
       />
     );
   }
@@ -69,19 +69,14 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
     if (!confirm('이 항목을 삭제할까요?')) return;
     try { await db.deleteTransaction(t.id); loadTxs(); } catch (e) { alert(e.message); }
   };
-  const deleteGroup = async () => {
-    if (!confirm('그룹을 삭제하면 그룹 내 모든 항목이 삭제됩니다. 계속할까요?')) return;
-    try { await db.deleteGroup(gid); nav('/groups'); } catch (e) { alert(e.message); }
-  };
-
   // 멤버별 통계용 이름 매핑
   const statMembers = members.map((m) => ({ user_id: m.user_id, display_name: m.nickname }));
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '84px 0 12px' }}>
       {header}
 
-      <div className="underline-tabs" style={{ marginTop: 6 }}>
+      <div className="underline-tabs">
         <button className={tab === 'ledger' ? 'active' : ''} onClick={() => setTab('ledger')}>내역</button>
         <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>통계</button>
         <button className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>멤버</button>
@@ -109,10 +104,7 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
       )}
 
       {tab === 'members' && (
-        <>
-          <MembersPanel groupId={gid} members={members} isOwner={isOwner} leaderName={leaderName} onReload={reloadMembers} />
-          {isOwner && <button className="btn danger block" onClick={deleteGroup}>그룹 삭제</button>}
-        </>
+        <MembersPanel groupId={gid} members={members} isOwner={isOwner} leaderName={leaderName} onReload={reloadMembers} />
       )}
     </div>
   );

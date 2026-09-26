@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
+import { useDragReorder } from '../lib/useDragReorder.js';
 import PageHeader from '../components/PageHeader.jsx';
 import { tileBg } from '../components/TransactionList.jsx';
 
@@ -12,7 +13,6 @@ export default function CategoryManage() {
   const { user } = useAuth();
   const [categories, setCategories] = useState([]);
   const [editor, setEditor] = useState(null); // null | {id?, name, emoji, color}
-  const [dragId, setDragId] = useState(null);
 
   const kind = type === 'income' ? '수입' : '지출';
   const valid = type === 'income' || type === 'expense';
@@ -41,17 +41,9 @@ export default function CategoryManage() {
     try { await db.deleteCategory(c.id); load(); } catch (e) { alert(e.message); }
   };
 
-  const onDrop = async (targetId) => {
-    if (dragId == null || dragId === targetId) { setDragId(null); return; }
-    const arr = [...categories];
-    const fi = arr.findIndex((x) => x.id === dragId);
-    const ti = arr.findIndex((x) => x.id === targetId);
-    const [moved] = arr.splice(fi, 1);
-    arr.splice(ti, 0, moved);
-    setCategories(arr);
-    setDragId(null);
-    try { await db.reorderCategories(arr.map((c) => c.id)); } catch (e) { alert(e.message); load(); }
-  };
+  const { dragId, setRowRef, startDrag } = useDragReorder(categories, setCategories, async (ids) => {
+    try { await db.reorderCategories(ids); } catch (e) { alert(e.message); load(); }
+  });
 
   if (!valid) return <div className="empty">잘못된 접근입니다.</div>;
 
@@ -68,10 +60,7 @@ export default function CategoryManage() {
           <div className="empty" style={{ padding: '20px 0' }}>분류가 없습니다.</div>
         ) : categories.map((c, i) => (
           <div
-            key={c.id} draggable
-            onDragStart={() => setDragId(c.id)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => onDrop(c.id)}
+            key={c.id} ref={setRowRef(c.id)}
             style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 16px', background: '#fff',
               borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5', opacity: dragId === c.id ? 0.35 : 1,
@@ -84,7 +73,7 @@ export default function CategoryManage() {
             <button aria-label="삭제" onClick={() => del(c)} className="cat-del-btn">
               <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
             </button>
-            <span className="cat-drag-handle" aria-hidden="true">
+            <span className="cat-drag-handle" aria-label="순서 변경" onPointerDown={startDrag(c.id)} style={{ touchAction: 'none', cursor: dragId === c.id ? 'grabbing' : 'grab' }}>
               <svg width="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6" /><circle cx="9" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle cx="15" cy="12" r="1.6" /><circle cx="15" cy="18" r="1.6" /></svg>
             </span>
           </div>

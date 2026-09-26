@@ -27,7 +27,7 @@ export default function GroupEdit() {
       if (group.owner_id !== user.id) { alert('수정 권한이 없습니다.'); nav(`/groups/${gid}`); return; }
       setForm({
         name: group.name, description: group.description || '',
-        category: group.category, category_emoji: group.category_emoji || '',
+        category: group.category, category_emoji: group.category_emoji || '', color: group.color || '',
         start_date: group.start_date || '', end_date: group.end_date || '',
       });
     }).catch((e) => { alert(e.message); nav('/groups'); });
@@ -45,6 +45,11 @@ export default function GroupEdit() {
     setBusy(true); setErr('');
     try { await db.updateGroup(gid, form); nav(`/groups/${gid}`); }
     catch (e) { setErr(e.message); setBusy(false); }
+  };
+
+  const deleteGroup = async () => {
+    if (!confirm('그룹을 삭제하면 그룹 내 모든 내역이 삭제됩니다. 계속할까요?')) return;
+    try { await db.deleteGroup(gid); nav('/groups'); } catch (e) { alert(e.message); }
   };
 
   return (
@@ -68,9 +73,9 @@ export default function GroupEdit() {
           {groupCats.map((c) => (
             <button type="button" key={c.id}
               className={`chip ${form.category === c.name ? '' : 'gray'}`}
-              onClick={() => setForm({ ...form, category: c.name, category_emoji: c.emoji })}
+              onClick={() => setForm({ ...form, category: c.name })}
               style={{ border: 'none' }}>
-              {c.emoji} {c.name}
+              {c.name}
             </button>
           ))}
           {!groupCats.some((c) => c.name === form.category) && form.category && (
@@ -108,6 +113,7 @@ export default function GroupEdit() {
 
       {err && <p className="error">{err}</p>}
       <button className="btn-ink-pill" disabled={busy} onClick={save}>{busy ? '저장 중…' : '저장'}</button>
+      <button type="button" onClick={deleteGroup} style={{ display: 'block', margin: '12px auto 0', border: 'none', background: 'transparent', color: 'var(--expense)', fontSize: 12.5, fontWeight: 700, padding: '6px 10px', cursor: 'pointer' }}>그룹 삭제</button>
 
       {setModal && (
         <SettingsForm sub={sub} incomeCats={incomeCats} onClose={() => setSetModal(false)}

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
+import { useDragReorder } from '../lib/useDragReorder.js';
 import PageHeader from '../components/PageHeader.jsx';
 
 export default function GroupCategoryManage() {
@@ -10,7 +11,6 @@ export default function GroupCategoryManage() {
   const [addName, setAddName] = useState('');
   const [editId, setEditId] = useState(null);
   const [editDraft, setEditDraft] = useState('');
-  const [dragId, setDragId] = useState(null);
 
   const load = useCallback(() => db.listGroupCategories().then(setCats).catch((e) => alert(e.message)), []);
   useEffect(() => { load(); }, [load]);
@@ -35,17 +35,9 @@ export default function GroupCategoryManage() {
     try { await db.deleteGroupCategory(c.id); load(); } catch (e) { alert(e.message); }
   };
 
-  const onDrop = async (targetId) => {
-    if (dragId == null || dragId === targetId) { setDragId(null); return; }
-    const arr = [...cats];
-    const fi = arr.findIndex((x) => x.id === dragId);
-    const ti = arr.findIndex((x) => x.id === targetId);
-    const [moved] = arr.splice(fi, 1);
-    arr.splice(ti, 0, moved);
-    setCats(arr);
-    setDragId(null);
-    try { await db.reorderGroupCategories(arr.map((c) => c.id)); } catch (e) { alert(e.message); load(); }
-  };
+  const { dragId, setRowRef, startDrag } = useDragReorder(cats, setCats, async (ids) => {
+    try { await db.reorderGroupCategories(ids); } catch (e) { alert(e.message); load(); }
+  });
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
@@ -81,10 +73,7 @@ export default function GroupCategoryManage() {
             </div>
           ) : (
             <div
-              key={c.id} draggable
-              onDragStart={() => setDragId(c.id)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => onDrop(c.id)}
+              key={c.id} ref={setRowRef(c.id)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 18px', background: '#fff',
                 borderTop: (i === 0 && !adding) ? 'none' : '1.5px solid #f2f1f5', opacity: dragId === c.id ? 0.35 : 1,
@@ -97,7 +86,7 @@ export default function GroupCategoryManage() {
               <button aria-label="삭제" onClick={() => del(c)} className="row-icon-btn danger">
                 <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
               </button>
-              <span className="cat-drag-handle" aria-hidden="true">
+              <span className="cat-drag-handle" aria-label="순서 변경" onPointerDown={startDrag(c.id)} style={{ touchAction: 'none', cursor: dragId === c.id ? 'grabbing' : 'grab' }}>
                 <svg width="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6" /><circle cx="9" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle cx="15" cy="12" r="1.6" /><circle cx="15" cy="18" r="1.6" /></svg>
               </span>
             </div>

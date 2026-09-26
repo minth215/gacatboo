@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { db } from '../lib/db.js';
+import { today } from '../lib/format.js';
 
 // 그룹 멤버 관리 (계정/외부 멤버 공통). owner(총무/총대)만 추가·수정·삭제.
 export default function MembersPanel({ groupId, members, isOwner, leaderName, onReload }) {
@@ -7,7 +8,7 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const openAdd = () => { setErr(''); setEditor({ nickname: '', start_date: '', end_date: '', contact: '', memo: '', username: '' }); };
+  const openAdd = () => { setErr(''); setEditor({ nickname: '', start_date: today(), end_date: '', contact: '', memo: '', username: '' }); };
   const openEdit = (m) => {
     setErr('');
     setEditor({ id: m.id, nickname: m.nickname, start_date: m.start_date || '', end_date: m.end_date || '', contact: m.contact || '', memo: m.memo || '', username: m.username || '', is_account: m.is_account });
@@ -36,7 +37,7 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
 
   return (
     <>
-      <div className="tx-daycard">
+      <div className="tx-daycard" style={{ marginTop: 14 }}>
         {members.map((m, i) => (
           <div key={m.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '13px 8px 13px 18px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -83,32 +84,32 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
             </div>
 
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>멤버 이름</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>멤버 이름 <span style={{ color: '#FF3B5C' }}>*</span></span>
               <input value={editor.nickname} onChange={(e) => setEditor({ ...editor, nickname: e.target.value })} placeholder="멤버 이름(닉네임)" autoFocus className="catmodal-name-input" />
             </label>
             <div style={{ display: 'flex', gap: 10 }}>
-              <label style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>시작일자</span>
+              <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>시작일자 <span style={{ color: '#FF3B5C' }}>*</span></span>
                 <input type="date" value={editor.start_date} onChange={(e) => setEditor({ ...editor, start_date: e.target.value })} className="catmodal-name-input" />
               </label>
-              <label style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>종료일자</span>
                 <input type="date" value={editor.end_date} onChange={(e) => setEditor({ ...editor, end_date: e.target.value })} className="catmodal-name-input" />
               </label>
             </div>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>연락처</span>
-              <input value={editor.contact} onChange={(e) => setEditor({ ...editor, contact: e.target.value })} placeholder="전화번호/이메일 등 (선택)" className="catmodal-name-input" />
+              <input value={editor.contact} onChange={(e) => setEditor({ ...editor, contact: e.target.value })} placeholder="전화번호/이메일 등" className="catmodal-name-input" />
             </label>
             {!editor.id && (
               <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>가캣부 아이디 (없으면 외부 멤버)</span>
-                <input value={editor.username} onChange={(e) => setEditor({ ...editor, username: e.target.value })} placeholder="회원이면 아이디 입력 — 가계부 자동 반영" className="catmodal-name-input" />
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>가캣부 아이디</span>
+                <input value={editor.username} onChange={(e) => setEditor({ ...editor, username: e.target.value })} placeholder="회원일 경우 해당 그룹에 초대됩니다" className="catmodal-name-input" />
               </label>
             )}
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>메모 ({leaderName}만 열람)</span>
-              <textarea rows={2} value={editor.memo} onChange={(e) => setEditor({ ...editor, memo: e.target.value })} placeholder="총무만 볼 수 있는 메모 (선택)" className="catmodal-name-input" style={{ resize: 'none' }} />
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>메모</span>
+              <textarea rows={2} value={editor.memo} onChange={(e) => setEditor({ ...editor, memo: e.target.value })} placeholder="총무만 열람 가능합니다" className="catmodal-name-input" style={{ resize: 'none' }} />
             </label>
 
             {err && <p className="error" style={{ margin: 0 }}>{err}</p>}

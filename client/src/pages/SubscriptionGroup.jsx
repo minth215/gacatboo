@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, today, addInterval, PERIOD_LABEL, renderTemplate, monthLabel } from '../lib/format.js';
+import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import SwipeRow from '../components/SwipeRow.jsx';
@@ -24,6 +24,15 @@ function groupByMonthThenDate(list) {
   for (const t of list) (byMonth[t.date.slice(0, 7)] ||= []).push(t);
   return Object.keys(byMonth).sort((a, b) => (a < b ? 1 : -1)).map((mo) => [mo, groupByDate(byMonth[mo])]);
 }
+
+// 월 배지 표기: "2026 년 9 월" (의존명사 띄어쓰기)
+function monthPillLabel(mo) {
+  const [y, m] = mo.split('-');
+  return `${y} 년 ${Number(m)} 월`;
+}
+
+// YYYY-MM-DD → YYYY.MM.DD
+const dotDate = (d) => (d ? d.replace(/-/g, '.') : '');
 
 function SourceSelect({ sources, value, onChange, keepLabel }) {
   return (
@@ -57,7 +66,7 @@ function sourceNameOf(flat, id) {
 }
 const matchCatId = (cats, name) => { const c = cats.find((x) => x.name === name); return c ? String(c.id) : ''; };
 
-export default function SubscriptionGroup({ gid, group, members, isOwner, leaderName, header, reloadMembers, onDeletedGroup }) {
+export default function SubscriptionGroup({ gid, group, members, isOwner, leaderName, header, reloadMembers }) {
   const { user } = useAuth();
   const nav = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -90,13 +99,14 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
     if (!confirm('입금 내역을 삭제할까요? (연결된 가계부 항목도 삭제됩니다)')) return;
     try { await db.deleteDeposit(d.id); loadDep(); } catch (e) { alert(e.message); }
   };
-  const deleteGroup = async () => {
-    if (!confirm('그룹을 삭제하면 모든 결제·입금 내역이 삭제됩니다. 계속할까요?')) return;
-    try { await db.deleteGroup(gid); onDeletedGroup(); } catch (e) { alert(e.message); }
-  };
-
   const todayStr = today();
   const memberStats = members.map((m) => {
+    if (m.role === 'owner') {
+      const cum = payments.reduce((s, p) => s + Number(p.amount), 0);
+      const last = payments.length ? payments.map((p) => p.date).sort().slice(-1)[0] : null;
+      const next = m.next_due_override || (last && sub ? addInterval(last, sub.period_unit, sub.period_count, 1) : null);
+      return { id: m.id, nickname: m.nickname, isOwner: true, cum, last, next, lastLabel: '마지막 결제일', nextLabel: '다음 결제일', overdue: !!(next && next < todayStr) };
+    }
     const ds = deposits.filter((d) => d.member_id === m.id);
     const cum = ds.reduce((s, d) => s + Number(d.amount), 0);
     const periods = ds.reduce((s, d) => s + Number(d.periods || 0), 0);
@@ -104,16 +114,16 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
     const base = m.start_date || (ds.length ? ds.map((d) => d.date).sort()[0] : null);
     const auto = base && sub ? addInterval(base, sub.period_unit, sub.period_count, periods) : (base || null);
     const next = m.next_due_override || auto;
-    return { id: m.id, nickname: m.nickname, isOwner: m.role === 'owner', cum, last, next, overdue: !!(next && next < todayStr) };
+    return { id: m.id, nickname: m.nickname, isOwner: false, cum, last, next, lastLabel: '마지막 입금일', nextLabel: '다음 입금일', overdue: !!(next && next < todayStr) };
   });
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '84px 0 12px' }}>
       {header}
 
-      <div className="underline-tabs" style={{ marginTop: 6 }}>
-        <button className={tab === 'payments' ? 'active' : ''} onClick={() => setTab('payments')}>결제내역</button>
-        <button className={tab === 'deposits' ? 'active' : ''} onClick={() => setTab('deposits')}>입금내역</button>
+      <div className="underline-tabs">
+        <button className={tab === 'payments' ? 'active' : ''} onClick={() => setTab('payments')}>결제 내역</button>
+        <button className={tab === 'deposits' ? 'active' : ''} onClick={() => setTab('deposits')}>입금 내역</button>
         <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>통계</button>
         <button className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>멤버</button>
       </div>
@@ -122,13 +132,13 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
         <>
           {payments.length === 0 ? <div className="empty">결제 내역이 없습니다.</div> : groupByMonthThenDate(payments).map(([mo, dateGroups]) => (
             <div key={mo}>
-              <div className="month-pill-wrap" style={{ margin: '16px 0 8px' }}><span className="month-pill">{monthLabel(mo)}</span></div>
+              <div className="month-pill-wrap" style={{ margin: '16px 0 8px' }}><span className="month-pill">{monthPillLabel(mo)}</span></div>
               {dateGroups.map(([date, items]) => {
                 const net = items.reduce((s, p) => s + Number(p.amount), 0);
                 return (
                   <div key={date}>
                     <div style={{ margin: '14px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date, 'full')}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
                       <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>-{fmtWon(net)}</span>
                     </div>
                     <div className="tx-daycard" style={{ borderRadius: 16, padding: '4px 14px' }}>
@@ -162,13 +172,13 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
         <>
           {deposits.length === 0 ? <div className="empty">입금 내역이 없습니다.</div> : groupByMonthThenDate(deposits).map(([mo, dateGroups]) => (
             <div key={mo}>
-              <div className="month-pill-wrap" style={{ margin: '16px 0 8px' }}><span className="month-pill">{monthLabel(mo)}</span></div>
+              <div className="month-pill-wrap" style={{ margin: '16px 0 8px' }}><span className="month-pill">{monthPillLabel(mo)}</span></div>
               {dateGroups.map(([date, items]) => {
                 const net = items.reduce((s, d) => s + Number(d.amount), 0);
                 return (
                   <div key={date}>
                     <div style={{ margin: '14px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date, 'full')}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
                       <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>+{fmtWon(net)}</span>
                     </div>
                     <div className="tx-daycard" style={{ borderRadius: 16, padding: '4px 14px' }}>
@@ -217,12 +227,15 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                   <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
                   {m.isOwner && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>{leaderName}</span>}
                 </div>
-                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtWon(m.cum)}</span>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#a29ead' }}>누적</div>
+                  <div style={{ marginTop: 2, fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.cum)}</div>
+                </div>
               </div>
               <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.75, color: '#a29ead' }}>
-                <span>마지막 입금일 {m.last || '-'}</span>
+                <span>{m.lastLabel} {dotDate(m.last) || '-'}</span>
                 <span style={{ color: '#e4e2e6' }}>|</span>
-                <span style={{ color: m.overdue ? 'var(--expense)' : '#a29ead', fontWeight: m.overdue ? 700 : 400 }}>다음 입금일 {m.next || '-'}</span>
+                <span style={{ color: m.overdue ? 'var(--expense)' : '#a29ead', fontWeight: m.overdue ? 700 : 400 }}>{m.nextLabel} {dotDate(m.next) || '-'}</span>
               </div>
             </div>
           ))}
@@ -230,10 +243,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
       )}
 
       {tab === 'members' && (
-        <>
-          <MembersPanel groupId={gid} members={members} isOwner={isOwner} leaderName={leaderName} onReload={reloadMembers} />
-          {isOwner && <button className="btn danger block" onClick={deleteGroup}>그룹 삭제</button>}
-        </>
+        <MembersPanel groupId={gid} members={members} isOwner={isOwner} leaderName={leaderName} onReload={reloadMembers} />
       )}
     </div>
   );
