@@ -42,38 +42,62 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
           <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date, dateFormat)}</span>
           <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>{net >= 0 ? '+' : '-'}{fmtNum(Math.abs(net))}</span>
         </div>
-        <div className="tx-daycard">
-          {items.map((t, i) => {
-            const editable = canEdit ? canEdit(t) : true;
-            const isGroup = groupTint && !!(t.group_name || t.origin_type); // 그룹에서 입력/반영된 항목(그룹 자체 화면에서는 강조 생략)
-            const sub = [t.category_name, t.source_name].filter(Boolean).join(' · ') || '—';
-            return (
-              <SwipeRow key={t.id} deletable={editable && !!onDelete} onDelete={() => onDelete(t)} onTap={() => editable && onEdit(t)}>
-                <div
-                  className="tx-row"
-                  style={{
-                    borderTop: i > 0 ? '1px solid #f2f1f5' : 'none',
-                    cursor: editable ? 'pointer' : 'default',
-                    background: isGroup ? 'linear-gradient(135deg, #FFF1F3 0%, #FFF6EA 100%)' : '#fff',
-                  }}
-                >
-                  <span className="tx-tile" style={{ background: t.category_emoji ? (t.category_color || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}>
-                    {t.category_emoji || (t.type === 'income' ? '💰' : '💸')}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="tx-row-title" onMouseEnter={marqueeOn} onMouseLeave={marqueeOff}>
-                      <span className="ttext">{t.content || t.category_name || (t.type === 'income' ? '수입' : '지출')}</span>
-                    </div>
-                    <div className="tx-row-sub">{sub}</div>
+        {items.map((t, i) => {
+          const editable = canEdit ? canEdit(t) : true;
+          const isGroup = groupTint && !!(t.group_name || t.origin_type); // 그룹에서 입력/반영된 항목(그룹 자체 화면에서는 강조 생략)
+          const sub = [t.category_name, t.source_name].filter(Boolean).join(' · ') || '—';
+          const rowBox = (
+            <div className="tx-swipe-card">
+              <div
+                className="tx-row"
+                style={{
+                  cursor: editable ? 'pointer' : 'default',
+                  background: isGroup ? 'linear-gradient(135deg, #FFF1F3 0%, #FFF6EA 100%)' : '#fff',
+                }}
+              >
+                <span className="tx-tile" style={{ background: t.category_emoji ? (t.category_color || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}>
+                  {t.category_emoji || (t.type === 'income' ? '💰' : '💸')}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="tx-row-title" onMouseEnter={marqueeOn} onMouseLeave={marqueeOff}>
+                    <span className="ttext">{t.content || t.category_name || (t.type === 'income' ? '수입' : '지출')}</span>
                   </div>
-                  <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : '#FF4358' }}>
-                    {t.type === 'income' ? '+' : '-'}{fmtNum(t.amount)}
-                  </span>
+                  <div className="tx-row-sub">{sub}</div>
                 </div>
-              </SwipeRow>
-            );
-          })}
-        </div>
+                <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : '#FF4358' }}>
+                  {t.type === 'income' ? '+' : '-'}{fmtNum(t.amount)}
+                </span>
+              </div>
+            </div>
+          );
+          return (
+            <div key={t.id} className="tx-swipe-wrap" style={{ marginTop: i === 0 ? 0 : 8 }}>
+              {editable && onDelete ? (
+                <SwipeRow
+                  actionsWidth={52}
+                  onTap={() => editable && onEdit(t)}
+                  actions={(progress) => (
+                    <div className="tx-swipe-actions" style={{ opacity: progress }}>
+                      <button type="button" className="settle-icon-btn danger" onClick={() => onDelete(t)} aria-label="삭제">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6h18" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          <line x1="10" y1="11" x2="10" y2="17" />
+                          <line x1="14" y1="11" x2="14" y2="17" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                >
+                  {rowBox}
+                </SwipeRow>
+              ) : (
+                <div onClick={() => editable && onEdit(t)}>{rowBox}</div>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   };
