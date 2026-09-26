@@ -154,7 +154,9 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                           <div className="tx-row" style={{ padding: '12px 0', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: isOwner ? 'pointer' : 'default' }}>
                             <span className="tx-tile" style={{ background: p.category_emoji ? tileBg(p.category_name) : '#f2f1f5' }}>{p.category_emoji || '💳'}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div className="tx-row-title" style={{ fontSize: 12.75 }}><span className="ttext">{p.content || p.category_name}</span></div>
+                              <div className="tx-row-title" style={{ fontSize: 12.75 }}>
+                                <span className="ttext">{p.content || p.category_name} <span className="tag-periods">{p.periods} 회분</span></span>
+                              </div>
                               <div className="tx-row-sub" style={{ fontSize: 10.25 }}>{[p.category_name, p.source_name].filter(Boolean).join(' · ') || '—'}</div>
                             </div>
                             <span style={{ fontSize: 14.25, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--expense)' }}>-{fmtWon(p.amount)}</span>
