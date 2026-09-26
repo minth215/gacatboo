@@ -7,6 +7,8 @@ import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { SettingsForm } from './SubscriptionGroup.jsx';
 
+const PALETTE = ['#FDE2E2', '#FCE8D6', '#FDF0C8', '#EAF4D6', '#DFF3E3', '#D9F1EC', '#D7EEF5', '#DCE9FB', '#E1E3F7', '#E6DEF5', '#F0DEF0', '#F7DCE8', '#F3E4E4'];
+
 export default function GroupEdit() {
   const { id } = useParams();
   const gid = Number(id);
@@ -54,11 +56,38 @@ export default function GroupEdit() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title="그룹 정보" />
+      <PageHeader title="그룹 정보" flat />
 
       <div className="field">
         <label>그룹명</label>
         <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      </div>
+      <div className="field">
+        <label>이모지 &amp; 색상</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <div style={{ position: 'relative', width: 52, height: 52, flex: 'none' }}>
+            <div style={{ position: 'absolute', inset: 0, borderRadius: 14, background: form.color || '#f4f2f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, pointerEvents: 'none' }}>{form.category_emoji || '📦'}</div>
+            <input
+              type="text" value={form.category_emoji} maxLength={2}
+              onChange={(e) => setForm({ ...form, category_emoji: [...e.target.value].slice(-1).join('') })}
+              className="catmodal-emoji-input"
+            />
+          </div>
+          <p className="small muted" style={{ margin: 0 }}>이모지를 눌러 직접 입력하세요.</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '10px 8px' }}>
+          {PALETTE.map((sw) => (
+            <button
+              type="button" key={sw} aria-label={sw} onClick={() => setForm({ ...form, color: sw })}
+              className="catmodal-swatch"
+              style={{ background: sw, border: form.color === sw ? '2px solid #191722' : '1.5px solid #e4e2e6', boxShadow: form.color === sw ? '0 0 0 3px #efeef2' : 'none' }}
+            />
+          ))}
+          <label className="catmodal-swatch catmodal-custom-swatch">
+            <input type="color" value={form.color || '#FDE2E2'} onChange={(e) => setForm({ ...form, color: e.target.value })} style={{ position: 'absolute', inset: -4, width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', cursor: 'pointer', opacity: 0 }} />
+            <svg width="13" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2.4" strokeLinecap="round" style={{ pointerEvents: 'none' }}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          </label>
+        </div>
       </div>
       <div className="field">
         <label>설명</label>
