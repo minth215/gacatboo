@@ -43,7 +43,7 @@ export default function GroupEdit() {
     if (!form.start_date) return setErr('시작일자를 입력하세요.');
     if (form.end_date && form.end_date < form.start_date) return setErr('종료일자는 시작일자 이후여야 합니다.');
     setBusy(true); setErr('');
-    try { await db.updateGroup(gid, form); nav(`/groups/${gid}`); }
+    try { await db.updateGroup(gid, form); nav(-1); }
     catch (e) { setErr(e.message); setBusy(false); }
   };
 
