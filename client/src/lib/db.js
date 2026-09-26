@@ -230,15 +230,20 @@ export const db = {
       name, description: description || '', category, category_emoji: category_emoji || '', color: color || '', owner_id: userId,
       start_date: start_date || null, end_date: end_date || null,
     }).select().single());
-    unwrap(await supabase.from('group_members').insert({ group_id: g.id, user_id: userId, role: 'owner' }));
+    unwrap(await supabase.from('group_members').insert({ group_id: g.id, user_id: userId, role: 'owner', end_date: end_date || null }));
     return g;
   },
   async updateGroup(id, patch) {
-    return unwrap(await supabase.from('groups').update({
+    const g = unwrap(await supabase.from('groups').update({
       name: patch.name?.trim(), description: (patch.description || '').trim(),
       category: patch.category, category_emoji: patch.category_emoji || '', color: patch.color || '',
       start_date: patch.start_date || null, end_date: patch.end_date || null,
     }).eq('id', id).select().single());
+    // 그룹 종료일자가 입력되면 멤버들의 종료일자도 함께 맞춤
+    if (patch.end_date) {
+      await supabase.from('group_members').update({ end_date: patch.end_date }).eq('group_id', id);
+    }
+    return g;
   },
 
   // ---------- 그룹 카테고리 (사용자별 선택지, 이름만 관리 — 이모지/색상은 그룹마다 독립 설정) ----------

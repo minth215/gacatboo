@@ -62,12 +62,14 @@ export default function Groups() {
   const isEnded = (g) => !!(g.end_date && new Date(g.end_date) < new Date());
   const filterActive = !!filterCategory || !showEnded;
 
-  const filteredGroups = groups.filter((g) => {
-    if (query.trim() && !g.name.toLowerCase().includes(query.trim().toLowerCase())) return false;
-    if (filterCategory && g.category !== filterCategory) return false;
-    if (!showEnded && isEnded(g)) return false;
-    return true;
-  });
+  const filteredGroups = groups
+    .filter((g) => {
+      if (query.trim() && !g.name.toLowerCase().includes(query.trim().toLowerCase())) return false;
+      if (filterCategory && g.category !== filterCategory) return false;
+      if (!showEnded && isEnded(g)) return false;
+      return true;
+    })
+    .sort((a, b) => (isEnded(a) ? 1 : 0) - (isEnded(b) ? 1 : 0));
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
