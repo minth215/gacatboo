@@ -283,10 +283,10 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
 
       {isOwner && anyUnsettled && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <button type="button" className="btn-settle-all" style={{ flex: 1 }} disabled={bulkBusy} onClick={settleAll}>
+          <button type="button" className="btn-settle-all" style={{ flex: 1, height: 48, marginTop: 0 }} disabled={bulkBusy} onClick={settleAll}>
             {bulkBusy ? '처리 중…' : '정산 일괄 완료'}
           </button>
-          <button type="button" className="btn-ink-pill" style={{ flex: 1, marginTop: 0 }} onClick={requestSettlement}>정산 요청하기</button>
+          <button type="button" className="btn-ink-pill" style={{ flex: 1, height: 48, marginTop: 0 }} onClick={requestSettlement}>정산 요청하기</button>
         </div>
       )}
 

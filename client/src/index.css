@@ -451,7 +451,8 @@ a { color: inherit; text-decoration: none; }
 .badge.admin { background: var(--primary-weak); color: var(--primary); }
 
 .empty { text-align: center; color: var(--muted); padding: 40px 12px; font-size: 14px; }
-.empty.empty-center { min-height: 55vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+/* 상단 탭 바(56+44) 바로 아래부터 하단 탭 바 바로 위까지의 본문 영역 정중앙에 오도록 계산 */
+.empty.empty-center { min-height: calc(100vh - 200px - var(--safe-bottom)); display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
 /* 로딩 스피너 — 화면 정중앙 고정 */
 .spinner-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; z-index: 50; pointer-events: none; }
