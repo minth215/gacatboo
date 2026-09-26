@@ -72,7 +72,7 @@ export default function TransactionEdit() {
   // 결제 내역 저장은 subscription_payments 테이블을 사용(일반 거래와 별도)
   const savePayment = async (payload) => {
     const p = {
-      date: payload.date, amount: payload.amount,
+      date: payload.date, amount: payload.amount, periods: payload.periods,
       category_name: payload.category_name, category_emoji: payload.category_emoji,
       source_id: payload.source_id, source_name: payload.source_name,
       content: payload.content, memo: payload.memo,
@@ -119,6 +119,7 @@ export default function TransactionEdit() {
           defaultAmount={isPayment ? sub?.billing_amount : undefined}
           defaultContentTemplate={isPayment ? sub?.payment_content_template : undefined}
           onSubmit={isPayment ? savePayment : undefined}
+          showPeriods={isPayment}
           topNotice={isPayment && group && (
             <div className="form-section-group">
               <div style={{ fontSize: 16, fontWeight: 800, color: '#191722' }}>{group.name}</div>

@@ -14,13 +14,14 @@ const SNAP = '__snap__';
 // defaultContentTemplate 지정 시 신규 작성 때 "내용"을 이 템플릿({연}/{월}/{일} 변수 지원)으로 자동 채우고,
 // 날짜를 바꾸면 그 날짜 기준으로 다시 채워짐.
 // onSubmit 지정 시 db.saveTransaction 대신 이 함수로 저장을 위임(그룹 결제 등 별도 저장 로직).
-export default function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate, onSubmit, topNotice }) {
+export default function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate, onSubmit, topNotice, showPeriods }) {
   const { user } = useAuth();
   const nav = useNavigate();
   const editing = !!initial?.id;
   const [type, setType] = useState(fixedType || initial?.type || 'expense');
   const [date, setDate] = useState(initial?.date || today());
   const [amount, setAmount] = useState(initial?.amount ? String(initial.amount) : '');
+  const [periods, setPeriods] = useState(initial?.periods ? String(initial.periods) : '1');
   const [categoryId, setCategoryId] = useState(
     initial?.category_id ? String(initial.category_id) : (initial?.category_name ? SNAP : '')
   );
@@ -68,6 +69,15 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
     if (!editing && defaultContentTemplate) setContent(renderTemplate(defaultContentTemplate, v));
   };
 
+  // 금액 입력 시 정기결제금액(defaultAmount) 대비 회차 자동 계산(직접 수정도 가능)
+  const onAmountChange = (v) => {
+    const amt = v.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
+    setAmount(amt);
+    if (showPeriods && defaultAmount > 0 && amt) {
+      setPeriods(String(Math.round(Number(amt) / defaultAmount)));
+    }
+  };
+
   const catOptions = useMemo(() => categories.filter((c) => c.type === type), [categories, type]);
   const selCategory = categories.find((c) => String(c.id) === String(categoryId));
   const isSettlement = type === 'income' && selCategory?.name === '정산';
@@ -106,6 +116,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
       content, memo,
       settlement_target_id: (isSettlement && settlementTargetId) ? Number(settlementTargetId) : null,
       group_id: groupId || null,
+      ...(showPeriods ? { periods: Math.max(Number(periods) || 1, 1) } : {}),
     };
     try {
       if (onSubmit) await onSubmit(payload);
@@ -134,18 +145,39 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
         <input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} />
       </div>
 
-      <div className="field">
-        <label>금액</label>
-        <div className="with-suffix">
-          <input
-            type="text" inputMode="numeric"
-            value={amount ? Number(amount).toLocaleString('ko-KR') : ''}
-            onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, ''))}
-            placeholder="0" autoFocus
-          />
-          <span className="suffix">원</span>
+      {showPeriods ? (
+        <div className="grid2">
+          <div className="field">
+            <label>금액</label>
+            <div className="with-suffix">
+              <input
+                type="text" inputMode="numeric"
+                value={amount ? Number(amount).toLocaleString('ko-KR') : ''}
+                onChange={(e) => onAmountChange(e.target.value)}
+                placeholder="0" autoFocus
+              />
+              <span className="suffix">원</span>
+            </div>
+          </div>
+          <div className="field">
+            <label>기간(회차)</label>
+            <input type="number" min="1" value={periods} onChange={(e) => setPeriods(e.target.value)} />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="field">
+          <label>금액</label>
+          <div className="with-suffix">
+            <input
+              type="text" inputMode="numeric"
+              value={amount ? Number(amount).toLocaleString('ko-KR') : ''}
+              onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, ''))}
+              placeholder="0" autoFocus
+            />
+            <span className="suffix">원</span>
+          </div>
+        </div>
+      )}
 
       <div className="field">
         <div className="field-label-row">

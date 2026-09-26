@@ -46,8 +46,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
           {items.map((t, i) => {
             const editable = canEdit ? canEdit(t) : true;
             const isGroup = !!(t.group_name || t.origin_type); // 그룹에서 입력/반영된 항목
-            const showAuthor = t.author_name && t.group_name && t.origin_type !== 'payment'; // 결제 내역은 본인 가계부라 표기 불필요
-            const sub = [t.category_name, t.source_name, showAuthor ? `by ${t.author_name}` : null].filter(Boolean).join(' · ') || '—';
+            const sub = [t.category_name, t.source_name].filter(Boolean).join(' · ') || '—';
             return (
               <SwipeRow key={t.id} deletable={editable && !!onDelete} onDelete={() => onDelete(t)} onTap={() => editable && onEdit(t)}>
                 <div

@@ -11,6 +11,17 @@ import { tileBg, formatDate } from '../components/TransactionList.jsx';
 const PERIOD_UNITS = ['day', 'week', 'month', 'year'];
 const KEEP = '__keep__'; // id 없이 이름만 있는 원천/분류(스냅샷) 유지용 센티넬
 
+// 날짜(dateStr)가 속한 달의 정기결제일(billingDay)로 날짜를 맞춰줌.
+// 예: dateStr=2026-08-22, billingDay=19 → 2026-08-19 (그 달의 마지막 날짜를 넘지 않도록 보정)
+function billingAlignedDate(dateStr, billingDay) {
+  if (!dateStr) return null;
+  if (!billingDay) return dateStr;
+  const [y, m] = dateStr.slice(0, 7).split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const day = Math.min(billingDay, daysInMonth);
+  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 // 날짜별로 묶기 (가계부 페이지와 동일한 카드 스타일에 사용)
 function groupByDate(list) {
   const groups = {};
@@ -94,16 +105,21 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   const memberStats = members.map((m) => {
     if (m.role === 'owner') {
       const cum = payments.reduce((s, p) => s + Number(p.amount), 0);
-      const last = payments.length ? payments.map((p) => p.date).sort().slice(-1)[0] : null;
-      const next = m.next_due_override || (last && sub ? addInterval(last, sub.period_unit, sub.period_count, 1) : null);
+      const lastPay = payments.length ? [...payments].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)).slice(-1)[0] : null;
+      const last = lastPay ? lastPay.date : null;
+      // 다음 결제일 = 마지막 결제일이 속한 달의 정기결제일 + 그 결제가 커버한 기간(회차)만큼 주기 추가
+      const base = billingAlignedDate(last, sub?.billing_day);
+      const auto = base && sub ? addInterval(base, sub.period_unit, sub.period_count, Math.max(Number(lastPay?.periods) || 1, 1)) : null;
+      const next = m.next_due_override || auto;
       return { id: m.id, nickname: m.nickname, isOwner: true, cum, last, next, lastLabel: '마지막 결제일', nextLabel: '다음 결제일', overdue: !!(next && next < todayStr) };
     }
     const ds = [...deposits.filter((d) => d.member_id === m.id)].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     const cum = ds.reduce((s, d) => s + Number(d.amount), 0);
     const lastDep = ds.length ? ds[ds.length - 1] : null;
     const last = lastDep ? lastDep.date : null;
-    // 다음 입금일 = 마지막 입금일 + 그 입금이 커버한 기간(회차)만큼 주기 추가
-    const auto = last && sub ? addInterval(last, sub.period_unit, sub.period_count, Math.max(Number(lastDep.periods) || 1, 1)) : (m.start_date || null);
+    // 다음 입금일 = 마지막 입금일이 속한 달의 정기결제일 + 그 입금이 커버한 기간(회차)만큼 주기 추가
+    const base = billingAlignedDate(last, sub?.billing_day);
+    const auto = base && sub ? addInterval(base, sub.period_unit, sub.period_count, Math.max(Number(lastDep.periods) || 1, 1)) : (m.start_date || null);
     const next = m.next_due_override || auto;
     return { id: m.id, nickname: m.nickname, isOwner: false, cum, last, next, lastLabel: '마지막 입금일', nextLabel: '다음 입금일', overdue: !!(next && next < todayStr) };
   });

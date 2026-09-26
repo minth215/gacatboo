@@ -22,15 +22,13 @@ function sourceName(flat, id) {
   return s ? s.name : ''; // 세부 항목명만(상위 항목 표기 없이)
 }
 
-const TX_SELECT =
-  '*, group:groups(name), author:profiles!transactions_user_fk(display_name)';
+const TX_SELECT = '*, group:groups(name)';
 
-// 조회 결과를 평탄화 (group_name, author_name)
+// 조회 결과를 평탄화 (group_name)
 function flattenTx(rows) {
   return (rows || []).map((r) => ({
     ...r,
     group_name: r.group?.name || null,
-    author_name: r.author?.display_name || null,
   }));
 }
 
@@ -358,7 +356,7 @@ export const db = {
       content: (p.content || '').trim(), memo: (p.memo || '').trim(), created_by: userId,
     }).select('id').single());
     const pay = unwrap(await supabase.from('subscription_payments').insert({
-      group_id: groupId, date: p.date, amount: p.amount,
+      group_id: groupId, date: p.date, amount: p.amount, periods: Math.max(Number(p.periods) || 1, 1),
       category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
       source_id: p.source_id || null, source_name: p.source_name || '',
       content: (p.content || '').trim(), memo: (p.memo || '').trim(), tx_id: tx.id, created_by: userId,
@@ -370,7 +368,7 @@ export const db = {
   // 결제 수정 → 트리거가 미러 tx 동기화
   async updatePayment(id, p) {
     return unwrap(await supabase.from('subscription_payments').update({
-      date: p.date, amount: p.amount,
+      date: p.date, amount: p.amount, periods: Math.max(Number(p.periods) || 1, 1),
       category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
       source_id: p.source_id || null, source_name: p.source_name || '',
       content: (p.content || '').trim(), memo: (p.memo || '').trim(),
