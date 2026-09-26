@@ -4,10 +4,12 @@ const DEFAULT_OPEN = 72; // 스와이프 시 드러나는 영역 기본 폭(px)
 
 // 왼쪽으로 스와이프하면 액션 영역이 드러나는 행.
 // actions 를 주면 기본 삭제 버튼 대신 그 내용을 보여준다(폭은 actionsWidth).
+// actions 가 함수면 스와이프 진행도(0~1)를 받아 렌더링한다(카드가 밀리는 만큼 액션이 나타나는 효과용).
 export default function SwipeRow({ children, deletable, onDelete, onTap, actions, actionsWidth = DEFAULT_OPEN }) {
   const OPEN = actions ? actionsWidth : DEFAULT_OPEN;
   const swipeEnabled = deletable || !!actions;
   const [dx, setDx] = useState(0);
+  const progress = Math.min(1, Math.max(0, -dx / OPEN));
   const [dragging, setDragging] = useState(false);
   const st = useRef(null);
   const moved = useRef(false);
@@ -51,7 +53,7 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
   return (
     <div className="swipe-wrap">
       <div className="swipe-del" style={actions ? { width: OPEN } : undefined}>
-        {actions || (
+        {typeof actions === 'function' ? actions(progress) : actions || (
           <button onClick={onDelete} aria-label="삭제">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 6h18" />

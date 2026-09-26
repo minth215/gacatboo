@@ -190,9 +190,9 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
           <div key={m.id} className="settle-swipe-wrap" style={{ marginTop: 10 }}>
             {swipeForOwner ? (
               <SwipeRow
-                actionsWidth={108}
-                actions={
-                  <div className="settle-swipe-actions">
+                actionsWidth={104}
+                actions={(progress) => (
+                  <div className="settle-swipe-actions" style={{ opacity: progress }}>
                     <button type="button" className="settle-icon-btn" disabled={!m.is_account} onClick={() => poke(m)} aria-label="콕 찌르기">
                       <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M22 14a8 8 0 0 1-8 8" />
@@ -208,7 +208,7 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
                       </svg>
                     </button>
                   </div>
-                }
+                )}
               >
                 {cardBox}
               </SwipeRow>
