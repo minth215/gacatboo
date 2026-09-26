@@ -103,8 +103,7 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
     return a.settled ? -1 : 1;
   });
   const dividerIdx = sortedRows.findIndex((r) => r.role !== 'owner' && !r.settled);
-  const hasSettled = sortedRows.some((r) => r.role !== 'owner' && r.settled);
-  const showDivider = dividerIdx !== -1 && hasSettled;
+  const showDivider = dividerIdx !== -1;
 
   const startEdit = (m) => { setEditingId(m.id); setEditDraft(String(m.owed)); };
   const cancelEdit = () => setEditingId(null);
