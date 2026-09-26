@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { db } from '../lib/db.js';
-import { today } from '../lib/format.js';
+import { today, dotDate } from '../lib/format.js';
 
 // 그룹 멤버 관리 (계정/외부 멤버 공통). owner(총무/총대)만 추가·수정·삭제.
 export default function MembersPanel({ groupId, members, isOwner, leaderName, onReload }) {
@@ -90,11 +90,17 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
             <div style={{ display: 'flex', gap: 8 }}>
               <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>시작일자 <span style={{ color: '#FF3B5C' }}>*</span></span>
-                <input type="date" value={editor.start_date} onChange={(e) => setEditor({ ...editor, start_date: e.target.value })} className="catmodal-date-input" />
+                <div className="catmodal-date-field">
+                  <div className={`catmodal-date-value${editor.start_date ? '' : ' placeholder'}`}>{editor.start_date ? dotDate(editor.start_date) : '날짜 선택'}</div>
+                  <input type="date" value={editor.start_date} onChange={(e) => setEditor({ ...editor, start_date: e.target.value })} className="catmodal-date-input" />
+                </div>
               </label>
               <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>종료일자</span>
-                <input type="date" value={editor.end_date} onChange={(e) => setEditor({ ...editor, end_date: e.target.value })} className="catmodal-date-input" />
+                <div className="catmodal-date-field">
+                  <div className={`catmodal-date-value${editor.end_date ? '' : ' placeholder'}`}>{editor.end_date ? dotDate(editor.end_date) : '날짜 선택'}</div>
+                  <input type="date" value={editor.end_date} onChange={(e) => setEditor({ ...editor, end_date: e.target.value })} className="catmodal-date-input" />
+                </div>
               </label>
             </div>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

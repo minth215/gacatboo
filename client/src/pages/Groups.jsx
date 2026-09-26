@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { leaderLabel, today } from '../lib/format.js';
+import { leaderLabel, today, dotDate } from '../lib/format.js';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 
@@ -190,11 +190,17 @@ export default function Groups() {
             <div style={{ display: 'flex', gap: 8 }}>
               <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>시작일자</span>
-                <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="catmodal-date-input" />
+                <div className="catmodal-date-field">
+                  <div className={`catmodal-date-value${form.start_date ? '' : ' placeholder'}`}>{form.start_date ? dotDate(form.start_date) : '날짜 선택'}</div>
+                  <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="catmodal-date-input" />
+                </div>
               </label>
               <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>종료일자 (선택)</span>
-                <input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="catmodal-date-input" />
+                <div className="catmodal-date-field">
+                  <div className={`catmodal-date-value${form.end_date ? '' : ' placeholder'}`}>{form.end_date ? dotDate(form.end_date) : '날짜 선택'}</div>
+                  <input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="catmodal-date-input" />
+                </div>
               </label>
             </div>
 

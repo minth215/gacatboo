@@ -2,6 +2,9 @@ export const fmtWon = (n) => `${Number(n || 0).toLocaleString('ko-KR')}원`;
 
 export const fmtNum = (n) => Number(n || 0).toLocaleString('ko-KR');
 
+// YYYY-MM-DD → YYYY.MM.DD
+export const dotDate = (d) => (d ? d.replace(/-/g, '.') : '');
+
 // 현재 월(YYYY-MM)
 export function currentMonth() {
   const d = new Date();

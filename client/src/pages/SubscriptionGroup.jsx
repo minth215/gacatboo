@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate } from '../lib/format.js';
+import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate, dotDate } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import SwipeRow from '../components/SwipeRow.jsx';
@@ -30,9 +30,6 @@ function monthPillLabel(mo) {
   const [y, m] = mo.split('-');
   return `${y} 년 ${Number(m)} 월`;
 }
-
-// YYYY-MM-DD → YYYY.MM.DD
-const dotDate = (d) => (d ? d.replace(/-/g, '.') : '');
 
 function SourceSelect({ sources, value, onChange, keepLabel }) {
   return (
