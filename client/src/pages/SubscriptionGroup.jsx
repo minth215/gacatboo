@@ -475,11 +475,11 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
       {!settlementMode && tab === 'stats' && (
         <>
           <div className="summary-card" style={{ marginTop: 14 }}>
-            <div className="col"><div className="lbl">총 금액</div><div className="val income">{fmtWon(totalAmount)}</div></div>
+            <div className="col"><div className="lbl">총 금액</div><div className="val income">{fmtNum(totalAmount)}</div></div>
             <div className="divider" />
-            <div className="col"><div className="lbl">사용 금액</div><div className="val expense">{fmtWon(usedAmount)}</div></div>
+            <div className="col"><div className="lbl">사용 금액</div><div className="val expense">{fmtNum(usedAmount)}</div></div>
             <div className="divider" />
-            <div className="col"><div className="lbl">잔여 금액</div><div className="val">{fmtWon(remain)}</div></div>
+            <div className="col"><div className="lbl">잔여 금액</div><div className="val">{fmtNum(remain)}</div></div>
           </div>
           {memberStats.length === 0 ? <div className="empty">멤버가 없습니다.</div> : memberStats.map((m) => (
             <div key={m.id} className="tx-daycard" style={{ borderRadius: 16, padding: '14px 16px', marginTop: 10, cursor: m.isOwner ? 'default' : 'pointer' }} onClick={() => !m.isOwner && nav(`/groups/${gid}/member/${m.id}`)}>
