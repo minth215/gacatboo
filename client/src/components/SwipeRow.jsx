@@ -5,11 +5,15 @@ const DEFAULT_OPEN = 72; // 스와이프 시 드러나는 영역 기본 폭(px)
 // 왼쪽으로 스와이프하면 액션 영역이 드러나는 행.
 // actions 를 주면 기본 삭제 버튼 대신 그 내용을 보여준다(폭은 actionsWidth).
 // actions 가 함수면 스와이프 진행도(0~1)를 받아 렌더링한다(카드가 밀리는 만큼 액션이 나타나는 효과용).
-export default function SwipeRow({ children, deletable, onDelete, onTap, actions, actionsWidth = DEFAULT_OPEN }) {
-  const OPEN = actions ? actionsWidth : DEFAULT_OPEN;
+// fullSwipe 를 주면 카드가 actionsWidth 만큼만 밀리는 게 아니라 행 전체 폭만큼 밀려 왼쪽 화면 밖으로
+// 완전히 사라지고, 버튼은 오른쪽 끝(actionsWidth 폭)에 고정된 채 그대로 드러난다.
+export default function SwipeRow({ children, deletable, onDelete, onTap, actions, actionsWidth = DEFAULT_OPEN, fullSwipe = false }) {
+  const revealWidth = actions ? actionsWidth : DEFAULT_OPEN;
   const swipeEnabled = deletable || !!actions;
+  const wrapRef = useRef(null);
+  const openDistRef = useRef(revealWidth);
   const [dx, setDx] = useState(0);
-  const progress = Math.min(1, Math.max(0, -dx / OPEN));
+  const progress = Math.min(1, Math.max(0, -dx / revealWidth));
   const [dragging, setDragging] = useState(false);
   const st = useRef(null);
   const moved = useRef(false);
@@ -17,7 +21,8 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
 
   const down = (e) => {
     if (!swipeEnabled) return;
-    st.current = { x: e.clientX, y: e.clientY, base: openRef.current ? -OPEN : 0 };
+    if (fullSwipe && wrapRef.current) openDistRef.current = wrapRef.current.getBoundingClientRect().width;
+    st.current = { x: e.clientX, y: e.clientY, base: openRef.current ? -openDistRef.current : 0 };
     moved.current = false;
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
@@ -31,16 +36,17 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
       moved.current = true; setDragging(true);
     }
     let nx = st.current.base + mx;
-    nx = Math.max(-OPEN - 16, Math.min(0, nx));
+    const max = openDistRef.current;
+    nx = Math.max(-max - 16, Math.min(0, nx));
     setDx(nx);
   };
   const up = () => {
     if (!st.current) return;
     st.current = null;
     setDragging(false);
-    const open = dx < -OPEN / 2;
+    const open = -dx > revealWidth / 2;
     openRef.current = open;
-    setDx(open ? -OPEN : 0);
+    setDx(open ? -openDistRef.current : 0);
   };
   const tap = () => {
     if (moved.current) return;
@@ -51,8 +57,8 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
   if (!swipeEnabled) return <div className="swipe-wrap">{children}</div>;
 
   return (
-    <div className="swipe-wrap">
-      <div className="swipe-del" style={actions ? { width: OPEN } : undefined}>
+    <div className="swipe-wrap" ref={wrapRef}>
+      <div className="swipe-del" style={actions ? { width: actionsWidth } : undefined}>
         {typeof actions === 'function' ? actions(progress) : actions || (
           <button onClick={onDelete} aria-label="삭제" style={{ opacity: progress }}>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -93,16 +93,16 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
   const totalSettled = nonOwnerRows.reduce((s, r) => s + r.paid, 0);
   const totalRemaining = nonOwnerRows.reduce((s, r) => s + r.remaining, 0);
 
-  // 총무는 항상 맨 위, 정산 완료된 멤버는 맨 마지막으로 재정렬
+  // 총무는 항상 맨 위, 정산 완료된 멤버는 그 다음, 미완료 멤버는 "정산 미완료" 구분선 아래로
   const sortedRows = [...rows].sort((a, b) => {
     if (a.role === 'owner') return -1;
     if (b.role === 'owner') return 1;
     if (a.settled === b.settled) return 0;
-    return a.settled ? 1 : -1;
+    return a.settled ? -1 : 1;
   });
-  const dividerIdx = sortedRows.findIndex((r) => r.role !== 'owner' && r.settled);
-  const hasUnsettled = sortedRows.some((r) => r.role !== 'owner' && !r.settled);
-  const showDivider = dividerIdx !== -1 && hasUnsettled;
+  const dividerIdx = sortedRows.findIndex((r) => r.role !== 'owner' && !r.settled);
+  const hasSettled = sortedRows.some((r) => r.role !== 'owner' && r.settled);
+  const showDivider = dividerIdx !== -1 && hasSettled;
 
   const startEdit = (m) => { setEditingId(m.id); setEditDraft(String(m.owed)); };
   const cancelEdit = () => setEditingId(null);
@@ -229,6 +229,7 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
               {swipeForOwner ? (
                 <SwipeRow
                   actionsWidth={104}
+                  fullSwipe
                   actions={(progress) => (
                     <div className="settle-swipe-actions" style={{ opacity: progress }}>
                       <button type="button" className={`settle-icon-btn${m.is_account ? '' : ' is-disabled'}`} onClick={() => poke(m)} aria-label="콕 찌르기">
@@ -267,14 +268,14 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
 
 // 입금 내역 탭: 구독 그룹뿐 아니라 정산 카테고리 그룹의 그룹 상세 페이지에서도 재사용
 // (정산 그룹은 회차 개념이 없으므로 showPeriods=false 로 배지를 숨김)
-export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, showPeriods = true }) {
+export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, showPeriods = true, emptyCenter = false }) {
   const delDeposit = async (d) => {
     if (!confirm('입금 내역을 삭제할까요? (연결된 가계부 항목도 삭제됩니다)')) return;
     try { await db.deleteDeposit(d.id); loadDep(); } catch (e) { alert(e.message); }
   };
   return (
     <>
-      {deposits.length === 0 ? <div className="empty">입금 내역이 없습니다.</div> : groupByMonthThenDate(deposits).map(([mo, dateGroups]) => (
+      {deposits.length === 0 ? <div className={`empty${emptyCenter ? ' empty-center' : ''}`}>입금 내역이 없습니다.</div> : groupByMonthThenDate(deposits).map(([mo, dateGroups]) => (
         <div key={mo}>
           <div className="month-pill-wrap" style={{ margin: '16px 0 8px' }}><span className="month-pill">{monthPillLabel(mo)}</span></div>
           {dateGroups.map(([date, items]) => {

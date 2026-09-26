@@ -113,7 +113,7 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
 
       {tab === 'ledger' && (
         <>
-          <TransactionList transactions={allTxs} canEdit={canEdit} onEdit={(t) => nav(`/tx/${t.id}`)} onDelete={removeTx} groupByMonth groupTint={false} emptyText={`${settlementMode ? '결제 내역' : '내역'}이 없습니다.`} />
+          <TransactionList transactions={allTxs} canEdit={canEdit} onEdit={(t) => nav(`/tx/${t.id}`)} onDelete={removeTx} groupByMonth groupTint={false} emptyText={`${settlementMode ? '결제 내역' : '내역'}이 없습니다.`} emptyCenter />
           <button className="fab" onClick={() => nav(`/new?group=${gid}`)} aria-label="추가">
             <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
           </button>
@@ -121,7 +121,7 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
       )}
 
       {settlementMode && tab === 'deposits' && (
-        <DepositsTab gid={gid} deposits={deposits} isOwner={isOwner} myMember={myMember} loadDep={loadDep} nav={nav} showPeriods={false} />
+        <DepositsTab gid={gid} deposits={deposits} isOwner={isOwner} myMember={myMember} loadDep={loadDep} nav={nav} showPeriods={false} emptyCenter />
       )}
 
       {!settlementMode && tab === 'stats' && (

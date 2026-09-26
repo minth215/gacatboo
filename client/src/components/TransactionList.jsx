@@ -24,9 +24,9 @@ const marqueeOff = (e) => {
   el.style.removeProperty('--sw');
 };
 
-export default function TransactionList({ transactions, onEdit, onDelete, canEdit, dateFormat, emptyText, groupByMonth, groupTint = true }) {
+export default function TransactionList({ transactions, onEdit, onDelete, canEdit, dateFormat, emptyText, groupByMonth, groupTint = true, emptyCenter = false }) {
   if (!transactions.length) {
-    return <div className="empty">{emptyText || <>항목이 없습니다.<br />＋ 버튼으로 첫 항목을 추가해 보세요.</>}</div>;
+    return <div className={`empty${emptyCenter ? ' empty-center' : ''}`}>{emptyText || <>항목이 없습니다.<br />＋ 버튼으로 첫 항목을 추가해 보세요.</>}</div>;
   }
 
   const groups = {};
@@ -48,7 +48,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
             const isGroup = groupTint && !!(t.group_name || t.origin_type); // 그룹에서 입력/반영된 항목(그룹 자체 화면에서는 강조 생략)
             const sub = [t.category_name, t.source_name].filter(Boolean).join(' · ') || '—';
             return (
-              <SwipeRow key={t.id} deletable={editable && !!onDelete} onDelete={() => onDelete(t)} onTap={() => editable && onEdit(t)}>
+              <SwipeRow key={t.id} deletable={editable && !!onDelete} onDelete={() => onDelete(t)} onTap={() => editable && onEdit(t)} fullSwipe>
                 <div
                   className="tx-row"
                   style={{
