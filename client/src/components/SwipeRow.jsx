@@ -54,7 +54,7 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
     <div className="swipe-wrap">
       <div className="swipe-del" style={actions ? { width: OPEN } : undefined}>
         {typeof actions === 'function' ? actions(progress) : actions || (
-          <button onClick={onDelete} aria-label="삭제">
+          <button onClick={onDelete} aria-label="삭제" style={{ opacity: progress }}>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 6h18" />
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
