@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const DEFAULT_OPEN = 72; // 스와이프 시 드러나는 영역 기본 폭(px)
 
@@ -7,7 +7,10 @@ const DEFAULT_OPEN = 72; // 스와이프 시 드러나는 영역 기본 폭(px)
 // actions 가 함수면 스와이프 진행도(0~1)를 받아 렌더링한다(카드가 밀리는 만큼 액션이 나타나는 효과용).
 // fullSwipe 를 주면 카드가 actionsWidth 만큼만 밀리는 게 아니라 행 전체 폭만큼 밀려 왼쪽 화면 밖으로
 // 완전히 사라지고, 버튼은 오른쪽 끝(actionsWidth 폭)에 고정된 채 그대로 드러난다.
-export default function SwipeRow({ children, deletable, onDelete, onTap, actions, actionsWidth = DEFAULT_OPEN, fullSwipe = false }) {
+// isOpen/onOpenChange 를 주면(선택) 목록 쪽에서 "한 번에 하나만 열림"을 제어할 수 있다.
+// 이 행이 스스로 열리면 onOpenChange(true) 로 알리고, 부모가 isOpen 을 false 로 바꾸면
+// (다른 행이 열려서) 자동으로 닫힌다.
+export default function SwipeRow({ children, deletable, onDelete, onTap, actions, actionsWidth = DEFAULT_OPEN, fullSwipe = false, isOpen, onOpenChange }) {
   const revealWidth = actions ? actionsWidth : DEFAULT_OPEN;
   const swipeEnabled = deletable || !!actions;
   const wrapRef = useRef(null);
@@ -18,6 +21,21 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
   const st = useRef(null);
   const moved = useRef(false);
   const openRef = useRef(false);
+
+  // 컨트롤드 모드: 부모가 isOpen=false 로 바꾸면(다른 행이 열렸을 때) 이 행은 자동으로 닫힘
+  useEffect(() => {
+    if (isOpen === undefined) return;
+    if (!isOpen && openRef.current) {
+      openRef.current = false;
+      setDx(0);
+    }
+  }, [isOpen]);
+
+  const setOpen = (open) => {
+    openRef.current = open;
+    setDx(open ? -openDistRef.current : 0);
+    onOpenChange?.(open);
+  };
 
   const down = (e) => {
     if (!swipeEnabled) return;
@@ -44,13 +62,11 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
     if (!st.current) return;
     st.current = null;
     setDragging(false);
-    const open = -dx > revealWidth / 2;
-    openRef.current = open;
-    setDx(open ? -openDistRef.current : 0);
+    setOpen(-dx > revealWidth / 2);
   };
   const tap = () => {
     if (moved.current) return;
-    if (openRef.current) { openRef.current = false; setDx(0); return; }
+    if (openRef.current) { setOpen(false); return; }
     onTap?.();
   };
 
