@@ -57,11 +57,11 @@ export default function GroupDetail() {
 function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, user, reloadMembers }) {
   const [tab, setTab] = useState('ledger');
   const [month, setMonth] = useState(currentMonth());
-  const [txs, setTxs] = useState([]);
+  const [allTxs, setAllTxs] = useState([]);
 
   const loadTxs = useCallback(() => {
-    db.listTransactions({ month, groupId: gid }).then(setTxs).catch(() => setTxs([]));
-  }, [gid, month]);
+    db.listGroupTransactionsAll(gid).then(setAllTxs).catch(() => setAllTxs([]));
+  }, [gid]);
   useEffect(() => { loadTxs(); }, [loadTxs]);
 
   const canEdit = (t) => t.created_by === user.id;
@@ -82,8 +82,8 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
         <button className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>멤버</button>
       </div>
 
-      {tab !== 'members' && (
-        <div className="month-nav">
+      {tab === 'stats' && (
+        <div className="month-nav" style={{ marginTop: 14 }}>
           <button onClick={() => setMonth(shiftMonth(month, -1))}>‹</button>
           <div className="mlabel">{monthLabel(month)}</div>
           <button onClick={() => setMonth(shiftMonth(month, 1))}>›</button>
@@ -92,7 +92,7 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
 
       {tab === 'ledger' && (
         <>
-          <TransactionList transactions={txs} canEdit={canEdit} onEdit={(t) => nav(`/tx/${t.id}`)} onDelete={removeTx} />
+          <TransactionList transactions={allTxs} canEdit={canEdit} onEdit={(t) => nav(`/tx/${t.id}`)} onDelete={removeTx} groupByMonth />
           <button className="fab" onClick={() => nav(`/new?group=${gid}`)} aria-label="추가">
             <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
           </button>

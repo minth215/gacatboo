@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate, dotDate } from '../lib/format.js';
+import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate, dotDate, monthPillLabel } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import SwipeRow from '../components/SwipeRow.jsx';
@@ -23,12 +23,6 @@ function groupByMonthThenDate(list) {
   const byMonth = {};
   for (const t of list) (byMonth[t.date.slice(0, 7)] ||= []).push(t);
   return Object.keys(byMonth).sort((a, b) => (a < b ? 1 : -1)).map((mo) => [mo, groupByDate(byMonth[mo])]);
-}
-
-// 월 배지 표기: "2026 년 9 월" (의존명사 띄어쓰기)
-function monthPillLabel(mo) {
-  const [y, m] = mo.split('-');
-  return `${y} 년 ${Number(m)} 월`;
 }
 
 function SourceSelect({ sources, value, onChange, keepLabel }) {

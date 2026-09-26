@@ -29,6 +29,12 @@ export function monthLabel(month) {
   return `${y}년 ${Number(m)}월`;
 }
 
+// 월 구분 배지 표기: "2026 년 9 월" (의존명사 띄어쓰기)
+export function monthPillLabel(month) {
+  const [y, m] = month.split('-');
+  return `${y} 년 ${Number(m)} 월`;
+}
+
 // 날짜(YYYY-MM-DD)에 주기(unit,count) * n 을 더한 날짜 문자열
 export function addInterval(dateStr, unit, count, n = 1) {
   if (!dateStr) return null;

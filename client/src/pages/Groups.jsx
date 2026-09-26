@@ -1,9 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { leaderLabel, today, dotDate } from '../lib/format.js';
-import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 
 const PALETTE = ['#FDE2E2', '#FCE8D6', '#FDF0C8', '#EAF4D6', '#DFF3E3', '#D9F1EC', '#D7EEF5', '#DCE9FB', '#E1E3F7', '#E6DEF5', '#F0DEF0', '#F7DCE8', '#F3E4E4'];
@@ -20,10 +19,16 @@ export default function Groups() {
   const [busy, setBusy] = useState(false);
 
   const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef(null);
   const [query, setQuery] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterCategory, setFilterCategory] = useState('');
   const [showEnded, setShowEnded] = useState(true);
+
+  const openSearch = () => { setSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 260); };
+  const closeSearch = () => { setSearchOpen(false); setQuery(''); };
+  const onSearchIcon = () => { if (searchOpen) searchRef.current?.focus(); else openSearch(); };
+  const onFilterClick = () => setFilterOpen((v) => !v);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -66,25 +71,30 @@ export default function Groups() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title="그룹" showBack={false} right={
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="tb-icon-btn" onClick={() => setFilterOpen((v) => !v)} aria-label="필터" style={filterActive ? { color: 'var(--accent)' } : undefined}>
-            <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="7" x2="20" y2="7" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="17" x2="14" y2="17" /></svg>
-          </button>
-          <button className="tb-icon-btn" onClick={() => setSearchOpen((v) => !v)} aria-label="검색" style={searchOpen ? { color: 'var(--accent)' } : undefined}>
+      <div className="ledger-topbar">
+        <div className="lt-title" style={{ opacity: searchOpen ? 0 : 1, transition: 'opacity 0.26s ease', pointerEvents: searchOpen ? 'none' : 'auto' }}>그룹</div>
+        <button aria-label="필터" className={`lt-filter${filterActive ? ' on' : ''}`} onClick={onFilterClick}>
+          <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 4 21 4 14 13 14 20 10 22 10 13 3 4" /></svg>
+        </button>
+        <div className={`lt-search${searchOpen ? ' open' : ''}`}>
+          <button aria-label="검색" className="lt-search-icon" onClick={onSearchIcon}>
             <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="16.2" y1="16.2" x2="21" y2="21" /></svg>
           </button>
+          <input
+            ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') closeSearch(); }}
+            placeholder="그룹 이름 검색" tabIndex={searchOpen ? 0 : -1}
+          />
+          {searchOpen && (
+            <button aria-label="닫기" className="lt-search-close" onClick={closeSearch}>
+              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 6 L18 18 M18 6 L6 18" /></svg>
+            </button>
+          )}
         </div>
-      } />
+      </div>
 
-      {searchOpen && (
-        <input
-          value={query} onChange={(e) => setQuery(e.target.value)} placeholder="그룹 이름 검색" autoFocus
-          className="catmodal-name-input" style={{ width: '100%', marginBottom: 10 }}
-        />
-      )}
       {filterOpen && (
-        <div style={{ background: '#fff', borderRadius: 16, padding: 12, marginBottom: 10, boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: 12, marginTop: 14, marginBottom: 10, boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
           <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="catmodal-name-input" style={{ appearance: 'none' }}>
             <option value="">카테고리 전체</option>
             {groupCats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}

@@ -89,6 +89,12 @@ export const db = {
     else q = q.is('group_id', null);
     return flattenTx(unwrap(await q));
   },
+  // 그룹 내역 탭(정산형 등): 월 이동 없이 전체 기간을 한 번에 불러와 월별로 묶어 보여줄 때 사용
+  async listGroupTransactionsAll(groupId) {
+    const rows = unwrap(await supabase.from('transactions').select(TX_SELECT).eq('group_id', groupId)
+      .order('date', { ascending: false }).order('id', { ascending: false }).limit(2000));
+    return flattenTx(rows);
+  },
 
   // 개인 가계부: 개인 항목 + 내가 속한 그룹 항목(반영)
   async listLedger({ month }) {

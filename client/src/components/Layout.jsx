@@ -1,4 +1,4 @@
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
 
 const S = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
@@ -24,11 +24,16 @@ const NAV = [
   { to: '/settings', label: '설정', icon: 'settings' },
 ];
 
+// 설정의 상세 메뉴 페이지(드릴다운)에서는 하단 탭바를 숨김
+const HIDE_BOTTOMNAV_PREFIXES = ['/settings/profile', '/settings/categories', '/settings/sources', '/settings/card-benefits', '/settings/group-categories'];
+
 export default function Layout() {
   const { user, logout } = useAuth();
+  const location = useLocation();
+  const hideBottomNav = HIDE_BOTTOMNAV_PREFIXES.some((p) => location.pathname.startsWith(p));
 
   return (
-    <div className="app">
+    <div className={`app${hideBottomNav ? ' no-bottomnav' : ''}`}>
       <div className="topbar">
         <div className="brand">가<span>계부</span></div>
         <div className="user">
@@ -41,14 +46,16 @@ export default function Layout() {
         <Outlet />
       </div>
 
-      <nav className="bottomnav">
-        {NAV.map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
-            <span className="ico"><Icon name={n.icon} /></span>
-            {n.label}
-          </NavLink>
-        ))}
-      </nav>
+      {!hideBottomNav && (
+        <nav className="bottomnav">
+          {NAV.map((n) => (
+            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
+              <span className="ico"><Icon name={n.icon} /></span>
+              {n.label}
+            </NavLink>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }
