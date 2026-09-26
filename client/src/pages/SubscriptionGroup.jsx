@@ -84,8 +84,10 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
     const remaining = Math.max(owed - paid, 0);
     return { ...m, owed, paid, remaining, settled: remaining <= 0 };
   });
-  const totalSettled = rows.reduce((s, r) => s + r.paid, 0);
-  const totalRemaining = rows.reduce((s, r) => s + r.remaining, 0);
+  // 총무 본인은 자신에게 입금하지 않으므로 정산 완료/남은 정산 금액 집계에서 제외
+  const nonOwnerRows = rows.filter((r) => r.role !== 'owner');
+  const totalSettled = nonOwnerRows.reduce((s, r) => s + r.paid, 0);
+  const totalRemaining = nonOwnerRows.reduce((s, r) => s + r.remaining, 0);
 
   const startEdit = (m) => { setEditingId(m.id); setEditDraft(String(m.owed)); };
   const cancelEdit = () => setEditingId(null);
@@ -165,7 +167,13 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
             )}
           </div>
           <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
-            {fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span>
+            {m.role === 'owner' ? (
+              <>{fmtNum(totalPaid)} 원 결제 · 남은 금액 {fmtNum(totalRemaining)} 원</>
+            ) : m.settled ? (
+              <>{fmtNum(m.paid)} 원 입금 · 정산 완료</>
+            ) : (
+              <>{fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span></>
+            )}
           </div>
           {m.role !== 'owner' && !m.settled && (isOwner || userId === m.user_id) && (
             <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
@@ -182,7 +190,8 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
 }
 
 // 입금 내역 탭: 구독 그룹뿐 아니라 정산 카테고리 그룹의 그룹 상세 페이지에서도 재사용
-export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav }) {
+// (정산 그룹은 회차 개념이 없으므로 showPeriods=false 로 배지를 숨김)
+export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, showPeriods = true }) {
   const delDeposit = async (d) => {
     if (!confirm('입금 내역을 삭제할까요? (연결된 가계부 항목도 삭제됩니다)')) return;
     try { await db.deleteDeposit(d.id); loadDep(); } catch (e) { alert(e.message); }
@@ -209,7 +218,10 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav }) 
                           <span className="tx-tile" style={{ background: d.category_emoji ? tileBg(d.category_name) : '#f2f1f5' }}>{d.category_emoji || '💸'}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div className="tx-row-title" style={{ fontSize: 12.75 }}>
-                              <span className="ttext">{d.content || d.category_name || '입금'} - {d.member?.nickname || '멤버'} <span className="tag-periods">{d.periods} 회분</span></span>
+                              <span className="ttext">
+                                {d.content || d.category_name || '입금'} - {d.member?.nickname || '멤버'}
+                                {showPeriods && <span className="tag-periods">{d.periods} 회분</span>}
+                              </span>
                             </div>
                             <div className="tx-row-sub" style={{ fontSize: 10.25 }}>{[d.category_name, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
                           </div>
@@ -392,7 +404,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   );
 }
 
-export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, topNotice, defaultCategoryName = '구독' }) {
+export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, topNotice, defaultCategoryName = '구독', showPeriods = true }) {
   const editing = !!initial;
   const defMemberCat = cats.find((c) => c.name === defaultCategoryName);     // 멤버 지출 기본(구독/정산 등)
   const defLeaderCat = incomeCats.find((c) => c.name === (sub?.deposit_category || defaultCategoryName)); // 총대 수입 기본 = 입금분류(없으면 동일 기본값)
@@ -451,7 +463,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     setF((prev) => ({
       ...prev,
       amount,
-      periods: defaultAmount > 0 && amount ? String(Math.round(Number(amount) / defaultAmount)) : prev.periods,
+      periods: showPeriods && defaultAmount > 0 && amount ? String(Math.round(Number(amount) / defaultAmount)) : prev.periods,
     }));
   };
   // 신규 작성 시 날짜 변경에 따라 "내용" 기본값 템플릿({연}/{월}/{일}) 재계산
@@ -520,7 +532,21 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
         </select>
       </div>
       <div className="field"><label>날짜</label><input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} /></div>
-      <div className="grid2">
+      {showPeriods ? (
+        <div className="grid2">
+          <div className="field"><label>금액</label>
+            <div className="with-suffix">
+              <input
+                type="text" inputMode="numeric"
+                value={f.amount ? Number(f.amount).toLocaleString('ko-KR') : ''}
+                onChange={(e) => onAmountChange(e.target.value)}
+              />
+              <span className="suffix">원</span>
+            </div>
+          </div>
+          <div className="field"><label>기간(회차)</label><input type="number" min="1" value={f.periods} onChange={(e) => setF({ ...f, periods: e.target.value })} /></div>
+        </div>
+      ) : (
         <div className="field"><label>금액</label>
           <div className="with-suffix">
             <input
@@ -531,8 +557,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
             <span className="suffix">원</span>
           </div>
         </div>
-        <div className="field"><label>기간(회차)</label><input type="number" min="1" value={f.periods} onChange={(e) => setF({ ...f, periods: e.target.value })} /></div>
-      </div>
+      )}
 
       {isOwner ? (
         /* 총대 가계부 영역 */
