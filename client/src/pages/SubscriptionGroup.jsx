@@ -205,27 +205,27 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
             const net = items.reduce((s, d) => s + Number(d.amount), 0);
             return (
               <div key={date}>
-                <div style={{ margin: '14px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
+                <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
                   <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>+{fmtNum(net)}</span>
                 </div>
-                <div className="tx-daycard" style={{ borderRadius: 16, padding: '4px 14px' }}>
+                <div className="tx-daycard">
                   {items.map((d, i) => {
                     const mine = isOwner || (myMember && d.member_id === myMember.id);
                     return (
                       <SwipeRow key={d.id} deletable={mine} onDelete={() => delDeposit(d)} onTap={() => mine && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)}>
-                        <div className="tx-row" style={{ padding: '12px 0', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: mine ? 'pointer' : 'default' }}>
+                        <div className="tx-row" style={{ background: '#fff', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: mine ? 'pointer' : 'default' }}>
                           <span className="tx-tile" style={{ background: d.category_emoji ? tileBg(d.category_name) : '#f2f1f5' }}>{d.category_emoji || '💸'}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div className="tx-row-title" style={{ fontSize: 12.75 }}>
+                            <div className="tx-row-title">
                               <span className="ttext">
                                 {d.content || d.category_name || '입금'} - {d.member?.nickname || '멤버'}
                                 {showPeriods && <span className="tag-periods">{d.periods} 회분</span>}
                               </span>
                             </div>
-                            <div className="tx-row-sub" style={{ fontSize: 10.25 }}>{[d.category_name, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
+                            <div className="tx-row-sub">{[d.category_name, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
                           </div>
-                          <span style={{ fontSize: 14.25, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--income)' }}>+{fmtNum(d.amount)}</span>
+                          <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--income)' }}>+{fmtNum(d.amount)}</span>
                         </div>
                       </SwipeRow>
                     );
@@ -322,22 +322,22 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                 const net = items.reduce((s, p) => s + Number(p.amount), 0);
                 return (
                   <div key={date}>
-                    <div style={{ margin: '14px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
+                    <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
                       <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>-{fmtWon(net)}</span>
                     </div>
-                    <div className="tx-daycard" style={{ borderRadius: 16, padding: '4px 14px' }}>
+                    <div className="tx-daycard">
                       {items.map((p, i) => (
                         <SwipeRow key={p.id} deletable={isOwner} onDelete={() => delPayment(p)} onTap={() => isOwner && nav(`/tx/${p.id}?group=${gid}&kind=payment`)}>
-                          <div className="tx-row" style={{ padding: '12px 0', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: isOwner ? 'pointer' : 'default' }}>
+                          <div className="tx-row" style={{ background: '#fff', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: isOwner ? 'pointer' : 'default' }}>
                             <span className="tx-tile" style={{ background: p.category_emoji ? tileBg(p.category_name) : '#f2f1f5' }}>{p.category_emoji || '💳'}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div className="tx-row-title" style={{ fontSize: 12.75 }}>
+                              <div className="tx-row-title">
                                 <span className="ttext">{p.content || p.category_name} <span className="tag-periods">{p.periods} 회분</span></span>
                               </div>
-                              <div className="tx-row-sub" style={{ fontSize: 10.25 }}>{[p.category_name, p.source_name].filter(Boolean).join(' · ') || '—'}</div>
+                              <div className="tx-row-sub">{[p.category_name, p.source_name].filter(Boolean).join(' · ') || '—'}</div>
                             </div>
-                            <span style={{ fontSize: 14.25, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--expense)' }}>-{fmtWon(p.amount)}</span>
+                            <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--expense)' }}>-{fmtWon(p.amount)}</span>
                           </div>
                         </SwipeRow>
                       ))}
