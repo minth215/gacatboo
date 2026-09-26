@@ -107,12 +107,12 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
       const next = m.next_due_override || (last && sub ? addInterval(last, sub.period_unit, sub.period_count, 1) : null);
       return { id: m.id, nickname: m.nickname, isOwner: true, cum, last, next, lastLabel: '마지막 결제일', nextLabel: '다음 결제일', overdue: !!(next && next < todayStr) };
     }
-    const ds = deposits.filter((d) => d.member_id === m.id);
+    const ds = [...deposits.filter((d) => d.member_id === m.id)].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     const cum = ds.reduce((s, d) => s + Number(d.amount), 0);
-    const periods = ds.reduce((s, d) => s + Number(d.periods || 0), 0);
-    const last = ds.length ? ds.map((d) => d.date).sort().slice(-1)[0] : null;
-    const base = m.start_date || (ds.length ? ds.map((d) => d.date).sort()[0] : null);
-    const auto = base && sub ? addInterval(base, sub.period_unit, sub.period_count, periods) : (base || null);
+    const lastDep = ds.length ? ds[ds.length - 1] : null;
+    const last = lastDep ? lastDep.date : null;
+    // 다음 입금일 = 마지막 입금일 + 그 입금이 커버한 기간(회차)만큼 주기 추가
+    const auto = last && sub ? addInterval(last, sub.period_unit, sub.period_count, Math.max(Number(lastDep.periods) || 1, 1)) : (m.start_date || null);
     const next = m.next_due_override || auto;
     return { id: m.id, nickname: m.nickname, isOwner: false, cum, last, next, lastLabel: '마지막 입금일', nextLabel: '다음 입금일', overdue: !!(next && next < todayStr) };
   });
@@ -189,8 +189,10 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                             <div className="tx-row" style={{ padding: '12px 0', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: mine ? 'pointer' : 'default' }}>
                               <span className="tx-tile" style={{ background: d.category_emoji ? tileBg(d.category_name) : '#f2f1f5' }}>{d.category_emoji || '💸'}</span>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <div className="tx-row-title" style={{ fontSize: 12.75 }}><span className="ttext">{d.member?.nickname || '멤버'} <span className="tag-group">{d.periods}회차</span></span></div>
-                                <div className="tx-row-sub" style={{ fontSize: 10.25 }}>{[d.content, d.category_name, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
+                                <div className="tx-row-title" style={{ fontSize: 12.75 }}>
+                                  <span className="ttext">{d.content || d.category_name || '입금'} - {d.member?.nickname || '멤버'} <span className="tag-periods">{d.periods} 회분</span></span>
+                                </div>
+                                <div className="tx-row-sub" style={{ fontSize: 10.25 }}>{[d.category_name, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
                               </div>
                               <span style={{ fontSize: 14.25, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--income)' }}>+{fmtWon(d.amount)}</span>
                             </div>
@@ -213,7 +215,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
 
       {tab === 'stats' && (
         <>
-          <div className="summary-card">
+          <div className="summary-card" style={{ marginTop: 14 }}>
             <div className="col"><div className="lbl">총 금액</div><div className="val income">{fmtWon(totalAmount)}</div></div>
             <div className="divider" />
             <div className="col"><div className="lbl">사용 금액</div><div className="val expense">{fmtWon(usedAmount)}</div></div>
@@ -227,9 +229,9 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                   <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
                   {m.isOwner && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>{leaderName}</span>}
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: '#a29ead' }}>누적</div>
-                  <div style={{ marginTop: 2, fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.cum)}</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#a29ead' }}>누적</span>
+                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.cum)}</span>
                 </div>
               </div>
               <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.75, color: '#a29ead' }}>

@@ -19,6 +19,12 @@ export default function Groups() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterCategory, setFilterCategory] = useState('');
+  const [showEnded, setShowEnded] = useState(true);
+
   const load = useCallback(() => {
     setLoading(true);
     db.listGroups(user.id).then(setGroups).catch(() => setGroups([])).finally(() => setLoading(false));
@@ -49,21 +55,56 @@ export default function Groups() {
   };
 
   const isEnded = (g) => !!(g.end_date && new Date(g.end_date) < new Date());
+  const filterActive = !!filterCategory || !showEnded;
+
+  const filteredGroups = groups.filter((g) => {
+    if (query.trim() && !g.name.toLowerCase().includes(query.trim().toLowerCase())) return false;
+    if (filterCategory && g.category !== filterCategory) return false;
+    if (!showEnded && isEnded(g)) return false;
+    return true;
+  });
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="그룹" showBack={false} right={
-        <button className="tb-icon-btn" onClick={openModal} aria-label="그룹 만들기">
-          <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="tb-icon-btn" onClick={() => setFilterOpen((v) => !v)} aria-label="필터" style={filterActive ? { color: 'var(--accent)' } : undefined}>
+            <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="7" x2="20" y2="7" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="17" x2="14" y2="17" /></svg>
+          </button>
+          <button className="tb-icon-btn" onClick={() => setSearchOpen((v) => !v)} aria-label="검색" style={searchOpen ? { color: 'var(--accent)' } : undefined}>
+            <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="16.2" y1="16.2" x2="21" y2="21" /></svg>
+          </button>
+        </div>
       } />
+
+      {searchOpen && (
+        <input
+          value={query} onChange={(e) => setQuery(e.target.value)} placeholder="그룹 이름 검색" autoFocus
+          className="catmodal-name-input" style={{ width: '100%', marginBottom: 10 }}
+        />
+      )}
+      {filterOpen && (
+        <div style={{ background: '#fff', borderRadius: 16, padding: 12, marginBottom: 10, boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
+          <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="catmodal-name-input" style={{ appearance: 'none' }}>
+            <option value="">카테고리 전체</option>
+            {groupCats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+          </select>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12.5, fontWeight: 600, color: '#6c6779' }}>
+            <input type="checkbox" checked={showEnded} onChange={(e) => setShowEnded(e.target.checked)} /> 종료된 그룹 표시
+          </label>
+        </div>
+      )}
 
       {loading ? (
         <Spinner />
-      ) : groups.length === 0 ? (
-        <div className="empty">아직 참여 중인 그룹이 없습니다.<br />여행·구독·N빵 등을 그룹으로 함께 관리해 보세요.</div>
+      ) : filteredGroups.length === 0 ? (
+        <div className="empty">
+          {groups.length === 0
+            ? <>아직 참여 중인 그룹이 없습니다.<br />여행·구독·N빵 등을 그룹으로 함께 관리해 보세요.</>
+            : '조건에 맞는 그룹이 없습니다.'}
+        </div>
       ) : (
-        groups.map((g) => (
+        filteredGroups.map((g) => (
           <div
             key={g.id} className="group-card" onClick={() => nav(`/groups/${g.id}`)}
             style={{ display: 'flex', gap: 12, alignItems: 'center', opacity: isEnded(g) ? 0.55 : 1, filter: isEnded(g) ? 'grayscale(0.6)' : 'none' }}
@@ -86,6 +127,10 @@ export default function Groups() {
           </div>
         ))
       )}
+
+      <button className="fab" onClick={openModal} aria-label="그룹 만들기">
+        <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+      </button>
 
       {modal && form && (
         <div className="catmodal-overlay" onClick={closeModal}>

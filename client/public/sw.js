@@ -1,5 +1,5 @@
 // 가캣부 PWA 서비스 워커 — 같은 출처 정적 자원만 캐시, Supabase 등 외부 요청은 건드리지 않음.
-const CACHE = 'gacatboo-v31';
+const CACHE = 'gacatboo-v32';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => {
