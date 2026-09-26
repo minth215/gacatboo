@@ -170,6 +170,9 @@ a { color: inherit; text-decoration: none; }
 /* 헤더 텍스트 스타일도 가계부(.lt-title)와 동일 */
 .simple-topbar .title { font-size: 21px; font-weight: 800; letter-spacing: -0.6px; color: #191722; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .simple-topbar .topbar-right { flex: none; margin-left: auto; }
+/* flat 변형(시안: 분류 관리 등) — 흰색+그림자 대신 옅은 회색 플랫 버튼 */
+.simple-topbar.flat .tb-icon-btn { width: 32px; height: 32px; background: #f4f2f0; box-shadow: none; color: #6c6779; }
+.simple-topbar.flat .title { font-size: 17px; font-weight: 800; letter-spacing: -0.4px; }
 
 /* ---------- Cards & common ---------- */
 .card {
@@ -393,19 +396,51 @@ a { color: inherit; text-decoration: none; }
 .spinner { width: 34px; height: 34px; border: 3px solid #eceae7; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ---------- Settings menu rows ---------- */
-.menu-row {
-  width: 100%; display: flex; align-items: center; gap: 12px;
-  padding: 14px 12px; background: transparent; border: none; text-align: left;
-  border-radius: 10px;
+/* ---------- 설정 페이지 ---------- */
+.settings-profile-card {
+  background: #fff; border-radius: 20px; padding: 18px 18px 18px 22px;
+  box-shadow: 0 6px 20px rgba(25,23,34,.07); display: flex; align-items: center; gap: 14px; cursor: pointer;
 }
-.menu-row:hover { background: #f7f8fc; }
-.menu-row + .menu-row { border-top: 1px solid var(--line); }
-.menu-ico { font-size: 22px; width: 28px; text-align: center; }
-.menu-main { flex: 1; min-width: 0; }
-.menu-label { display: block; font-weight: 700; font-size: 15px; }
-.menu-desc { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
-.menu-chevron { color: var(--muted); font-size: 20px; }
+.settings-admin-badge {
+  display: inline-flex; align-items: center; height: 15px; box-sizing: border-box;
+  font-size: 8.5px; font-weight: 700; color: #fff; background: linear-gradient(90deg, #FF3B5C, #FF9142);
+  border-radius: 999px; padding: 0 6px; line-height: 1;
+}
+.settings-group-label { font-size: 11px; font-weight: 700; color: #a29ead; letter-spacing: .2px; padding: 0 16px 8px 8px; }
+.settings-menu-row {
+  width: 100%; font-family: inherit; display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; border: none; background: transparent; text-align: left; cursor: pointer;
+}
+.settings-menu-row:hover { background: #faf9f8; }
+.settings-menu-tile { width: 38px; height: 38px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 16.5px; flex: none; }
+.settings-menu-main { flex: 1; min-width: 0; }
+.settings-menu-label { display: block; font-size: 13.75px; font-weight: 600; color: #191722; }
+.settings-menu-desc { display: block; margin-top: 2px; font-size: 10.75px; color: #a29ead; }
+
+/* ---------- 분류 관리 페이지(시안) ---------- */
+.cat-del-btn { width: 30px; height: 30px; border-radius: 50%; border: none; background: transparent; color: #c7c3cc; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
+.cat-del-btn:hover { color: var(--expense); background: #fde8ee; }
+.cat-drag-handle { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; color: #c7c3cc; cursor: grab; flex: none; }
+.cat-drag-handle:hover { color: #8b8798; }
+
+.catmodal-overlay { position: fixed; inset: 0; background: rgba(25,23,34,.42); display: flex; align-items: center; justify-content: center; padding: 0 24px; z-index: 60; }
+.catmodal-sheet { width: 100%; max-width: 380px; background: #fff; border-radius: 22px; padding: 24px 20px; display: flex; flex-direction: column; gap: 18px; }
+.catmodal-emoji-input {
+  position: absolute; inset: 0; width: 100%; height: 100%; text-align: center; font-size: 22px; font-family: inherit;
+  color: transparent; caret-color: #191722; background: transparent; border: 1.5px solid #efeef2; border-radius: 14px; outline: none;
+}
+.catmodal-emoji-input:focus { border-color: #191722; }
+.catmodal-name-input {
+  flex: 1; font-family: inherit; font-size: 13.75px; color: #191722; background: #fff;
+  border: 1.5px solid #efeef2; border-radius: 12px; padding: 12px 14px; outline: none;
+}
+.catmodal-name-input:focus { border-color: #191722; }
+.catmodal-swatch { width: 100%; aspect-ratio: 1; border-radius: 50%; padding: 0; cursor: pointer; }
+.catmodal-custom-swatch { overflow: hidden; position: relative; border: 1.5px dashed #c7c3cc; display: flex; align-items: center; justify-content: center; background: none; }
+.catmodal-icon-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: none; background: #f4f2f0; color: #6c6779;
+  display: flex; align-items: center; justify-content: center; padding: 0; flex: none; cursor: pointer;
+}
 
 /* ---------- Form label with inline edit link ---------- */
 .field-label-row { display: flex; align-items: center; justify-content: space-between; }

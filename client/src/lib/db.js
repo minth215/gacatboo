@@ -55,6 +55,10 @@ export const db = {
   async deleteCategory(id) {
     return unwrap(await supabase.from('categories').delete().eq('id', id));
   },
+  // 드래그 정렬 후 순서 일괄 반영
+  async reorderCategories(orderedIds) {
+    await Promise.all(orderedIds.map((id, i) => supabase.from('categories').update({ sort_order: i }).eq('id', id)));
+  },
 
   // ---------- 원천 ----------
   async listSources() {
