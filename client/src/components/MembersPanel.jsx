@@ -87,14 +87,16 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
               <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>멤버 이름 <span style={{ color: '#FF3B5C' }}>*</span></span>
               <input value={editor.nickname} onChange={(e) => setEditor({ ...editor, nickname: e.target.value })} placeholder="멤버 이름(닉네임)" autoFocus className="catmodal-name-input" />
             </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>시작일자 <span style={{ color: '#FF3B5C' }}>*</span></span>
-              <input type="date" value={editor.start_date} onChange={(e) => setEditor({ ...editor, start_date: e.target.value })} className="catmodal-name-input" />
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>종료일자</span>
-              <input type="date" value={editor.end_date} onChange={(e) => setEditor({ ...editor, end_date: e.target.value })} className="catmodal-name-input" />
-            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>시작일자 <span style={{ color: '#FF3B5C' }}>*</span></span>
+                <input type="date" value={editor.start_date} onChange={(e) => setEditor({ ...editor, start_date: e.target.value })} className="catmodal-date-input" />
+              </label>
+              <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>종료일자</span>
+                <input type="date" value={editor.end_date} onChange={(e) => setEditor({ ...editor, end_date: e.target.value })} className="catmodal-date-input" />
+              </label>
+            </div>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>연락처</span>
               <input value={editor.contact} onChange={(e) => setEditor({ ...editor, contact: e.target.value })} placeholder="전화번호/이메일 등" className="catmodal-name-input" />
