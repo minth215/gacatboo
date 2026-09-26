@@ -48,7 +48,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
             const isGroup = groupTint && !!(t.group_name || t.origin_type); // 그룹에서 입력/반영된 항목(그룹 자체 화면에서는 강조 생략)
             const sub = [t.category_name, t.source_name].filter(Boolean).join(' · ') || '—';
             return (
-              <SwipeRow key={t.id} deletable={editable && !!onDelete} onDelete={() => onDelete(t)} onTap={() => editable && onEdit(t)} fullSwipe>
+              <SwipeRow key={t.id} deletable={editable && !!onDelete} onDelete={() => onDelete(t)} onTap={() => editable && onEdit(t)}>
                 <div
                   className="tx-row"
                   style={{
