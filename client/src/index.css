@@ -183,8 +183,8 @@ a { color: inherit; text-decoration: none; }
 .card h3 { margin: 0 0 12px; font-size: 15px; }
 /* 가계부 페이지 카드 스타일(테두리 없음, 그림자 있는 흰색) — 그룹 목록 카드 */
 .group-card {
-  background: #fff; border-radius: 20px; box-shadow: 0 4px 16px rgba(25,23,34,.05);
-  padding: 16px; margin-bottom: 12px; cursor: pointer;
+  background: #fff; border-radius: 20px; box-shadow: 0 6px 20px rgba(25,23,34,.07);
+  padding: 16px 18px; margin-bottom: 14px; cursor: pointer;
 }
 .row { display: flex; gap: 10px; align-items: center; }
 .between { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -442,6 +442,42 @@ a { color: inherit; text-decoration: none; }
   display: flex; align-items: center; justify-content: center; padding: 0; flex: none; cursor: pointer;
 }
 
+/* ---------- 그룹 카테고리/카드 실적/원천 관리 등 인라인 추가·수정 행(시안) ---------- */
+.inline-edit-row { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 16px; }
+.inline-edit-input {
+  flex: 1; min-width: 0; width: 100%; font-family: inherit; font-size: 13.25px; color: #191722;
+  background: #faf9f8; border: 1.5px solid #efeef2; border-radius: 10px; padding: 9px 12px; outline: none;
+}
+.inline-edit-input:focus { border-color: #191722; }
+.inline-cancel-btn {
+  font-family: inherit; height: 32px; padding: 0 11px; border: 1.5px solid #efeef2; border-radius: 999px;
+  background: #fff; color: #8b8798; font-size: 11.75px; font-weight: 700; cursor: pointer; flex: none;
+}
+.inline-cancel-btn:hover { background: #faf9f8; }
+.inline-save-btn {
+  font-family: inherit; height: 32px; padding: 0 13px; border: none; border-radius: 999px;
+  background: #191722; color: #fff; font-size: 11.75px; font-weight: 700; cursor: pointer; flex: none;
+}
+.inline-save-btn:hover { background: #2c2938; }
+
+/* 행 액션 아이콘 버튼(수정/추가/삭제 등, 시안 공통) */
+.row-icon-btn { width: 28px; height: 28px; border-radius: 50%; border: none; background: transparent; color: #a29ead; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
+.row-icon-btn:hover { color: #191722; background: #f4f2f0; }
+.row-icon-btn.danger:hover { color: var(--expense); background: #fde8ee; }
+.row-icon-btn.sm { width: 26px; height: 26px; }
+
+/* 밑줄형 탭 바(그룹 상세) */
+.underline-tabs { display: flex; align-items: center; border-bottom: 1.5px solid #f2f1f5; padding: 0 12px; }
+.underline-tabs button {
+  flex: 1; font-family: inherit; padding: 11px 4px; border: none; background: transparent; cursor: pointer;
+  font-size: 12.25px; font-weight: 700; color: #a29ead; border-bottom: 2px solid transparent;
+}
+.underline-tabs button.active { color: #191722; border-bottom-color: var(--accent); }
+
+/* 월 구분 배지 */
+.month-pill-wrap { text-align: center; }
+.month-pill { display: inline-block; font-size: 11px; font-weight: 700; color: #6c6779; background: #f4f2f0; border-radius: 999px; padding: 4px 14px; }
+
 /* ---------- Form label with inline edit link ---------- */
 .field-label-row { display: flex; align-items: center; justify-content: space-between; }
 .field-label-row label { margin: 0; }
@@ -458,13 +494,6 @@ a { color: inherit; text-decoration: none; }
 }
 .emoji-pick.active { border-color: var(--primary); background: var(--primary-weak); }
 .cat-emoji { font-size: 18px; width: 24px; text-align: center; display: inline-block; }
-
-/* ---------- Stat table ---------- */
-.stat-table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
-.stat-table th, .stat-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); }
-.stat-table th { font-size: 12px; color: var(--muted); font-weight: 700; }
-.stat-table td { font-weight: 600; }
-.stat-table td.muted { font-weight: 500; color: var(--muted); }
 
 .chart-box { position: relative; height: 240px; }
 .legend-list { margin-top: 12px; }

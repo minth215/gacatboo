@@ -221,9 +221,9 @@ export const db = {
       member_count: g.group_members?.[0]?.count ?? 0,
     }));
   },
-  async createGroup(userId, { name, description, category, category_emoji, start_date, end_date }) {
+  async createGroup(userId, { name, description, category, category_emoji, color, start_date, end_date }) {
     const g = unwrap(await supabase.from('groups').insert({
-      name, description: description || '', category, category_emoji: category_emoji || '', owner_id: userId,
+      name, description: description || '', category, category_emoji: category_emoji || '', color: color || '', owner_id: userId,
       start_date: start_date || null, end_date: end_date || null,
     }).select().single());
     unwrap(await supabase.from('group_members').insert({ group_id: g.id, user_id: userId, role: 'owner' }));
@@ -232,30 +232,33 @@ export const db = {
   async updateGroup(id, patch) {
     return unwrap(await supabase.from('groups').update({
       name: patch.name?.trim(), description: (patch.description || '').trim(),
-      category: patch.category, category_emoji: patch.category_emoji || '',
+      category: patch.category, category_emoji: patch.category_emoji || '', color: patch.color || '',
       start_date: patch.start_date || null, end_date: patch.end_date || null,
     }).eq('id', id).select().single());
   },
 
-  // ---------- 그룹 카테고리 (사용자별 선택지) ----------
+  // ---------- 그룹 카테고리 (사용자별 선택지, 이름만 관리 — 이모지/색상은 그룹마다 독립 설정) ----------
   async listGroupCategories() {
     return unwrap(await supabase.from('group_categories').select('*').order('sort_order').order('id'));
   },
-  async addGroupCategory(userId, name, emoji = '') {
+  async addGroupCategory(userId, name) {
     const existing = unwrap(await supabase.from('group_categories').select('sort_order').order('sort_order', { ascending: false }).limit(1));
     const next = (existing[0]?.sort_order ?? -1) + 1;
-    return unwrap(await supabase.from('group_categories').insert({ user_id: userId, name, emoji, sort_order: next }).select().single());
+    return unwrap(await supabase.from('group_categories').insert({ user_id: userId, name, sort_order: next }).select().single());
   },
-  async updateGroupCategory(id, { name, emoji, oldName }) {
-    const gc = unwrap(await supabase.from('group_categories').update({ name, emoji }).eq('id', id).select().single());
-    // 이 카테고리를 쓰는 (내가 소유한) 기존 그룹의 이름/이모지도 함께 갱신
+  async updateGroupCategory(id, { name, oldName }) {
+    const gc = unwrap(await supabase.from('group_categories').update({ name }).eq('id', id).select().single());
+    // 이 카테고리를 쓰는 (내가 소유한) 기존 그룹의 이름도 함께 갱신
     if (oldName) {
-      await supabase.from('groups').update({ category: gc.name, category_emoji: gc.emoji || '' }).eq('category', oldName);
+      await supabase.from('groups').update({ category: gc.name }).eq('category', oldName);
     }
     return gc;
   },
   async deleteGroupCategory(id) {
     return unwrap(await supabase.from('group_categories').delete().eq('id', id));
+  },
+  async reorderGroupCategories(orderedIds) {
+    await Promise.all(orderedIds.map((id, i) => supabase.from('group_categories').update({ sort_order: i }).eq('id', id)));
   },
   async getGroup(id) {
     const group = unwrap(await supabase.from('groups').select('*, owner:profiles!groups_owner_id_fkey(display_name)').eq('id', id).single());

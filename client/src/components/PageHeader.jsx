@@ -10,7 +10,7 @@ export default function PageHeader({ title, onBack, right, showBack = true, flat
     <div className={`simple-topbar${flat ? ' flat' : ''}`}>
       {showBack && (
         <button className="tb-icon-btn" onClick={onBack || (() => nav(-1))} aria-label="뒤로">
-          <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
+          <svg width={flat ? 15 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
         </button>
       )}
       <div className="title">{title}</div>

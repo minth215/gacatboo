@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, today, addInterval, PERIOD_LABEL, renderTemplate } from '../lib/format.js';
+import { fmtWon, today, addInterval, PERIOD_LABEL, renderTemplate, monthLabel } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import SwipeRow from '../components/SwipeRow.jsx';
@@ -16,6 +16,13 @@ function groupByDate(list) {
   const groups = {};
   for (const t of list) (groups[t.date] ||= []).push(t);
   return Object.keys(groups).sort((a, b) => (a < b ? 1 : -1)).map((d) => [d, groups[d]]);
+}
+
+// 월 → 날짜 2단계로 묶기: [[month, [[date, items], ...]], ...] (최신순)
+function groupByMonthThenDate(list) {
+  const byMonth = {};
+  for (const t of list) (byMonth[t.date.slice(0, 7)] ||= []).push(t);
+  return Object.keys(byMonth).sort((a, b) => (a < b ? 1 : -1)).map((mo) => [mo, groupByDate(byMonth[mo])]);
 }
 
 function SourceSelect({ sources, value, onChange, keepLabel }) {
@@ -65,7 +72,6 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   const [deposits, setDeposits] = useState([]);
 
   const myMember = members.find((m) => m.user_id === user.id && m.role !== 'owner');
-  const memberList = members.filter((m) => m.role !== 'owner');
 
   const loadSub = useCallback(() => db.getSubscription(gid).then(setSub).catch(() => setSub(null)), [gid]);
   const loadPay = useCallback(() => db.listPayments(gid).then(setPayments).catch(() => setPayments([])), [gid]);
@@ -89,7 +95,8 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
     try { await db.deleteGroup(gid); onDeletedGroup(); } catch (e) { alert(e.message); }
   };
 
-  const memberStats = memberList.map((m) => {
+  const todayStr = today();
+  const memberStats = members.map((m) => {
     const ds = deposits.filter((d) => d.member_id === m.id);
     const cum = ds.reduce((s, d) => s + Number(d.amount), 0);
     const periods = ds.reduce((s, d) => s + Number(d.periods || 0), 0);
@@ -97,47 +104,52 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
     const base = m.start_date || (ds.length ? ds.map((d) => d.date).sort()[0] : null);
     const auto = base && sub ? addInterval(base, sub.period_unit, sub.period_count, periods) : (base || null);
     const next = m.next_due_override || auto;
-    return { id: m.id, nickname: m.nickname, cum, last, next };
+    return { id: m.id, nickname: m.nickname, isOwner: m.role === 'owner', cum, last, next, overdue: !!(next && next < todayStr) };
   });
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
       {header}
 
-      <div className="pill-toggle" style={{ display: 'flex', width: '100%', marginBottom: 14 }}>
-        <button style={{ flex: 1 }} className={tab === 'payments' ? 'active' : ''} onClick={() => setTab('payments')}>결제내역</button>
-        <button style={{ flex: 1 }} className={tab === 'deposits' ? 'active' : ''} onClick={() => setTab('deposits')}>입금내역</button>
-        <button style={{ flex: 1 }} className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>통계</button>
-        <button style={{ flex: 1 }} className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>멤버</button>
+      <div className="underline-tabs" style={{ marginTop: 6 }}>
+        <button className={tab === 'payments' ? 'active' : ''} onClick={() => setTab('payments')}>결제내역</button>
+        <button className={tab === 'deposits' ? 'active' : ''} onClick={() => setTab('deposits')}>입금내역</button>
+        <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>통계</button>
+        <button className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>멤버</button>
       </div>
 
       {tab === 'payments' && (
         <>
-          {payments.length === 0 ? <div className="empty">결제 내역이 없습니다.</div> : groupByDate(payments).map(([date, items]) => {
-            const net = items.reduce((s, p) => s + Number(p.amount), 0);
-            return (
-              <div key={date}>
-                <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date, 'full')}</span>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>-{fmtWon(net)}</span>
-                </div>
-                <div className="tx-daycard">
-                  {items.map((p, i) => (
-                    <SwipeRow key={p.id} deletable={isOwner} onDelete={() => delPayment(p)} onTap={() => isOwner && nav(`/tx/${p.id}?group=${gid}&kind=payment`)}>
-                      <div className="tx-row" style={{ borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: isOwner ? 'pointer' : 'default' }}>
-                        <span className="tx-tile" style={{ background: p.category_emoji ? tileBg(p.category_name) : '#f2f1f5' }}>{p.category_emoji || '💳'}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div className="tx-row-title"><span className="ttext">{p.content || p.category_name}</span></div>
-                          <div className="tx-row-sub">{[p.category_name, p.source_name].filter(Boolean).join(' · ') || '—'}</div>
-                        </div>
-                        <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--expense)' }}>-{fmtWon(p.amount)}</span>
-                      </div>
-                    </SwipeRow>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+          {payments.length === 0 ? <div className="empty">결제 내역이 없습니다.</div> : groupByMonthThenDate(payments).map(([mo, dateGroups]) => (
+            <div key={mo}>
+              <div className="month-pill-wrap" style={{ margin: '16px 0 8px' }}><span className="month-pill">{monthLabel(mo)}</span></div>
+              {dateGroups.map(([date, items]) => {
+                const net = items.reduce((s, p) => s + Number(p.amount), 0);
+                return (
+                  <div key={date}>
+                    <div style={{ margin: '14px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date, 'full')}</span>
+                      <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>-{fmtWon(net)}</span>
+                    </div>
+                    <div className="tx-daycard" style={{ borderRadius: 16, padding: '4px 14px' }}>
+                      {items.map((p, i) => (
+                        <SwipeRow key={p.id} deletable={isOwner} onDelete={() => delPayment(p)} onTap={() => isOwner && nav(`/tx/${p.id}?group=${gid}&kind=payment`)}>
+                          <div className="tx-row" style={{ padding: '12px 0', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: isOwner ? 'pointer' : 'default' }}>
+                            <span className="tx-tile" style={{ background: p.category_emoji ? tileBg(p.category_name) : '#f2f1f5' }}>{p.category_emoji || '💳'}</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div className="tx-row-title" style={{ fontSize: 12.75 }}><span className="ttext">{p.content || p.category_name}</span></div>
+                              <div className="tx-row-sub" style={{ fontSize: 10.25 }}>{[p.category_name, p.source_name].filter(Boolean).join(' · ') || '—'}</div>
+                            </div>
+                            <span style={{ fontSize: 14.25, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--expense)' }}>-{fmtWon(p.amount)}</span>
+                          </div>
+                        </SwipeRow>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
           {isOwner && (
             <button className="fab" onClick={() => nav(`/new?group=${gid}&kind=payment`)} aria-label="결제 추가">
               <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
@@ -148,34 +160,39 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
 
       {tab === 'deposits' && (
         <>
-          {deposits.length === 0 ? <div className="empty">입금 내역이 없습니다.</div> : groupByDate(deposits).map(([date, items]) => {
-            const net = items.reduce((s, d) => s + Number(d.amount), 0);
-            return (
-              <div key={date}>
-                <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date, 'full')}</span>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>+{fmtWon(net)}</span>
-                </div>
-                <div className="tx-daycard">
-                  {items.map((d, i) => {
-                    const mine = isOwner || (myMember && d.member_id === myMember.id);
-                    return (
-                      <SwipeRow key={d.id} deletable={mine} onDelete={() => delDeposit(d)} onTap={() => mine && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)}>
-                        <div className="tx-row" style={{ borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: mine ? 'pointer' : 'default' }}>
-                          <span className="tx-tile" style={{ background: d.category_emoji ? tileBg(d.category_name) : '#f2f1f5' }}>{d.category_emoji || '💸'}</span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div className="tx-row-title"><span className="ttext">{d.member?.nickname || '멤버'} <span className="tag-group">{d.periods}회차</span></span></div>
-                            <div className="tx-row-sub">{[d.content, d.category_name, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
-                          </div>
-                          <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--income)' }}>+{fmtWon(d.amount)}</span>
-                        </div>
-                      </SwipeRow>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+          {deposits.length === 0 ? <div className="empty">입금 내역이 없습니다.</div> : groupByMonthThenDate(deposits).map(([mo, dateGroups]) => (
+            <div key={mo}>
+              <div className="month-pill-wrap" style={{ margin: '16px 0 8px' }}><span className="month-pill">{monthLabel(mo)}</span></div>
+              {dateGroups.map(([date, items]) => {
+                const net = items.reduce((s, d) => s + Number(d.amount), 0);
+                return (
+                  <div key={date}>
+                    <div style={{ margin: '14px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date, 'full')}</span>
+                      <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>+{fmtWon(net)}</span>
+                    </div>
+                    <div className="tx-daycard" style={{ borderRadius: 16, padding: '4px 14px' }}>
+                      {items.map((d, i) => {
+                        const mine = isOwner || (myMember && d.member_id === myMember.id);
+                        return (
+                          <SwipeRow key={d.id} deletable={mine} onDelete={() => delDeposit(d)} onTap={() => mine && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)}>
+                            <div className="tx-row" style={{ padding: '12px 0', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', cursor: mine ? 'pointer' : 'default' }}>
+                              <span className="tx-tile" style={{ background: d.category_emoji ? tileBg(d.category_name) : '#f2f1f5' }}>{d.category_emoji || '💸'}</span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div className="tx-row-title" style={{ fontSize: 12.75 }}><span className="ttext">{d.member?.nickname || '멤버'} <span className="tag-group">{d.periods}회차</span></span></div>
+                                <div className="tx-row-sub" style={{ fontSize: 10.25 }}>{[d.content, d.category_name, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
+                              </div>
+                              <span style={{ fontSize: 14.25, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--income)' }}>+{fmtWon(d.amount)}</span>
+                            </div>
+                          </SwipeRow>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
           {(isOwner || myMember) && (
             <button className="fab" onClick={() => nav(`/new?group=${gid}&kind=deposit`)} aria-label="입금 추가">
               <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
@@ -193,23 +210,22 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
             <div className="divider" />
             <div className="col"><div className="lbl">잔여 금액</div><div className="val">{fmtWon(remain)}</div></div>
           </div>
-          <div className="card">
-            <h3>멤버별 입금 현황</h3>
-            {memberStats.length === 0 ? <div className="empty">멤버가 없습니다.</div> : (
-              <div style={{ overflowX: 'auto' }}>
-                <table className="stat-table">
-                  <thead><tr><th>닉네임</th><th>누적입금액</th><th>마지막 입금일</th><th>다음 입금일</th></tr></thead>
-                  <tbody>
-                    {memberStats.map((m) => (
-                      <tr key={m.id} onClick={() => nav(`/groups/${gid}/member/${m.id}`)} style={{ cursor: 'pointer' }}>
-                        <td>{m.nickname} ›</td><td>{fmtWon(m.cum)}</td><td className="muted">{m.last || '-'}</td><td>{m.next || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {memberStats.length === 0 ? <div className="empty">멤버가 없습니다.</div> : memberStats.map((m) => (
+            <div key={m.id} className="tx-daycard" style={{ borderRadius: 16, padding: '14px 16px', marginTop: 10, cursor: m.isOwner ? 'default' : 'pointer' }} onClick={() => !m.isOwner && nav(`/groups/${gid}/member/${m.id}`)}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
+                  {m.isOwner && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>{leaderName}</span>}
+                </div>
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtWon(m.cum)}</span>
               </div>
-            )}
-          </div>
+              <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.75, color: '#a29ead' }}>
+                <span>마지막 입금일 {m.last || '-'}</span>
+                <span style={{ color: '#e4e2e6' }}>|</span>
+                <span style={{ color: m.overdue ? 'var(--expense)' : '#a29ead', fontWeight: m.overdue ? 700 : 400 }}>다음 입금일 {m.next || '-'}</span>
+              </div>
+            </div>
+          ))}
         </>
       )}
 

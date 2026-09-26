@@ -31,9 +31,9 @@ export default function GroupDetail() {
   const leaderName = leaderLabel(group.category);
 
   const header = (
-    <PageHeader title={group.name} right={isOwner && (
+    <PageHeader title={group.name} flat right={isOwner && (
       <button className="tb-icon-btn" onClick={() => nav(`/groups/${gid}/edit`)} aria-label="그룹 정보 수정">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
@@ -81,10 +81,10 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
     <div style={{ padding: '44px 0 12px' }}>
       {header}
 
-      <div className="pill-toggle" style={{ display: 'flex', width: '100%', marginBottom: 14 }}>
-        <button style={{ flex: 1 }} className={tab === 'ledger' ? 'active' : ''} onClick={() => setTab('ledger')}>내역</button>
-        <button style={{ flex: 1 }} className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>통계</button>
-        <button style={{ flex: 1 }} className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>멤버</button>
+      <div className="underline-tabs" style={{ marginTop: 6 }}>
+        <button className={tab === 'ledger' ? 'active' : ''} onClick={() => setTab('ledger')}>내역</button>
+        <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>통계</button>
+        <button className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>멤버</button>
       </div>
 
       {tab !== 'members' && (
