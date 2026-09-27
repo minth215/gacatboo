@@ -376,7 +376,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                 </div>
               )}
               <div className="settle-swipe-wrap" style={{ marginTop: 10 }}>
-                {isOwner && !m.settled ? (
+                {isOwner && !m.settled && editingId == null ? (
                   <SwipeRow
                     actionsWidth={52}
                     actions={(progress) => (
@@ -398,9 +398,10 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
         }
         const isMe = userId === m.user_id;
         // 총무 화면: 콕 찌르기/입금 완료는 카드를 왼쪽으로 밀어야 보임. 멤버 화면: 본인 카드는 눌러서 바로 입금 완료.
-        // 스와이프 가능 여부(카드 감싸는 구조)는 저장된 금액 기준으로 고정한다. 금액 수정 미리보기로
-        // 완료/미완료가 바뀔 때마다 카드 구조가 바뀌어 다시 그려지면 일부 카드만 갱신돼 보일 수 있다.
-        const swipeForOwner = isOwner && m.role !== 'owner' && !m.sortSettled && editingId !== m.id;
+        // 금액 수정 중에는 모든 카드를 스와이프 틀 없이 일반 카드로 그린다(수정 중엔 스와이프가 필요 없음).
+        // 스와이프 틀 안의 글자는 iOS Safari 에서 미리보기 금액이 바뀌어도 다시 그려지지 않는 경우가 있었다.
+        // 스와이프 가능 여부는 저장된 금액 기준으로 판단해, 미리보기 중 구조가 흔들리지 않게 한다.
+        const swipeForOwner = isOwner && m.role !== 'owner' && !m.sortSettled && editingId == null;
         const tapForSelf = !isOwner && isMe && m.role !== 'owner' && !m.settled;
 
         const cardInner = (

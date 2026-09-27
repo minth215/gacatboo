@@ -346,7 +346,9 @@ a { color: inherit; text-decoration: none; }
 /* 스와이프 삭제 */
 .swipe-wrap { position: relative; margin-bottom: 8px; overflow: hidden; border-radius: 12px; }
 .swipe-wrap .tx { margin-bottom: 0; }
-.swipe-fg { position: relative; z-index: 1; touch-action: pan-y; will-change: transform; }
+/* will-change 는 드래그 중에만 인라인으로 준다. 항상 걸어 두면 iOS Safari 가 카드를 별도 레이어로
+   만들어, 안의 금액 글자가 바뀌어도 화면이 다시 그려지지 않는 경우가 있다. */
+.swipe-fg { position: relative; z-index: 1; touch-action: pan-y; }
 .swipe-del { position: absolute; top: 0; right: 0; bottom: 0; width: 72px; display: flex; align-items: center; justify-content: center; }
 .swipe-del button {
   width: 44px; height: 44px; border-radius: 50%; border: none;

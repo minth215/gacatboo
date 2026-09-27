@@ -93,7 +93,7 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
         className="swipe-fg"
         // 밀려 있지 않을 때는 transform 을 아예 두지 않는다. iOS Safari 에서 transform 이 걸린
         // 요소는 합성 레이어가 되어, 안의 글자(금액)가 바뀌어도 화면이 다시 그려지지 않는 경우가 있다.
-        style={{ transform: dx ? `translateX(${dx}px)` : 'none', transition: dragging ? 'none' : 'transform 0.2s' }}
+        style={{ transform: dx ? `translateX(${dx}px)` : 'none', transition: dragging ? 'none' : 'transform 0.2s', willChange: dragging ? 'transform' : 'auto' }}
         onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
         onClick={tap}
       >
