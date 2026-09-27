@@ -71,6 +71,9 @@ export default function Stats() {
   const [hoverIdx, setHoverIdx] = useState(null);
   const [detail, setDetail] = useState(null); // { key, name, color, view, sourceId }
   const [viewOffset, setViewOffset] = useState(0); // 상세 그래프 좌우 스와이프 이동량(기간 단위)
+  // 그래프 점을 눌러 기간을 바꾸면 그래프 구간을 고정해 둔다({ unit, center }). 다른 방법으로 기간이 바뀌면 해제.
+  const [chartPin, setChartPin] = useState(null);
+  const pickingRef = useRef(false);
 
   const [rows, setRows] = useState([]);
   const [chartRows, setChartRows] = useState([]);
@@ -181,24 +184,31 @@ export default function Stats() {
   };
 
   // 상세 꺾은선: 선택 기간과 같은 단위로 앞뒤 여유를 둔 기간 목록(기간 선택 모드는 월 단위로)
+  const chartUnit = periodMode === 'range' ? 'month' : periodMode;
+  const chartCur = periodMode === 'range' ? range.to.slice(0, 7) : anchor;
   const chartMeta = useMemo(() => {
     if (!detail) return null;
-    const unit = periodMode === 'range' ? 'month' : periodMode;
-    const cur = periodMode === 'range' ? range.to.slice(0, 7) : anchor;
+    // 점을 눌러 기간을 옮긴 경우엔 그래프 구간(창)을 그대로 두고 선택 점만 바꾼다.
+    const center = chartPin && chartPin.unit === chartUnit ? chartPin.center : chartCur;
     const anchors = [];
-    for (let i = -CHART_BACK; i <= CHART_FWD; i++) anchors.push(shiftPeriod(unit, cur, i));
+    for (let i = -CHART_BACK; i <= CHART_FWD; i++) anchors.push(shiftPeriod(chartUnit, center, i));
     return {
-      unit,
+      unit: chartUnit,
       anchors,
-      selectedIdx: CHART_BACK,
-      start: periodBounds(unit, anchors[0]).start,
-      endExclusive: periodBounds(unit, anchors[anchors.length - 1]).endExclusive,
+      selectedIdx: anchors.indexOf(chartCur),
+      start: periodBounds(chartUnit, anchors[0]).start,
+      endExclusive: periodBounds(chartUnit, anchors[anchors.length - 1]).endExclusive,
     };
-  }, [detail, periodMode, anchor, range.to]);
+  }, [detail, chartUnit, chartCur, chartPin]);
 
   // 기간이 바뀌면 그래프 스크롤 위치를 선택 기간 기준으로 되돌림
-  // (range 모드의 anchor 는 객체라 매 렌더 새로 만들어지므로 문자열 경계값을 의존성으로 씀)
-  useEffect(() => { setViewOffset(0); }, [detail?.key, periodMode, start, endExclusive]);
+  // (range 모드의 anchor 는 객체라 매 렌더 새로 만들어지므로 문자열 경계값을 의존성으로 씀).
+  // 단 그래프의 점을 눌러 바뀐 경우엔 그래프를 움직이지 않는다(구간·스크롤 위치 유지).
+  useEffect(() => {
+    if (pickingRef.current) { pickingRef.current = false; return; }
+    setChartPin(null);
+    setViewOffset(0);
+  }, [detail?.key, periodMode, start, endExclusive]);
 
   useEffect(() => {
     if (!chartMeta) { setChartRows([]); return; }
@@ -220,8 +230,10 @@ export default function Stats() {
     });
   }, [detail, chartMeta, chartRows, tab]);
 
-  // 그래프에서 점을 눌렀을 때 그 기간으로 이동
+  // 그래프에서 점을 눌렀을 때 그 기간으로 이동. 그래프는 움직이지 않고 선택 점만 바뀐다.
   const pickPeriod = (unit, a) => {
+    pickingRef.current = true;
+    setChartPin((pin) => pin || { unit, center: chartCur });
     if (periodMode === 'range') {
       const b = periodBounds('month', a);
       setRange({ from: b.start, to: shiftDate(b.endExclusive, -1) });
