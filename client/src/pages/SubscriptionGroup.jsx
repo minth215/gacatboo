@@ -115,13 +115,18 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   // (짤랑이는 개별 스와이프로만 입금 완료 처리).
   const anyUnsettled = nonOwnerRows.some((r) => !r.settled);
 
-  // 총무는 항상 맨 위, 짤랑이는 정산 여부와 무관하게 항상 그 바로 다음(=미완료 상태여도
-  // 미완료 목록 중 가장 위), 나머지 멤버는 정산 완료 먼저, "정산 미완료" 구분선 아래 미완료 순.
+  // 총무는 항상 맨 위. 짤랑이는 정산 완료 상태면 총무 바로 다음(다른 정산 완료 멤버보다 위),
+  // 미완료 상태면 "정산 미완료" 구분선 바로 아래(미완료 멤버 중 가장 위)에 온다 — 즉 자신이
+  // 속한 완료/미완료 구간에서는 항상 맨 위. 나머지 멤버는 정산 완료 먼저, 미완료 나중.
   const ownerRow = rows.find((r) => r.role === 'owner');
-  const sortedRest = rows.filter((r) => r.role !== 'owner')
-    .sort((a, b) => (a.settled === b.settled ? 0 : a.settled ? -1 : 1));
-  const sortedRows = [ownerRow, ...(leftoverRow ? [leftoverRow] : []), ...sortedRest].filter(Boolean);
-  const dividerIdx = sortedRows.findIndex((r) => r.role !== 'owner' && r.nickname !== LEFTOVER_NAME && !r.settled);
+  const realRest = rows.filter((r) => r.role !== 'owner');
+  const settledRest = realRest.filter((r) => r.settled);
+  const unsettledRest = realRest.filter((r) => !r.settled);
+  const sortedRows = (leftoverRow && !leftoverRow.settled
+    ? [ownerRow, ...settledRest, leftoverRow, ...unsettledRest]
+    : [ownerRow, ...(leftoverRow ? [leftoverRow] : []), ...settledRest, ...unsettledRest]
+  ).filter(Boolean);
+  const dividerIdx = sortedRows.findIndex((r) => r.role !== 'owner' && !r.settled);
   const showDivider = dividerIdx !== -1;
 
   const startEdit = (m) => { setEditingId(m.id); setEditDraft(String(m.owed)); };
@@ -174,6 +179,16 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
       reloadMembers();
       loadDep();
     } catch (e) { alert(e.message); }
+  };
+
+  // 짤랑이 입금 내역 삭제(정정용). 총액이 바뀌어 자투리가 달라지는 등, 이미 입금 완료
+  // 처리한 짤랑이 기록을 지우고 새 금액으로 다시 처리하고 싶을 때 쓴다.
+  const deleteLeftoverDeposit = async () => {
+    if (!leftoverMember) return;
+    const dep = deposits.find((d) => d.member_id === leftoverMember.id);
+    if (!dep) return;
+    if (!confirm('짤랑이 입금 내역을 삭제할까요?')) return;
+    try { await db.deleteDeposit(dep.id); loadDep(); } catch (e) { alert(e.message); }
   };
 
   // 정산 미완료 본인이 자기 카드를 눌러 송금 모달에서 "입금 완료"를 누른 경우.
@@ -249,9 +264,20 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
             <div className="settle-card settle-card-leftover">
               <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{LEFTOVER_NAME}</span>
-                {m.settled
-                  ? <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--income)' }}>정산 완료</span>
-                  : <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.remaining)}</span>}
+                {m.settled ? (
+                  <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--income)' }}>정산 완료</span>
+                ) : (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.remaining)}</span>
+                    {isOwner && m.paid > 0 && (
+                      <button type="button" className="settle-pencil-btn" onClick={deleteLeftoverDeposit} aria-label="짤랑이 입금 삭제">
+                        <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                        </svg>
+                      </button>
+                    )}
+                  </span>
+                )}
               </div>
             </div>
           );
