@@ -42,7 +42,6 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
     if (fullSwipe && wrapRef.current) openDistRef.current = wrapRef.current.getBoundingClientRect().width;
     st.current = { x: e.clientX, y: e.clientY, base: openRef.current ? -openDistRef.current : 0 };
     moved.current = false;
-    e.currentTarget.setPointerCapture?.(e.pointerId);
   };
   const move = (e) => {
     if (!st.current) return;
@@ -52,6 +51,9 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
       if (Math.abs(my) > Math.abs(mx) && Math.abs(my) > 6) { st.current = null; return; }
       if (Math.abs(mx) < 6) return;
       moved.current = true; setDragging(true);
+      // 실제로 가로로 밀기 시작했을 때만 포인터를 잡는다. pointerdown 에서 바로 잡으면
+      // 클릭이 카드 전체로 넘어가 카드 안의 버튼(연필 등)이 마우스 클릭에 반응하지 않는다.
+      e.currentTarget.setPointerCapture?.(e.pointerId);
     }
     let nx = st.current.base + mx;
     const max = openDistRef.current;
@@ -89,7 +91,9 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
       </div>
       <div
         className="swipe-fg"
-        style={{ transform: `translateX(${dx}px)`, transition: dragging ? 'none' : 'transform 0.2s' }}
+        // 밀려 있지 않을 때는 transform 을 아예 두지 않는다. iOS Safari 에서 transform 이 걸린
+        // 요소는 합성 레이어가 되어, 안의 글자(금액)가 바뀌어도 화면이 다시 그려지지 않는 경우가 있다.
+        style={{ transform: dx ? `translateX(${dx}px)` : 'none', transition: dragging ? 'none' : 'transform 0.2s' }}
         onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
         onClick={tap}
       >

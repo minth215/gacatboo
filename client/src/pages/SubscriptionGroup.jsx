@@ -354,7 +354,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
               <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{LEFTOVER_NAME}</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
+                  <span key={m.owed} style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
                   {isOwner && (
                     <button type="button" className="settle-pencil-btn" onClick={deleteLeftover} aria-label="짤짤이 삭제">
                       <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -398,7 +398,9 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
         }
         const isMe = userId === m.user_id;
         // 총무 화면: 콕 찌르기/입금 완료는 카드를 왼쪽으로 밀어야 보임. 멤버 화면: 본인 카드는 눌러서 바로 입금 완료.
-        const swipeForOwner = isOwner && m.role !== 'owner' && !m.settled && editingId !== m.id;
+        // 스와이프 가능 여부(카드 감싸는 구조)는 저장된 금액 기준으로 고정한다. 금액 수정 미리보기로
+        // 완료/미완료가 바뀔 때마다 카드 구조가 바뀌어 다시 그려지면 일부 카드만 갱신돼 보일 수 있다.
+        const swipeForOwner = isOwner && m.role !== 'owner' && !m.sortSettled && editingId !== m.id;
         const tapForSelf = !isOwner && isMe && m.role !== 'owner' && !m.settled;
 
         const cardInner = (
@@ -426,7 +428,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                 </div>
               ) : (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
+                  <span key={m.owed} style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
                   {isOwner && (
                     <button type="button" className="settle-pencil-btn" onClick={() => startEdit(m)} aria-label="정산 금액 수정">
                       <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -439,7 +441,8 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
               )}
             </div>
             <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ minWidth: 0 }}>
+              {/* key 로 금액이 바뀔 때마다 노드를 새로 만들어 iOS 에서 화면 갱신이 누락되지 않게 한다 */}
+              <span key={`${m.owed}-${m.paid}-${totalSettled}`} style={{ minWidth: 0 }}>
                 {m.role === 'owner' ? (() => {
                   // 총무의 남은 금액 = 총 결제 금액 - 총무 1인 몫 - 이미 정산된 금액.
                   // (다른 멤버 각자의 owed 를 합산하면 개별 반올림 오차가 누적될 수 있어,
