@@ -449,24 +449,19 @@ export default function Stats() {
   );
 }
 
-// 기간 선택 모드의 날짜 입력: 값은 직접 그리고 네이티브 입력은 숨김(기기별 글자 크기 문제 회피).
-// 날짜나 달력 아이콘을 누르면 달력 선택기가 열린다.
+// 기간 선택 모드의 날짜 입력: 보이는 글자는 직접 그리고, 실제 <input type="date">를 영역 전체에
+// 투명하게 덮어 탭만 받게 한다(기기별 글자 크기 문제 회피 + 달력 선택기는 네이티브로 열림).
+// 분류/멤버 모달의 .catmodal-date-field 와 동일한 기법.
 function DateField({ value, onChange }) {
-  const ref = useRef(null);
-  const open = () => {
-    const el = ref.current;
-    if (!el) return;
-    try { el.showPicker(); } catch { el.focus(); el.click(); }
-  };
   return (
-    <span onClick={open} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
-      <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px' }}>{dotDate(value)}</span>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}>
+    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', alignSelf: 'stretch', gap: 4 }}>
+      <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', pointerEvents: 'none' }}>{dotDate(value)}</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', pointerEvents: 'none' }}>
         <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
       </svg>
       <input
-        type="date" ref={ref} value={value} onChange={(e) => e.target.value && onChange(e.target.value)}
-        style={{ position: 'absolute', width: 1, height: 1, opacity: 0, border: 'none', padding: 0, margin: 0, pointerEvents: 'none' }}
+        type="date" value={value} onChange={(e) => e.target.value && onChange(e.target.value)}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
       />
     </span>
   );
