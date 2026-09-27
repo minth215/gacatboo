@@ -260,29 +260,36 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
 
       {sortedRows.length === 0 ? <div className="empty">멤버가 없습니다.</div> : sortedRows.map((m, idx) => {
         if (m.nickname === LEFTOVER_NAME) {
+          // 짤랑이 카드는 정산 완료 여부와 무관하게 항상 같은 모습(금액 + 삭제 아이콘)을
+          // 유지한다. 완료/미완료는 구분선 기준 위/아래 위치로만 나타낸다.
+          // 금액은 remaining(입금 후 0이 되는 값)이 아니라 owed(자투리 원금)를 그대로 표시해
+          // 정산 완료돼도 숫자가 안 바뀌게 한다.
           const leftoverCardBox = (
             <div className="settle-card settle-card-leftover">
               <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{LEFTOVER_NAME}</span>
-                {m.settled ? (
-                  <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--income)' }}>정산 완료</span>
-                ) : (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.remaining)}</span>
-                    {isOwner && m.paid > 0 && (
-                      <button type="button" className="settle-pencil-btn" onClick={deleteLeftoverDeposit} aria-label="짤랑이 입금 삭제">
-                        <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                        </svg>
-                      </button>
-                    )}
-                  </span>
-                )}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
+                  {isOwner && leftoverMember && (
+                    <button type="button" className="settle-pencil-btn" onClick={deleteLeftoverDeposit} aria-label="짤랑이 입금 삭제">
+                      <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                      </svg>
+                    </button>
+                  )}
+                </span>
               </div>
             </div>
           );
           return (
             <Fragment key={m.id ?? LEFTOVER_NAME}>
+              {showDivider && idx === dividerIdx && (
+                <div className="settle-divider">
+                  <span className="settle-divider-line" />
+                  <span className="settle-divider-pill">정산 미완료</span>
+                  <span className="settle-divider-line" />
+                </div>
+              )}
               <div className="settle-swipe-wrap" style={{ marginTop: 10 }}>
                 {isOwner && !m.settled ? (
                   <SwipeRow
