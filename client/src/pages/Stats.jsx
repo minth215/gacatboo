@@ -46,6 +46,12 @@ const keyOf = (r, view) => {
   return { key: `i:${name}`, name };
 };
 
+// 통계에 반영할 금액. 지출은 보기(뷰)에 따라 기준이 다르다.
+// - 분류별: 정산 수입으로 메워진 만큼을 뺀 실부담액(eff). "정산" 분류가 실제로 내가 쓴 만큼만 잡히도록.
+// - 원천별·항목별: 정산 차감 없이 실제로 결제한 원금 그대로. 어느 카드로 얼마를 긁었는지,
+//   그 항목에 얼마를 결제했는지를 봐야 하므로 정산으로 돌려받은 금액을 빼지 않는다.
+const statAmount = (r, view) => (r.type === 'expense' && view !== 'category' ? Number(r.amount) : r.eff);
+
 export default function Stats() {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -93,10 +99,10 @@ export default function Stats() {
   // ---------- 집계 ----------
   const groups = useMemo(() => {
     const map = new Map();
-    rows.filter((r) => r.type === tab && r.eff > 0).forEach((r) => {
+    rows.filter((r) => r.type === tab && statAmount(r, statView) > 0).forEach((r) => {
       const { key, name } = keyOf(r, statView);
       const cur = map.get(key) || { key, name, total: 0, count: 0, sourceId: r.source_id ?? null };
-      cur.total += r.eff;
+      cur.total += statAmount(r, statView);
       cur.count += 1;
       map.set(key, cur);
     });
@@ -204,10 +210,11 @@ export default function Stats() {
 
   const chartPoints = useMemo(() => {
     if (!detail || !chartMeta) return [];
-    const mine = chartRows.filter((r) => r.type === tab && r.eff > 0 && matchesDetail(r, detail));
+    const mine = chartRows.filter((r) => r.type === tab && statAmount(r, detail.view) > 0 && matchesDetail(r, detail));
     return chartMeta.anchors.map((a, i) => {
       const b = periodBounds(chartMeta.unit, a);
-      const amount = mine.filter((r) => r.date >= b.start && r.date < b.endExclusive).reduce((s, r) => s + r.eff, 0);
+      const amount = mine.filter((r) => r.date >= b.start && r.date < b.endExclusive)
+        .reduce((s, r) => s + statAmount(r, detail.view), 0);
       return { anchor: a, label: periodTickLabel(chartMeta.unit, a), amount, active: i === chartMeta.selectedIdx };
     });
   }, [detail, chartMeta, chartRows, tab]);
@@ -223,7 +230,7 @@ export default function Stats() {
   };
 
   const detailTxs = useMemo(
-    () => (detail ? rows.filter((r) => r.type === tab && r.eff > 0 && matchesDetail(r, detail)) : []),
+    () => (detail ? rows.filter((r) => r.type === tab && statAmount(r, detail.view) > 0 && matchesDetail(r, detail)) : []),
     [detail, rows, tab],
   );
 
