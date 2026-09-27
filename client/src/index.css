@@ -403,7 +403,6 @@ a { color: inherit; text-decoration: none; }
   font-family: inherit; font-size: 13.75px; font-weight: 700; text-decoration: none;
 }
 .pay-link-btn.account { background: #f4f2f0; color: #191722; }
-.pay-link-btn.toss { background: #0064FF; color: #fff; }
 .pay-link-btn.kakao { background: #FEE500; color: #191722; }
 
 /* 외부 멤버 콕 찌르기 불가 안내 토스트 */

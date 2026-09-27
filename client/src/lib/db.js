@@ -239,7 +239,6 @@ export const db = {
       category: patch.category, category_emoji: patch.category_emoji || '', color: patch.color || '',
       start_date: patch.start_date || null, end_date: patch.end_date || null,
       owner_account: (patch.owner_account ?? '').trim(),
-      owner_toss_link: (patch.owner_toss_link ?? '').trim(),
       owner_kakaopay_link: (patch.owner_kakaopay_link ?? '').trim(),
     }).eq('id', id).select().single());
     // 그룹 종료일자가 입력되면 멤버들의 종료일자도 함께 맞춤

@@ -188,12 +188,6 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
 
   // http(s) 스킴이 없으면 붙여서 안전하게 새 탭으로 열리도록 함
   const withScheme = (v) => (v && !/^https?:\/\//i.test(v) ? `https://${v}` : v);
-  const tossHref = (m) => {
-    const v = (group?.owner_toss_link || '').trim();
-    if (!v) return '';
-    if (/^https?:\/\//i.test(v)) return v;
-    return `https://toss.me/${v.replace(/^@/, '')}/${m.remaining}`;
-  };
   const kakaopayHref = withScheme((group?.owner_kakaopay_link || '').trim());
 
   return (
@@ -340,13 +334,10 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                   {group.owner_account} 복사
                 </button>
               )}
-              {tossHref(payOpen) && (
-                <a className="pay-link-btn toss" href={tossHref(payOpen)} target="_blank" rel="noreferrer">토스로 보내기</a>
-              )}
               {kakaopayHref && (
                 <a className="pay-link-btn kakao" href={kakaopayHref} target="_blank" rel="noreferrer">카카오페이로 보내기</a>
               )}
-              {!group?.owner_account && !tossHref(payOpen) && !kakaopayHref && (
+              {!group?.owner_account && !kakaopayHref && (
                 <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>총무가 아직 입금 정보를 등록하지 않았습니다.</p>
               )}
             </div>

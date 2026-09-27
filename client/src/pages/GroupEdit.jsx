@@ -31,7 +31,7 @@ export default function GroupEdit() {
         name: group.name, description: group.description || '',
         category: group.category, category_emoji: group.category_emoji || '', color: group.color || '',
         start_date: group.start_date || '', end_date: group.end_date || '',
-        owner_account: group.owner_account || '', owner_toss_link: group.owner_toss_link || '', owner_kakaopay_link: group.owner_kakaopay_link || '',
+        owner_account: group.owner_account || '', owner_kakaopay_link: group.owner_kakaopay_link || '',
       });
     }).catch((e) => { alert(e.message); nav('/groups'); });
     db.listGroupCategories().then(setGroupCats).catch(() => {});
@@ -148,10 +148,6 @@ export default function GroupEdit() {
           <div className="field">
             <label>입금 계좌</label>
             <input value={form.owner_account} onChange={(e) => setForm({ ...form, owner_account: e.target.value })} placeholder="예: 카카오뱅크 3333-01-1234567" />
-          </div>
-          <div className="field">
-            <label>토스 송금 링크 <span className="small muted">(toss.me 아이디 또는 전체 링크)</span></label>
-            <input value={form.owner_toss_link} onChange={(e) => setForm({ ...form, owner_toss_link: e.target.value })} placeholder="예: mynickname" />
           </div>
           <div className="field">
             <label>카카오페이 송금 링크</label>
