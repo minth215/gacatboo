@@ -35,9 +35,9 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
     try { await db.removeMember(m.id); onReload(); } catch (e) { alert(e.message); }
   };
 
-  // "짤랑이"는 정산 탭에서 자투리 정산액을 기록하기 위해 자동으로 만들어지는 가상 멤버라
+  // "짤짤이"는 정산 탭에서 자투리 정산액을 기록하기 위해 자동으로 만들어지는 가상 멤버라
   // 여기서 실수로 수정/삭제되지 않도록 목록에서 제외한다(SubscriptionGroup.jsx 의 LEFTOVER_NAME).
-  const visibleMembers = members.filter((m) => m.nickname !== '짤랑이');
+  const visibleMembers = members.filter((m) => m.nickname !== '짤짤이' && m.nickname !== '짤랑이');
 
   return (
     <>

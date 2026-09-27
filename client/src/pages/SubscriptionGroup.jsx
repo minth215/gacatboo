@@ -12,7 +12,9 @@ const PERIOD_UNITS = ['day', 'week', 'month', 'year'];
 const KEEP = '__keep__'; // id 없이 이름만 있는 원천/분류(스냅샷) 유지용 센티넬
 // 정산 금액이 인원수로 안 나눠떨어져 남는 자투리(카카오페이 등이 별도로 입금해주는 몫)를
 // 기록하기 위한 가상 멤버의 닉네임. 이 닉네임으로 그룹 멤버를 찾아 식별한다.
-const LEFTOVER_NAME = '짤랑이';
+const LEFTOVER_NAME = '짤짤이';
+// 이전 명칭('짤랑이')으로 이미 만들어진 행도 같은 가상 멤버로 인식한다(0018 마이그레이션 전 대비).
+const isLeftoverName = (name) => name === LEFTOVER_NAME || name === '짤랑이';
 
 // 날짜(dateStr)가 속한 달의 정기결제일(billingDay)로 날짜를 맞춰줌.
 // 예: dateStr=2026-08-22, billingDay=19 → 2026-08-19 (그 달의 마지막 날짜를 넘지 않도록 보정)
@@ -82,7 +84,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const toastTimer = useRef(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [payOpen, setPayOpen] = useState(null); // 정산 미완료 본인이 자기 카드를 눌렀을 때 뜨는 송금 안내 모달 대상
-  // 짤랑이를 미정산 상태(입금 내역 없음)에서 삭제하면 DB 에는 지울 게 없어 화면에서만
+  // 짤짤이를 미정산 상태(입금 내역 없음)에서 삭제하면 DB 에는 지울 게 없어 화면에서만
   // 감춘다. 총 결제 금액이 바뀌어 자투리 상황 자체가 달라지면 다시 보여준다.
   const [leftoverDismissed, setLeftoverDismissed] = useState(false);
   // 금액 수정 중 "자동 계산" 토글. 켜져 있으면 나머지 멤버가 남은 금액을 똑같이 나눠 갖는다.
@@ -92,17 +94,17 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const commitPendingRef = useRef(false);
 
   const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
-  const leftoverMember = members.find((m) => m.nickname === LEFTOVER_NAME);
-  // 정산 인원 수·1인당 몫은 짤랑이(자투리 가상 멤버)를 빼고 계산한다.
-  const realMembers = members.filter((m) => m.nickname !== LEFTOVER_NAME);
+  const leftoverMember = members.find((m) => isLeftoverName(m.nickname));
+  // 정산 인원 수·1인당 몫은 짤짤이(자투리 가상 멤버)를 빼고 계산한다.
+  const realMembers = members.filter((m) => !isLeftoverName(m.nickname));
   const memberCount = realMembers.length || 1;
-  // 1인당 몫은 내림으로 나누고, 남는 1원 단위 자투리는 짤랑이로 모은다(항상 0 이상).
+  // 1인당 몫은 내림으로 나누고, 남는 1원 단위 자투리는 짤짤이로 모은다(항상 0 이상).
   const defaultShare = Math.floor(totalPaid / memberCount);
   const defaultLeftover = totalPaid - defaultShare * memberCount;
   const baseOwedOf = (m) => (m.settlement_override != null ? Number(m.settlement_override) : defaultShare);
-  // 자동 계산으로 저장된 자투리는 짤랑이 멤버 행의 settlement_override 에 보관한다.
+  // 자동 계산으로 저장된 자투리는 짤짤이 멤버 행의 settlement_override 에 보관한다.
   const baseLeftover = leftoverMember?.settlement_override != null ? Number(leftoverMember.settlement_override) : defaultLeftover;
-  // 총 결제 금액·인원이 바뀌면 이전에 감춰둔 짤랑이 카드를 다시 보여준다.
+  // 총 결제 금액·인원이 바뀌면 이전에 감춰둔 짤짤이 카드를 다시 보여준다.
   useEffect(() => { setLeftoverDismissed(false); }, [totalPaid, memberCount]);
   useEffect(() => {
     if (!commitPendingRef.current) return;
@@ -112,7 +114,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   }, [members]);
 
   // 자동 계산: 수정 중인 멤버의 금액을 x 로 두고, 나머지 멤버 전원(총무 포함)이 남은 금액을
-  // 내림으로 똑같이 나눠 가지며 1원 단위 자투리는 짤랑이가 된다.
+  // 내림으로 똑같이 나눠 가지며 1원 단위 자투리는 짤짤이가 된다.
   const redistribute = (editedId, x) => {
     const others = realMembers.filter((o) => o.id !== editedId);
     const pool = totalPaid - x;
@@ -140,7 +142,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     // 정렬(구분선 위/아래)은 수정 중에도 저장된 금액 기준으로 고정해, 입력 중 카드가 튀지 않게 한다.
     return { ...m, owed, paid, remaining, settled: remaining <= 0, sortSettled: baseOwedOf(m) - paid <= 0 };
   });
-  // 짤랑이 카드: 자투리가 0원(입금 기록도 없음)이거나 삭제해 감춘 경우 표시하지 않는다.
+  // 짤짤이 카드: 자투리가 0원(입금 기록도 없음)이거나 삭제해 감춘 경우 표시하지 않는다.
   // 단 자동 계산 미리보기로 새 자투리가 생기면 감춰둔 상태여도 보여준다.
   // 실제 group_members 행은 처음 "입금 완료"(또는 자동 계산 저장)시점에 생성하므로,
   // 그 전에는 가상 행으로만 존재한다.
@@ -149,7 +151,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     ? (() => {
         const remaining = Math.max(leftover - leftoverPaid, 0);
         const base = leftoverMember || { id: null, nickname: LEFTOVER_NAME, role: 'member', is_account: false };
-        return { ...base, owed: leftover, paid: leftoverPaid, remaining, settled: remaining <= 0, sortSettled: remaining <= 0 };
+        return { ...base, isLeftover: true, owed: leftover, paid: leftoverPaid, remaining, settled: remaining <= 0, sortSettled: remaining <= 0 };
       })()
     : null;
 
@@ -157,16 +159,16 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const nonOwnerRows = rows.filter((r) => r.role !== 'owner');
   const totalSettled = nonOwnerRows.reduce((s, r) => s + r.paid, 0) + (leftoverRow ? leftoverRow.paid : 0);
   const totalRemaining = nonOwnerRows.reduce((s, r) => s + r.remaining, 0) + (leftoverRow ? leftoverRow.remaining : 0);
-  // "정산 일괄 완료"/"정산 요청하기" 버튼은 실제 멤버 대상 기능이라 짤랑이는 제외한다
-  // (짤랑이는 개별 스와이프로만 입금 완료 처리).
+  // "정산 일괄 완료"/"정산 요청하기" 버튼은 실제 멤버 대상 기능이라 짤짤이는 제외한다
+  // (짤짤이는 개별 스와이프로만 입금 완료 처리).
   const anyUnsettled = nonOwnerRows.some((r) => !r.settled);
-  // 총무가 개별 정산 금액을 임의로 낮춰서, 전원 몫의 합(총무 포함 + 짤랑이)이
+  // 총무가 개별 정산 금액을 임의로 낮춰서, 전원 몫의 합(총무 포함 + 짤짤이)이
   // 총 결제 금액보다 적어지면 총무가 손해를 보게 되므로 경고로 대체한다.
-  // (짤랑이 카드를 삭제해 감춰도 자투리 금액 자체는 합계에 포함한다.)
+  // (짤짤이 카드를 삭제해 감춰도 자투리 금액 자체는 합계에 포함한다.)
   const sumOwed = rows.reduce((s, r) => s + r.owed, 0) + leftover;
   const underCollected = sumOwed < totalPaid;
 
-  // 총무는 항상 맨 위. 짤랑이는 정산 완료 상태면 총무 바로 다음(다른 정산 완료 멤버보다 위),
+  // 총무는 항상 맨 위. 짤짤이는 정산 완료 상태면 총무 바로 다음(다른 정산 완료 멤버보다 위),
   // 미완료 상태면 "정산 미완료" 구분선 바로 아래(미완료 멤버 중 가장 위)에 온다 — 즉 자신이
   // 속한 완료/미완료 구간에서는 항상 맨 위. 나머지 멤버는 정산 완료 먼저, 미완료 나중.
   const ownerRow = rows.find((r) => r.role === 'owner');
@@ -191,7 +193,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
       } else if (!autoCalc) {
         await db.updateMemberSettlementOverride(m.id, draftValue);
       } else {
-        // 자동 계산: 수정한 멤버와 나머지 멤버 전원의 금액을 저장하고, 새 자투리도 짤랑이에 저장한다.
+        // 자동 계산: 수정한 멤버와 나머지 멤버 전원의 금액을 저장하고, 새 자투리도 짤짤이에 저장한다.
         const { others, share, rest } = redistribute(m.id, draftValue);
         await Promise.all([
           db.updateMemberSettlementOverride(m.id, draftValue),
@@ -245,27 +247,27 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     try { await createSettleDeposit(m); loadDep(); } catch (e) { alert(e.message); }
   };
 
-  // 짤랑이(자투리) 입금 완료: 실제 group_members 행이 아직 없으면 이 시점에 만든다.
+  // 짤짤이(자투리) 입금 완료: 실제 group_members 행이 아직 없으면 이 시점에 만든다.
   const markLeftoverPaid = async () => {
     if (!leftoverRow || leftoverRow.remaining <= 0) return;
     try {
       let member = leftoverMember;
       if (!member) member = await db.addMember(gid, { nickname: LEFTOVER_NAME, start_date: today(), end_date: '', contact: '', memo: '', username: '' });
       // content 는 기본값('정산')을 그대로 써서, 입금 내역에 다른 멤버와 같은 형식으로
-      // "정산 - 짤랑이" 로 표시되게 한다.
+      // "정산 - 짤짤이" 로 표시되게 한다.
       await createSettleDeposit({ id: member.id, remaining: leftoverRow.remaining });
       reloadMembers();
       loadDep();
     } catch (e) { alert(e.message); }
   };
 
-  // 짤랑이 삭제. 입금 내역이 있으면(정산 상태) 카드와 입금 내역을 함께 지우고,
+  // 짤짤이 삭제. 입금 내역이 있으면(정산 상태) 카드와 입금 내역을 함께 지우고,
   // 없으면(미정산 상태) 카드만 화면에서 감춘다(자투리 상황이 달라지면 다시 나타남).
-  // 짤랑이 멤버 행 자체는 자동 계산으로 저장된 자투리 금액을 들고 있어서 지우지 않는다
+  // 짤짤이 멤버 행 자체는 자동 계산으로 저장된 자투리 금액을 들고 있어서 지우지 않는다
   // (멤버 탭에는 원래 표시되지 않는 숨은 행).
   const deleteLeftover = async () => {
     const deps = leftoverMember ? deposits.filter((d) => d.member_id === leftoverMember.id) : [];
-    const msg = deps.length ? '짤랑이를 삭제하시겠습니까? 입금 내역도 함께 삭제됩니다.' : '짤랑이를 삭제하시겠습니까?';
+    const msg = deps.length ? '짤짤이를 삭제하시겠습니까? 입금 내역도 함께 삭제됩니다.' : '짤짤이를 삭제하시겠습니까?';
     if (!confirm(msg)) return;
     try {
       for (const d of deps) await db.deleteDeposit(d.id);
@@ -342,8 +344,8 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
       </div>
 
       {sortedRows.length === 0 ? <div className="empty">멤버가 없습니다.</div> : sortedRows.map((m, idx) => {
-        if (m.nickname === LEFTOVER_NAME) {
-          // 짤랑이 카드는 정산 완료 여부와 무관하게 항상 같은 모습(금액 + 삭제 아이콘)을
+        if (m.isLeftover) {
+          // 짤짤이 카드는 정산 완료 여부와 무관하게 항상 같은 모습(금액 + 삭제 아이콘)을
           // 유지한다. 완료/미완료는 구분선 기준 위/아래 위치로만 나타낸다.
           // 금액은 remaining(입금 후 0이 되는 값)이 아니라 owed(자투리 원금)를 그대로 표시해
           // 정산 완료돼도 숫자가 안 바뀌게 한다.
@@ -354,7 +356,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
                   {isOwner && (
-                    <button type="button" className="settle-pencil-btn" onClick={deleteLeftover} aria-label="짤랑이 삭제">
+                    <button type="button" className="settle-pencil-btn" onClick={deleteLeftover} aria-label="짤짤이 삭제">
                       <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                       </svg>
