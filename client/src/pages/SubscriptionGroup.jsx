@@ -186,6 +186,17 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     showToast(ok ? '계좌번호가 복사되었습니다.' : '복사에 실패했습니다.');
   };
 
+  // 토스 앱의 빈 송금 입력 화면(계좌·금액 직접 입력)으로 이동. 토스가 공식 문서화한
+  // 기능이 아니라 비공식적으로 알려진 스킴이라 언제든 동작이 바뀔 수 있음에 유의.
+  // 계좌가 등록돼 있으면 미리 클립보드에 복사해 붙여넣기만 하면 되게 해준다.
+  const openTossBlank = async () => {
+    if (group?.owner_account) {
+      const ok = await copyText(group.owner_account);
+      showToast(ok ? '계좌번호가 복사되었습니다. 토스 계좌 입력란에 붙여넣어 주세요.' : '복사에 실패했습니다.');
+    }
+    window.location.href = 'supertoss://send';
+  };
+
   // http(s) 스킴이 없으면 붙여서 안전하게 새 탭으로 열리도록 함
   const withScheme = (v) => (v && !/^https?:\/\//i.test(v) ? `https://${v}` : v);
   const kakaopayHref = withScheme((group?.owner_kakaopay_link || '').trim());
@@ -334,13 +345,14 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                   {group.owner_account} 복사
                 </button>
               )}
+              <button type="button" className="pay-link-btn toss" onClick={openTossBlank}>
+                {group?.owner_account ? '토스로 보내기 (계좌 복사됨)' : '토스 앱 열기'}
+              </button>
               {kakaopayHref && (
                 <a className="pay-link-btn kakao" href={kakaopayHref} target="_blank" rel="noreferrer">카카오페이로 보내기</a>
               )}
-              {!group?.owner_account && !kakaopayHref && (
-                <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>총무가 아직 입금 정보를 등록하지 않았습니다.</p>
-              )}
             </div>
+            <p className="small muted" style={{ textAlign: 'center', margin: '-4px 0 0' }}>토스 버튼은 비공식 방식이라 계좌·금액은 토스 앱에서 직접 입력해야 해요.</p>
 
             <button type="button" className="btn-settle-all" style={{ marginTop: 0 }} onClick={() => confirmSelfPaid(payOpen)}>이미 보냈어요 · 입금 완료</button>
           </div>
