@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import {
-  fmtNum, fmtWon, currentMonth, currentYear, today, dotDate,
+  fmtNum, fmtWon, currentMonth, currentYear, today, dotDate, shiftDate,
   weekStartOf, periodBounds, periodLabel, shiftPeriod, periodTickLabel,
 } from '../lib/format.js';
 import PageHeader from '../components/PageHeader.jsx';
@@ -14,7 +14,10 @@ import TransactionList from '../components/TransactionList.jsx';
 // 도넛/표에서 쓰는 파스텔 팔레트(시안)
 const PALETTE = ['#FF6F91', '#F0A13D', '#5B9BD8', '#8B7FE8', '#2CDDB9', '#FDE2E2', '#FFB4A2', '#9AD0C2', '#C6A8E8', '#7FB3D5'];
 const PERIOD_LABELS = { week: '주별', month: '월별', year: '연별', range: '기간' };
-const CHART_POINTS = 6; // 상세 꺾은선 그래프에 표시할 기간 수
+// 상세 꺾은선 그래프: 한 번에 보이는 기간 수와, 좌우 스와이프로 더 볼 수 있는 여유 기간
+const CHART_VISIBLE = 6;
+const CHART_BACK = 17;
+const CHART_FWD = 4;
 
 const roundBtn = {
   width: 32, height: 32, borderRadius: '50%', border: 'none', background: '#fff',
@@ -52,7 +55,7 @@ export default function Stats() {
   const [month, setMonth] = useState(currentMonth());
   const [week, setWeek] = useState(() => weekStartOf(today()));
   const [year, setYear] = useState(currentYear());
-  const [range, setRange] = useState(() => ({ from: today(), to: today() }));
+  const [range, setRange] = useState(() => ({ from: shiftDate(today(), -6), to: today() }));
 
   const [tab, setTab] = useState('expense'); // expense | income
   const [statView, setStatView] = useState('category'); // category | source | item
@@ -60,6 +63,7 @@ export default function Stats() {
   const [sort, setSort] = useState({ key: 'amount', dir: 'desc' });
   const [hoverIdx, setHoverIdx] = useState(null);
   const [detail, setDetail] = useState(null); // { key, name, color, view, sourceId }
+  const [viewOffset, setViewOffset] = useState(0); // 상세 그래프 좌우 스와이프 이동량(기간 단위)
 
   const [rows, setRows] = useState([]);
   const [chartRows, setChartRows] = useState([]);
@@ -169,20 +173,25 @@ export default function Stats() {
     return ((r.content || '').trim() || r.category_name || '미분류') === d.name;
   };
 
-  // 상세 꺾은선: 같은 단위의 최근 CHART_POINTS 기간(기간 선택 모드는 월 단위로)
+  // 상세 꺾은선: 선택 기간과 같은 단위로 앞뒤 여유를 둔 기간 목록(기간 선택 모드는 월 단위로)
   const chartMeta = useMemo(() => {
     if (!detail) return null;
     const unit = periodMode === 'range' ? 'month' : periodMode;
-    const last = periodMode === 'range' ? range.to.slice(0, 7) : anchor;
+    const cur = periodMode === 'range' ? range.to.slice(0, 7) : anchor;
     const anchors = [];
-    for (let i = CHART_POINTS - 1; i >= 0; i--) anchors.push(shiftPeriod(unit, last, -i));
+    for (let i = -CHART_BACK; i <= CHART_FWD; i++) anchors.push(shiftPeriod(unit, cur, i));
     return {
       unit,
       anchors,
+      selectedIdx: CHART_BACK,
       start: periodBounds(unit, anchors[0]).start,
       endExclusive: periodBounds(unit, anchors[anchors.length - 1]).endExclusive,
     };
   }, [detail, periodMode, anchor, range.to]);
+
+  // 기간이 바뀌면 그래프 스크롤 위치를 선택 기간 기준으로 되돌림
+  // (range 모드의 anchor 는 객체라 매 렌더 새로 만들어지므로 문자열 경계값을 의존성으로 씀)
+  useEffect(() => { setViewOffset(0); }, [detail?.key, periodMode, start, endExclusive]);
 
   useEffect(() => {
     if (!chartMeta) { setChartRows([]); return; }
@@ -196,12 +205,22 @@ export default function Stats() {
   const chartPoints = useMemo(() => {
     if (!detail || !chartMeta) return [];
     const mine = chartRows.filter((r) => r.type === tab && r.eff > 0 && matchesDetail(r, detail));
-    return chartMeta.anchors.map((a) => {
+    return chartMeta.anchors.map((a, i) => {
       const b = periodBounds(chartMeta.unit, a);
       const amount = mine.filter((r) => r.date >= b.start && r.date < b.endExclusive).reduce((s, r) => s + r.eff, 0);
-      return { label: periodTickLabel(chartMeta.unit, a), amount, active: a === chartMeta.anchors[chartMeta.anchors.length - 1] };
+      return { anchor: a, label: periodTickLabel(chartMeta.unit, a), amount, active: i === chartMeta.selectedIdx };
     });
   }, [detail, chartMeta, chartRows, tab]);
+
+  // 그래프에서 점을 눌렀을 때 그 기간으로 이동
+  const pickPeriod = (unit, a) => {
+    if (periodMode === 'range') {
+      const b = periodBounds('month', a);
+      setRange({ from: b.start, to: shiftDate(b.endExclusive, -1) });
+    } else if (unit === 'week') setWeek(a);
+    else if (unit === 'year') setYear(a);
+    else setMonth(a);
+  };
 
   const detailTxs = useMemo(
     () => (detail ? rows.filter((r) => r.type === tab && r.eff > 0 && matchesDetail(r, detail)) : []),
@@ -210,11 +229,11 @@ export default function Stats() {
 
   // ---------- 화면 ----------
   const periodBar = (
-    <div style={{ marginTop: 14 }}>
+    <div style={{ marginTop: 3 }}>
       {periodMode === 'range' ? (
-        <div style={{ height: 32, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <DateField value={range.from} align="flex-end" onChange={(v) => setRange((r) => ({ ...r, from: v, to: v > r.to ? v : r.to }))} />
-          <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>~</span>
+        <div style={{ height: 32, display: 'flex', alignItems: 'center', gap: 7 }}>
+          <DateField value={range.from} onChange={(v) => setRange((r) => ({ ...r, from: v, to: v > r.to ? v : r.to }))} />
+          <span style={{ fontSize: 13.25, fontWeight: 700, color: '#6c6779' }}>~</span>
           <DateField value={range.to} onChange={(v) => setRange((r) => ({ ...r, to: v, from: v < r.from ? v : r.from }))} />
         </div>
       ) : (
@@ -229,14 +248,23 @@ export default function Stats() {
     </div>
   );
 
+  // 그래프에서 보이는 구간의 왼쪽 인덱스(선택 기간이 오른쪽 끝에 오도록)
+  const chartLeftBase = CHART_BACK - (CHART_VISIBLE - 1);
+  const chartLeftIndex = Math.max(0, Math.min(Math.max(0, chartPoints.length - CHART_VISIBLE), chartLeftBase + viewOffset));
+
   if (detail) {
     return (
       <div style={{ padding: '44px 0 12px' }}>
         <PageHeader title={detail.name} flat onBack={() => setDetail(null)} />
         {periodBar}
 
-        <div style={{ marginTop: 22, background: '#fff', borderRadius: 20, padding: '16px 16px 34px', boxShadow: '0 6px 20px rgba(25,23,34,.07)' }}>
-          <LineChart points={chartPoints} color={detail.color} />
+        <div style={{ marginTop: 10, background: '#fff', borderRadius: 20, padding: '16px 16px 10px', boxShadow: '0 6px 20px rgba(25,23,34,.07)' }}>
+          <LineChart
+            points={chartPoints} color={detail.color}
+            leftIndex={chartLeftIndex} visibleCount={CHART_VISIBLE}
+            onScroll={(next) => setViewOffset(next - chartLeftBase)}
+            onPick={(i) => { const p = chartPoints[i]; if (p && !p.active) pickPeriod(chartMeta.unit, p.anchor); }}
+          />
         </div>
 
         <div style={{ marginTop: 4 }}>
@@ -296,36 +324,37 @@ export default function Stats() {
 
       {periodBar}
 
-      {/* 고양이 말풍선: 원형 그래프 ↔ 표 전환 */}
-      <div style={{ marginTop: 6, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', gap: 8, paddingRight: 20, position: 'relative', zIndex: 3 }}>
-        <button aria-label="뷰 전환" onClick={() => setChartMode((m) => (m === 'donut' ? 'table' : 'donut'))} style={{
-          position: 'relative', width: 34, height: 26, borderRadius: 12, border: 'none', background: '#eceae7',
-          color: '#4a4640', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-          padding: 0, flex: 'none', marginBottom: 16,
-        }}>
-          <svg width="8" height="7.5" viewBox="0 0 8 7.5" style={{ position: 'absolute', right: 3, bottom: -4.5, pointerEvents: 'none' }} aria-hidden="true"><path d="M1.1 0 Q-0.8 5.3 7.9 6.8 Q4.7 4.7 4.2 0 Z" fill="#eceae7" /></svg>
-          {chartMode === 'donut' ? (
-            <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="12" y1="3" x2="12" y2="21" /></svg>
-          ) : (
-            <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83" /><path d="M22 12A10 10 0 0 0 12 2v10z" /></svg>
-          )}
-        </button>
-        <CatMascot width={70} style={{ display: 'block' }} />
-      </div>
-
-      {/* 수입/지출 */}
-      <div style={{ display: 'flex', background: '#f4f2f0', borderRadius: 999, padding: 4 }}>
-        {[['income', '수입'], ['expense', '지출']].map(([t, label]) => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            flex: 1, border: 'none', borderRadius: 999, padding: '11px 0', fontFamily: 'inherit',
-            fontSize: 13.25, fontWeight: 700, cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? '#191722' : '#8b8798',
-          }}>{label}</button>
-        ))}
+      {/* 수입/지출 + 고양이 말풍선(원형 그래프 ↔ 표 전환) — 가계부 요약 카드와 동일한 배치 */}
+      <div style={{ position: 'relative', marginTop: 8 }}>
+        <div style={{ position: 'absolute', right: 8, bottom: '100%', display: 'flex', alignItems: 'flex-end', gap: 3, zIndex: 3 }}>
+          <button aria-label="뷰 전환" onClick={() => setChartMode((m) => (m === 'donut' ? 'table' : 'donut'))} style={{
+            position: 'relative', width: 34, height: 26, borderRadius: 12, border: 'none', background: '#eceae7',
+            color: '#4a4640', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            padding: 0, flex: 'none', marginBottom: 12,
+          }}>
+            <svg width="8" height="7.5" viewBox="0 0 8 7.5" style={{ position: 'absolute', right: 3, bottom: -4.5, pointerEvents: 'none' }} aria-hidden="true"><path d="M1.1 0 Q-0.8 5.3 7.9 6.8 Q4.7 4.7 4.2 0 Z" fill="#eceae7" /></svg>
+            {chartMode === 'donut' ? (
+              <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="12" y1="3" x2="12" y2="21" /></svg>
+            ) : (
+              <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83" /><path d="M22 12A10 10 0 0 0 12 2v10z" /></svg>
+            )}
+          </button>
+          <CatMascot width={70} />
+        </div>
+        <div style={{ display: 'flex', background: '#f4f2f0', borderRadius: 999, padding: 4 }}>
+          {[['income', '수입'], ['expense', '지출']].map(([t, label]) => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              flex: 1, border: 'none', borderRadius: 999, padding: '11px 0', fontFamily: 'inherit',
+              fontSize: 13.25, fontWeight: 700, cursor: 'pointer',
+              background: tab === t ? '#fff' : 'transparent', color: tab === t ? '#191722' : '#8b8798',
+            }}>{label}</button>
+          ))}
+        </div>
       </div>
 
       {loading && !rows.length ? <Spinner /> : groups.length === 0 ? (
-        <div className="empty">해당 기간 데이터가 없습니다.</div>
+        // 수입/지출 탭 아래부터 하단 탭 바 바로 위까지의 본문 영역 정중앙
+        <div className="empty empty-center" style={{ minHeight: 'calc(100vh - 229px - var(--safe-bottom))' }}>해당 기간 데이터가 없습니다.</div>
       ) : chartMode === 'donut' ? (
         <>
           <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center', position: 'relative' }}>
@@ -420,8 +449,9 @@ export default function Stats() {
   );
 }
 
-// 기간 선택 모드의 날짜 입력: 값은 직접 그리고 네이티브 입력은 숨김(기기별 글자 크기 문제 회피)
-function DateField({ value, onChange, align = 'flex-start' }) {
+// 기간 선택 모드의 날짜 입력: 값은 직접 그리고 네이티브 입력은 숨김(기기별 글자 크기 문제 회피).
+// 날짜나 달력 아이콘을 누르면 달력 선택기가 열린다.
+function DateField({ value, onChange }) {
   const ref = useRef(null);
   const open = () => {
     const el = ref.current;
@@ -429,53 +459,109 @@ function DateField({ value, onChange, align = 'flex-start' }) {
     try { el.showPicker(); } catch { el.focus(); el.click(); }
   };
   return (
-    <div style={{ position: 'relative', display: 'inline-flex', width: 82, justifyContent: align }}>
-      <span onClick={open} style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', cursor: 'pointer' }}>{dotDate(value)}</span>
+    <span onClick={open} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+      <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px' }}>{dotDate(value)}</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}>
+        <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
       <input
         type="date" ref={ref} value={value} onChange={(e) => e.target.value && onChange(e.target.value)}
         style={{ position: 'absolute', width: 1, height: 1, opacity: 0, border: 'none', padding: 0, margin: 0, pointerEvents: 'none' }}
       />
-    </div>
+    </span>
   );
 }
 
-// 상세 꺾은선 그래프
-function LineChart({ points, color }) {
-  if (!points.length) return null;
-  const W = 280, H = 110, padX = 18, plotTop = 26, plotH = 52;
+// 상세 꺾은선 그래프. 좌우로 밀면 과거/미래 기간이 스크롤되듯 따라오고, 점을 누르면 그 기간으로 이동.
+// viewBox 를 실제 렌더 폭과 1:1 로 맞춰(가로만 늘이지 않음) 점이 타원이 되지 않게 한다.
+const CHART_H = 126, CHART_PAD_X = 18, CHART_PLOT_TOP = 26, CHART_PLOT_H = 52, CHART_AXIS_Y = 100;
+
+function LineChart({ points, color, leftIndex, visibleCount, onScroll, onPick }) {
+  const wrapRef = useRef(null);
+  const [width, setWidth] = useState(0);
+  const [dragPx, setDragPx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const st = useRef(null);
+  const moved = useRef(false);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    setWidth(el.getBoundingClientRect().width);
+    const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const step = width ? (width - CHART_PAD_X * 2) / Math.max(1, visibleCount - 1) : 0;
+  const maxLeft = Math.max(0, points.length - visibleCount);
   const amounts = points.map((p) => p.amount);
-  const max = Math.max(...amounts), min = Math.min(...amounts);
+  const max = Math.max(...amounts, 0), min = Math.min(...amounts, 0);
   const span = Math.max(1, max - min);
-  const xs = points.map((_, i) => (points.length === 1 ? W / 2 : padX + i * ((W - padX * 2) / (points.length - 1))));
-  const ys = points.map((p) => plotTop + (1 - (p.amount - min) / span) * plotH);
+  const xs = points.map((_, i) => CHART_PAD_X + i * step);
+  const ys = points.map((p) => CHART_PLOT_TOP + (1 - (p.amount - min) / span) * CHART_PLOT_H);
+
+  const clampDrag = (px) => Math.max((leftIndex - maxLeft) * step, Math.min(leftIndex * step, px));
+  const down = (e) => {
+    if (!step) return;
+    st.current = { x: e.clientX, y: e.clientY };
+    moved.current = false;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const move = (e) => {
+    if (!st.current) return;
+    const dx = e.clientX - st.current.x;
+    if (!moved.current) {
+      if (Math.abs(e.clientY - st.current.y) > Math.abs(dx) && Math.abs(e.clientY - st.current.y) > 6) { st.current = null; return; }
+      if (Math.abs(dx) < 6) return;
+      moved.current = true;
+      setDragging(true);
+    }
+    setDragPx(clampDrag(dx));
+  };
+  const up = (e) => {
+    if (!st.current) return;
+    const startX = st.current.x;
+    st.current = null;
+    setDragging(false);
+    if (!moved.current) { // 탭: 가장 가까운 점 선택
+      const rect = e.currentTarget.getBoundingClientRect();
+      const localX = startX - rect.left - dragPx + leftIndex * step;
+      let best = 0;
+      xs.forEach((x, i) => { if (Math.abs(x - localX) < Math.abs(xs[best] - localX)) best = i; });
+      onPick?.(best);
+      return;
+    }
+    onScroll?.(Math.max(0, Math.min(maxLeft, leftIndex - Math.round(dragPx / step))));
+    setDragPx(0);
+  };
+
+  if (!points.length) return null;
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: H }}>
-      <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
-        <line x1="2" y1="104" x2={W - 2} y2="104" stroke="#e5e3df" strokeWidth="1" />
-        <polyline
-          points={xs.map((x, i) => `${x},${ys[i]}`).join(' ')}
-          fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"
-        />
-        {points.map((p, i) => (
-          <circle key={p.label} cx={xs[i]} cy={ys[i]} r={p.active ? 5.5 : 4}
-            fill={p.active ? '#fff' : color} stroke={p.active ? color : '#fff'} strokeWidth={p.active ? 2.5 : 1.5} />
-        ))}
-      </svg>
-      {points.map((p, i) => (
-        <div key={p.label}>
-          <div style={{
-            position: 'absolute', top: `${(ys[i] / H) * 100}%`, left: `${(xs[i] / W) * 100}%`,
-            transform: 'translate(-50%, calc(-100% - 8px))', fontSize: 8,
-            fontWeight: p.active ? 700 : 500, color: p.active ? color : '#6c6779', whiteSpace: 'nowrap',
-          }}>{fmtNum(p.amount)}</div>
-          <div style={{
-            position: 'absolute', top: '100%', left: `${(xs[i] / W) * 100}%`, marginTop: 6,
-            transform: 'translateX(-50%)', fontSize: 9.5,
-            fontWeight: p.active ? 700 : 600, color: p.active ? '#191722' : '#a29ead', whiteSpace: 'nowrap',
-          }}>{p.label}</div>
-        </div>
-      ))}
+    <div ref={wrapRef} style={{ position: 'relative', width: '100%', height: CHART_H, touchAction: 'pan-y', cursor: 'grab' }}
+      onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+      {width > 0 && (
+        <svg width={width} height={CHART_H} viewBox={`0 0 ${width} ${CHART_H}`} style={{ display: 'block', userSelect: 'none' }}>
+          <line x1="2" y1={CHART_AXIS_Y} x2={width - 2} y2={CHART_AXIS_Y} stroke="#e5e3df" strokeWidth="1" />
+          <g transform={`translate(${-leftIndex * step + dragPx} 0)`} style={{ transition: dragging ? 'none' : 'transform .22s ease-out' }}>
+            <polyline
+              points={xs.map((x, i) => `${x},${ys[i]}`).join(' ')}
+              fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+            />
+            {points.map((p, i) => (
+              <g key={p.anchor}>
+                <circle cx={xs[i]} cy={ys[i]} r={p.active ? 5.5 : 4}
+                  fill={p.active ? '#fff' : color} stroke={p.active ? color : '#fff'} strokeWidth={p.active ? 2.5 : 1.5} />
+                <text x={xs[i]} y={ys[i] - 11} textAnchor="middle" fontSize="8"
+                  fontWeight={p.active ? 700 : 500} fill={p.active ? color : '#6c6779'}>{fmtNum(p.amount)}</text>
+                <text x={xs[i]} y={CHART_AXIS_Y + 17} textAnchor="middle" fontSize="9.5"
+                  fontWeight={p.active ? 700 : 600} fill={p.active ? '#191722' : '#a29ead'}>{p.label}</text>
+              </g>
+            ))}
+          </g>
+        </svg>
+      )}
     </div>
   );
 }
