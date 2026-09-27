@@ -71,13 +71,14 @@ const matchSourceId = (flat, name) => { const s = flat.find((x) => x.name === na
 
 // 정산 탭: 결제 총액을 멤버 수로 나눈 기본 정산액 기준으로 멤버별 입금 현황을 관리
 // (정산 카테고리 그룹의 그룹 상세 페이지에서도 재사용)
-export function SettlementTab({ gid, members, isOwner, userId, payments, deposits, reloadMembers, loadDep }) {
+export function SettlementTab({ gid, group, members, isOwner, userId, payments, deposits, reloadMembers, loadDep }) {
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState('');
   const [toast, setToast] = useState('');
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [payOpen, setPayOpen] = useState(null); // 정산 미완료 본인이 자기 카드를 눌렀을 때 뜨는 송금 안내 모달 대상
 
   const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
   const memberCount = members.length || 1;
@@ -130,18 +131,23 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
   // 결제 내역이 한 건뿐이면 그 항목을 정산 대상으로 자동 지정
   const soleSettlementTargetId = payments.length === 1 ? payments[0].id : null;
 
+  const createSettleDeposit = (m) => db.createDeposit({
+    group_id: gid, member_id: m.id, date: today(), amount: m.remaining, periods: 1,
+    category_name: '정산', category_emoji: '', leader_category_name: '정산', leader_category_emoji: '',
+    leader_settlement_target_id: soleSettlementTargetId,
+    content: '정산',
+  });
+
   const markPaid = async (m) => {
     if (m.remaining <= 0) return;
     if (!confirm(`${m.nickname}님의 입금(${fmtWon(m.remaining)})을 완료 처리할까요?`)) return;
-    try {
-      await db.createDeposit({
-        group_id: gid, member_id: m.id, date: today(), amount: m.remaining, periods: 1,
-        category_name: '정산', category_emoji: '', leader_category_name: '정산', leader_category_emoji: '',
-        leader_settlement_target_id: soleSettlementTargetId,
-        content: '정산',
-      });
-      loadDep();
-    } catch (e) { alert(e.message); }
+    try { await createSettleDeposit(m); loadDep(); } catch (e) { alert(e.message); }
+  };
+
+  // 정산 미완료 본인이 자기 카드를 눌러 송금 모달에서 "입금 완료"를 누른 경우.
+  // 모달을 여는 것 자체가 이미 한 번의 확인 절차이므로 별도 confirm 은 두지 않는다.
+  const confirmSelfPaid = async (m) => {
+    try { await createSettleDeposit(m); setPayOpen(null); loadDep(); } catch (e) { alert(e.message); }
   };
 
   const requestSettlement = () => {
@@ -156,18 +162,39 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
     if (!confirm(`미완료 멤버 ${targets.length}명의 정산을 모두 완료 처리할까요?`)) return;
     setBulkBusy(true);
     try {
-      for (const m of targets) {
-        await db.createDeposit({
-          group_id: gid, member_id: m.id, date: today(), amount: m.remaining, periods: 1,
-          category_name: '정산', category_emoji: '', leader_category_name: '정산', leader_category_emoji: '',
-          leader_settlement_target_id: soleSettlementTargetId,
-          content: '정산',
-        });
-      }
+      for (const m of targets) await createSettleDeposit(m);
       loadDep();
     } catch (e) { alert(e.message); }
     finally { setBulkBusy(false); }
   };
+
+  // 클립보드 복사(iOS 사파리 등 clipboard API 미지원 환경 대비 execCommand 폴백)
+  const copyText = async (text) => {
+    try { await navigator.clipboard.writeText(text); }
+    catch {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+      } catch { return false; }
+    }
+    return true;
+  };
+  const copyAccount = async () => {
+    const ok = await copyText(group?.owner_account || '');
+    showToast(ok ? '계좌번호가 복사되었습니다.' : '복사에 실패했습니다.');
+  };
+
+  // http(s) 스킴이 없으면 붙여서 안전하게 새 탭으로 열리도록 함
+  const withScheme = (v) => (v && !/^https?:\/\//i.test(v) ? `https://${v}` : v);
+  const tossHref = (m) => {
+    const v = (group?.owner_toss_link || '').trim();
+    if (!v) return '';
+    if (/^https?:\/\//i.test(v)) return v;
+    return `https://toss.me/${v.replace(/^@/, '')}/${m.remaining}`;
+  };
+  const kakaopayHref = withScheme((group?.owner_kakaopay_link || '').trim());
 
   return (
     <>
@@ -273,7 +300,7 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
                   {cardBox}
                 </SwipeRow>
               ) : tapForSelf ? (
-                <div onClick={() => markPaid(m)} style={{ cursor: 'pointer' }}>{cardBox}</div>
+                <div onClick={() => setPayOpen(m)} style={{ cursor: 'pointer' }}>{cardBox}</div>
               ) : cardBox}
             </div>
           </Fragment>
@@ -290,6 +317,44 @@ export function SettlementTab({ gid, members, isOwner, userId, payments, deposit
       )}
 
       {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
+
+      {payOpen && (
+        <div className="catmodal-overlay" onClick={() => setPayOpen(null)}>
+          <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>정산 보내기</div>
+              <button aria-label="닫기" onClick={() => setPayOpen(null)} className="catmodal-icon-btn">
+                <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+              </button>
+            </div>
+
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 10.75, fontWeight: 700, color: '#a29ead' }}>보낼 금액</div>
+              <div style={{ marginTop: 4, fontSize: 24, fontWeight: 800, color: '#191722' }}>{fmtNum(payOpen.remaining)}원</div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {group?.owner_account && (
+                <button type="button" className="pay-link-btn account" onClick={copyAccount}>
+                  <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                  {group.owner_account} 복사
+                </button>
+              )}
+              {tossHref(payOpen) && (
+                <a className="pay-link-btn toss" href={tossHref(payOpen)} target="_blank" rel="noreferrer">토스로 보내기</a>
+              )}
+              {kakaopayHref && (
+                <a className="pay-link-btn kakao" href={kakaopayHref} target="_blank" rel="noreferrer">카카오페이로 보내기</a>
+              )}
+              {!group?.owner_account && !tossHref(payOpen) && !kakaopayHref && (
+                <p className="small muted" style={{ textAlign: 'center', margin: 0 }}>총무가 아직 입금 정보를 등록하지 않았습니다.</p>
+              )}
+            </div>
+
+            <button type="button" className="btn-settle-all" style={{ marginTop: 0 }} onClick={() => confirmSelfPaid(payOpen)}>이미 보냈어요 · 입금 완료</button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -505,7 +570,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
 
       {settlementMode && tab === 'settlement' && (
         <SettlementTab
-          gid={gid} members={members} isOwner={isOwner} userId={user.id}
+          gid={gid} group={group} members={members} isOwner={isOwner} userId={user.id}
           payments={payments} deposits={deposits} reloadMembers={reloadMembers} loadDep={loadDep}
         />
       )}

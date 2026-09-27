@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, PERIOD_LABEL, isSubscription } from '../lib/format.js';
+import { fmtWon, PERIOD_LABEL, isSubscription, isSettlement } from '../lib/format.js';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { SettingsForm } from './SubscriptionGroup.jsx';
@@ -31,6 +31,7 @@ export default function GroupEdit() {
         name: group.name, description: group.description || '',
         category: group.category, category_emoji: group.category_emoji || '', color: group.color || '',
         start_date: group.start_date || '', end_date: group.end_date || '',
+        owner_account: group.owner_account || '', owner_toss_link: group.owner_toss_link || '', owner_kakaopay_link: group.owner_kakaopay_link || '',
       });
     }).catch((e) => { alert(e.message); nav('/groups'); });
     db.listGroupCategories().then(setGroupCats).catch(() => {});
@@ -137,6 +138,25 @@ export default function GroupEdit() {
               주기: {sub.period_count}{PERIOD_LABEL[sub.period_unit]} · 입금분류: {sub.deposit_category ? `${sub.deposit_category_emoji || ''} ${sub.deposit_category}` : '-'}
             </div>
           ) : <div className="small muted">설정 버튼으로 구독을 설정하세요.</div>}
+        </div>
+      )}
+
+      {isSettlement(form.category) && (
+        <div className="form-section-card">
+          <div className="form-section-title">총무 입금 정보</div>
+          <p className="small muted" style={{ margin: '-2px 0 8px' }}>정산 미완료 멤버가 본인 카드를 누르면 뜨는 송금 안내에 사용됩니다.</p>
+          <div className="field">
+            <label>입금 계좌</label>
+            <input value={form.owner_account} onChange={(e) => setForm({ ...form, owner_account: e.target.value })} placeholder="예: 카카오뱅크 3333-01-1234567" />
+          </div>
+          <div className="field">
+            <label>토스 송금 링크 <span className="small muted">(toss.me 아이디 또는 전체 링크)</span></label>
+            <input value={form.owner_toss_link} onChange={(e) => setForm({ ...form, owner_toss_link: e.target.value })} placeholder="예: mynickname" />
+          </div>
+          <div className="field">
+            <label>카카오페이 송금 링크</label>
+            <input value={form.owner_kakaopay_link} onChange={(e) => setForm({ ...form, owner_kakaopay_link: e.target.value })} placeholder="카카오페이 앱에서 만든 송금 링크를 붙여넣으세요" />
+          </div>
         </div>
       )}
 

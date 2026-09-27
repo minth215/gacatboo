@@ -130,7 +130,7 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
 
       {settlementMode && tab === 'settlement' && (
         <SettlementTab
-          gid={gid} members={members} isOwner={isOwner} userId={user.id}
+          gid={gid} group={group} members={members} isOwner={isOwner} userId={user.id}
           payments={paidTxs} deposits={deposits} reloadMembers={reloadMembers} loadDep={loadDep}
         />
       )}
