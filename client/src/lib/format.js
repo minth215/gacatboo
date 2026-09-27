@@ -35,6 +35,55 @@ export function monthPillLabel(month) {
   return `${y} 년 ${Number(m)} 월`;
 }
 
+// ---------- 통계 기간(주/월/연/기간 선택) ----------
+// 날짜(YYYY-MM-DD)에 일수를 더한 날짜
+export function shiftDate(dateStr, days) {
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+}
+
+// 그 날짜가 속한 주의 시작(일요일)
+export function weekStartOf(dateStr) {
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number);
+  return shiftDate(dateStr, -new Date(Date.UTC(y, m - 1, d)).getUTCDay());
+}
+
+export const currentYear = () => String(new Date().getFullYear());
+
+// 기간 모드별 조회 범위 { start, endExclusive }
+// anchor: week='YYYY-MM-DD'(주 시작) | month='YYYY-MM' | year='YYYY' | range={ from, to }
+export function periodBounds(mode, anchor) {
+  if (mode === 'week') return { start: anchor, endExclusive: shiftDate(anchor, 7) };
+  if (mode === 'year') return { start: `${anchor}-01-01`, endExclusive: `${Number(anchor) + 1}-01-01` };
+  if (mode === 'range') return { start: anchor.from, endExclusive: shiftDate(anchor.to, 1) };
+  return { start: `${anchor}-01`, endExclusive: `${shiftMonth(anchor, 1)}-01` };
+}
+
+export function periodLabel(mode, anchor) {
+  if (mode === 'week') {
+    const day = (s) => { const [, m, d] = s.split('-').map(Number); return `${m} 월 ${d} 일`; };
+    return `${day(anchor)} ~ ${day(shiftDate(anchor, 6))}`;
+  }
+  if (mode === 'year') return `${anchor} 년`;
+  if (mode === 'range') return `${dotDate(anchor.from)} ~ ${dotDate(anchor.to)}`;
+  return monthPillLabel(anchor);
+}
+
+// 이전/다음 기간으로 이동한 anchor
+export function shiftPeriod(mode, anchor, delta) {
+  if (mode === 'week') return shiftDate(anchor, delta * 7);
+  if (mode === 'year') return String(Number(anchor) + delta);
+  return shiftMonth(anchor, delta);
+}
+
+// 꺾은선 그래프용 눈금 라벨(짧게)
+export function periodTickLabel(mode, anchor) {
+  if (mode === 'week') { const [, m, d] = anchor.split('-').map(Number); return `${m}/${d}`; }
+  if (mode === 'year') return `${anchor}년`;
+  return `${Number(anchor.split('-')[1])}월`;
+}
+
 // 날짜(YYYY-MM-DD)에 주기(unit,count) * n 을 더한 날짜 문자열
 export function addInterval(dateStr, unit, count, n = 1) {
   if (!dateStr) return null;

@@ -461,67 +461,27 @@ export const db = {
   },
 
   // ---------- 통계 (클라이언트 집계) ----------
-  async personalStats(month, userId) {
-    const { start, endExclusive } = monthBounds(month);
-    // 가계부(listLedger)와 동일한 범위: 내 개인 항목 + 내가 속한 그룹 항목(RLS 범위)
-    const rows = unwrap(await supabase.from('transactions')
-      .select('id, type, amount, category_name, source_id, source_name, settlement_target_id')
-      .gte('date', start).lt('date', endExclusive));
+  // 기간 내 거래를 정산 반영 금액(eff)과 함께 반환. 분류별/원천별/항목별 집계는 화면에서 수행.
+  // 범위는 가계부(listLedger)와 동일: 내 개인 항목 + 내가 속한 그룹 항목(RLS 범위)
+  async statsRows({ start, endExclusive }) {
+    const rows = unwrap(await supabase.from('transactions').select(TX_SELECT)
+      .gte('date', start).lt('date', endExclusive)
+      .order('date', { ascending: false }).order('id', { ascending: false }).limit(5000));
 
     const expenses = rows.filter((r) => r.type === 'expense');
-    // 이 달 지출들에 매겨진 정산(수입) 합계 — 정산은 다른 달일 수도 있으므로 전 기간 조회
+    // 이 기간 지출에 매겨진 정산(수입) 합계 — 정산은 다른 기간일 수도 있으므로 전 기간 조회
     const settleMap = await this.settlementsByTarget(expenses.map((r) => r.id));
-
-    // 정산 수입(대상 지정된 income)은 수입에서 제외
-    const incomeRows = rows.filter((r) => r.type === 'income' && r.settlement_target_id == null);
-    // 이 달에 들어온 정산 수입들 — 초과분(+가 되는 금액)은 대상 지출의 달이 아니라
-    // 정산 수입이 실제로 들어온 이 달의 수입으로 계상
+    // 이 기간에 들어온 정산 수입 — 초과분만 이 기간 수입으로 계상
     const settleIncomeRows = rows.filter((r) => r.type === 'income' && r.settlement_target_id != null);
     const excessMap = await this.settlementExcessByRow(settleIncomeRows.map((r) => r.settlement_target_id));
 
-    // 대상 지출은 정산액만큼 차감(0 하한).
-    const effExpense = (r) => Math.max(0, Number(r.amount) - (settleMap[r.id] || 0));
-    const expense = expenses.reduce((s, r) => s + effExpense(r), 0);
-    const settleExcess = settleIncomeRows.reduce((s, r) => s + (excessMap[r.id] || 0), 0);
-    const income = incomeRows.reduce((s, r) => s + Number(r.amount), 0) + settleExcess;
-
-    const groupCat = (items, valueOf) => {
-      const map = {};
-      items.forEach((r) => { const n = r.category_name || '미분류'; map[n] = (map[n] || 0) + valueOf(r); });
-      return Object.entries(map).map(([name, total]) => ({ name, total }))
-        .filter((x) => x.total > 0).sort((a, b) => b.total - a.total);
-    };
-    const groupSrc = (items, valueOf) => {
-      const map = {};
-      items.forEach((r) => {
-        const key = r.source_id != null ? `id:${r.source_id}` : `nm:${r.source_name || '미지정'}`;
-        if (!map[key]) map[key] = { source_id: r.source_id ?? null, name: r.source_name || '미지정', total: 0 };
-        map[key].total += valueOf(r);
-      });
-      return Object.values(map).filter((x) => x.total > 0).sort((a, b) => b.total - a.total);
-    };
-
-    // 카드 실적용: 원천 id 별 총 사용액(정산 차감 없는 원금)
-    const grossBySourceId = {};
-    expenses.forEach((r) => { if (r.source_id != null) grossBySourceId[r.source_id] = (grossBySourceId[r.source_id] || 0) + Number(r.amount); });
-
-    const incomeByCategory = groupCat(incomeRows, (r) => Number(r.amount));
-    const incomeBySource = groupSrc(incomeRows, (r) => Number(r.amount));
-    if (settleExcess > 0) { // 정산 초과분은 '정산' 수입으로 표기
-      incomeByCategory.push({ name: '정산', total: settleExcess });
-      incomeByCategory.sort((a, b) => b.total - a.total);
-      incomeBySource.push({ source_id: null, name: '정산', total: settleExcess });
-      incomeBySource.sort((a, b) => b.total - a.total);
-    }
-
-    return {
-      totals: { income, expense, balance: income - expense },
-      incomeByCategory,
-      expenseByCategory: groupCat(expenses, effExpense),
-      incomeBySource,
-      expenseBySource: groupSrc(expenses, effExpense),
-      grossBySourceId,
-    };
+    return flattenTx(rows).map((r) => {
+      // 대상 지출은 정산액만큼 차감(0 하한)
+      if (r.type === 'expense') return { ...r, eff: Math.max(0, Number(r.amount) - (settleMap[r.id] || 0)) };
+      // 정산 수입은 초과분만 '정산' 수입으로 계상
+      if (r.settlement_target_id != null) return { ...r, eff: excessMap[r.id] || 0, category_name: '정산' };
+      return { ...r, eff: Number(r.amount) };
+    });
   },
 
   async groupStats(groupId, month, members) {
