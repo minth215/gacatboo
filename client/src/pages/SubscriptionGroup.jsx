@@ -10,6 +10,9 @@ import { tileBg, formatDate, DayCardRow } from '../components/TransactionList.js
 
 const PERIOD_UNITS = ['day', 'week', 'month', 'year'];
 const KEEP = '__keep__'; // id 없이 이름만 있는 원천/분류(스냅샷) 유지용 센티넬
+// 정산 금액이 인원수로 안 나눠떨어져 남는 자투리(카카오페이 등이 별도로 입금해주는 몫)를
+// 기록하기 위한 가상 멤버의 닉네임. 이 닉네임으로 그룹 멤버를 찾아 식별한다.
+const LEFTOVER_NAME = '짤랑이';
 
 // 날짜(dateStr)가 속한 달의 정기결제일(billingDay)로 날짜를 맞춰줌.
 // 예: dateStr=2026-08-22, billingDay=19 → 2026-08-19 (그 달의 마지막 날짜를 넘지 않도록 보정)
@@ -81,31 +84,44 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const [payOpen, setPayOpen] = useState(null); // 정산 미완료 본인이 자기 카드를 눌렀을 때 뜨는 송금 안내 모달 대상
 
   const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
-  const memberCount = members.length || 1;
+  const leftoverMember = members.find((m) => m.nickname === LEFTOVER_NAME);
+  // 정산 인원 수·1인당 몫은 짤랑이(자투리 가상 멤버)를 빼고 계산한다.
+  const memberCount = members.filter((m) => m.nickname !== LEFTOVER_NAME).length || 1;
   const defaultShare = Math.round(totalPaid / memberCount);
   // 총 결제 금액이 인원 수로 딱 나누어떨어지지 않아 반올림 후 남는 자투리 금액
   const leftover = totalPaid - defaultShare * memberCount;
 
-  const rows = members.map((m) => {
+  const rows = members.filter((m) => m.nickname !== LEFTOVER_NAME).map((m) => {
     const owed = m.settlement_override != null ? Number(m.settlement_override) : defaultShare;
     const paid = deposits.filter((d) => d.member_id === m.id).reduce((s, d) => s + Number(d.amount), 0);
     const remaining = Math.max(owed - paid, 0);
     return { ...m, owed, paid, remaining, settled: remaining <= 0 };
   });
+  // 짤랑이 카드: 자투리가 0원이면 아예 표시하지 않는다. 실제 group_members 행은
+  // 처음 "입금 완료"를 누르는 시점에 생성하므로, 그 전에는 가상 행으로만 존재한다.
+  const leftoverRow = leftover === 0 ? null : leftoverMember
+    ? (() => {
+        const paid = deposits.filter((d) => d.member_id === leftoverMember.id).reduce((s, d) => s + Number(d.amount), 0);
+        const remaining = Math.max(leftover - paid, 0);
+        return { ...leftoverMember, owed: leftover, paid, remaining, settled: remaining <= 0 };
+      })()
+    : { id: null, nickname: LEFTOVER_NAME, role: 'member', is_account: false, owed: leftover, paid: 0, remaining: leftover, settled: false };
+
   // 총무 본인은 자신에게 입금하지 않으므로 정산 완료/남은 정산 금액 집계에서 제외
   const nonOwnerRows = rows.filter((r) => r.role !== 'owner');
-  const totalSettled = nonOwnerRows.reduce((s, r) => s + r.paid, 0);
-  const totalRemaining = nonOwnerRows.reduce((s, r) => s + r.remaining, 0);
+  const totalSettled = nonOwnerRows.reduce((s, r) => s + r.paid, 0) + (leftoverRow ? leftoverRow.paid : 0);
+  const totalRemaining = nonOwnerRows.reduce((s, r) => s + r.remaining, 0) + (leftoverRow ? leftoverRow.remaining : 0);
+  // "정산 일괄 완료"/"정산 요청하기" 버튼은 실제 멤버 대상 기능이라 짤랑이는 제외한다
+  // (짤랑이는 개별 스와이프로만 입금 완료 처리).
   const anyUnsettled = nonOwnerRows.some((r) => !r.settled);
 
-  // 총무는 항상 맨 위, 정산 완료된 멤버는 그 다음, 미완료 멤버는 "정산 미완료" 구분선 아래로
-  const sortedRows = [...rows].sort((a, b) => {
-    if (a.role === 'owner') return -1;
-    if (b.role === 'owner') return 1;
-    if (a.settled === b.settled) return 0;
-    return a.settled ? -1 : 1;
-  });
-  const dividerIdx = sortedRows.findIndex((r) => r.role !== 'owner' && !r.settled);
+  // 총무는 항상 맨 위, 짤랑이는 정산 여부와 무관하게 항상 그 바로 다음(=미완료 상태여도
+  // 미완료 목록 중 가장 위), 나머지 멤버는 정산 완료 먼저, "정산 미완료" 구분선 아래 미완료 순.
+  const ownerRow = rows.find((r) => r.role === 'owner');
+  const sortedRest = rows.filter((r) => r.role !== 'owner')
+    .sort((a, b) => (a.settled === b.settled ? 0 : a.settled ? -1 : 1));
+  const sortedRows = [ownerRow, ...(leftoverRow ? [leftoverRow] : []), ...sortedRest].filter(Boolean);
+  const dividerIdx = sortedRows.findIndex((r) => r.role !== 'owner' && r.nickname !== LEFTOVER_NAME && !r.settled);
   const showDivider = dividerIdx !== -1;
 
   const startEdit = (m) => { setEditingId(m.id); setEditDraft(String(m.owed)); };
@@ -144,6 +160,20 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     if (m.remaining <= 0) return;
     if (!confirm(`${m.nickname}님의 입금(${fmtWon(m.remaining)})을 완료 처리할까요?`)) return;
     try { await createSettleDeposit(m); loadDep(); } catch (e) { alert(e.message); }
+  };
+
+  // 짤랑이(자투리) 입금 완료: 실제 group_members 행이 아직 없으면 이 시점에 만든다.
+  const markLeftoverPaid = async () => {
+    if (!leftoverRow || leftoverRow.remaining <= 0) return;
+    try {
+      let member = leftoverMember;
+      if (!member) member = await db.addMember(gid, { nickname: LEFTOVER_NAME, start_date: today(), end_date: '', contact: '', memo: '', username: '' });
+      // content 는 기본값('정산')을 그대로 써서, 입금 내역에 다른 멤버와 같은 형식으로
+      // "정산 - 짤랑이" 로 표시되게 한다.
+      await createSettleDeposit({ id: member.id, remaining: leftoverRow.remaining });
+      reloadMembers();
+      loadDep();
+    } catch (e) { alert(e.message); }
   };
 
   // 정산 미완료 본인이 자기 카드를 눌러 송금 모달에서 "입금 완료"를 누른 경우.
@@ -214,6 +244,40 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
       </div>
 
       {sortedRows.length === 0 ? <div className="empty">멤버가 없습니다.</div> : sortedRows.map((m, idx) => {
+        if (m.nickname === LEFTOVER_NAME) {
+          const leftoverCardBox = (
+            <div className="settle-card settle-card-leftover">
+              <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{LEFTOVER_NAME}</span>
+                {m.settled
+                  ? <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--income)' }}>정산 완료</span>
+                  : <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.remaining)}</span>}
+              </div>
+            </div>
+          );
+          return (
+            <Fragment key={m.id ?? LEFTOVER_NAME}>
+              <div className="settle-swipe-wrap" style={{ marginTop: 10 }}>
+                {isOwner && !m.settled ? (
+                  <SwipeRow
+                    actionsWidth={52}
+                    actions={(progress) => (
+                      <div className="settle-swipe-actions" style={{ opacity: progress }}>
+                        <button type="button" className="settle-icon-btn mint" onClick={markLeftoverPaid} aria-label="입금 완료">
+                          <svg width="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 13l4 4L19 7" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  >
+                    {leftoverCardBox}
+                  </SwipeRow>
+                ) : leftoverCardBox}
+              </div>
+            </Fragment>
+          );
+        }
         const isMe = userId === m.user_id;
         // 총무 화면: 콕 찌르기/입금 완료는 카드를 왼쪽으로 밀어야 보임. 멤버 화면: 본인 카드는 눌러서 바로 입금 완료.
         const swipeForOwner = isOwner && m.role !== 'owner' && !m.settled && editingId !== m.id;
@@ -317,17 +381,6 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
           </Fragment>
         );
       })}
-
-      {leftover !== 0 && (
-        <div className="settle-swipe-wrap" style={{ marginTop: 10 }}>
-          <div className="settle-card settle-card-leftover">
-            <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13.25, fontWeight: 700, color: '#a29ead' }}>🪙 짤랑이</span>
-              <span style={{ fontSize: 13.25, fontWeight: 700, color: '#a29ead' }}>{fmtNum(Math.abs(leftover))} 원</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {isOwner && anyUnsettled && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>

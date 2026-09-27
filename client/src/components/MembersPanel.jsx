@@ -35,10 +35,14 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
     try { await db.removeMember(m.id); onReload(); } catch (e) { alert(e.message); }
   };
 
+  // "짤랑이"는 정산 탭에서 자투리 정산액을 기록하기 위해 자동으로 만들어지는 가상 멤버라
+  // 여기서 실수로 수정/삭제되지 않도록 목록에서 제외한다(SubscriptionGroup.jsx 의 LEFTOVER_NAME).
+  const visibleMembers = members.filter((m) => m.nickname !== '짤랑이');
+
   return (
     <>
       <div className="tx-daycard" style={{ marginTop: 14 }}>
-        {members.map((m, i) => (
+        {visibleMembers.map((m, i) => (
           <div key={m.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '13px 8px 13px 18px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
