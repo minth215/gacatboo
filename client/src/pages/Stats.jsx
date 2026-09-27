@@ -304,8 +304,10 @@ export default function Stats() {
     </div>
   );
 
-  // 그래프에서 보이는 구간의 왼쪽 인덱스(선택 기간이 오른쪽 끝에 오도록)
-  const chartLeftBase = CHART_BACK - (CHART_VISIBLE - 1);
+  // 그래프에서 보이는 구간의 왼쪽 인덱스. 선택 기간이 보이는 6개 점 중 네 번째에 오도록
+  // (선택 기간 오른쪽에 다음 기간 두 개가 보임). 오른쪽 여유 기간은 CHART_FWD 개라 충분하다.
+  const CHART_SELECTED_POS = 3; // 0부터 센 위치 → 네 번째 점
+  const chartLeftBase = CHART_BACK - CHART_SELECTED_POS;
   const chartLeftIndex = Math.max(0, Math.min(Math.max(0, chartPoints.length - CHART_VISIBLE), chartLeftBase + viewOffset));
 
   if (detail) {
