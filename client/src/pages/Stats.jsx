@@ -258,11 +258,13 @@ export default function Stats() {
   // 상세 뷰 진입/복귀. 상세 뷰에서 기간을 옮겨도, 돌아오면 들어가기 전 화면 그대로 보이게 한다.
   const openDetail = (g) => {
     detailSnapRef.current = { periodMode, month, week, year, range, rows, scrollY: window.scrollY };
+    setPeriodMenuOpen(false);
     setDetail({ ...g, view: statView });
   };
   const closeDetail = () => {
     const snap = detailSnapRef.current;
     detailSnapRef.current = null;
+    setPeriodMenuOpen(false);
     if (snap) {
       const snapAnchor = snap.periodMode === 'week' ? snap.week : snap.periodMode === 'year' ? snap.year
         : snap.periodMode === 'range' ? snap.range : snap.month;
@@ -304,6 +306,37 @@ export default function Stats() {
     </div>
   );
 
+  // 상단바 우측 기간 기준(주별/월별/연별/기간 선택) 원형 버튼. 목록과 상세 뷰가 함께 쓴다.
+  // 상세 뷰에서 바꾼 기준은 "<"로 돌아올 때 들어가기 전 상태로 되돌아간다(closeDetail).
+  const periodModeControl = (
+    <div style={{ position: 'relative' }}>
+      <button onClick={() => setPeriodMenuOpen((o) => !o)} style={{
+        width: 36, height: 36, borderRadius: '50%', border: 'none', background: '#fff',
+        boxShadow: '0 3px 12px rgba(25,23,34,.1)', color: '#6c6779', fontFamily: 'inherit',
+        fontSize: 10.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', padding: 0,
+      }}>{PERIOD_LABELS[periodMode]}</button>
+      {periodMenuOpen && (
+        <>
+          <div onClick={() => setPeriodMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
+          <div style={{
+            position: 'absolute', top: 44, right: 0, background: '#fff', borderRadius: 14,
+            boxShadow: '0 10px 30px rgba(25,23,34,.15)', padding: 5, display: 'flex', flexDirection: 'column',
+            gap: 1, zIndex: 20, minWidth: 82,
+          }}>
+            {Object.entries({ week: '주별', month: '월별', year: '연별', range: '기간 선택' }).map(([m, label]) => (
+              <button key={m} onClick={() => { setPeriodMode(m); setPeriodMenuOpen(false); }} style={{
+                border: 'none', borderRadius: 9, fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
+                padding: '8px 10px', textAlign: 'left', cursor: 'pointer',
+                background: periodMode === m ? '#fff1e6' : 'transparent',
+                color: periodMode === m ? '#FF3B5C' : '#4a4640',
+              }}>{label}</button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   // 그래프에서 보이는 구간의 왼쪽 인덱스. 선택 기간이 보이는 6개 점 중 네 번째에 오도록
   // (선택 기간 오른쪽에 다음 기간 두 개가 보임). 오른쪽 여유 기간은 CHART_FWD 개라 충분하다.
   const CHART_SELECTED_POS = 3; // 0부터 센 위치 → 네 번째 점
@@ -313,7 +346,7 @@ export default function Stats() {
   if (detail) {
     return (
       <div style={{ padding: '44px 0 12px' }}>
-        <PageHeader title={detail.name} flat onBack={closeDetail} />
+        <PageHeader title={detail.name} flat onBack={closeDetail} right={periodModeControl} />
         {periodBar}
 
         <div style={{ marginTop: 10, background: '#fff', borderRadius: 20, padding: '16px 16px 10px', boxShadow: '0 6px 20px rgba(25,23,34,.07)' }}>
@@ -357,32 +390,7 @@ export default function Stats() {
               transition: 'background-size .35s ease-out, color .2s',
             }}>{label}</button>
           ))}
-          <div style={{ position: 'relative' }}>
-            <button onClick={() => setPeriodMenuOpen((o) => !o)} style={{
-              width: 36, height: 36, borderRadius: '50%', border: 'none', background: '#fff',
-              boxShadow: '0 3px 12px rgba(25,23,34,.1)', color: '#6c6779', fontFamily: 'inherit',
-              fontSize: 10.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', padding: 0,
-            }}>{PERIOD_LABELS[periodMode]}</button>
-            {periodMenuOpen && (
-              <>
-                <div onClick={() => setPeriodMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
-                <div style={{
-                  position: 'absolute', top: 44, right: 0, background: '#fff', borderRadius: 14,
-                  boxShadow: '0 10px 30px rgba(25,23,34,.15)', padding: 5, display: 'flex', flexDirection: 'column',
-                  gap: 1, zIndex: 20, minWidth: 82,
-                }}>
-                  {Object.entries({ week: '주별', month: '월별', year: '연별', range: '기간 선택' }).map(([m, label]) => (
-                    <button key={m} onClick={() => { setPeriodMode(m); setPeriodMenuOpen(false); }} style={{
-                      border: 'none', borderRadius: 9, fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
-                      padding: '8px 10px', textAlign: 'left', cursor: 'pointer',
-                      background: periodMode === m ? '#fff1e6' : 'transparent',
-                      color: periodMode === m ? '#FF3B5C' : '#4a4640',
-                    }}>{label}</button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+          {periodModeControl}
         </div>
       )} />
 
