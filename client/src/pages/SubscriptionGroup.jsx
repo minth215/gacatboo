@@ -114,6 +114,10 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   // "정산 일괄 완료"/"정산 요청하기" 버튼은 실제 멤버 대상 기능이라 짤랑이는 제외한다
   // (짤랑이는 개별 스와이프로만 입금 완료 처리).
   const anyUnsettled = nonOwnerRows.some((r) => !r.settled);
+  // 총무가 개별 정산 금액을 임의로 낮춰서, 전원 몫의 합(총무 포함 + 짤랑이)이
+  // 총 결제 금액보다 적어지면 총무가 손해를 보게 되므로 경고로 대체한다.
+  const sumOwed = rows.reduce((s, r) => s + r.owed, 0) + (leftoverRow ? leftoverRow.owed : 0);
+  const underCollected = sumOwed < totalPaid;
 
   // 총무는 항상 맨 위. 짤랑이는 정산 완료 상태면 총무 바로 다음(다른 정산 완료 멤버보다 위),
   // 미완료 상태면 "정산 미완료" 구분선 바로 아래(미완료 멤버 중 가장 위)에 온다 — 즉 자신이
@@ -415,7 +419,11 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
         );
       })}
 
-      {isOwner && anyUnsettled && (
+      {isOwner && underCollected ? (
+        <p style={{ textAlign: 'center', color: 'var(--expense)', fontSize: 12.5, fontWeight: 700, marginTop: 14 }}>
+          정산 금액이 총 결제 금액보다 적습니다.
+        </p>
+      ) : isOwner && anyUnsettled && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <button type="button" className="btn-settle-all" style={{ flex: 1, height: 48, marginTop: 0 }} disabled={bulkBusy} onClick={settleAll}>
             {bulkBusy ? '처리 중…' : '정산 일괄 완료'}
