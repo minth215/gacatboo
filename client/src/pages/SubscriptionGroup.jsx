@@ -187,11 +187,12 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
 
   // 짤랑이 입금 내역 삭제(정정용). 총액이 바뀌어 자투리가 달라지는 등, 이미 입금 완료
   // 처리한 짤랑이 기록을 지우고 새 금액으로 다시 처리하고 싶을 때 쓴다.
+  // 아직 한 번도 입금 완료 처리를 안 해 지울 기록이 없을 때는 눌러도 반응이 없어 보이지
+  // 않도록, 확인창을 먼저 띄운 뒤 지울 게 없으면 그 사실을 알려준다.
   const deleteLeftoverDeposit = async () => {
-    if (!leftoverMember) return;
-    const dep = deposits.find((d) => d.member_id === leftoverMember.id);
-    if (!dep) return;
-    if (!confirm('짤랑이 입금 내역을 삭제할까요?')) return;
+    if (!confirm('짤랑이 입금 내역을 삭제하시겠습니까?')) return;
+    const dep = leftoverMember && deposits.find((d) => d.member_id === leftoverMember.id);
+    if (!dep) { alert('삭제할 짤랑이 입금 내역이 없습니다.'); return; }
     try { await db.deleteDeposit(dep.id); loadDep(); } catch (e) { alert(e.message); }
   };
 
