@@ -79,11 +79,19 @@ export default function Stats() {
   const [chartRows, setChartRows] = useState([]);
   const [tiers, setTiers] = useState([]);
   const [loading, setLoading] = useState(true);
+  // 상세 뷰에 들어가기 직전 화면 상태(기간·데이터·스크롤). "<"로 돌아오면 그대로 복원한다.
+  const detailSnapRef = useRef(null);
+  const skipFetchKeyRef = useRef(null);
+  const restoreScrollRef = useRef(null);
 
   const anchor = periodMode === 'week' ? week : periodMode === 'year' ? year : periodMode === 'range' ? range : month;
   const { start, endExclusive } = periodBounds(periodMode, anchor);
 
   useEffect(() => {
+    // 상세 뷰에서 돌아오며 들어가기 전 데이터를 그대로 복원한 경우엔 다시 불러오지 않는다.
+    const skip = skipFetchKeyRef.current === `${start}|${endExclusive}`;
+    skipFetchKeyRef.current = null;
+    if (skip) return;
     let alive = true;
     setLoading(true);
     db.statsRows({ start, endExclusive })
@@ -247,6 +255,34 @@ export default function Stats() {
     [detail, rows, tab],
   );
 
+  // 상세 뷰 진입/복귀. 상세 뷰에서 기간을 옮겨도, 돌아오면 들어가기 전 화면 그대로 보이게 한다.
+  const openDetail = (g) => {
+    detailSnapRef.current = { periodMode, month, week, year, range, rows, scrollY: window.scrollY };
+    setDetail({ ...g, view: statView });
+  };
+  const closeDetail = () => {
+    const snap = detailSnapRef.current;
+    detailSnapRef.current = null;
+    if (snap) {
+      const snapAnchor = snap.periodMode === 'week' ? snap.week : snap.periodMode === 'year' ? snap.year
+        : snap.periodMode === 'range' ? snap.range : snap.month;
+      const b = periodBounds(snap.periodMode, snapAnchor);
+      const snapKey = `${b.start}|${b.endExclusive}`;
+      // 기간이 실제로 바뀌었을 때만 재조회 건너뛰기를 걸어 둔다(안 바뀌었으면 조회 effect 자체가 안 돈다).
+      if (snapKey !== `${start}|${endExclusive}`) skipFetchKeyRef.current = snapKey;
+      setPeriodMode(snap.periodMode); setMonth(snap.month); setWeek(snap.week); setYear(snap.year); setRange(snap.range);
+      setRows(snap.rows); setLoading(false);
+      restoreScrollRef.current = snap.scrollY;
+    }
+    setDetail(null);
+  };
+  useEffect(() => {
+    if (detail || restoreScrollRef.current == null) return;
+    const y = restoreScrollRef.current;
+    restoreScrollRef.current = null;
+    requestAnimationFrame(() => window.scrollTo(0, y));
+  }, [detail]);
+
   // ---------- 화면 ----------
   const periodBar = (
     <div style={{ marginTop: 3 }}>
@@ -275,7 +311,7 @@ export default function Stats() {
   if (detail) {
     return (
       <div style={{ padding: '44px 0 12px' }}>
-        <PageHeader title={detail.name} flat onBack={() => setDetail(null)} />
+        <PageHeader title={detail.name} flat onBack={closeDetail} />
         {periodBar}
 
         <div style={{ marginTop: 10, background: '#fff', borderRadius: 20, padding: '16px 16px 10px', boxShadow: '0 6px 20px rgba(25,23,34,.07)' }}>
@@ -413,7 +449,7 @@ export default function Stats() {
             {groups.map((g) => {
               const tier = tierOf(g.sourceId);
               return (
-                <div key={g.key} onClick={() => setDetail({ ...g, view: statView })} style={{
+                <div key={g.key} onClick={() => openDetail(g)} style={{
                   background: '#fff', borderRadius: 16, padding: '12px 14px',
                   boxShadow: '0 4px 16px rgba(25,23,34,.05)', cursor: 'pointer',
                 }}>
@@ -457,7 +493,7 @@ export default function Stats() {
             ))}
           </div>
           {sorted.map((g, i) => (
-            <div key={g.key} onClick={() => setDetail({ ...g, view: statView })} style={{
+            <div key={g.key} onClick={() => openDetail(g)} style={{
               display: 'flex', alignItems: 'center', padding: '12px 14px', cursor: 'pointer',
               borderBottom: i === sorted.length - 1 ? 'none' : '1px solid #f7f6f4',
             }}>
