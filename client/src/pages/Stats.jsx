@@ -46,11 +46,12 @@ const keyOf = (r, view) => {
   return { key: `i:${name}`, name };
 };
 
-// 통계에 반영할 금액. 지출은 보기(뷰)에 따라 기준이 다르다.
-// - 분류별: 정산 수입으로 메워진 만큼을 뺀 실부담액(eff). "정산" 분류가 실제로 내가 쓴 만큼만 잡히도록.
-// - 원천별·항목별: 정산 차감 없이 실제로 결제한 원금 그대로. 어느 카드로 얼마를 긁었는지,
-//   그 항목에 얼마를 결제했는지를 봐야 하므로 정산으로 돌려받은 금액을 빼지 않는다.
-const statAmount = (r, view) => (r.type === 'expense' && view !== 'category' ? Number(r.amount) : r.eff);
+// 통계에 반영할 금액. 보기(뷰)에 따라 기준이 다르다.
+// - 분류별: 정산을 상계한 실질 금액(eff). 지출은 정산 수입으로 메워진 만큼을 빼고,
+//   정산 수입은 지출을 넘어선 초과분만 잡아서 "정산" 분류가 실제 손익만 나타내도록 한다.
+// - 원천별·항목별: 정산 상계 없이 실제로 오간 원금 그대로. 어느 카드로 얼마를 긁었는지,
+//   어느 통장에 얼마가 들어왔는지를 봐야 하므로 정산으로 주고받은 금액을 빼지 않는다.
+const statAmount = (r, view) => (view === 'category' ? r.eff : Number(r.amount));
 
 export default function Stats() {
   const { user } = useAuth();
