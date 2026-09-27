@@ -533,7 +533,9 @@ function DateField({ value, onChange }) {
 
 // 상세 꺾은선 그래프. 좌우로 밀면 과거/미래 기간이 스크롤되듯 따라오고, 점을 누르면 그 기간으로 이동.
 // viewBox 를 실제 렌더 폭과 1:1 로 맞춰(가로만 늘이지 않음) 점이 타원이 되지 않게 한다.
-const CHART_H = 126, CHART_PAD_X = 18, CHART_PLOT_TOP = 26, CHART_PLOT_H = 52, CHART_AXIS_Y = 100;
+const CHART_H = 126, CHART_PAD_X = 18, CHART_PLOT_TOP = 26, CHART_AXIS_Y = 100;
+// 금액 0 은 X축(CHART_AXIS_Y)에 딱 붙고, 최댓값은 CHART_PLOT_TOP 높이까지 올라간다.
+const CHART_PLOT_H = CHART_AXIS_Y - CHART_PLOT_TOP;
 
 function LineChart({ points, color, leftIndex, visibleCount, onScroll, onPick }) {
   const wrapRef = useRef(null);
