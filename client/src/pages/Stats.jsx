@@ -613,7 +613,7 @@ function LineChart({ points, color, leftIndex, visibleCount, onScroll, onPick })
                 <circle cx={xs[i]} cy={ys[i]} r={p.active ? 5.5 : 4}
                   fill={p.active ? '#fff' : color} stroke={p.active ? color : '#fff'} strokeWidth={p.active ? 2.5 : 1.5} />
                 <text x={xs[i]} y={ys[i] - 11} textAnchor="middle" fontSize="8"
-                  fontWeight={p.active ? 700 : 500} fill={p.active ? color : '#6c6779'}>{fmtNum(p.amount)}</text>
+                  fontWeight={p.active ? 700 : 500} fill={p.active ? '#191722' : '#6c6779'}>{fmtNum(p.amount)}</text>
                 <text x={xs[i]} y={CHART_AXIS_Y + 17} textAnchor="middle" fontSize="9.5"
                   fontWeight={p.active ? 700 : 600} fill={p.active ? '#191722' : '#a29ead'}>{p.label}</text>
               </g>
