@@ -83,6 +83,8 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
   const memberCount = members.length || 1;
   const defaultShare = Math.round(totalPaid / memberCount);
+  // 총 결제 금액이 인원 수로 딱 나누어떨어지지 않아 반올림 후 남는 자투리 금액
+  const leftover = totalPaid - defaultShare * memberCount;
 
   const rows = members.map((m) => {
     const owed = m.settlement_override != null ? Number(m.settlement_override) : defaultShare;
@@ -315,6 +317,17 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
           </Fragment>
         );
       })}
+
+      {leftover !== 0 && (
+        <div className="settle-swipe-wrap" style={{ marginTop: 10 }}>
+          <div className="settle-card settle-card-leftover">
+            <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13.25, fontWeight: 700, color: '#a29ead' }}>🪙 짤랑이</span>
+              <span style={{ fontSize: 13.25, fontWeight: 700, color: '#a29ead' }}>{fmtNum(Math.abs(leftover))} 원</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isOwner && anyUnsettled && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
