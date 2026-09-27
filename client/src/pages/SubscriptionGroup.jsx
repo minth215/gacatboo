@@ -82,6 +82,9 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const toastTimer = useRef(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [payOpen, setPayOpen] = useState(null); // 정산 미완료 본인이 자기 카드를 눌렀을 때 뜨는 송금 안내 모달 대상
+  // 짤랑이를 미정산 상태(입금 내역 없음)에서 삭제하면 DB 에는 지울 게 없어 화면에서만
+  // 감춘다. 총 결제 금액이 바뀌어 자투리 상황 자체가 달라지면 다시 보여준다.
+  const [leftoverDismissed, setLeftoverDismissed] = useState(false);
 
   const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
   const leftoverMember = members.find((m) => m.nickname === LEFTOVER_NAME);
@@ -90,6 +93,8 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const defaultShare = Math.round(totalPaid / memberCount);
   // 총 결제 금액이 인원 수로 딱 나누어떨어지지 않아 반올림 후 남는 자투리 금액
   const leftover = totalPaid - defaultShare * memberCount;
+  // 자투리 상황(금액)이 달라지면 이전에 감춰둔 짤랑이 카드를 다시 보여준다.
+  useEffect(() => { setLeftoverDismissed(false); }, [leftover]);
 
   const rows = members.filter((m) => m.nickname !== LEFTOVER_NAME).map((m) => {
     const owed = m.settlement_override != null ? Number(m.settlement_override) : defaultShare;
@@ -97,9 +102,10 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     const remaining = Math.max(owed - paid, 0);
     return { ...m, owed, paid, remaining, settled: remaining <= 0 };
   });
-  // 짤랑이 카드: 자투리가 0원이면 아예 표시하지 않는다. 실제 group_members 행은
-  // 처음 "입금 완료"를 누르는 시점에 생성하므로, 그 전에는 가상 행으로만 존재한다.
-  const leftoverRow = leftover === 0 ? null : leftoverMember
+  // 짤랑이 카드: 자투리가 0원이거나 미정산 상태에서 삭제해 감춘 경우 표시하지 않는다.
+  // 실제 group_members 행은 처음 "입금 완료"를 누르는 시점에 생성하므로,
+  // 그 전에는 가상 행으로만 존재한다.
+  const leftoverRow = leftover === 0 || leftoverDismissed ? null : leftoverMember
     ? (() => {
         const paid = deposits.filter((d) => d.member_id === leftoverMember.id).reduce((s, d) => s + Number(d.amount), 0);
         const remaining = Math.max(leftover - paid, 0);
@@ -185,15 +191,19 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     } catch (e) { alert(e.message); }
   };
 
-  // 짤랑이 입금 내역 삭제(정정용). 총액이 바뀌어 자투리가 달라지는 등, 이미 입금 완료
-  // 처리한 짤랑이 기록을 지우고 새 금액으로 다시 처리하고 싶을 때 쓴다.
-  // 아직 한 번도 입금 완료 처리를 안 해 지울 기록이 없을 때는 눌러도 반응이 없어 보이지
-  // 않도록, 확인창을 먼저 띄운 뒤 지울 게 없으면 그 사실을 알려준다.
-  const deleteLeftoverDeposit = async () => {
-    if (!confirm('짤랑이 입금 내역을 삭제하시겠습니까?')) return;
+  // 짤랑이 삭제. 입금 내역이 있으면(정산 상태) 카드와 입금 내역을 함께 지우고,
+  // 없으면(미정산 상태) 카드만 화면에서 감춘다(자투리 상황이 달라지면 다시 나타남).
+  const deleteLeftover = async () => {
     const dep = leftoverMember && deposits.find((d) => d.member_id === leftoverMember.id);
-    if (!dep) { alert('삭제할 짤랑이 입금 내역이 없습니다.'); return; }
-    try { await db.deleteDeposit(dep.id); loadDep(); } catch (e) { alert(e.message); }
+    const msg = dep ? '짤랑이를 삭제하시겠습니까? 입금 내역도 함께 삭제됩니다.' : '짤랑이를 삭제하시겠습니까?';
+    if (!confirm(msg)) return;
+    try {
+      if (dep) await db.deleteDeposit(dep.id);
+      if (leftoverMember) await db.removeMember(leftoverMember.id);
+      setLeftoverDismissed(true);
+      reloadMembers();
+      loadDep();
+    } catch (e) { alert(e.message); }
   };
 
   // 정산 미완료 본인이 자기 카드를 눌러 송금 모달에서 "입금 완료"를 누른 경우.
@@ -276,7 +286,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
                   {isOwner && (
-                    <button type="button" className="settle-pencil-btn" onClick={deleteLeftoverDeposit} aria-label="짤랑이 입금 삭제">
+                    <button type="button" className="settle-pencil-btn" onClick={deleteLeftover} aria-label="짤랑이 삭제">
                       <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                       </svg>
