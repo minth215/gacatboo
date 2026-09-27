@@ -297,8 +297,14 @@ export default function Stats() {
               border: 'none', backgroundColor: 'transparent', padding: '0 1px', cursor: 'pointer', fontFamily: 'inherit',
               fontSize: 12.5, fontWeight: 500, letterSpacing: '-.2px',
               color: statView === v ? '#191722' : '#a29ead',
-              backgroundImage: statView === v ? 'linear-gradient(180deg, transparent 56%, #FFD9A0 56%)' : 'none',
+              // 형광펜 효과: 선택되면 왼쪽에서 오른쪽으로 칠해지고, 해제되면 왼쪽부터 지워진다.
+              // 폭(background-size)만 애니메이션하고 기준 위치는 선택 시 왼쪽/해제 시 오른쪽으로 둔다
+              // (위치가 바뀌는 순간은 폭이 0% 또는 100%라 눈에 띄지 않음).
+              backgroundImage: 'linear-gradient(180deg, transparent 56%, #FFD9A0 56%)',
               backgroundRepeat: 'no-repeat',
+              backgroundSize: statView === v ? '100% 100%' : '0% 100%',
+              backgroundPosition: statView === v ? 'left bottom' : 'right bottom',
+              transition: 'background-size .35s ease-out, color .2s',
             }}>{label}</button>
           ))}
           <div style={{ position: 'relative' }}>
