@@ -255,11 +255,15 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
               )}
             </div>
             <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
-              {m.role === 'owner' ? (
-                totalRemaining <= 0
+              {m.role === 'owner' ? (() => {
+                // 총무의 남은 금액 = 총 결제 금액 - 총무 1인 몫 - 이미 정산된 금액.
+                // (다른 멤버 각자의 owed 를 합산하면 개별 반올림 오차가 누적될 수 있어,
+                //  총액에서 총무 몫 하나만 빼는 방식으로 정확하게 계산한다.)
+                const ownerRemaining = Math.max(totalPaid - m.owed - totalSettled, 0);
+                return ownerRemaining <= 0
                   ? <>{fmtNum(totalPaid)} 원 결제 · <span style={{ color: 'var(--income)' }}>정산 완료</span></>
-                  : <>{fmtNum(totalPaid)} 원 결제 · 남은 금액 {fmtNum(totalRemaining)} 원</>
-              ) : m.settled ? (
+                  : <>{fmtNum(totalPaid)} 원 결제 · 남은 금액 {fmtNum(ownerRemaining)} 원</>;
+              })() : m.settled ? (
                 <>{fmtNum(m.paid)} 원 입금 · 정산 완료</>
               ) : (
                 <>{fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span></>
