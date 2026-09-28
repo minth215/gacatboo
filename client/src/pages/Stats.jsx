@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -230,6 +230,29 @@ export default function Stats() {
     setHoverPos({ x: pt.clientX - rect.left, y: pt.clientY - rect.top });
   };
   const hover = hoverIdx != null ? arcs[hoverIdx] : null;
+  // 툴팁 위치: 누른 지점을 가로 중심으로 두되(화면 밖으로는 안 나가게), 가운데 구멍(총 지출/수입
+  // 표시 영역)을 침범하지 않도록 위쪽 절반을 누르면 구멍 위로, 아래쪽 절반은 구멍 아래로 밀어낸다.
+  const tipRef = useRef(null);
+  const [tipBox, setTipBox] = useState(null);
+  useLayoutEffect(() => {
+    if (!hover || !hoverPos || !tipRef.current || !donutRef.current) { setTipBox(null); return; }
+    const w = tipRef.current.offsetWidth;
+    const h = tipRef.current.offsetHeight;
+    const c = DONUT.size / 2;
+    const hole = DONUT.r + 4; // 구멍 반지름 + 여유
+    const gap = 12; // 손가락/커서와 말풍선 사이
+    const d = donutRef.current.getBoundingClientRect();
+    let left = hoverPos.x - w / 2;
+    left = Math.max(8 - d.left, Math.min(window.innerWidth - 8 - d.left - w, left));
+    // 말풍선 가로 범위 중 중심에서 가장 가까운 x 에서, 구멍이 차지하는 세로 반높이
+    const x0 = left - c, x1 = left + w - c;
+    const dx = x0 > 0 ? x0 : x1 < 0 ? -x1 : 0;
+    const half = dx < hole ? Math.sqrt(hole * hole - dx * dx) : 0;
+    const top = hoverPos.y <= c
+      ? Math.min(hoverPos.y - gap - h, c - half - h)
+      : Math.max(hoverPos.y + gap, c + half);
+    setTipBox({ left, top });
+  }, [hover, hoverPos]);
   // 데이터·보기가 바뀌면 툴팁을 닫는다(조각 구성이 달라짐).
   useEffect(() => { setHoverIdx(null); }, [statView, tab, start, endExclusive, settleReflect, chartMode]);
   // 터치로 연 툴팁은 손을 떼도 유지하고, 원형 그래프 밖을 누르면 닫는다.
@@ -542,10 +565,10 @@ export default function Stats() {
                   );
                 })}
               </svg>
-              {/* 툴팁: 그래프에서 가리키거나 누른 지점 바로 위에 띄운다 */}
+              {/* 툴팁: 누른 지점 근처에 띄우되 가운데 구멍은 침범하지 않는다(위치는 tipBox) */}
               {hover && hoverPos && (
-                <div style={{
-                  position: 'absolute', left: hoverPos.x, top: hoverPos.y, transform: 'translate(-50%, calc(-100% - 12px))',
+                <div ref={tipRef} style={{
+                  position: 'absolute', left: tipBox?.left ?? 0, top: tipBox?.top ?? 0, visibility: tipBox ? 'visible' : 'hidden',
                   background: '#191722', color: '#fff', borderRadius: 10, padding: '7px 12px', fontSize: 11, fontWeight: 600,
                   whiteSpace: 'nowrap', zIndex: 8, boxShadow: '0 6px 16px rgba(25,23,34,.25)', pointerEvents: 'none',
                 }}>
