@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { db } from '../lib/db.js';
 import { fmtNum, monthPillLabel } from '../lib/format.js';
 import SwipeRow from './SwipeRow.jsx';
 
@@ -70,6 +71,16 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
   // 한 번에 하나의 행만 스와이프로 열려 있도록: 새로 열리는 행의 id 를 기록하고,
   // 나머지 행은 SwipeRow 의 isOpen 이 false 가 되면서 자동으로 닫힌다.
   const [openId, setOpenId] = useState(null);
+  // 그룹 정산 입금의 총무 수입 항목은 category_color 스냅샷이 없으므로, 표시 시점에
+  // 이 계정이 수입 분류 관리에서 지정한 색을 찾아 타일 배경에 반영한다.
+  const [incomeCatColors, setIncomeCatColors] = useState({});
+  useEffect(() => {
+    db.listCategories('income').then((cs) => {
+      const map = {};
+      for (const c of cs) map[c.name] = c.color || '';
+      setIncomeCatColors(map);
+    }).catch(() => {});
+  }, []);
 
   if (!transactions.length) {
     return <div className={`empty${emptyCenter ? ' empty-center' : ''}`}>{emptyText || <>항목이 없습니다.<br />＋ 버튼으로 첫 항목을 추가해 보세요.</>}</div>;
@@ -94,6 +105,8 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
           {items.map((t, i) => {
             const editable = canEdit ? canEdit(t) : true;
             const isGroup = groupTint && !!(t.group_name || t.origin_type); // 그룹에서 입력/반영된 항목(그룹 자체 화면에서는 강조 생략)
+            // 그룹 정산 입금의 총무 수입 미러 항목: 색 스냅샷이 없어도 이 계정의 정산 분류 색을 따른다.
+            const depositIncomeColor = (t.type === 'income' && t.origin_type === 'deposit') ? incomeCatColors[t.category_name] : '';
             const sub = [t.category_name, t.source_name].filter(Boolean).join(' · ') || '—';
             return (
               <DayCardRow
@@ -103,7 +116,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
                 onDelete={editable && onDelete ? () => onDelete(t) : undefined}
                 background={isGroup ? 'linear-gradient(135deg, #FFF1F3 0%, #FFF6EA 100%)' : '#fff'}
               >
-                  <span className="tx-tile" style={{ background: t.category_emoji ? (t.category_color || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}>
+                  <span className="tx-tile" style={{ background: t.category_emoji ? (t.category_color || depositIncomeColor || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}>
                     {t.category_emoji || (t.type === 'income' ? '💰' : '💸')}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>

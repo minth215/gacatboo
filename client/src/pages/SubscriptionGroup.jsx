@@ -622,6 +622,13 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
 // (정산 그룹은 회차 개념이 없으므로 showPeriods=false 로 배지를 숨김)
 export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, showPeriods = true, emptyCenter = false }) {
   const [openId, setOpenId] = useState(null); // 한 번에 하나의 카드만 밀려 있도록
+  // 타일 배경색: 보고 있는 계정이 자신의 분류 관리에서 지정한 색을 그대로 반영(총무는 수입 분류, 멤버는 지출 분류 기준)
+  const [incomeCats, setIncomeCats] = useState([]);
+  const [expenseCats, setExpenseCats] = useState([]);
+  useEffect(() => {
+    db.listCategories('income').then(setIncomeCats).catch(() => {});
+    db.listCategories('expense').then(setExpenseCats).catch(() => {});
+  }, []);
   const delDeposit = async (d) => {
     if (!confirm('입금 내역을 삭제할까요? (연결된 가계부 항목도 삭제됩니다)')) return;
     try { await db.deleteDeposit(d.id); loadDep(); } catch (e) { alert(e.message); }
@@ -644,6 +651,7 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
                     const mine = isOwner || (myMember && d.member_id === myMember.id);
                     const tileEmoji = isOwner ? d.leader_category_emoji : d.category_emoji;
                     const tileCat = isOwner ? d.leader_category_name : d.category_name;
+                    const tileColor = (isOwner ? incomeCats : expenseCats).find((c) => c.name === tileCat)?.color || '';
                     return (
                       <DayCardRow
                         key={d.id} index={i} count={items.length}
@@ -651,7 +659,7 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
                         clickable={mine} onTap={() => mine && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)}
                         onDelete={mine ? () => delDeposit(d) : undefined}
                       >
-                          <span className="tx-tile" style={{ background: tileEmoji ? tileBg(tileCat) : '#f2f1f5' }}>{tileEmoji || '💸'}</span>
+                          <span className="tx-tile" style={{ background: tileColor || (tileEmoji ? tileBg(tileCat) : '#f2f1f5') }}>{tileEmoji || '💸'}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div className="tx-row-title">
                               <span className="ttext">
