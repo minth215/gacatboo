@@ -72,7 +72,14 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
     onTap?.();
   };
 
-  if (!swipeEnabled) return <div className="swipe-wrap">{children}</div>;
+  // 밀어서 여는 동작(삭제 등)이 없어도 탭(onTap)은 그대로 동작해야 한다.
+  if (!swipeEnabled) {
+    return (
+      <div className="swipe-wrap">
+        <div className="swipe-fg" onClick={onTap} style={onTap ? { cursor: 'pointer' } : undefined}>{children}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="swipe-wrap" ref={wrapRef}>

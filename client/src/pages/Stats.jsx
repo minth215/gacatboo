@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import {
@@ -56,24 +56,37 @@ const statAmount = (r, view) => (view === 'category' ? r.eff : Number(r.amount))
 export default function Stats() {
   const { user } = useAuth();
   const nav = useNavigate();
+  const location = useLocation();
+  // 항목 카드를 눌러 기록 수정 페이지로 갔다가 돌아온 경우, 그 순간의 화면 상태를 복원한다.
+  // location.state 는 이 화면이 처음 마운트될 때 한 번만 읽으면 되므로 ref 에 담아 둔다
+  // (마운트 이후 목록 화면으로 정상 진입한 경우와 구분하기 위해, 복원 후에는 비워 둔다).
+  const restoreRef = useRef(location.state?.statsRestore ?? null);
 
-  const [periodMode, setPeriodMode] = useState('month'); // week | month | year | range
+  const [periodMode, setPeriodMode] = useState(() => restoreRef.current?.periodMode ?? 'month'); // week | month | year | range
   const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
-  const [month, setMonth] = useState(currentMonth());
-  const [week, setWeek] = useState(() => weekStartOf(today()));
-  const [year, setYear] = useState(currentYear());
-  const [range, setRange] = useState(() => ({ from: shiftDate(today(), -6), to: today() }));
+  const [month, setMonth] = useState(() => restoreRef.current?.month ?? currentMonth());
+  const [week, setWeek] = useState(() => restoreRef.current?.week ?? weekStartOf(today()));
+  const [year, setYear] = useState(() => restoreRef.current?.year ?? currentYear());
+  const [range, setRange] = useState(() => restoreRef.current?.range ?? { from: shiftDate(today(), -6), to: today() });
 
-  const [tab, setTab] = useState('expense'); // expense | income
-  const [statView, setStatView] = useState('category'); // category | source | item
+  const [tab, setTab] = useState(() => restoreRef.current?.tab ?? 'expense'); // expense | income
+  const [statView, setStatView] = useState(() => restoreRef.current?.statView ?? 'category'); // category | source | item
   const [chartMode, setChartMode] = useState('donut'); // donut | table
   const [sort, setSort] = useState({ key: 'amount', dir: 'desc' });
   const [hoverIdx, setHoverIdx] = useState(null);
-  const [detail, setDetail] = useState(null); // { key, name, color, view, sourceId }
-  const [viewOffset, setViewOffset] = useState(0); // 상세 그래프 좌우 스와이프 이동량(기간 단위)
+  const [detail, setDetail] = useState(() => restoreRef.current?.detail ?? null); // { key, name, color, view, sourceId }
+  const [viewOffset, setViewOffset] = useState(() => restoreRef.current?.viewOffset ?? 0); // 상세 그래프 좌우 스와이프 이동량(기간 단위)
   // 그래프 점을 눌러 기간을 바꾸면 그래프 구간을 고정해 둔다({ unit, center }). 다른 방법으로 기간이 바뀌면 해제.
-  const [chartPin, setChartPin] = useState(null);
+  const [chartPin, setChartPin] = useState(() => restoreRef.current?.chartPin ?? null);
   const pickingRef = useRef(false);
+
+  // 복원해서 썼으면, 이후 이 화면에 남아 있는 history state 를 지운다(다시 마운트될 때
+  // 엉뚱하게 재사용되지 않도록). 실제 history 항목은 기록 수정 페이지로 넘어가기 직전에
+  // 다시 채워 넣는다(아래 openDetailTx).
+  useEffect(() => {
+    if (restoreRef.current) nav(location.pathname + location.search, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [rows, setRows] = useState([]);
   const [chartRows, setChartRows] = useState([]);
@@ -255,6 +268,21 @@ export default function Stats() {
     [detail, rows, tab],
   );
 
+  // 상세 뷰의 항목 카드를 눌러 기록 수정 페이지로 이동. 그룹 결제/입금 건은 가계부와
+  // 동일하게 해당 그룹의 수정 화면으로 보낸다. 지금 화면 상태를 현재 history 항목에
+  // 실어 두고 이동해서, "<"나 저장으로 뒤로 돌아오면(nav(-1)) 그대로 복원되게 한다.
+  const canEditTx = (t) => (t.origin_type ? true : t.created_by === user.id);
+  const openDetailTx = (t) => {
+    nav(location.pathname + location.search, {
+      replace: true,
+      state: { statsRestore: { periodMode, month, week, year, range, tab, statView, detail, viewOffset, chartPin } },
+    });
+    if (t.origin_type === 'payment') nav(`/tx/${t.origin_id}?group=${t.origin_group_id}&kind=payment`);
+    else if (t.origin_type === 'deposit') nav(`/tx/${t.origin_id}?group=${t.origin_group_id}&kind=deposit`);
+    else if (t.origin_type) nav(`/groups/${t.origin_group_id}?edit=${t.origin_type}:${t.origin_id}`);
+    else nav(`/tx/${t.id}`);
+  };
+
   // 상세 뷰 진입/복귀. 상세 뷰에서 기간을 옮겨도, 돌아오면 들어가기 전 화면 그대로 보이게 한다.
   const openDetail = (g) => {
     detailSnapRef.current = { periodMode, month, week, year, range, rows, scrollY: window.scrollY };
@@ -361,8 +389,8 @@ export default function Stats() {
         <div style={{ marginTop: 4 }}>
           <TransactionList
             transactions={detailTxs}
-            canEdit={() => true}
-            onEdit={(t) => nav(`/tx/${t.id}`)}
+            canEdit={canEditTx}
+            onEdit={openDetailTx}
             groupByMonth={periodMode === 'year' || periodMode === 'range'}
             emptyText="해당 기간 내역이 없습니다."
           />
