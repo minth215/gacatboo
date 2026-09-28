@@ -7,7 +7,7 @@ import PageHeader from '../components/PageHeader.jsx';
 import { tileBg } from '../components/TransactionList.jsx';
 
 // 통계 페이지 원형 그래프 팔레트(Stats.jsx 의 PALETTE)를 흰색 85% 비율로 섞어 훨씬 연하게 만든 색.
-const PALETTE = ['#FFE9EF', '#FDF1E2', '#E6F0F9', '#EEECFC', '#DFFAF5', '#FFFBFB', '#FFF4F1', '#F0F8F6', '#F6F2FC', '#ECF4F9'];
+const PALETTE = ['#FFE9EF', '#FDF1E2', '#E6F0F9', '#EEECFC', '#DFFAF5', '#FFFBFB', '#FFF4F1', '#F0F8F6', '#F6F2FC', '#ECF4F9', '#FFF7E4', '#E9F8EB', '#FBEEF6'];
 
 export default function CategoryManage() {
   const { type } = useParams(); // income | expense

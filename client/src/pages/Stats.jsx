@@ -12,7 +12,7 @@ import Spinner from '../components/Spinner.jsx';
 import TransactionList from '../components/TransactionList.jsx';
 
 // 도넛/표에서 쓰는 파스텔 팔레트(시안)
-const PALETTE = ['#FF6F91', '#F0A13D', '#5B9BD8', '#8B7FE8', '#2CDDB9', '#FDE2E2', '#FFB4A2', '#9AD0C2', '#C6A8E8', '#7FB3D5'];
+const PALETTE = ['#FF6F91', '#F0A13D', '#5B9BD8', '#8B7FE8', '#2CDDB9', '#FDE2E2', '#FFB4A2', '#9AD0C2', '#C6A8E8', '#7FB3D5', '#FFC94D', '#6FCF7C', '#E68FC0'];
 const PERIOD_LABELS = { week: '주별', month: '월별', year: '연별', range: '기간' };
 // 상세 꺾은선 그래프: 한 번에 보이는 기간 수와, 좌우 스와이프로 더 볼 수 있는 여유 기간
 const CHART_VISIBLE = 6;
