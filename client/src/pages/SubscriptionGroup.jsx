@@ -159,9 +159,10 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const nonOwnerRows = rows.filter((r) => r.role !== 'owner');
   const totalSettled = nonOwnerRows.reduce((s, r) => s + r.paid, 0) + (leftoverRow ? leftoverRow.paid : 0);
   const totalRemaining = nonOwnerRows.reduce((s, r) => s + r.remaining, 0) + (leftoverRow ? leftoverRow.remaining : 0);
-  // "정산 일괄 완료"/"정산 요청하기" 버튼은 실제 멤버 대상 기능이라 짤짤이는 제외한다
-  // (짤짤이는 개별 스와이프로만 입금 완료 처리).
-  const anyUnsettled = nonOwnerRows.some((r) => !r.settled);
+  // "정산 요청하기"는 실제 멤버에게 알림을 보내는 기능이라 짤짤이는 대상에서 빠진다
+  // (rows 에 애초에 짤짤이가 없음). "정산 일괄 완료"는 짤짤이도 함께 완료 처리하므로
+  // 짤짤이만 미완료여도 버튼이 보이게 포함한다.
+  const anyUnsettled = nonOwnerRows.some((r) => !r.settled) || !!(leftoverRow && !leftoverRow.settled && leftoverRow.remaining > 0);
   // 총무가 개별 정산 금액을 임의로 낮춰서, 전원 몫의 합(총무 포함 + 짤짤이)이
   // 총 결제 금액보다 적어지면 총무가 손해를 보게 되므로 경고로 대체한다.
   // (짤짤이 카드를 삭제해 감춰도 자투리 금액 자체는 합계에 포함한다.)
@@ -290,11 +291,22 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
 
   const settleAll = async () => {
     const targets = nonOwnerRows.filter((r) => !r.settled);
-    if (!targets.length) return;
-    if (!confirm(`미완료 멤버 ${targets.length}명의 정산을 모두 완료 처리할까요?`)) return;
+    const includeLeftover = !!(leftoverRow && !leftoverRow.settled && leftoverRow.remaining > 0);
+    if (!targets.length && !includeLeftover) return;
+    const parts = [];
+    if (targets.length) parts.push(`멤버 ${targets.length}명`);
+    if (includeLeftover) parts.push(LEFTOVER_NAME);
+    if (!confirm(`${parts.join(' · ')}의 정산을 모두 완료 처리할까요?`)) return;
     setBulkBusy(true);
     try {
       for (const m of targets) await createSettleDeposit(m);
+      // 짤짤이도 함께 완료 처리한다. 실제 group_members 행이 아직 없으면 이 시점에 만든다.
+      if (includeLeftover) {
+        let member = leftoverMember;
+        if (!member) member = await db.addMember(gid, { nickname: LEFTOVER_NAME, start_date: today(), end_date: '', contact: '', memo: '', username: '' });
+        await createSettleDeposit({ id: member.id, remaining: leftoverRow.remaining });
+        reloadMembers();
+      }
       loadDep();
     } catch (e) { alert(e.message); }
     finally { setBulkBusy(false); }
