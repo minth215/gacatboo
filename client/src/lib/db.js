@@ -510,13 +510,15 @@ export const db = {
     const settleIncomeRows = rows.filter((r) => r.type === 'income' && r.settlement_target_id != null);
     const excessMap = await this.settlementExcessByRow(settleIncomeRows.map((r) => r.settlement_target_id));
 
-    return flattenTx(rows).map((r) => {
+    const withEff = flattenTx(rows).map((r) => {
       // 대상 지출은 정산액만큼 차감(0 하한)
       if (r.type === 'expense') return { ...r, eff: Math.max(0, Number(r.amount) - (settleMap[r.id] || 0)) };
       // 정산 수입은 초과분만 '정산' 수입으로 계상
       if (r.settlement_target_id != null) return { ...r, eff: excessMap[r.id] || 0, category_name: '정산' };
       return { ...r, eff: Number(r.amount) };
     });
+    // 구독 그룹 결제/입금이 반영된 항목에 회차(몇 회분) 정보를 붙인다(가계부와 동일).
+    return this.attachSubscriptionPeriods(withEff);
   },
 
   async groupStats(groupId, month, members) {
