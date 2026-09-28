@@ -88,6 +88,8 @@ export default function Stats() {
   const [chartMode, setChartMode] = useState('donut'); // donut | table
   const [sort, setSort] = useState({ key: 'amount', dir: 'desc' });
   const [hoverIdx, setHoverIdx] = useState(null);
+  const [hoverPos, setHoverPos] = useState(null); // 툴팁을 띄울 위치(원형 그래프 기준 좌표)
+  const donutRef = useRef(null);
   const [detail, setDetail] = useState(() => restoreRef.current?.detail ?? null); // { key, name, color, view, sourceId }
   const [viewOffset, setViewOffset] = useState(() => restoreRef.current?.viewOffset ?? 0); // 상세 그래프 좌우 스와이프 이동량(기간 단위)
   // 그래프 점을 눌러 기간을 바꾸면 그래프 구간을 고정해 둔다({ unit, center }). 다른 방법으로 기간이 바뀌면 해제.
@@ -208,8 +210,18 @@ export default function Stats() {
     const deg = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
     const idx = arcs.findIndex((a) => deg >= a.from && deg < a.to);
     setHoverIdx(idx >= 0 ? idx : null);
+    setHoverPos({ x: pt.clientX - rect.left, y: pt.clientY - rect.top });
   };
   const hover = hoverIdx != null ? arcs[hoverIdx] : null;
+  // 데이터·보기가 바뀌면 툴팁을 닫는다(조각 구성이 달라짐).
+  useEffect(() => { setHoverIdx(null); }, [statView, tab, start, endExclusive, settleReflect, chartMode]);
+  // 터치로 연 툴팁은 손을 떼도 유지하고, 원형 그래프 밖을 누르면 닫는다.
+  useEffect(() => {
+    if (hoverIdx == null) return undefined;
+    const close = (e) => { if (!donutRef.current?.contains(e.target)) setHoverIdx(null); };
+    document.addEventListener('touchstart', close);
+    return () => document.removeEventListener('touchstart', close);
+  }, [hoverIdx]);
 
   // ---------- 상세 ----------
   const matchesDetail = (r, d) => {
@@ -467,7 +479,7 @@ export default function Stats() {
       </div>
 
       {statView === 'category' && (
-        <div style={{ marginTop: 10, minHeight: 22, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 11.5, fontWeight: 400, color: '#8b8798', flex: 'none' }}>정산 반영</span>
           <button
             type="button" role="switch" aria-checked={settleReflect} aria-label="정산 반영"
@@ -477,16 +489,6 @@ export default function Stats() {
           >
             <span className="ios-toggle-knob" />
           </button>
-          {/* 원형 그래프 툴팁: 분류별 보기에서는 원 위에 띄우지 않고 이 토글 라인에 보여준다 */}
-          {hover && chartMode === 'donut' && (
-            <span style={{
-              marginLeft: 4, display: 'inline-flex', alignItems: 'center', minWidth: 0,
-              fontSize: 11, fontWeight: 600, color: '#191722', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            }}>
-              <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: hover.color, marginRight: 6, flex: 'none' }} />
-              {hover.name} · {fmtNum(hover.total)} · {Math.round((hover.total / total) * 100)}%
-            </span>
-          )}
         </div>
       )}
 
@@ -495,22 +497,25 @@ export default function Stats() {
         <div className="empty empty-center" style={{ minHeight: 'calc(100vh - 229px - var(--safe-bottom))' }}>해당 기간 데이터가 없습니다.</div>
       ) : chartMode === 'donut' ? (
         <>
-          <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center', position: 'relative' }}>
-            {hover && statView !== 'category' && (
-              <div style={{
-                position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%)', background: '#191722',
-                color: '#fff', borderRadius: 10, padding: '7px 12px', fontSize: 11, fontWeight: 600,
-                whiteSpace: 'nowrap', zIndex: 8, boxShadow: '0 6px 16px rgba(25,23,34,.25)',
-              }}>
-                <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: hover.color, marginRight: 6 }} />
-                {hover.name} · {fmtNum(hover.total)} · {Math.round((hover.total / total) * 100)}%
-              </div>
-            )}
+          {/* 원형 그래프 — 위(수입/지출 탭 또는 정산 반영 줄)와의 간격을 아래 카드 목록과 같은 22px 로 */}
+          <div style={{ marginTop: 22, display: 'flex', justifyContent: 'center' }}>
             <div
+              ref={donutRef}
               onMouseMove={donutPoint} onMouseLeave={() => setHoverIdx(null)}
-              onTouchStart={donutPoint} onTouchMove={donutPoint} onTouchEnd={() => setHoverIdx(null)}
-              style={{ position: 'relative', width: 180, height: 180, borderRadius: '50%', background: gradient, marginTop: 34, touchAction: 'none' }}
+              onTouchStart={donutPoint} onTouchMove={donutPoint}
+              style={{ position: 'relative', width: 180, height: 180, borderRadius: '50%', background: gradient, touchAction: 'none' }}
             >
+              {/* 툴팁: 그래프에서 가리키거나 누른 지점 바로 위에 띄운다 */}
+              {hover && hoverPos && (
+                <div style={{
+                  position: 'absolute', left: hoverPos.x, top: hoverPos.y, transform: 'translate(-50%, calc(-100% - 12px))',
+                  background: '#191722', color: '#fff', borderRadius: 10, padding: '7px 12px', fontSize: 11, fontWeight: 600,
+                  whiteSpace: 'nowrap', zIndex: 8, boxShadow: '0 6px 16px rgba(25,23,34,.25)', pointerEvents: 'none',
+                }}>
+                  <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: hover.color, marginRight: 6 }} />
+                  {hover.name} · {fmtNum(hover.total)} · {Math.round((hover.total / total) * 100)}%
+                </div>
+              )}
               <div style={{
                 position: 'absolute', inset: 20, borderRadius: '50%', background: 'var(--bg)', display: 'flex',
                 flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none',
