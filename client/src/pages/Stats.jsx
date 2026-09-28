@@ -61,7 +61,9 @@ const keyOf = (r, view) => {
 //   정산 수입은 지출을 넘어선 초과분만 잡아서 "정산" 분류가 실제 손익만 나타내도록 한다.
 // - 원천별·항목별: 정산 상계 없이 실제로 오간 원금 그대로. 어느 카드로 얼마를 긁었는지,
 //   어느 통장에 얼마가 들어왔는지를 봐야 하므로 정산으로 주고받은 금액을 빼지 않는다.
-const statAmount = (r, view) => (view === 'category' ? r.eff : Number(r.amount));
+// settleReflect: 분류별 보기에서 "정산 반영" 토글 상태. On 이면 정산 상계 반영(eff),
+// Off 면 원천별·항목별과 같은 원금(amount) 기준으로 집계한다.
+const statAmount = (r, view, settleReflect = true) => (view === 'category' && settleReflect ? r.eff : Number(r.amount));
 
 export default function Stats() {
   const { user } = useAuth();
@@ -81,6 +83,8 @@ export default function Stats() {
 
   const [tab, setTab] = useState(() => restoreRef.current?.tab ?? 'expense'); // expense | income
   const [statView, setStatView] = useState(() => restoreRef.current?.statView ?? 'category'); // category | source | item
+  // 분류별 보기에서만 쓰는 "정산 반영" 토글. On(기본)이면 정산 상계 반영, Off 면 원천별·항목별처럼 원금 그대로.
+  const [settleReflect, setSettleReflect] = useState(true);
   const [chartMode, setChartMode] = useState('donut'); // donut | table
   const [sort, setSort] = useState({ key: 'amount', dir: 'desc' });
   const [hoverIdx, setHoverIdx] = useState(null);
@@ -134,17 +138,17 @@ export default function Stats() {
   // ---------- 집계 ----------
   const groups = useMemo(() => {
     const map = new Map();
-    rows.filter((r) => r.type === tab && statAmount(r, statView) > 0).forEach((r) => {
+    rows.filter((r) => r.type === tab && statAmount(r, statView, settleReflect) > 0).forEach((r) => {
       const { key, name } = keyOf(r, statView);
       const cur = map.get(key) || { key, name, total: 0, count: 0, sourceId: r.source_id ?? null };
-      cur.total += statAmount(r, statView);
+      cur.total += statAmount(r, statView, settleReflect);
       cur.count += 1;
       map.set(key, cur);
     });
     return [...map.values()]
       .sort((a, b) => b.total - a.total)
       .map((g, i) => ({ ...g, color: PALETTE[i % PALETTE.length] }));
-  }, [rows, tab, statView]);
+  }, [rows, tab, statView, settleReflect]);
 
   const total = groups.reduce((s, g) => s + g.total, 0);
 
@@ -252,14 +256,14 @@ export default function Stats() {
 
   const chartPoints = useMemo(() => {
     if (!detail || !chartMeta) return [];
-    const mine = chartRows.filter((r) => r.type === tab && statAmount(r, detail.view) > 0 && matchesDetail(r, detail));
+    const mine = chartRows.filter((r) => r.type === tab && statAmount(r, detail.view, settleReflect) > 0 && matchesDetail(r, detail));
     return chartMeta.anchors.map((a, i) => {
       const b = periodBounds(chartMeta.unit, a);
       const amount = mine.filter((r) => r.date >= b.start && r.date < b.endExclusive)
-        .reduce((s, r) => s + statAmount(r, detail.view), 0);
+        .reduce((s, r) => s + statAmount(r, detail.view, settleReflect), 0);
       return { anchor: a, label: periodTickLabel(chartMeta.unit, a), amount, active: i === chartMeta.selectedIdx };
     });
-  }, [detail, chartMeta, chartRows, tab]);
+  }, [detail, chartMeta, chartRows, tab, settleReflect]);
 
   // 그래프에서 점을 눌렀을 때 그 기간으로 이동. 그래프는 움직이지 않고 선택 점만 바뀐다.
   const pickPeriod = (unit, a) => {
@@ -274,8 +278,8 @@ export default function Stats() {
   };
 
   const detailTxs = useMemo(
-    () => (detail ? rows.filter((r) => r.type === tab && statAmount(r, detail.view) > 0 && matchesDetail(r, detail)) : []),
-    [detail, rows, tab],
+    () => (detail ? rows.filter((r) => r.type === tab && statAmount(r, detail.view, settleReflect) > 0 && matchesDetail(r, detail)) : []),
+    [detail, rows, tab, settleReflect],
   );
 
   // 상세 뷰의 항목 카드를 눌러 기록 수정 페이지로 이동. 그룹 결제/입금 건은 가계부와
@@ -461,6 +465,19 @@ export default function Stats() {
           ))}
         </div>
       </div>
+
+      {statView === 'category' && (
+        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>정산 반영</span>
+          <button
+            type="button" role="switch" aria-checked={settleReflect} aria-label="정산 반영"
+            className={`ios-toggle${settleReflect ? ' on' : ''}`}
+            onClick={() => setSettleReflect((v) => !v)}
+          >
+            <span className="ios-toggle-knob" />
+          </button>
+        </div>
+      )}
 
       {loading && !rows.length ? <Spinner /> : groups.length === 0 ? (
         // 수입/지출 탭 아래부터 하단 탭 바 바로 위까지의 본문 영역 정중앙
