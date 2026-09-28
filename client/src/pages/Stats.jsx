@@ -36,13 +36,23 @@ const sortArrow = (asc) => (
 );
 
 // 행을 분류별/원천별/항목별 키·이름으로 변환
+// 구독/정산 그룹의 입금은 총무·총대 가계부에 "{내용} - {닉네임}" 형태로 기록된다.
+// 항목별 집계에서는 닉네임을 빼고 내용만으로 묶는다(상세 목록에서는 r.content 원본을
+// 그대로 보여주므로 닉네임이 계속 표시된다).
+const itemNameOf = (r) => {
+  const content = (r.content || '').trim();
+  if (r.origin_type !== 'deposit') return content;
+  const idx = content.lastIndexOf(' - ');
+  return (idx === -1 ? content : content.slice(0, idx)).trim();
+};
+
 const keyOf = (r, view) => {
   if (view === 'category') return { key: `c:${r.category_name || '미분류'}`, name: r.category_name || '미분류' };
   if (view === 'source') {
     const name = r.source_name || '미지정';
     return { key: r.source_id != null ? `s:${r.source_id}` : `sn:${name}`, name };
   }
-  const name = (r.content || '').trim() || r.category_name || '미분류';
+  const name = itemNameOf(r) || r.category_name || '미분류';
   return { key: `i:${name}`, name };
 };
 
@@ -201,7 +211,7 @@ export default function Stats() {
   const matchesDetail = (r, d) => {
     if (d.view === 'category') return (r.category_name || '미분류') === d.name;
     if (d.view === 'source') return d.sourceId != null ? r.source_id === d.sourceId : (r.source_name || '미지정') === d.name;
-    return ((r.content || '').trim() || r.category_name || '미분류') === d.name;
+    return (itemNameOf(r) || r.category_name || '미분류') === d.name;
   };
 
   // 상세 꺾은선: 선택 기간과 같은 단위로 앞뒤 여유를 둔 기간 목록(기간 선택 모드는 월 단위로)
