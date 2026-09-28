@@ -100,7 +100,40 @@ export const db = {
     const rows = unwrap(await supabase.from('transactions').select(TX_SELECT)
       .gte('date', start).lt('date', endExclusive)
       .order('date', { ascending: false }).order('id', { ascending: false }));
-    return flattenTx(rows);
+    return this.attachSubscriptionPeriods(flattenTx(rows));
+  },
+  // 구독 그룹의 결제/입금이 가계부에 반영된 항목에 회차(몇 회분) 정보를 붙인다.
+  // 가계부 행에는 회차가 없어서 원본(subscription_payments/deposits)에서 가져오며,
+  // 회차 개념이 없는 정산 그룹 등은 제외하고 카테고리가 '구독'인 그룹만 대상으로 한다.
+  // 조회에 실패해도 가계부 표시는 막지 않도록 원래 행을 그대로 돌려준다.
+  async attachSubscriptionPeriods(rows) {
+    const idsOf = (type) => [...new Set(rows.filter((r) => r.origin_type === type && r.origin_id != null).map((r) => r.origin_id))];
+    const payIds = idsOf('payment');
+    const depIds = idsOf('deposit');
+    if (!payIds.length && !depIds.length) return rows;
+    try {
+      const [pays, deps] = await Promise.all([
+        payIds.length ? supabase.from('subscription_payments').select('id, periods, group_id').in('id', payIds) : { data: [] },
+        depIds.length ? supabase.from('subscription_deposits').select('id, periods, group_id').in('id', depIds) : { data: [] },
+      ]);
+      const src = [
+        ...(pays.data || []).map((x) => ({ ...x, type: 'payment' })),
+        ...(deps.data || []).map((x) => ({ ...x, type: 'deposit' })),
+      ];
+      const groupIds = [...new Set(src.map((x) => x.group_id))];
+      if (!groupIds.length) return rows;
+      const { data: groups } = await supabase.from('groups').select('id, category').in('id', groupIds);
+      const subGroups = new Set((groups || []).filter((g) => g.category === '구독').map((g) => g.id));
+      const periods = {};
+      src.forEach((x) => { if (subGroups.has(x.group_id)) periods[`${x.type}:${x.id}`] = Math.max(Number(x.periods) || 1, 1); });
+      return rows.map((r) => {
+        const n = periods[`${r.origin_type}:${r.origin_id}`];
+        return n ? { ...r, periods: n } : r;
+      });
+    } catch (e) {
+      console.error(e);
+      return rows;
+    }
   },
 
   async getTransaction(id) {
@@ -116,7 +149,7 @@ export const db = {
     if (type === 'income' || type === 'expense') query = query.eq('type', type);
     if (category) query = query.eq('category_name', category);
     if (source) query = query.eq('source_name', source);
-    return flattenTx(unwrap(await query));
+    return this.attachSubscriptionPeriods(flattenTx(unwrap(await query)));
   },
 
   // 내용 자동완성용: 과거에 쓴 내용(중복 제거, 최신순)
