@@ -514,21 +514,23 @@ export default function Stats() {
             }}>{label}</button>
           ))}
         </div>
-      </div>
 
-      {statView === 'category' && (
-        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11.5, fontWeight: 400, color: '#8b8798', flex: 'none' }}>정산 반영</span>
-          <button
-            type="button" role="switch" aria-checked={settleReflect} aria-label="정산 반영"
-            className={`ios-toggle${settleReflect ? ' on' : ''}`}
-            onClick={() => setSettleReflect((v) => !v)}
-            style={{ flex: 'none' }}
-          >
-            <span className="ios-toggle-knob" />
-          </button>
-        </div>
-      )}
+        {/* "정산 반영" 토글은 제 자리를 차지하지 않고 그 아래(원형 그래프 위쪽)에 겹쳐서 뜬다.
+            분류별/원천별/항목별 모두 원형 그래프 시작 높이가 같아지도록. */}
+        {statView === 'category' && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, zIndex: 3 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 400, color: '#8b8798', flex: 'none' }}>정산 반영</span>
+            <button
+              type="button" role="switch" aria-checked={settleReflect} aria-label="정산 반영"
+              className={`ios-toggle${settleReflect ? ' on' : ''}`}
+              onClick={() => setSettleReflect((v) => !v)}
+              style={{ flex: 'none' }}
+            >
+              <span className="ios-toggle-knob" />
+            </button>
+          </div>
+        )}
+      </div>
 
       {loading && !rows.length ? <Spinner /> : groups.length === 0 ? (
         // 수입/지출 탭 아래부터 하단 탭 바 바로 위까지의 본문 영역 정중앙
