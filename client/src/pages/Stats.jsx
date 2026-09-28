@@ -467,15 +467,26 @@ export default function Stats() {
       </div>
 
       {statView === 'category' && (
-        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>정산 반영</span>
+        <div style={{ marginTop: 10, minHeight: 22, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 400, color: '#8b8798', flex: 'none' }}>정산 반영</span>
           <button
             type="button" role="switch" aria-checked={settleReflect} aria-label="정산 반영"
             className={`ios-toggle${settleReflect ? ' on' : ''}`}
             onClick={() => setSettleReflect((v) => !v)}
+            style={{ flex: 'none' }}
           >
             <span className="ios-toggle-knob" />
           </button>
+          {/* 원형 그래프 툴팁: 분류별 보기에서는 원 위에 띄우지 않고 이 토글 라인에 보여준다 */}
+          {hover && chartMode === 'donut' && (
+            <span style={{
+              marginLeft: 4, display: 'inline-flex', alignItems: 'center', minWidth: 0,
+              fontSize: 11, fontWeight: 600, color: '#191722', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: hover.color, marginRight: 6, flex: 'none' }} />
+              {hover.name} · {fmtNum(hover.total)} · {Math.round((hover.total / total) * 100)}%
+            </span>
+          )}
         </div>
       )}
 
@@ -485,7 +496,7 @@ export default function Stats() {
       ) : chartMode === 'donut' ? (
         <>
           <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center', position: 'relative' }}>
-            {hover && (
+            {hover && statView !== 'category' && (
               <div style={{
                 position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%)', background: '#191722',
                 color: '#fff', borderRadius: 10, padding: '7px 12px', fontSize: 11, fontWeight: 600,
