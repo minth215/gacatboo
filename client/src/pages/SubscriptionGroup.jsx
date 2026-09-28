@@ -84,6 +84,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const toastTimer = useRef(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [payOpen, setPayOpen] = useState(null); // 정산 미완료 본인이 자기 카드를 눌렀을 때 뜨는 송금 안내 모달 대상
+  const [settleDateOpen, setSettleDateOpen] = useState(false); // "정산 일괄 완료" 입금 날짜 선택 모달
   // 짤짤이를 미정산 상태(입금 내역 없음)에서 삭제하면 DB 에는 지울 게 없어 화면에서만
   // 감춘다. 총 결제 금액이 바뀌어 자투리 상황 자체가 달라지면 다시 보여준다.
   const [leftoverDismissed, setLeftoverDismissed] = useState(false);
@@ -232,14 +233,18 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     alert(`${m.nickname}님에게 정산 알림을 보냈습니다. (푸시 알림 기능은 추후 제공될 예정입니다)`);
   };
 
-  // 결제 내역이 한 건뿐이면 그 항목을 정산 대상으로 자동 지정
-  const soleSettlementTargetId = payments.length === 1 ? payments[0].id : null;
+  // 정산 대상 지출: 결제 내역이 한 건뿐이면 그 항목, 여러 건이면 가장 최근 결제 항목을 정산 대상으로 삼는다.
+  const settleTargetPayment = payments.length
+    ? (payments.length === 1 ? payments[0] : [...payments].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)).slice(-1)[0])
+    : null;
+  const settleContentDefault = group?.name ? `${group.name} 정산` : '정산';
 
-  const createSettleDeposit = (m) => db.createDeposit({
-    group_id: gid, member_id: m.id, date: today(), amount: m.remaining, periods: 1,
-    category_name: '정산', category_emoji: '', leader_category_name: '정산', leader_category_emoji: '',
-    leader_settlement_target_id: soleSettlementTargetId,
-    content: '정산',
+  const createSettleDeposit = (m, date = today()) => db.createDeposit({
+    group_id: gid, member_id: m.id, date, amount: m.remaining, periods: 1,
+    category_name: settleTargetPayment?.category_name || '정산', category_emoji: settleTargetPayment?.category_emoji || '',
+    leader_category_name: '정산', leader_category_emoji: '',
+    leader_settlement_target_id: settleTargetPayment?.tx_id || null,
+    content: settleContentDefault,
   });
 
   const markPaid = async (m) => {
@@ -254,8 +259,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     try {
       let member = leftoverMember;
       if (!member) member = await db.addMember(gid, { nickname: LEFTOVER_NAME, start_date: today(), end_date: '', contact: '', memo: '', username: '' });
-      // content 는 기본값('정산')을 그대로 써서, 입금 내역에 다른 멤버와 같은 형식으로
-      // "정산 - 짤짤이" 로 표시되게 한다.
+      // content 는 기본값(그룹명 정산)을 그대로 써서, 입금 내역에 다른 멤버와 같은 형식으로 표시되게 한다.
       await createSettleDeposit({ id: member.id, remaining: leftoverRow.remaining });
       reloadMembers();
       loadDep();
@@ -289,27 +293,32 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     alert(`${targets.length}명에게 정산 요청 알림을 보냈습니다. (푸시 알림 기능은 추후 제공될 예정입니다)`);
   };
 
-  const settleAll = async () => {
+  const settleAll = async (date) => {
     const targets = nonOwnerRows.filter((r) => !r.settled);
     const includeLeftover = !!(leftoverRow && !leftoverRow.settled && leftoverRow.remaining > 0);
     if (!targets.length && !includeLeftover) return;
-    const parts = [];
-    if (targets.length) parts.push(`멤버 ${targets.length}명`);
-    if (includeLeftover) parts.push(LEFTOVER_NAME);
-    if (!confirm(`${parts.join(' · ')}의 정산을 모두 완료 처리할까요?`)) return;
+    setSettleDateOpen(false);
     setBulkBusy(true);
     try {
-      for (const m of targets) await createSettleDeposit(m);
+      for (const m of targets) await createSettleDeposit(m, date);
       // 짤짤이도 함께 완료 처리한다. 실제 group_members 행이 아직 없으면 이 시점에 만든다.
       if (includeLeftover) {
         let member = leftoverMember;
         if (!member) member = await db.addMember(gid, { nickname: LEFTOVER_NAME, start_date: today(), end_date: '', contact: '', memo: '', username: '' });
-        await createSettleDeposit({ id: member.id, remaining: leftoverRow.remaining });
+        await createSettleDeposit({ id: member.id, remaining: leftoverRow.remaining }, date);
         reloadMembers();
       }
       loadDep();
     } catch (e) { alert(e.message); }
     finally { setBulkBusy(false); }
+  };
+
+  // "정산 일괄 완료" 버튼: 바로 실행하지 않고 입금 날짜(오늘/결제일자)를 고르는 모달을 띄운다.
+  const openSettleAll = () => {
+    const targets = nonOwnerRows.filter((r) => !r.settled);
+    const includeLeftover = !!(leftoverRow && !leftoverRow.settled && leftoverRow.remaining > 0);
+    if (!targets.length && !includeLeftover) return;
+    setSettleDateOpen(true);
   };
 
   // 클립보드 복사(iOS 사파리 등 clipboard API 미지원 환경 대비 execCommand 폴백)
@@ -538,7 +547,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
         </p>
       ) : isOwner && anyUnsettled && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <button type="button" className="btn-settle-all" style={{ flex: 1, height: 48, marginTop: 0 }} disabled={bulkBusy} onClick={settleAll}>
+          <button type="button" className="btn-settle-all" style={{ flex: 1, height: 48, marginTop: 0 }} disabled={bulkBusy} onClick={openSettleAll}>
             {bulkBusy ? '처리 중…' : '정산 일괄 완료'}
           </button>
           <button type="button" className="btn-ink-pill" style={{ flex: 1, height: 48, marginTop: 0 }} onClick={requestSettlement}>정산 요청하기</button>
@@ -579,6 +588,29 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
             <p className="small muted" style={{ textAlign: 'center', margin: '-4px 0 0' }}>토스 버튼은 비공식 방식이라 계좌·금액은 토스 앱에서 직접 입력해야 해요.</p>
 
             <button type="button" className="btn-settle-all" style={{ marginTop: 0 }} onClick={() => confirmSelfPaid(payOpen)}>이미 보냈어요 · 입금 완료</button>
+          </div>
+        </div>
+      )}
+
+      {settleDateOpen && (
+        <div className="catmodal-overlay" onClick={() => setSettleDateOpen(false)}>
+          <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>정산 일괄 완료</div>
+              <button aria-label="닫기" onClick={() => setSettleDateOpen(false)} className="catmodal-icon-btn">
+                <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+              </button>
+            </div>
+            <p className="small muted" style={{ margin: 0 }}>입금 내역에 기록할 날짜를 선택하세요.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button type="button" className="btn-settle-all" style={{ marginTop: 0 }} onClick={() => settleAll(today())}>오늘 날짜로</button>
+              <button
+                type="button" className="btn-ink-pill" style={{ marginTop: 0 }} disabled={!settleTargetPayment}
+                onClick={() => settleTargetPayment && settleAll(settleTargetPayment.date)}
+              >
+                결제일자와 동일하게{settleTargetPayment ? ` (${dotDate(settleTargetPayment.date)})` : ''}
+              </button>
+            </div>
           </div>
         </div>
       )}
