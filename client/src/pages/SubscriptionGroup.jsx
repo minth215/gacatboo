@@ -610,6 +610,8 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
                 <div className="tx-daygroup">
                   {items.map((d, i) => {
                     const mine = isOwner || (myMember && d.member_id === myMember.id);
+                    const tileEmoji = isOwner ? d.leader_category_emoji : d.category_emoji;
+                    const tileCat = isOwner ? d.leader_category_name : d.category_name;
                     return (
                       <DayCardRow
                         key={d.id} index={i} count={items.length}
@@ -617,7 +619,7 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
                         clickable={mine} onTap={() => mine && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)}
                         onDelete={mine ? () => delDeposit(d) : undefined}
                       >
-                          <span className="tx-tile" style={{ background: d.category_emoji ? tileBg(d.category_name) : '#f2f1f5' }}>{d.category_emoji || '💸'}</span>
+                          <span className="tx-tile" style={{ background: tileEmoji ? tileBg(tileCat) : '#f2f1f5' }}>{tileEmoji || '💸'}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div className="tx-row-title">
                               <span className="ttext">
@@ -809,8 +811,10 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   );
 }
 
-export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, topNotice, defaultCategoryName = '구독', showPeriods = true }) {
+export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '' }) {
   const editing = !!initial;
+  const isSettleMode = defaultCategoryName === '정산';
+  const settleContentDefault = groupName ? `${groupName} 정산` : '정산';
   const defMemberCat = cats.find((c) => c.name === defaultCategoryName);     // 멤버 지출 기본(구독/정산 등)
   const defLeaderCat = incomeCats.find((c) => c.name === (sub?.deposit_category || defaultCategoryName)); // 총대 수입 기본 = 입금분류(없으면 동일 기본값)
   const [f, setF] = useState(() => editing ? {
@@ -914,7 +918,9 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     // 멤버 가계부(지출) 필드
     let m_name = '', m_emoji = '', m_source = '';
     if (isOwner) {
-      if (editing) { m_name = initial.category_name; m_emoji = initial.category_emoji; m_source = initial.source_name; }
+      const settleTarget = isSettleMode && f.lSettleId ? recentExpenses.find((x) => String(x.id) === f.lSettleId) : null;
+      if (settleTarget) { m_name = settleTarget.category_name || defaultCategoryName; m_emoji = settleTarget.category_emoji || ''; m_source = ''; }
+      else if (editing) { m_name = initial.category_name; m_emoji = initial.category_emoji; m_source = initial.source_name; }
       else { m_name = defaultCategoryName; m_emoji = defMemberCat?.emoji || ''; m_source = ''; }
     } else {
       if (f.mCatId === KEEP) { m_name = initial.category_name; m_emoji = initial.category_emoji; }
@@ -942,7 +948,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
         category_name: m_name, category_emoji: m_emoji, source_id: null, source_name: m_source,
         deposit_source_name: l_source,
         leader_category_name: l_name, leader_category_emoji: l_emoji, leader_settlement_target_id: l_settle,
-        content: f.content, memo: f.memo,
+        content: f.content.trim() || (isSettleMode ? settleContentDefault : f.content), memo: f.memo,
       });
       onSaved?.();
     } catch (e) { setErr(e.message); setBusy(false); }
@@ -1020,7 +1026,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
         </div>
       )}
 
-      <div className="field"><label>내용</label><input value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} placeholder="예: 넷플릭스 회비" /></div>
+      <div className="field"><label>내용</label><input value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} placeholder={isSettleMode ? settleContentDefault : '예: 넷플릭스 회비'} /></div>
       <div className="field"><label>메모</label><textarea value={f.memo} onChange={(e) => setF({ ...f, memo: e.target.value })} /></div>
       {err && <p className="error">{err}</p>}
       <button className="btn-ink-pill" disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>

@@ -112,6 +112,7 @@ export default function TransactionEdit() {
           isOwner={isOwner} onSave={saveDeposit} onSaved={done}
           defaultCategoryName={isSettlement(group?.category) ? '정산' : '구독'}
           showPeriods={!isSettlement(group?.category)}
+          groupName={group?.name || ''}
           topNotice={group && (
             <div className="form-section-group">
               <div style={{ fontSize: 16, fontWeight: 800, color: '#191722' }}>{group.name}</div>
