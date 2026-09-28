@@ -667,7 +667,7 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
                                 {showPeriods && <span className="tag-periods">{d.periods} 회분</span>}
                               </span>
                             </div>
-                            <div className="tx-row-sub">{[d.category_name, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
+                            <div className="tx-row-sub">{[tileCat, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
                           </div>
                           <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: 'var(--income)' }}>+{fmtNum(d.amount)}</span>
                       </DayCardRow>
