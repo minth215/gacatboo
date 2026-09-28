@@ -230,8 +230,9 @@ export default function Stats() {
     setHoverPos({ x: pt.clientX - rect.left, y: pt.clientY - rect.top });
   };
   const hover = hoverIdx != null ? arcs[hoverIdx] : null;
-  // 툴팁 위치: 누른 지점을 가로 중심으로 두되(화면 밖으로는 안 나가게), 가운데 구멍(총 지출/수입
-  // 표시 영역)을 침범하지 않도록 위쪽 절반을 누르면 구멍 위로, 아래쪽 절반은 구멍 아래로 밀어낸다.
+  // 툴팁 위치: 누른 지점에서 말풍선 가장자리가 시작되어 그래프 바깥 방향으로 펼쳐지게 한다.
+  // (오른쪽을 누르면 오른쪽으로, 위를 누르면 위로, 대각선은 그 사이로 자연스럽게 섞임)
+  // 화면 좌우 끝을 넘으면 안쪽으로 당겨 넣는다(이때는 그래프 안쪽을 살짝 덮을 수 있음).
   const tipRef = useRef(null);
   const [tipBox, setTipBox] = useState(null);
   useLayoutEffect(() => {
@@ -239,18 +240,15 @@ export default function Stats() {
     const w = tipRef.current.offsetWidth;
     const h = tipRef.current.offsetHeight;
     const c = DONUT.size / 2;
-    const hole = DONUT.r + 4; // 구멍 반지름 + 여유
-    const gap = 12; // 손가락/커서와 말풍선 사이
+    const dx = hoverPos.x - c, dy = hoverPos.y - c;
+    const len = Math.hypot(dx, dy) || 1;
+    const sin = dx / len, cos = -dy / len; // 12시 기준 각도의 sin/cos
+    const gap = 6; // 누른 지점에서 바깥쪽으로 살짝 띄움
+    const ax = hoverPos.x + gap * sin, ay = hoverPos.y - gap * cos;
+    let left = ax - w * (0.5 - 0.5 * sin);
+    const top = ay - h * (0.5 + 0.5 * cos);
     const d = donutRef.current.getBoundingClientRect();
-    let left = hoverPos.x - w / 2;
     left = Math.max(8 - d.left, Math.min(window.innerWidth - 8 - d.left - w, left));
-    // 말풍선 가로 범위 중 중심에서 가장 가까운 x 에서, 구멍이 차지하는 세로 반높이
-    const x0 = left - c, x1 = left + w - c;
-    const dx = x0 > 0 ? x0 : x1 < 0 ? -x1 : 0;
-    const half = dx < hole ? Math.sqrt(hole * hole - dx * dx) : 0;
-    const top = hoverPos.y <= c
-      ? Math.min(hoverPos.y - gap - h, c - half - h)
-      : Math.max(hoverPos.y + gap, c + half);
     setTipBox({ left, top });
   }, [hover, hoverPos]);
   // 데이터·보기가 바뀌면 툴팁을 닫는다(조각 구성이 달라짐).
@@ -565,7 +563,7 @@ export default function Stats() {
                   );
                 })}
               </svg>
-              {/* 툴팁: 누른 지점 근처에 띄우되 가운데 구멍은 침범하지 않는다(위치는 tipBox) */}
+              {/* 툴팁: 누른 지점에서 바깥 방향으로 펼쳐진다(위치는 tipBox) */}
               {hover && hoverPos && (
                 <div ref={tipRef} style={{
                   position: 'absolute', left: tipBox?.left ?? 0, top: tipBox?.top ?? 0, visibility: tipBox ? 'visible' : 'hidden',
