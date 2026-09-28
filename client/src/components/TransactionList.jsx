@@ -111,7 +111,9 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
                       <span className="ttext">
                         {t.content || t.category_name || (t.type === 'income' ? '수입' : '지출')}
                         {/* 구독 그룹 결제/입금이 반영된 항목: 몇 회분인지 배지(그룹 화면과 동일) */}
-                        {t.periods != null && <>{' '}<span className="tag-periods">{t.periods} 회분</span></>}
+                        {t.periods != null && (
+                          <>{' '}<span className="tag-periods" style={isGroup ? { background: '#fff' } : undefined}>{t.periods} 회분</span></>
+                        )}
                       </span>
                     </div>
                     <div className="tx-row-sub">{sub}</div>
