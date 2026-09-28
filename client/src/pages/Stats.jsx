@@ -46,6 +46,27 @@ const itemNameOf = (r) => {
   return (idx === -1 ? content : content.slice(0, idx)).trim();
 };
 
+// 원형(도넛) 그래프 조각 경로. 0°=12시, 시계 방향. cx/cy 중심, R 바깥·r 안쪽 반지름.
+const DONUT = { size: 180, R: 90, r: 70 };
+const polar = (rad, deg) => {
+  const a = (deg * Math.PI) / 180;
+  return [DONUT.size / 2 + rad * Math.sin(a), DONUT.size / 2 - rad * Math.cos(a)];
+};
+const donutSlicePath = (from, to) => {
+  const { R, r } = DONUT;
+  if (to - from >= 359.99) {
+    // 조각이 하나뿐이면 시작=끝이라 호를 못 그리므로 반원 두 개로 고리를 만든다.
+    const [ox, oy] = polar(R, 0), [ox2, oy2] = polar(R, 180);
+    const [ix, iy] = polar(r, 0), [ix2, iy2] = polar(r, 180);
+    return `M${ox},${oy} A${R},${R} 0 1 1 ${ox2},${oy2} A${R},${R} 0 1 1 ${ox},${oy} Z `
+      + `M${ix},${iy} A${r},${r} 0 1 0 ${ix2},${iy2} A${r},${r} 0 1 0 ${ix},${iy} Z`;
+  }
+  const large = to - from > 180 ? 1 : 0;
+  const [x0, y0] = polar(R, from), [x1, y1] = polar(R, to);
+  const [x2, y2] = polar(r, to), [x3, y3] = polar(r, from);
+  return `M${x0},${y0} A${R},${R} 0 ${large} 1 ${x1},${y1} L${x2},${y2} A${r},${r} 0 ${large} 0 ${x3},${y3} Z`;
+};
+
 const keyOf = (r, view) => {
   if (view === 'category') return { key: `c:${r.category_name || '미분류'}`, name: r.category_name || '미분류' };
   if (view === 'source') {
@@ -185,19 +206,15 @@ export default function Stats() {
       : (a[sort.key === 'count' ? 'count' : 'total'] - b[sort.key === 'count' ? 'count' : 'total']) * dir));
   }, [groups, sort]);
 
-  // 도넛 conic-gradient + 각 조각의 각도(터치 위치로 조각 찾기용)
-  const { gradient, arcs } = useMemo(() => {
-    if (!total) return { gradient: '#f2f1f5', arcs: [] };
+  // 도넛 각 조각의 각도(그리기 + 터치 위치로 조각 찾기용)
+  const arcs = useMemo(() => {
+    if (!total) return [];
     let cum = 0;
-    const stops = [];
-    const list = groups.map((g) => {
+    return groups.map((g) => {
       const from = (cum / total) * 360;
       cum += g.total;
-      const to = (cum / total) * 360;
-      stops.push(`${g.color} ${from / 3.6}% ${to / 3.6}%`);
-      return { ...g, from, to };
+      return { ...g, from, to: (cum / total) * 360 };
     });
-    return { gradient: `conic-gradient(${stops.join(',')})`, arcs: list };
   }, [groups, total]);
 
   const donutPoint = (e) => {
@@ -503,8 +520,28 @@ export default function Stats() {
               ref={donutRef}
               onMouseMove={donutPoint} onMouseLeave={() => setHoverIdx(null)}
               onTouchStart={donutPoint} onTouchMove={donutPoint}
-              style={{ position: 'relative', width: 180, height: 180, borderRadius: '50%', background: gradient, touchAction: 'none' }}
+              style={{ position: 'relative', width: 180, height: 180, borderRadius: '50%', touchAction: 'none' }}
             >
+              {/* 조각별 SVG. 선택된 조각은 바깥쪽으로 살짝 빠져나오며 아주 약간 커지고, 나머지는 흐려진다. */}
+              <svg width={DONUT.size} height={DONUT.size} viewBox={`0 0 ${DONUT.size} ${DONUT.size}`}
+                style={{ position: 'absolute', inset: 0, overflow: 'visible', pointerEvents: 'none' }}>
+                {arcs.map((a, i) => {
+                  const active = hoverIdx === i;
+                  const mid = ((a.from + a.to) / 2) * Math.PI / 180;
+                  const pop = active && a.to - a.from < 359.99 ? 6 : 0;
+                  return (
+                    <path
+                      key={a.key} d={donutSlicePath(a.from, a.to)} fill={a.color} fillRule="evenodd"
+                      style={{
+                        transformBox: 'view-box', transformOrigin: '50% 50%',
+                        transform: active ? `translate(${pop * Math.sin(mid)}px, ${-pop * Math.cos(mid)}px) scale(1.04)` : 'none',
+                        opacity: hoverIdx != null && !active ? 0.35 : 1,
+                        transition: 'transform .22s ease-out, opacity .22s ease-out',
+                      }}
+                    />
+                  );
+                })}
+              </svg>
               {/* 툴팁: 그래프에서 가리키거나 누른 지점 바로 위에 띄운다 */}
               {hover && hoverPos && (
                 <div style={{
@@ -517,7 +554,7 @@ export default function Stats() {
                 </div>
               )}
               <div style={{
-                position: 'absolute', inset: 20, borderRadius: '50%', background: 'var(--bg)', display: 'flex',
+                position: 'absolute', inset: 20, borderRadius: '50%', display: 'flex',
                 flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none',
               }}>
                 <span style={{ fontSize: 10, fontWeight: 600, color: '#a29ead' }}>{tab === 'expense' ? '총 지출' : '총 수입'}</span>
