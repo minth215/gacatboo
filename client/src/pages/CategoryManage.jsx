@@ -6,7 +6,8 @@ import { useDragReorder } from '../lib/useDragReorder.js';
 import PageHeader from '../components/PageHeader.jsx';
 import { tileBg } from '../components/TransactionList.jsx';
 
-const PALETTE = ['#FDE2E2', '#FCE8D6', '#FDF0C8', '#EAF4D6', '#DFF3E3', '#D9F1EC', '#D7EEF5', '#DCE9FB', '#E1E3F7', '#E6DEF5', '#F0DEF0', '#F7DCE8', '#F3E4E4'];
+// 통계 페이지 원형 그래프 팔레트(Stats.jsx 의 PALETTE)를 흰색 70% 비율로 섞어 훨씬 연하게 만든 색.
+const PALETTE = ['#FFD4DE', '#FBE3C5', '#CEE1F3', '#DCD9F8', '#C0F5EA', '#FEF6F6', '#FFE9E3', '#E1F1ED', '#EEE5F8', '#D9E8F2'];
 
 export default function CategoryManage() {
   const { type } = useParams(); // income | expense
