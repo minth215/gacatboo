@@ -103,6 +103,8 @@ export default function FriendManage() {
     try { await db.deleteFriendGroup(g.id); load(); } catch (e) { alert(e.message); }
   };
 
+  const byName = (a, b) => a.nickname.localeCompare(b.nickname, 'ko');
+
   const sections = useMemo(() => {
     const byGroup = new Map(groups.map((g) => [g.id, []]));
     const ungrouped = [];
@@ -110,8 +112,8 @@ export default function FriendManage() {
       if (f.group_id && byGroup.has(f.group_id)) byGroup.get(f.group_id).push(f);
       else ungrouped.push(f);
     }
-    const list = groups.map((g) => ({ group: g, items: byGroup.get(g.id) }));
-    if (ungrouped.length) list.push({ group: null, items: ungrouped });
+    const list = groups.map((g) => ({ group: g, items: [...byGroup.get(g.id)].sort(byName) }));
+    if (ungrouped.length) list.push({ group: null, items: ungrouped.sort(byName) });
     return list;
   }, [friends, groups]);
 
