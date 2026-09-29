@@ -77,6 +77,10 @@ export const db = {
   async deleteSource(id) {
     return unwrap(await supabase.from('sources').delete().eq('id', id));
   },
+  // kind: 'payment' | 'deposit'. value: true 로 지정하면 같은 종류의 기존 지정은 자동 해제됨(사용자당 하나씩).
+  async setPrimarySource(id, kind, value) {
+    return unwrap(await supabase.rpc('set_primary_source', { p_source_id: id, p_kind: kind, p_value: value }));
+  },
 
   // ---------- 트랜잭션 ----------
   async listTransactions({ month, groupId = null }) {
@@ -462,6 +466,11 @@ export const db = {
   async deleteDeposit(id) {
     const { error } = await supabase.rpc('delete_subscription_deposit', { p_id: id });
     if (error) throw new Error(error.message);
+  },
+
+  // ---------- 내 프로필 ----------
+  async updateMyProfile(username, displayName) {
+    return unwrap(await supabase.rpc('update_my_profile', { p_username: username, p_display_name: displayName }));
   },
 
   // ---------- 관리자 ----------
