@@ -9,7 +9,7 @@ export default function FriendManage() {
   const { user } = useAuth();
   const [friends, setFriends] = useState([]);
   const [groups, setGroups] = useState([]);
-  const [editor, setEditor] = useState(null); // null | {id?, mode, username, foundProfile, nickname, groupId}
+  const [editor, setEditor] = useState(null); // null | {id?, username, foundProfile, nickname, groupId}
   const [lookupBusy, setLookupBusy] = useState(false);
   const [lookupErr, setLookupErr] = useState('');
   const [newGroupName, setNewGroupName] = useState(null); // null(숨김) | 입력 중인 문자열
@@ -27,13 +27,12 @@ export default function FriendManage() {
 
   const openAdd = () => {
     setErr(''); setLookupErr(''); setNewGroupName(null);
-    setEditor({ mode: 'guest', username: '', foundProfile: null, nickname: '', groupId: '' });
+    setEditor({ username: '', foundProfile: null, nickname: '', groupId: '' });
   };
   const openEdit = (f) => {
     setErr(''); setLookupErr(''); setNewGroupName(null);
     setEditor({
       id: f.id,
-      mode: f.friend_user_id ? 'member' : 'guest',
       username: f.friend?.username || '',
       foundProfile: f.friend_user_id ? { id: f.friend_user_id, username: f.friend?.username, display_name: f.friend?.display_name } : null,
       nickname: f.nickname,
@@ -75,14 +74,13 @@ export default function FriendManage() {
     setErr('');
     const nickname = editor.nickname.trim();
     if (!nickname) return setErr('이름을 입력하세요.');
-    if (editor.mode === 'member' && !editor.foundProfile) return setErr('아이디를 검색해 등록할 회원을 선택하세요.');
     setBusy(true);
     try {
       const groupId = editor.groupId ? Number(editor.groupId) : null;
       if (editor.id) {
         await db.updateFriend(editor.id, { nickname, groupId });
       } else {
-        await db.addFriend(user.id, { friendUserId: editor.mode === 'member' ? editor.foundProfile.id : null, nickname, groupId });
+        await db.addFriend(user.id, { friendUserId: editor.foundProfile?.id || null, nickname, groupId });
       }
       closeModal(); load();
     } catch (e) { setErr(e.message); } finally { setBusy(false); }
@@ -134,10 +132,14 @@ export default function FriendManage() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title="친구 관리" />
+      <PageHeader title="친구 관리" flat right={
+        <button className="tb-icon-btn" onClick={openAdd} aria-label="친구 추가">
+          <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
+      } />
 
       {sections.length === 0 ? (
-        <div className="empty" style={{ padding: '20px 0' }}>등록된 친구가 없습니다.</div>
+        <div className="empty empty-center">등록된 친구가 없습니다.</div>
       ) : sections.map(({ group, items }) => (
         <div className="tx-daycard" style={{ marginTop: 14 }} key={group?.id ?? '_ungrouped'}>
           {group ? (
@@ -172,10 +174,6 @@ export default function FriendManage() {
         </div>
       ))}
 
-      <button className="fab" onClick={openAdd} aria-label="친구 추가">
-        <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-      </button>
-
       {editor && (
         <div className="catmodal-overlay" onClick={closeModal}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '88%', overflowY: 'auto' }}>
@@ -186,36 +184,28 @@ export default function FriendManage() {
               </button>
             </div>
 
-            {!editor.id && (
-              <div className="pill-toggle" style={{ display: 'flex', width: '100%' }}>
-                <button type="button" style={{ flex: 1 }} className={editor.mode === 'member' ? 'active' : ''} onClick={() => setEditor({ ...editor, mode: 'member' })}>가캣부 회원</button>
-                <button type="button" style={{ flex: 1 }} className={editor.mode === 'guest' ? 'active' : ''} onClick={() => setEditor({ ...editor, mode: 'guest', foundProfile: null })}>비회원</button>
-              </div>
-            )}
-
-            {editor.mode === 'member' && (
-              editor.id ? (
+            {editor.id ? (
+              editor.foundProfile && (
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>가캣부 아이디</span>
                   <input value={`@${editor.username}`} disabled className="catmodal-name-input" />
                 </label>
-              ) : (
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>가캣부 아이디 <span style={{ color: '#FF3B5C' }}>*</span></span>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      value={editor.username} onChange={(e) => setEditor({ ...editor, username: e.target.value, foundProfile: null })}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), search())}
-                      placeholder="상대방 아이디" autoFocus className="catmodal-name-input" style={{ flex: 1 }}
-                    />
-                    <button type="button" className="row-icon-btn" style={{ width: 44 }} disabled={lookupBusy} onClick={search} aria-label="검색">
-                      <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="16.2" y1="16.2" x2="21" y2="21" /></svg>
-                    </button>
-                  </div>
-                  {lookupErr && <p className="error" style={{ margin: 0 }}>{lookupErr}</p>}
-                  {editor.foundProfile && <p className="small" style={{ margin: 0, color: 'var(--income)', fontWeight: 700 }}>{editor.foundProfile.display_name}님을 찾았습니다.</p>}
-                </label>
               )
+            ) : (
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    value={editor.username} onChange={(e) => setEditor({ ...editor, username: e.target.value, foundProfile: null })}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), search())}
+                    placeholder="아이디로 검색" autoFocus className="catmodal-name-input" style={{ flex: 1 }}
+                  />
+                  <button type="button" className="row-icon-btn" style={{ width: 44 }} disabled={lookupBusy} onClick={search} aria-label="검색">
+                    <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="16.2" y1="16.2" x2="21" y2="21" /></svg>
+                  </button>
+                </div>
+                {lookupErr && <p className="small muted" style={{ margin: 0 }}>{lookupErr}</p>}
+                {editor.foundProfile && <p className="small" style={{ margin: 0, color: 'var(--income)', fontWeight: 700 }}>{editor.foundProfile.display_name}님을 찾았습니다.</p>}
+              </label>
             )}
 
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

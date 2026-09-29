@@ -63,7 +63,7 @@ export default function ProfileEdit() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title="내 정보" />
+      <PageHeader title="내 정보" flat />
 
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
