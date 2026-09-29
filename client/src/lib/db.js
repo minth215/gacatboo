@@ -473,6 +473,53 @@ export const db = {
     return unwrap(await supabase.rpc('update_my_profile', { p_username: username, p_display_name: displayName }));
   },
 
+  // ---------- 친구 분류 ----------
+  async listFriendGroups() {
+    return unwrap(await supabase.from('friend_groups').select('*').order('sort_order').order('id'));
+  },
+  async addFriendGroup(userId, name) {
+    const existing = unwrap(await supabase.from('friend_groups').select('sort_order').order('sort_order', { ascending: false }).limit(1));
+    const next = (existing[0]?.sort_order ?? -1) + 1;
+    return unwrap(await supabase.from('friend_groups').insert({ user_id: userId, name, sort_order: next }).select().single());
+  },
+  async updateFriendGroup(id, name) {
+    return unwrap(await supabase.from('friend_groups').update({ name }).eq('id', id).select().single());
+  },
+  async deleteFriendGroup(id) {
+    return unwrap(await supabase.from('friend_groups').delete().eq('id', id));
+  },
+
+  // ---------- 친구 ----------
+  async listFriends() {
+    return unwrap(await supabase.from('friends').select('*, friend:profiles(username, display_name)').order('sort_order').order('id'));
+  },
+  // 아이디로 가캣부 회원 검색(등록 전 닉네임 미리 채우기용)
+  async findProfileByUsername(username) {
+    const prof = unwrap(await supabase.from('profiles').select('id, username, display_name, status').eq('username', username.trim()).maybeSingle());
+    if (!prof) throw new Error('해당 아이디의 사용자를 찾을 수 없습니다.');
+    if (prof.status !== 'approved') throw new Error('승인된 사용자만 등록할 수 있습니다.');
+    return prof;
+  },
+  async addFriend(userId, { friendUserId = null, nickname, groupId = null }) {
+    if (friendUserId === userId) throw new Error('자기 자신은 친구로 등록할 수 없습니다.');
+    if (friendUserId) {
+      const exists = unwrap(await supabase.from('friends').select('id').eq('user_id', userId).eq('friend_user_id', friendUserId).maybeSingle());
+      if (exists) throw new Error('이미 등록된 친구입니다.');
+    }
+    const existing = unwrap(await supabase.from('friends').select('sort_order').eq('user_id', userId).order('sort_order', { ascending: false }).limit(1));
+    const next = (existing[0]?.sort_order ?? -1) + 1;
+    return unwrap(await supabase.from('friends').insert({
+      user_id: userId, friend_user_id: friendUserId, nickname: nickname.trim(), group_id: groupId, sort_order: next,
+    }).select('*, friend:profiles(username, display_name)').single());
+  },
+  async updateFriend(id, { nickname, groupId = null }) {
+    return unwrap(await supabase.from('friends').update({ nickname: nickname.trim(), group_id: groupId })
+      .eq('id', id).select('*, friend:profiles(username, display_name)').single());
+  },
+  async deleteFriend(id) {
+    return unwrap(await supabase.from('friends').delete().eq('id', id));
+  },
+
   // ---------- 관리자 ----------
   async listUsers() {
     const users = unwrap(await supabase.from('profiles').select('*').order('created_at', { ascending: false }));

@@ -37,6 +37,7 @@ export default function Settings() {
     {
       label: '설정',
       items: [
+        { label: '친구 관리', desc: '자주 정산하는 친구 등록 및 분류 관리', bg: '#e8f6ee', icon: '🧑‍🤝‍🧑', to: '/settings/friends' },
         { label: '알림 관리', desc: '세부 항목별 알림 수신 설정', bg: '#fff1e6', icon: '🔔' },
         { label: '내보내기', desc: '가계부 데이터 파일 백업', bg: '#eef1fb', icon: '📤' },
         { label: '가져오기', desc: '파일 업로드로 가계부 데이터 복원', bg: '#e8f6ee', icon: '📥' },

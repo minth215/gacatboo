@@ -9,6 +9,7 @@ import TransactionEdit from './pages/TransactionEdit.jsx';
 import Stats from './pages/Stats.jsx';
 import Settings from './pages/Settings.jsx';
 import ProfileEdit from './pages/ProfileEdit.jsx';
+import FriendManage from './pages/FriendManage.jsx';
 import CategoryManage from './pages/CategoryManage.jsx';
 import SourceManage from './pages/SourceManage.jsx';
 import CardBenefits from './pages/CardBenefits.jsx';
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/groups/:id/member/:memberId" element={<MemberDetail />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/profile" element={<ProfileEdit />} />
+        <Route path="/settings/friends" element={<FriendManage />} />
         <Route path="/settings/categories/:type" element={<CategoryManage />} />
         <Route path="/settings/sources" element={<SourceManage />} />
         <Route path="/settings/card-benefits" element={<CardBenefits />} />
