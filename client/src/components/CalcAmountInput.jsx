@@ -3,7 +3,12 @@ import { useState } from 'react';
 const OP_CHARS = '+-×÷';
 const OP_SYMBOL = { '+': '+', '-': '−', '×': '×', '÷': '÷' };
 
-// "12000+3000" 같은 수식 문자열을 계산(×÷ 우선순위 적용). 끝에 연산자가 남아 있으면 무시하고,
+// "%"가 붙은 숫자는 100으로 나눈 값으로 취급(예: 10000×10% = 10000×0.1 = 1000)
+function numToken(tok) {
+  return tok.endsWith('%') ? Number(tok.slice(0, -1)) / 100 : Number(tok);
+}
+
+// "12000×10%" 같은 수식 문자열을 계산(×÷ 우선순위 적용). 끝에 연산자가 남아 있으면 무시하고,
 // 결과는 원 단위 정수로 반올림하며 음수는 0으로 clamp(금액은 항상 0 이상).
 function evaluate(expr) {
   const tokens = [];
@@ -16,11 +21,11 @@ function evaluate(expr) {
   while (tokens.length && OP_CHARS.includes(tokens[tokens.length - 1])) tokens.pop();
   if (!tokens.length) return 0;
 
-  const vals = [Number(tokens[0])];
+  const vals = [numToken(tokens[0])];
   const lowOps = [];
   for (let i = 1; i < tokens.length; i += 2) {
     const op = tokens[i];
-    const v = Number(tokens[i + 1]);
+    const v = numToken(tokens[i + 1]);
     if (op === '×') vals[vals.length - 1] *= v;
     else if (op === '÷') vals[vals.length - 1] = v === 0 ? vals[vals.length - 1] : vals[vals.length - 1] / v;
     else { lowOps.push(op); vals.push(v); }
@@ -30,21 +35,26 @@ function evaluate(expr) {
   return Math.max(0, Math.round(result));
 }
 
-// 숫자 토큰(정수부만 천 단위 콤마, 소수점 이하는 입력한 그대로 유지)
+// 숫자 토큰(정수부만 천 단위 콤마, 소수점 이하·% 는 입력한 그대로 유지)
 function formatNumberToken(numStr) {
   if (numStr === '') return '';
-  const dotIdx = numStr.indexOf('.');
+  const pct = numStr.endsWith('%');
+  const core = pct ? numStr.slice(0, -1) : numStr;
+  const dotIdx = core.indexOf('.');
+  let formatted;
   if (dotIdx === -1) {
-    const n = Number(numStr);
-    return Number.isNaN(n) ? numStr : n.toLocaleString('ko-KR');
+    const n = Number(core);
+    formatted = Number.isNaN(n) ? core : n.toLocaleString('ko-KR');
+  } else {
+    const intPart = core.slice(0, dotIdx);
+    const decPart = core.slice(dotIdx + 1);
+    const n = intPart === '' ? 0 : Number(intPart);
+    formatted = `${n.toLocaleString('ko-KR')}.${decPart}`;
   }
-  const intPart = numStr.slice(0, dotIdx);
-  const decPart = numStr.slice(dotIdx + 1);
-  const n = intPart === '' ? 0 : Number(intPart);
-  return `${n.toLocaleString('ko-KR')}.${decPart}`;
+  return pct ? `${formatted}%` : formatted;
 }
 
-// 편집 중인 수식을 "12,000 + 3,000" 형태로(숫자는 천 단위 콤마, 연산자 앞뒤 띄어쓰기) 표시용 포맷
+// 편집 중인 수식을 "12,000 × 10%" 형태로(숫자는 천 단위 콤마, 연산자 앞뒤 띄어쓰기) 표시용 포맷
 function formatExpr(expr) {
   if (!expr) return '';
   let out = '';
@@ -75,7 +85,7 @@ const KeyBtn = ({ label, onClick, bg, color, style }) => (
 );
 
 // 금액 입력 전용: 포커스 시 네이티브 키패드 대신 사칙연산 계산기 키패드를 띄운다.
-// 포커스 중엔 입력 중인 수식(예: "12,000 + 3,000")을, 포커스가 풀리면 계산된 최종 금액을 보여준다.
+// 포커스 중엔 입력 중인 수식(예: "12,000 × 10%")을, 포커스가 풀리면 계산된 최종 금액을 보여준다.
 export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus }) {
   const [focused, setFocused] = useState(false);
   const [expr, setExpr] = useState('');
@@ -85,7 +95,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   const commit = (e) => { const result = evaluate(e); onChange(String(result)); return result; };
   const close = () => { commit(expr); setFocused(false); };
 
-  // 연산자 뒤에서 시작하는(또는 맨 앞) 현재 입력 중인 숫자 구간만 잘라냄(소수점 중복 입력 방지용)
+  // 연산자 뒤에서 시작하는(또는 맨 앞) 현재 입력 중인 숫자 구간만 잘라냄(소수점·% 중복 입력 방지용)
   const currentSegment = (s) => {
     let last = -1;
     for (const op of OP_CHARS) last = Math.max(last, s.lastIndexOf(op));
@@ -94,14 +104,21 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
 
   const pressDigit = (d) => setExpr((prev) => {
     if (justEvaluated) { setJustEvaluated(false); return d; }
+    if (currentSegment(prev).endsWith('%')) return prev; // % 뒤엔 연산자를 눌러야 새 숫자를 시작할 수 있음
     if (prev === '0') return d;
     return prev + d;
   });
   const pressDot = () => setExpr((prev) => {
     if (justEvaluated) { setJustEvaluated(false); return '0.'; }
     const seg = currentSegment(prev);
-    if (seg.includes('.')) return prev;
+    if (seg.includes('.') || seg.endsWith('%')) return prev;
     return prev + (seg === '' ? '0.' : '.');
+  });
+  const pressPercent = () => setExpr((prev) => {
+    setJustEvaluated(false);
+    const seg = currentSegment(prev);
+    if (!seg || seg.endsWith('%')) return prev;
+    return prev + '%';
   });
   const pressOp = (op) => setExpr((prev) => {
     setJustEvaluated(false);
@@ -117,6 +134,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
     e.preventDefault();
     if (e.key >= '0' && e.key <= '9') pressDigit(e.key);
     else if (e.key === '.') pressDot();
+    else if (e.key === '%') pressPercent();
     else if (e.key === '+') pressOp('+');
     else if (e.key === '-') pressOp('-');
     else if (e.key === '*') pressOp('×');
@@ -151,7 +169,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
               <KeyBtn label="C" onClick={pressClear} bg="#fde8ee" color="#FF4358" />
-              <KeyBtn label="⌫" onClick={pressBackspace} bg="#fde8ee" color="#FF4358" />
+              <KeyBtn label="%" onClick={pressPercent} bg="#fde8ee" color="#FF4358" />
               <KeyBtn label="÷" onClick={() => pressOp('÷')} bg="#eef1fb" />
               <KeyBtn label="×" onClick={() => pressOp('×')} bg="#eef1fb" />
               <KeyBtn label="7" onClick={() => pressDigit('7')} />
@@ -166,7 +184,8 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
               <KeyBtn label="2" onClick={() => pressDigit('2')} />
               <KeyBtn label="3" onClick={() => pressDigit('3')} />
               <KeyBtn label="." onClick={pressDot} />
-              <KeyBtn label="0" onClick={() => pressDigit('0')} style={{ gridColumn: 'span 3' }} />
+              <KeyBtn label="0" onClick={() => pressDigit('0')} style={{ gridColumn: 'span 2' }} />
+              <KeyBtn label="⌫" onClick={pressBackspace} bg="#fde8ee" color="#FF4358" />
               <KeyBtn label="=" onClick={pressEquals} bg="#191722" color="#fff" />
             </div>
           </div>
