@@ -168,24 +168,24 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
               <button type="button" onClick={close} style={{ border: 'none', background: 'none', color: '#191722', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>완료</button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+              <KeyBtn label="⌫" onClick={pressBackspace} bg="#fde8ee" color="#FF4358" />
               <KeyBtn label="C" onClick={pressClear} bg="#fde8ee" color="#FF4358" />
-              <KeyBtn label="%" onClick={pressPercent} bg="#fde8ee" color="#FF4358" />
+              <KeyBtn label="%" onClick={pressPercent} bg="#eef1fb" />
               <KeyBtn label="÷" onClick={() => pressOp('÷')} bg="#eef1fb" />
-              <KeyBtn label="×" onClick={() => pressOp('×')} bg="#eef1fb" />
               <KeyBtn label="7" onClick={() => pressDigit('7')} />
               <KeyBtn label="8" onClick={() => pressDigit('8')} />
               <KeyBtn label="9" onClick={() => pressDigit('9')} />
-              <KeyBtn label="−" onClick={() => pressOp('-')} bg="#eef1fb" />
+              <KeyBtn label="×" onClick={() => pressOp('×')} bg="#eef1fb" />
               <KeyBtn label="4" onClick={() => pressDigit('4')} />
               <KeyBtn label="5" onClick={() => pressDigit('5')} />
               <KeyBtn label="6" onClick={() => pressDigit('6')} />
-              <KeyBtn label="+" onClick={() => pressOp('+')} bg="#eef1fb" />
+              <KeyBtn label="−" onClick={() => pressOp('-')} bg="#eef1fb" />
               <KeyBtn label="1" onClick={() => pressDigit('1')} />
               <KeyBtn label="2" onClick={() => pressDigit('2')} />
               <KeyBtn label="3" onClick={() => pressDigit('3')} />
-              <KeyBtn label="." onClick={pressDot} />
+              <KeyBtn label="+" onClick={() => pressOp('+')} bg="#eef1fb" />
               <KeyBtn label="0" onClick={() => pressDigit('0')} style={{ gridColumn: 'span 2' }} />
-              <KeyBtn label="⌫" onClick={pressBackspace} bg="#fde8ee" color="#FF4358" />
+              <KeyBtn label="." onClick={pressDot} />
               <KeyBtn label="=" onClick={pressEquals} bg="#191722" color="#fff" />
             </div>
           </div>
