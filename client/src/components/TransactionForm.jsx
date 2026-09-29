@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { today, fmtWon, renderTemplate } from '../lib/format.js';
+import CalcAmountInput from './CalcAmountInput.jsx';
 
 // 분류/원천에 id 는 없고 이름(스냅샷)만 있는 항목(그룹 자동기입 등)을 표시하기 위한 센티넬
 const SNAP = '__snap__';
@@ -157,15 +158,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
         <div className="grid2">
           <div className="field">
             <label>금액</label>
-            <div className="with-suffix">
-              <input
-                type="text" inputMode="numeric"
-                value={amount ? Number(amount).toLocaleString('ko-KR') : ''}
-                onChange={(e) => onAmountChange(e.target.value)}
-                placeholder="0" autoFocus
-              />
-              <span className="suffix">원</span>
-            </div>
+            <CalcAmountInput value={amount} onChange={onAmountChange} autoFocus />
           </div>
           <div className="field">
             <label>기간(회차)</label>
@@ -175,15 +168,7 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
       ) : (
         <div className="field">
           <label>금액</label>
-          <div className="with-suffix">
-            <input
-              type="text" inputMode="numeric"
-              value={amount ? Number(amount).toLocaleString('ko-KR') : ''}
-              onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, ''))}
-              placeholder="0" autoFocus
-            />
-            <span className="suffix">원</span>
-          </div>
+          <CalcAmountInput value={amount} onChange={onAmountChange} autoFocus />
         </div>
       )}
 
