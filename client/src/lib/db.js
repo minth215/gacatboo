@@ -491,7 +491,7 @@ export const db = {
 
   // ---------- 친구 ----------
   async listFriends() {
-    return unwrap(await supabase.from('friends').select('*, friend:profiles(username, display_name)').order('sort_order').order('id'));
+    return unwrap(await supabase.from('friends').select('*, friend:profiles!friends_friend_user_id_fkey(username, display_name)').order('sort_order').order('id'));
   },
   // 아이디로 가캣부 회원 검색(등록 전 닉네임 미리 채우기용)
   async findProfileByUsername(username) {
@@ -510,11 +510,11 @@ export const db = {
     const next = (existing[0]?.sort_order ?? -1) + 1;
     return unwrap(await supabase.from('friends').insert({
       user_id: userId, friend_user_id: friendUserId, nickname: nickname.trim(), group_id: groupId, sort_order: next,
-    }).select('*, friend:profiles(username, display_name)').single());
+    }).select('*, friend:profiles!friends_friend_user_id_fkey(username, display_name)').single());
   },
   async updateFriend(id, { nickname, groupId = null }) {
     return unwrap(await supabase.from('friends').update({ nickname: nickname.trim(), group_id: groupId })
-      .eq('id', id).select('*, friend:profiles(username, display_name)').single());
+      .eq('id', id).select('*, friend:profiles!friends_friend_user_id_fkey(username, display_name)').single());
   },
   async deleteFriend(id) {
     return unwrap(await supabase.from('friends').delete().eq('id', id));
