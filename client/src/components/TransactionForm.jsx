@@ -64,6 +64,14 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
     if (!editing && !amount && defaultAmount) setAmount(String(defaultAmount));
   }, [defaultAmount]);
 
+  // 신규 작성 시 원천 기본값: 지출은 주결제수단, 수입은 주입금수단(원천 관리에서 지정한 것)
+  useEffect(() => {
+    if (editing || sourceId) return;
+    const key = type === 'expense' ? 'is_primary_payment' : 'is_primary_deposit';
+    const s = sourcesFlat.find((x) => x[key]);
+    if (s) setSourceId(String(s.id));
+  }, [editing, type, sourcesFlat]);
+
   const onDateChange = (v) => {
     setDate(v);
     if (!editing && defaultContentTemplate) setContent(renderTemplate(defaultContentTemplate, v));
@@ -135,8 +143,8 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
 
       {!fixedType && (
         <div className="type-pill">
-          <button type="button" className={`income ${type === 'income' ? 'active' : ''}`} onClick={() => { setType('income'); setCategoryId(''); }}>수입</button>
-          <button type="button" className={`expense ${type === 'expense' ? 'active' : ''}`} onClick={() => { setType('expense'); setCategoryId(''); }}>지출</button>
+          <button type="button" className={`income ${type === 'income' ? 'active' : ''}`} onClick={() => { setType('income'); setCategoryId(''); setSourceId(''); }}>수입</button>
+          <button type="button" className={`expense ${type === 'expense' ? 'active' : ''}`} onClick={() => { setType('expense'); setCategoryId(''); setSourceId(''); }}>지출</button>
         </div>
       )}
 
