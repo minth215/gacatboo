@@ -614,4 +614,14 @@ export const db = {
     if (data?.error) throw new Error(data.error);
     return data;
   },
+
+  // 영수증 사진(base64) → { date, amount, merchant, category } 추출(Gemini Vision, 서버 함수 호출)
+  async parseReceipt(image, mimeType, categoryNames) {
+    const { data, error } = await supabase.functions.invoke('parse-receipt', {
+      body: { image, mimeType, categoryNames },
+    });
+    if (error) throw new Error(data?.error || error.message);
+    if (data?.error) throw new Error(data.error);
+    return data;
+  },
 };

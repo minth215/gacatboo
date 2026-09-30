@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -7,6 +7,24 @@ import CalcAmountInput from './CalcAmountInput.jsx';
 
 // 분류/원천에 id 는 없고 이름(스냅샷)만 있는 항목(그룹 자동기입 등)을 표시하기 위한 센티넬
 const SNAP = '__snap__';
+
+// 사진 파일을 리사이즈 후 base64(순수 데이터, data: 접두어 제외)로 변환(전송 용량 절감용)
+async function fileToResizedBase64(file, maxSize = 1600, quality = 0.85) {
+  const img = await new Promise((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = reject;
+    el.src = URL.createObjectURL(file);
+  });
+  const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(img.width * scale);
+  canvas.height = Math.round(img.height * scale);
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  const dataUrl = canvas.toDataURL('image/jpeg', quality);
+  URL.revokeObjectURL(img.src);
+  return { base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' };
+}
 
 // 수입/지출 항목 작성·수정 폼. groupId 지정 시 그룹 항목으로 저장.
 // fixedType 지정 시 수입/지출 토글을 숨기고 해당 유형으로 고정(예: 그룹 결제=지출).
@@ -40,6 +58,9 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
   const [contentSuggestions, setContentSuggestions] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanError, setScanError] = useState('');
+  const receiptInputRef = useRef(null);
 
   useEffect(() => {
     db.listCategories().then((cs) => {
@@ -84,6 +105,35 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
     setAmount(amt);
     if (showPeriods && defaultAmount > 0 && amt) {
       setPeriods(String(Math.round(Number(amt) / defaultAmount)));
+    }
+  };
+
+  // 영수증 사진 선택 → Gemini 로 날짜/금액/상호명/분류 추출 → 폼에 제안값으로 채움(항상 사용자가 확인 후 저장)
+  const onReceiptFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setScanError('');
+    setScanBusy(true);
+    try {
+      const { base64, mimeType } = await fileToResizedBase64(file);
+      const expenseCategoryNames = categories.filter((c) => c.type === 'expense').map((c) => c.name);
+      const result = await db.parseReceipt(base64, mimeType, expenseCategoryNames);
+      if (!fixedType) setType('expense');
+      if (result.date) onDateChange(result.date);
+      if (result.amount) onAmountChange(String(result.amount));
+      if (result.merchant) setContent(result.merchant);
+      if (result.category) {
+        const c = categories.find((x) => x.type === 'expense' && x.name === result.category);
+        if (c) setCategoryId(String(c.id));
+      }
+      if (!result.date && !result.amount && !result.merchant && !result.category) {
+        setScanError('영수증에서 정보를 인식하지 못했어요. 직접 입력해 주세요.');
+      }
+    } catch (err) {
+      setScanError(err.message || '영수증 인식에 실패했습니다.');
+    } finally {
+      setScanBusy(false);
     }
   };
 
@@ -141,6 +191,19 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
   return (
     <form onSubmit={submit}>
       {topNotice}
+
+      {!editing && !fixedType && (
+        <div className="field">
+          <input
+            ref={receiptInputRef} type="file" accept="image/*" capture="environment"
+            style={{ display: 'none' }} onChange={onReceiptFile}
+          />
+          <button type="button" className="btn block" disabled={scanBusy} onClick={() => receiptInputRef.current?.click()}>
+            {scanBusy ? '영수증 인식 중…' : '📷 영수증으로 채우기'}
+          </button>
+          {scanError && <p className="small muted" style={{ margin: '6px 2px 0', color: '#FF4358' }}>{scanError}</p>}
+        </div>
+      )}
 
       {!fixedType && (
         <div className="type-pill">
