@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -32,6 +32,8 @@ export default function TransactionEdit() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(editing);
   const [error, setError] = useState('');
+  const formRef = useRef(null);
+  const [scanBusy, setScanBusy] = useState(false);
 
   // 입금 내역 전용 부가 데이터
   const [sub, setSub] = useState(null);
@@ -97,9 +99,29 @@ export default function TransactionEdit() {
   const myMember = members.find((m) => m.user_id === user.id && m.role !== 'owner');
   const memberList = members.filter((m) => m.role !== 'owner');
 
+  // 영수증으로 채우기: 일반 개인/그룹 항목 신규 작성일 때만(결제·입금 내역 제외)
+  const showReceiptBtn = !editing && !isPayment && !isDeposit;
+
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title={editing ? '기록 수정' : '기록'} flat />
+      <PageHeader
+        title={editing ? '기록 수정' : '기록'} flat
+        right={showReceiptBtn && (
+          <button
+            type="button" className="tb-icon-btn" disabled={scanBusy}
+            onClick={() => formRef.current?.openReceiptPicker()} aria-label="영수증으로 채우기"
+          >
+            {scanBusy ? (
+              <span style={{ width: 13, height: 13, border: '2px solid #d8d5d0', borderTopColor: '#191722', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            ) : (
+              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+            )}
+          </button>
+        )}
+      />
 
       {loading ? (
         <Spinner />
@@ -122,6 +144,7 @@ export default function TransactionEdit() {
         />
       ) : (
         <TransactionForm
+          ref={formRef} onScanBusyChange={setScanBusy}
           initial={initial} groupId={isPayment ? null : groupId} onSaved={done} onClose={() => nav(-1)}
           fixedType={isPayment ? 'expense' : undefined}
           defaultCategoryName={isPayment ? (isSettlement(group?.category) ? '정산' : '구독') : undefined}

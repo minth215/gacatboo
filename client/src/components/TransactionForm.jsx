@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -33,7 +33,7 @@ async function fileToResizedBase64(file, maxSize = 1600, quality = 0.85) {
 // defaultContentTemplate 지정 시 신규 작성 때 "내용"을 이 템플릿({연}/{월}/{일} 변수 지원)으로 자동 채우고,
 // 날짜를 바꾸면 그 날짜 기준으로 다시 채워짐.
 // onSubmit 지정 시 db.saveTransaction 대신 이 함수로 저장을 위임(그룹 결제 등 별도 저장 로직).
-export default function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate, onSubmit, topNotice, showPeriods }) {
+const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate, onSubmit, topNotice, showPeriods, onScanBusyChange }, ref) {
   const { user } = useAuth();
   const nav = useNavigate();
   const editing = !!initial?.id;
@@ -61,6 +61,9 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
   const [scanBusy, setScanBusy] = useState(false);
   const [scanError, setScanError] = useState('');
   const receiptInputRef = useRef(null);
+
+  useImperativeHandle(ref, () => ({ openReceiptPicker: () => receiptInputRef.current?.click() }), []);
+  useEffect(() => { onScanBusyChange?.(scanBusy); }, [scanBusy]);
 
   useEffect(() => {
     db.listCategories().then((cs) => {
@@ -193,16 +196,13 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
       {topNotice}
 
       {!editing && !fixedType && (
-        <div className="field">
+        <>
           <input
             ref={receiptInputRef} type="file" accept="image/*" capture="environment"
             style={{ display: 'none' }} onChange={onReceiptFile}
           />
-          <button type="button" className="btn block" disabled={scanBusy} onClick={() => receiptInputRef.current?.click()}>
-            {scanBusy ? '영수증 인식 중…' : '📷 영수증으로 채우기'}
-          </button>
-          {scanError && <p className="small muted" style={{ margin: '6px 2px 0', color: '#FF4358' }}>{scanError}</p>}
-        </div>
+          {scanError && <p className="small muted" style={{ margin: '0 2px 12px', color: '#FF4358' }}>{scanError}</p>}
+        </>
       )}
 
       {!fixedType && (
@@ -302,4 +302,6 @@ export default function TransactionForm({ initial, groupId, onSaved, onClose, fi
       <button className="btn-ink-pill" disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
     </form>
   );
-}
+});
+
+export default TransactionForm;
