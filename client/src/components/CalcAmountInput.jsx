@@ -122,7 +122,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
     setRateLoading(true); setRateError('');
     fetchKrwRate(currency)
       .then((r) => { if (!cancelled) setRate(r); })
-      .catch(() => { if (!cancelled) setRateError('환율 조회 실패'); })
+      .catch((e) => { if (!cancelled) setRateError(e.message || '환율 조회 실패'); })
       .finally(() => { if (!cancelled) setRateLoading(false); });
     return () => { cancelled = true; };
   }, [currency]);

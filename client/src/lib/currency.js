@@ -36,6 +36,7 @@ export const CURRENCIES = [
 export const CURRENCY_NAME = Object.fromEntries(CURRENCIES.map((c) => [c.code, c.name]));
 
 // 1 {code} = ? 원. 날짜별로 캐시(sessionStorage)해서 같은 날엔 API를 다시 부르지 않는다.
+// Frankfurter는 2026년에 api.frankfurter.app → api.frankfurter.dev(v2)로 API를 이전했다.
 export async function fetchKrwRate(code) {
   if (!code || code === 'KRW') return 1;
   const cacheKey = `gacatboo_fx_${code}_${new Date().toISOString().slice(0, 10)}`;
@@ -43,11 +44,11 @@ export async function fetchKrwRate(code) {
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) return Number(cached);
   } catch {}
-  const res = await fetch(`https://api.frankfurter.app/latest?from=${code}&to=KRW`);
-  if (!res.ok) throw new Error('환율 정보를 가져오지 못했습니다.');
+  const res = await fetch(`https://api.frankfurter.dev/v2/rate/${code}/KRW`);
+  if (!res.ok) throw new Error(`환율 조회 실패(${res.status})`);
   const data = await res.json();
-  const rate = data?.rates?.KRW;
-  if (!rate) throw new Error('환율 정보를 가져오지 못했습니다.');
+  const rate = Number(data?.rate);
+  if (!Number.isFinite(rate) || rate <= 0) throw new Error('환율 정보를 해석하지 못했습니다.');
   try { sessionStorage.setItem(cacheKey, String(rate)); } catch {}
   return rate;
 }
