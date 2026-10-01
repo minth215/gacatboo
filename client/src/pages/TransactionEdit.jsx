@@ -86,7 +86,7 @@ export default function TransactionEdit() {
       category_name: payload.category_name, category_emoji: payload.category_emoji,
       source_id: payload.source_id, source_name: payload.source_name,
       content: payload.content, memo: payload.memo,
-      recurrence: payload.recurrence,
+      recurrence: payload.recurrence, backfillPast: payload.backfillPast,
     };
     if (editing) await db.updatePayment(id, p, user.id);
     else await db.createPayment(groupId, user.id, p);

@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate, dotDate, monthPillLabel, isSettlement } from '../lib/format.js';
-import { resolveRecurrence } from '../lib/recurrence.js';
+import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
 import Modal from '../components/Modal.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import SwipeRow from '../components/SwipeRow.jsx';
@@ -1004,6 +1004,16 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
       else { l_name = sub?.deposit_category || ''; l_emoji = sub?.deposit_category_emoji || ''; l_settle = null; l_source = sub?.deposit_source_name || ''; }
     }
 
+    const recurrence = (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, f.date) : null;
+    // 과거 날짜로 반복을 새로 걸면, 그동안 밀린 회차를 한 번에 생성할지 물어봄
+    let backfillPast = false;
+    if (recurrence && f.date < today()) {
+      const n = countDueDates(recurrence, f.date, today());
+      if (n > 0) {
+        backfillPast = confirm(`과거의 반복 내역 ${n}개를 일괄 생성할까요?\n\n예: 선택한 날짜부터 오늘까지의 반복 내역을 모두 만듭니다.\n아니요: 이번 항목만 저장하고, 다음 반복부터 자동 생성됩니다.`);
+      }
+    }
+
     setBusy(true); setErr('');
     try {
       await onSave({
@@ -1013,7 +1023,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
         deposit_source_name: l_source,
         leader_category_name: l_name, leader_category_emoji: l_emoji, leader_settlement_target_id: l_settle,
         content: f.content.trim() || (isSettleMode ? settleContentDefault : f.content), memo: f.memo,
-        recurrence: (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, f.date) : null,
+        recurrence, backfillPast,
       });
       onSaved?.();
     } catch (e) { setErr(e.message); setBusy(false); }

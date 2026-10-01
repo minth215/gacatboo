@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { today, fmtWon, renderTemplate } from '../lib/format.js';
-import { resolveRecurrence } from '../lib/recurrence.js';
+import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
 import CalcAmountInput from './CalcAmountInput.jsx';
 import RecurrenceModal from './RecurrenceModal.jsx';
 
@@ -200,6 +200,16 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
       if (s) source_name = s.name; // 세부 항목명만
     }
 
+    const recurrence = (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, date) : null;
+    // 과거 날짜로 반복을 새로 걸면, 그동안 밀린 회차를 한 번에 생성할지 물어봄
+    let backfillPast = false;
+    if (recurrence && date < today()) {
+      const n = countDueDates(recurrence, date, today());
+      if (n > 0) {
+        backfillPast = confirm(`과거의 반복 내역 ${n}개를 일괄 생성할까요?\n\n예: 선택한 날짜부터 오늘까지의 반복 내역을 모두 만듭니다.\n아니요: 이번 항목만 저장하고, 다음 반복부터 자동 생성됩니다.`);
+      }
+    }
+
     const payload = {
       type, date, amount: Math.round(Number(amount)),
       category_id, category_name, category_emoji, category_color,
@@ -208,7 +218,7 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
       input_currency: currencyMeta?.input_currency || null,
       input_amount: currencyMeta?.input_amount ?? null,
       fx_rate: currencyMeta?.fx_rate ?? null,
-      recurrence: (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, date) : null,
+      recurrence, backfillPast,
       settlement_target_id: (isSettlement && settlementTargetId) ? Number(settlementTargetId) : null,
       group_id: groupId || null,
       ...(showPeriods ? { periods: Math.max(Number(periods) || 1, 1) } : {}),

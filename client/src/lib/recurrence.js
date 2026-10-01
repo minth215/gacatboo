@@ -53,6 +53,51 @@ export function resolveRecurrence(pending, dateStr) {
   }
 }
 
+// 어떤 날짜(d, Date 객체)가 이 패턴(freq_unit/freq_interval/weekdays, start 기준)에 해당하는
+// "반복일"인지 — 서버의 generate_recurring_occurrence() SQL 로직과 동일하게 맞춤(월말 보정 포함).
+function isDueOn(d, start, unit, interval, weekdays) {
+  const MS_DAY = 86400000;
+  if (unit === 'day') {
+    const days = Math.round((d - start) / MS_DAY);
+    return days % interval === 0;
+  }
+  if (unit === 'week') {
+    const startWeekStart = new Date(start); startWeekStart.setDate(start.getDate() - start.getDay());
+    const dWeekStart = new Date(d); dWeekStart.setDate(d.getDate() - d.getDay());
+    const weeks = Math.round((dWeekStart - startWeekStart) / (7 * MS_DAY));
+    return weeks % interval === 0 && (weekdays || []).includes(d.getDay());
+  }
+  if (unit === 'month') {
+    const monthsSince = (d.getFullYear() - start.getFullYear()) * 12 + (d.getMonth() - start.getMonth());
+    const lastDayOfDMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    const targetDay = Math.min(start.getDate(), lastDayOfDMonth);
+    return monthsSince >= 0 && monthsSince % interval === 0 && d.getDate() === targetDay;
+  }
+  // year
+  const yearsSince = d.getFullYear() - start.getFullYear();
+  const lastDayOfThatMonth = new Date(d.getFullYear(), start.getMonth() + 1, 0).getDate();
+  const targetDay = Math.min(start.getDate(), lastDayOfThatMonth);
+  return yearsSince >= 0 && yearsSince % interval === 0 && d.getMonth() === start.getMonth() && d.getDate() === targetDay;
+}
+
+// 과거 날짜로 반복을 새로 걸 때, "시작일 다음날 ~ throughDateStr" 사이에 이 패턴대로라면
+// 이미 생성됐어야 할 날짜가 몇 개인지 미리 센다(일괄 생성 여부를 물을 때 보여줄 개수).
+export function countDueDates(rule, startDateStr, throughDateStr) {
+  const [sy, sm, sd] = startDateStr.split('-').map(Number);
+  const start = new Date(sy, sm - 1, sd);
+  const [ty, tm, td] = throughDateStr.split('-').map(Number);
+  const through = new Date(ty, tm - 1, td);
+  if (through <= start) return 0;
+  let count = 0;
+  const cur = new Date(start);
+  cur.setDate(cur.getDate() + 1);
+  while (cur <= through) {
+    if (isDueOn(cur, start, rule.freq_unit, rule.freq_interval, rule.weekdays)) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
 // 저장된 규칙(freq_unit/freq_interval/weekdays)을 사람이 읽을 라벨로(반복 관리 목록 등에서 label 이
 // 없는 경우의 대체용 — 보통은 규칙 생성 시 넣어둔 label 을 그대로 쓰면 된다).
 export function describeRule(rule) {

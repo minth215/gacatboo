@@ -108,6 +108,12 @@ export const db = {
   async deleteRecurringRule(id) {
     return unwrap(await supabase.from('recurring_rules').delete().eq('id', id));
   },
+  // 과거 날짜로 반복을 새로 걸었을 때 밀린 회차를 한 번에 생성(시작일 다음날 ~ 오늘). 생성 개수 반환.
+  async backfillRecurringRule(ruleId) {
+    const { data, error } = await supabase.rpc('backfill_recurring_rule', { p_rule_id: ruleId });
+    if (error) throw new Error(error.message);
+    return data;
+  },
 
   // ---------- 트랜잭션 ----------
   async listTransactions({ month, groupId = null }) {
@@ -290,12 +296,17 @@ export const db = {
       recurring_id = rule.id;
     }
 
+    let saved;
     if (id) {
       const patch = { ...base, ...(recurring_id ? { recurring_id } : {}) };
-      return unwrap(await supabase.from('transactions').update(patch).eq('id', id).select(TX_SELECT).single());
+      saved = unwrap(await supabase.from('transactions').update(patch).eq('id', id).select(TX_SELECT).single());
+    } else {
+      const insert = { ...base, user_id: userId, created_by: userId, group_id: payload.group_id || null, ...(recurring_id ? { recurring_id } : {}) };
+      saved = unwrap(await supabase.from('transactions').insert(insert).select(TX_SELECT).single());
     }
-    const insert = { ...base, user_id: userId, created_by: userId, group_id: payload.group_id || null, ...(recurring_id ? { recurring_id } : {}) };
-    return unwrap(await supabase.from('transactions').insert(insert).select(TX_SELECT).single());
+    // 과거 날짜로 반복을 새로 걸었고 사용자가 일괄 생성을 선택한 경우: 밀린 회차를 한 번에 생성
+    if (recurring_id && payload.backfillPast) await this.backfillRecurringRule(recurring_id);
+    return saved;
   },
   async deleteTransaction(id) {
     return unwrap(await supabase.from('transactions').delete().eq('id', id));
@@ -482,6 +493,9 @@ export const db = {
     }).select().single());
     // 미러 tx 에 원본 링크
     unwrap(await supabase.from('transactions').update({ origin_type: 'payment', origin_id: pay.id, origin_group_id: groupId }).eq('id', tx.id));
+    // 과거 날짜로 반복을 새로 걸었고 사용자가 일괄 생성을 선택한 경우: 밀린 회차를 한 번에 생성
+    // (이 결제 행이 먼저 존재해야 밀린 회차 계산의 기준(마지막 결제일·회차)이 맞으므로 가장 마지막에 호출)
+    if (recurring_id && p.backfillPast) await this.backfillRecurringRule(recurring_id);
     return pay;
   },
   // 결제 수정 → 트리거가 미러 tx 동기화
@@ -510,7 +524,9 @@ export const db = {
       content: (p.content || '').trim(), memo: (p.memo || '').trim(),
       ...(recurring_id ? { recurring_id } : {}),
     };
-    return unwrap(await supabase.from('subscription_payments').update(patch).eq('id', id).select().single());
+    const saved = unwrap(await supabase.from('subscription_payments').update(patch).eq('id', id).select().single());
+    if (recurring_id && p.backfillPast) await this.backfillRecurringRule(recurring_id);
+    return saved;
   },
   async deletePayment(id) {
     const pay = unwrap(await supabase.from('subscription_payments').select('tx_id').eq('id', id).single());
@@ -556,6 +572,8 @@ export const db = {
       const dep = unwrap(await supabase.from('subscription_deposits').update({ recurring_id: rule.id }).eq('id', depId).select('leader_tx_id, member_tx_id').single());
       const txIds = [dep.leader_tx_id, dep.member_tx_id].filter(Boolean);
       if (txIds.length) unwrap(await supabase.from('transactions').update({ recurring_id: rule.id }).in('id', txIds));
+      // 과거 날짜로 반복을 새로 걸었고 사용자가 일괄 생성을 선택한 경우: 밀린 회차를 한 번에 생성
+      if (p.backfillPast) await this.backfillRecurringRule(rule.id);
     }
     return depId;
   },
@@ -590,7 +608,9 @@ export const db = {
       leader_settlement_target_id: p.leader_settlement_target_id || null,
       ...(recurring_id ? { recurring_id } : {}),
     };
-    return unwrap(await supabase.from('subscription_deposits').update(patch).eq('id', id).select().single());
+    const saved = unwrap(await supabase.from('subscription_deposits').update(patch).eq('id', id).select().single());
+    if (recurring_id && p.backfillPast) await this.backfillRecurringRule(recurring_id);
+    return saved;
   },
   async deleteDeposit(id) {
     const { error } = await supabase.rpc('delete_subscription_deposit', { p_id: id });
