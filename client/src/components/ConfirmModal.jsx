@@ -5,8 +5,18 @@ export default function ConfirmModal({ message, onYes, onNo, yesLabel = '네', n
       <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
         <p style={{ fontSize: 14.5, fontWeight: 600, color: '#191722', margin: '4px 2px 18px', whiteSpace: 'pre-line' }}>{message}</p>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" className="btn" style={{ flex: 1 }} onClick={onNo}>{noLabel}</button>
-          <button type="button" className="btn-ink-pill" style={{ flex: 1, marginTop: 0 }} onClick={onYes}>{yesLabel}</button>
+          <button
+            type="button" onClick={onNo}
+            style={{ flex: 1, height: 42, border: 'none', borderRadius: 999, background: '#f4f2f0', color: '#191722', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            {noLabel}
+          </button>
+          <button
+            type="button" onClick={onYes}
+            style={{ flex: 1, height: 42, border: 'none', borderRadius: 999, background: '#191722', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            {yesLabel}
+          </button>
         </div>
       </div>
     </div>
