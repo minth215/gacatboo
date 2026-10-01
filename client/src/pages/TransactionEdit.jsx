@@ -94,8 +94,8 @@ export default function TransactionEdit() {
 
   // 입금 내역 저장은 subscription_deposits 테이블을 사용(RPC로 총대/멤버 미러 tx 동기화)
   const saveDeposit = async (p) => {
-    if (editing) await db.updateDeposit(id, p);
-    else await db.createDeposit({ ...p, group_id: groupId });
+    if (editing) await db.updateDeposit(id, p, user.id);
+    else await db.createDeposit({ ...p, group_id: groupId }, user.id);
   };
 
   const isOwner = isDeposit && group ? group.owner_id === user.id : false;

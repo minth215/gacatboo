@@ -521,15 +521,15 @@ export const db = {
   // ---------- 입금 내역 (총대 수입 + 멤버 지출 자동기입, RPC) ----------
   async listDeposits(groupId) {
     return unwrap(await supabase.from('subscription_deposits')
-      .select('*, member:group_members(nickname)')
+      .select('*, member:group_members(nickname), recurring:recurring_rules(id, label)')
       .eq('group_id', groupId).order('date', { ascending: false }).order('id', { ascending: false }));
   },
   async getDeposit(id) {
     return unwrap(await supabase.from('subscription_deposits')
-      .select('*, member:group_members(nickname)').eq('id', id).single());
+      .select('*, member:group_members(nickname), recurring:recurring_rules(id, label)').eq('id', id).single());
   },
-  async createDeposit(p) {
-    const { data, error } = await supabase.rpc('create_subscription_deposit', {
+  async createDeposit(p, userId) {
+    const { data: depId, error } = await supabase.rpc('create_subscription_deposit', {
       p_group_id: p.group_id, p_member_id: p.member_id, p_date: p.date, p_amount: p.amount,
       p_periods: p.periods, p_category_name: p.category_name || '', p_category_emoji: p.category_emoji || '',
       p_source_id: p.source_id || null, p_source_name: p.source_name || '',
@@ -538,18 +538,59 @@ export const db = {
       p_leader_settlement_target_id: p.leader_settlement_target_id || null,
     });
     if (error) throw new Error(error.message);
-    return data;
+
+    // 반복 설정을 새로 켠 경우: 규칙을 만들고(target='subscription_deposit') 이 입금과 총대/멤버
+    // 미러 거래 양쪽에 연결. 이후 서버(pg_cron)가 생성하는 입금도 같은 규칙을 보고 총대 수입·멤버
+    // 지출 미러를 동일하게 만듦(아래 generate_due_recurring_transactions 참고).
+    if (p.recurrence) {
+      const r = p.recurrence;
+      const rule = unwrap(await supabase.from('recurring_rules').insert({
+        user_id: userId, group_id: p.group_id, member_id: p.member_id, target: 'subscription_deposit', type: 'income',
+        amount: p.amount,
+        category_name: p.category_name || '', category_emoji: p.category_emoji || '', source_name: p.source_name || '',
+        leader_category_name: p.leader_category_name || '', leader_category_emoji: p.leader_category_emoji || '',
+        deposit_source_name: p.deposit_source_name || '',
+        content: (p.content || '').trim(), memo: (p.memo || '').trim(),
+        start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label,
+      }).select().single());
+      const dep = unwrap(await supabase.from('subscription_deposits').update({ recurring_id: rule.id }).eq('id', depId).select('leader_tx_id, member_tx_id').single());
+      const txIds = [dep.leader_tx_id, dep.member_tx_id].filter(Boolean);
+      if (txIds.length) unwrap(await supabase.from('transactions').update({ recurring_id: rule.id }).in('id', txIds));
+    }
+    return depId;
   },
   // 입금 수정 → 트리거가 총대/멤버 미러 tx 동기화 (RLS: 총대 또는 본인)
-  async updateDeposit(id, p) {
-    return unwrap(await supabase.from('subscription_deposits').update({
+  async updateDeposit(id, p, userId) {
+    // 수정 중에 반복을 새로 켠 경우(원래 반복이 아니었던 입금): 규칙을 만들고 총대/멤버 미러 거래에 연결
+    let recurring_id;
+    if (p.recurrence) {
+      const existing = unwrap(await supabase.from('subscription_deposits').select('group_id, member_id, leader_tx_id, member_tx_id, recurring_id').eq('id', id).single());
+      if (!existing.recurring_id) {
+        const r = p.recurrence;
+        const rule = unwrap(await supabase.from('recurring_rules').insert({
+          user_id: userId, group_id: existing.group_id, member_id: existing.member_id, target: 'subscription_deposit', type: 'income',
+          amount: p.amount,
+          category_name: p.category_name || '', category_emoji: p.category_emoji || '', source_name: p.source_name || '',
+          leader_category_name: p.leader_category_name || '', leader_category_emoji: p.leader_category_emoji || '',
+          deposit_source_name: p.deposit_source_name || '',
+          content: (p.content || '').trim(), memo: (p.memo || '').trim(),
+          start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label,
+        }).select().single());
+        recurring_id = rule.id;
+        const txIds = [existing.leader_tx_id, existing.member_tx_id].filter(Boolean);
+        if (txIds.length) unwrap(await supabase.from('transactions').update({ recurring_id }).in('id', txIds));
+      }
+    }
+    const patch = {
       date: p.date, amount: p.amount, periods: Math.max(Number(p.periods) || 1, 1),
       category_name: p.category_name || '', category_emoji: p.category_emoji || '',
       source_name: p.source_name || '', deposit_source_name: p.deposit_source_name || '',
       content: (p.content || '').trim(), memo: (p.memo || '').trim(),
       leader_category_name: p.leader_category_name || '', leader_category_emoji: p.leader_category_emoji || '',
       leader_settlement_target_id: p.leader_settlement_target_id || null,
-    }).eq('id', id).select().single());
+      ...(recurring_id ? { recurring_id } : {}),
+    };
+    return unwrap(await supabase.from('subscription_deposits').update(patch).eq('id', id).select().single());
   },
   async deleteDeposit(id) {
     const { error } = await supabase.rpc('delete_subscription_deposit', { p_id: id });

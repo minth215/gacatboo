@@ -3,10 +3,19 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate, dotDate, monthPillLabel, isSettlement } from '../lib/format.js';
+import { resolveRecurrence } from '../lib/recurrence.js';
 import Modal from '../components/Modal.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import SwipeRow from '../components/SwipeRow.jsx';
+import RecurrenceModal from '../components/RecurrenceModal.jsx';
 import { tileBg, formatDate, DayCardRow } from '../components/TransactionList.jsx';
+
+// "반복 관리" 메뉴와 동일한 반복 아이콘(채워진 순환 화살표)
+const RepeatIcon = ({ color }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill={color}>
+    <path d="M12,4V1L8,5l4,4V6c3.31,0,6,2.69,6,6c0,1.01-0.25,1.97-0.7,2.8l1.46,1.46C19.54,15.03,20,13.57,20,12C20,7.58,16.42,4,12,4z M6,12c0-1.01,0.25-1.97,0.7-2.8L5.24,7.74C4.46,8.97,4,10.43,4,12c0,4.42,3.58,8,8,8v3l4-4l-4-4v3c-3.31,0-6-2.69-6-6z" />
+  </svg>
+);
 
 const PERIOD_UNITS = ['day', 'week', 'month', 'year'];
 const KEEP = '__keep__'; // id 없이 이름만 있는 원천/분류(스냅샷) 유지용 센티넬
@@ -877,6 +886,21 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     memo: '',
   });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
+  // 반복 설정: 이미 저장된 반복(recurringId)이거나, 아직 저장 전인 선택값(pendingRecurrence) 중 하나만 있을 수 있음
+  const [recurringId, setRecurringId] = useState(initial?.recurring?.id || null);
+  const [recurringLabel, setRecurringLabel] = useState(initial?.recurring?.label || '');
+  const [pendingRecurrence, setPendingRecurrence] = useState(null);
+  const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
+
+  const onRecurrenceIconClick = async () => {
+    if (recurringId) {
+      if (!confirm(`'${recurringLabel || '반복'}' 설정을 해제할까요? (이미 기록된 내역은 그대로 남습니다)`)) return;
+      try { await db.deleteRecurringRule(recurringId); setRecurringId(null); setRecurringLabel(''); } catch (e) { alert(e.message); }
+      return;
+    }
+    if (pendingRecurrence) { setPendingRecurrence(null); return; }
+    setShowRecurrenceModal(true);
+  };
 
   // 신규 작성 시 구독 설정/그룹 데이터가 비동기로 나중에 도착해도 기본값이 반영되도록
   // 각 필드가 비어 있을 때만 채움(사용자가 이미 입력했으면 덮어쓰지 않음)
@@ -989,6 +1013,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
         deposit_source_name: l_source,
         leader_category_name: l_name, leader_category_emoji: l_emoji, leader_settlement_target_id: l_settle,
         content: f.content.trim() || (isSettleMode ? settleContentDefault : f.content), memo: f.memo,
+        recurrence: (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, f.date) : null,
       });
       onSaved?.();
     } catch (e) { setErr(e.message); setBusy(false); }
@@ -1004,7 +1029,26 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
           {editing && !members.some((m) => String(m.id) === String(f.memberId)) && <option value={f.memberId}>{initial.member?.nickname || '멤버'}</option>}
         </select>
       </div>
-      <div className="field"><label>날짜</label><input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} /></div>
+      <div className="field">
+        <label>날짜</label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} style={{ flex: 1 }} />
+          <button
+            type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
+            style={{
+              width: 42, height: 42, borderRadius: 10, border: 'none', flex: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: (recurringId || pendingRecurrence) ? '#E5FBF6' : '#f4f2f0',
+            }}
+          >
+            <RepeatIcon color={(recurringId || pendingRecurrence) ? '#2CDDB9' : '#c7c3cc'} />
+          </button>
+        </div>
+      </div>
+
+      {showRecurrenceModal && (
+        <RecurrenceModal onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
+      )}
       {showPeriods ? (
         <div className="grid2">
           <div className="field"><label>금액</label>
