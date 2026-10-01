@@ -82,6 +82,22 @@ export const db = {
     return unwrap(await supabase.rpc('set_primary_source', { p_source_id: id, p_kind: kind, p_value: value }));
   },
 
+  // ---------- 화폐 설정(보조 화폐) ----------
+  // 주 화폐(원화)는 행이 없고 항상 기본값으로 취급. 여기 목록은 "추가로 쓸 수 있는" 보조 화폐만 담는다.
+  async listCurrencies() {
+    return unwrap(await supabase.from('user_currencies').select('*').order('sort_order').order('id'));
+  },
+  async addCurrency(userId, code) {
+    const existing = unwrap(await supabase.from('user_currencies').select('sort_order').order('sort_order', { ascending: false }).limit(1));
+    const next = (existing[0]?.sort_order ?? -1) + 1;
+    const { data, error } = await supabase.from('user_currencies').insert({ user_id: userId, code, sort_order: next }).select().single();
+    if (error) throw new Error(error.code === '23505' ? '이미 추가된 화폐입니다.' : error.message);
+    return data;
+  },
+  async deleteCurrency(id) {
+    return unwrap(await supabase.from('user_currencies').delete().eq('id', id));
+  },
+
   // ---------- 트랜잭션 ----------
   async listTransactions({ month, groupId = null }) {
     const { start, endExclusive } = monthBounds(month);
@@ -240,6 +256,9 @@ export const db = {
       content: (payload.content || '').trim(),
       memo: (payload.memo || '').trim(),
       settlement_target_id: payload.settlement_target_id ?? null,
+      input_currency: payload.input_currency || '',
+      input_amount: payload.input_currency ? payload.input_amount ?? null : null,
+      fx_rate: payload.input_currency ? payload.fx_rate ?? null : null,
     };
     if (id) {
       return unwrap(await supabase.from('transactions').update(base).eq('id', id).select(TX_SELECT).single());

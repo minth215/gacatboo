@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { db } from '../lib/db.js';
+import { CURRENCY_NAME, fetchKrwRate } from '../lib/currency.js';
 
 const OP_CHARS = '+-×÷';
 const OP_SYMBOL = { '+': '+', '-': '−', '×': '×', '÷': '÷' };
@@ -8,9 +10,10 @@ function numToken(tok) {
   return tok.endsWith('%') ? Number(tok.slice(0, -1)) / 100 : Number(tok);
 }
 
-// "12000×10%" 같은 수식 문자열을 계산(×÷ 우선순위 적용). 끝에 연산자가 남아 있으면 무시하고,
-// 결과는 원 단위 정수로 반올림하며 음수는 0으로 clamp(금액은 항상 0 이상).
-function evaluate(expr) {
+// "12000×10%" 같은 수식 문자열을 계산(×÷ 우선순위 적용). 끝에 연산자가 남아 있으면 무시.
+// round=true(기본, 원화)면 정수로 반올림, round=false(외화)면 소수점을 그대로 유지(센트 단위 보존).
+// 결과는 항상 0 이상으로 clamp(금액은 음수가 될 수 없음).
+function evaluate(expr, { round = true } = {}) {
   const tokens = [];
   let num = '';
   for (const ch of expr) {
@@ -32,7 +35,8 @@ function evaluate(expr) {
   }
   let result = vals[0];
   for (let i = 0; i < lowOps.length; i++) result = lowOps[i] === '+' ? result + vals[i + 1] : result - vals[i + 1];
-  return Math.max(0, Math.round(result));
+  const clamped = Math.max(0, result);
+  return round ? Math.round(clamped) : clamped;
 }
 
 // 숫자 토큰(정수부만 천 단위 콤마, 소수점 이하·% 는 입력한 그대로 유지)
@@ -88,18 +92,72 @@ const KeyBtn = ({ label, onClick, bg, color, style }) => (
 );
 
 // 금액 입력 전용: 포커스 시 네이티브 키패드 대신 사칙연산 계산기 키패드를 띄운다.
-// 포커스 중엔 입력 중인 수식(예: "12,000 × 10%")을, 포커스가 풀리면 계산된 최종 금액을 보여준다.
-export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus }) {
+// 포커스 중엔 입력 중인 수식(예: "12,000 × 10%")을, 포커스가 풀리면 계산된 최종 금액(항상 원화)을 보여준다.
+// 보조 화폐(설정에서 추가)가 있으면 키패드 상단에 통화 선택 칩이 뜨고, 원화가 아닌 통화를 고르면
+// 입력값을 그 통화의 금액으로 해석해 환율로 환산한 원화 금액을 회색 글씨로 함께 보여주며,
+// 그 금액은 눌러서 직접 수정할 수 있다. initialCurrency/initialForeignAmount 는 기존 거래 수정 시
+// 원래 입력했던 외화 금액을 복원하기 위한 값이고, onCurrencyChange 는 저장용 스냅샷
+// ({ input_currency, input_amount, fx_rate } 또는 원화면 null)을 매 확정 시점에 알려준다.
+export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange }) {
   const [focused, setFocused] = useState(false);
   const [expr, setExpr] = useState('');
-  // state 대신 ref 사용: setExpr 함수형 업데이트 안에서 읽는 값이라, state로 두면
-  // 빠르게 연타했을 때(리렌더 전에 두 번째 입력이 들어오면) 직전 렌더의 낡은 값을
-  // 읽어 방금 입력한 숫자를 덮어써버리는(글자가 씹히는) 문제가 생김.
   const justEvaluatedRef = useRef(false);
+  const firstOpenRef = useRef(true);
 
-  const open = () => { setExpr(value || ''); justEvaluatedRef.current = false; setFocused(true); };
-  const commit = (e) => { const result = evaluate(e); onChange(String(result)); return result; };
-  const close = () => { commit(expr); setFocused(false); };
+  const [userCurrencies, setUserCurrencies] = useState([]);
+  const [currency, setCurrency] = useState(initialCurrency || 'KRW');
+  const [foreignAmount, setForeignAmount] = useState(initialForeignAmount != null ? String(initialForeignAmount) : '');
+  const [rate, setRate] = useState(currency === 'KRW' ? 1 : null);
+  const [rateLoading, setRateLoading] = useState(false);
+  const [rateError, setRateError] = useState('');
+  const [manualKrw, setManualKrw] = useState(null);
+  const [editingKrw, setEditingKrw] = useState(false);
+  const [krwDraft, setKrwDraft] = useState('');
+
+  useEffect(() => { db.listCurrencies().then(setUserCurrencies).catch(() => {}); }, []);
+
+  useEffect(() => {
+    if (currency === 'KRW') { setRate(1); setRateError(''); return; }
+    let cancelled = false;
+    setRateLoading(true); setRateError('');
+    fetchKrwRate(currency)
+      .then((r) => { if (!cancelled) setRate(r); })
+      .catch(() => { if (!cancelled) setRateError('환율 조회 실패'); })
+      .finally(() => { if (!cancelled) setRateLoading(false); });
+    return () => { cancelled = true; };
+  }, [currency]);
+
+  const typedAmount = useMemo(() => evaluate(expr, { round: currency === 'KRW' }), [expr, currency]);
+  useEffect(() => { setManualKrw(null); setEditingKrw(false); }, [typedAmount, currency]);
+
+  const open = () => {
+    if (firstOpenRef.current && currency !== 'KRW' && initialForeignAmount != null) {
+      setExpr(String(initialForeignAmount));
+    } else {
+      setExpr(currency === 'KRW' ? (value || '') : (foreignAmount || ''));
+    }
+    firstOpenRef.current = false;
+    justEvaluatedRef.current = false;
+    setFocused(true);
+  };
+
+  const commitAndNotify = () => {
+    if (currency === 'KRW') {
+      onChange(String(typedAmount));
+      onCurrencyChange?.(null);
+    } else {
+      const krw = manualKrw != null ? Number(manualKrw) : Math.round(typedAmount * (rate || 0));
+      setForeignAmount(String(typedAmount));
+      onChange(String(krw));
+      onCurrencyChange?.({ input_currency: currency, input_amount: typedAmount, fx_rate: rate ?? null });
+    }
+  };
+  // 환율이 아직 로딩 중이면 닫기를 막아서(완료 버튼·바깥 탭·Esc 전부) 0원으로 저장되는 것을 방지
+  const close = () => {
+    if (currency !== 'KRW' && rateLoading) return;
+    commitAndNotify();
+    setFocused(false);
+  };
 
   // 연산자 뒤에서 시작하는(또는 맨 앞) 현재 입력 중인 숫자 구간만 잘라냄(소수점·% 중복 입력 방지용)
   const currentSegment = (s) => {
@@ -134,7 +192,12 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   });
   const pressBackspace = () => setExpr((prev) => prev.slice(0, -1));
   const pressClear = () => setExpr('');
-  const pressEquals = () => { const result = commit(expr); setExpr(String(result)); justEvaluatedRef.current = true; };
+  const pressEquals = () => {
+    if (currency !== 'KRW' && rateLoading) return; // 환율 로딩 중엔 확정 보류(0원으로 확정되는 것 방지)
+    commitAndNotify();
+    setExpr(String(typedAmount));
+    justEvaluatedRef.current = true;
+  };
 
   const onKeyDown = (e) => {
     e.preventDefault();
@@ -151,6 +214,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   };
 
   const displayValue = focused ? formatExpr(expr) : (value ? Number(value).toLocaleString('ko-KR') : '');
+  const previewKrw = manualKrw != null ? Number(manualKrw) : Math.round(typedAmount * (rate || 0));
 
   return (
     <div style={{ position: 'relative' }}>
@@ -159,7 +223,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
           readOnly value={displayValue} placeholder={placeholder} autoFocus={autoFocus}
           onFocus={open} onClick={open} onKeyDown={onKeyDown}
         />
-        <span className="suffix">원</span>
+        <span className="suffix">{focused && currency !== 'KRW' ? currency : '원'}</span>
       </div>
 
       {focused && (
@@ -171,8 +235,52 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
             padding: '10px 12px calc(32px + env(safe-area-inset-bottom, 0px))',
           }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '2px 2px 8px' }}>
-              <button type="button" onClick={close} style={{ border: 'none', background: 'none', color: '#191722', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>완료</button>
+              <button
+                type="button" onClick={close} disabled={currency !== 'KRW' && rateLoading}
+                style={{ border: 'none', background: 'none', color: (currency !== 'KRW' && rateLoading) ? '#c7c3cc' : '#191722', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                {(currency !== 'KRW' && rateLoading) ? '환율 조회 중…' : '완료'}
+              </button>
             </div>
+
+            {userCurrencies.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 2px 10px' }}>
+                {['KRW', ...userCurrencies.map((c) => c.code)].map((code) => (
+                  <button
+                    key={code} type="button" className="calc-key"
+                    onPointerDown={(e) => { e.preventDefault(); setCurrency(code); }}
+                    style={{
+                      flex: 'none', padding: '6px 14px', borderRadius: 999, border: 'none', fontSize: 12.5, fontWeight: 700,
+                      background: currency === code ? '#191722' : '#f4f2f0', color: currency === code ? '#fff' : '#191722',
+                    }}
+                  >
+                    {code === 'KRW' ? '원화' : (CURRENCY_NAME[code] || code)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {currency !== 'KRW' && (
+              <div style={{ padding: '0 2px 10px', fontSize: 12.5, color: '#a29ead', minHeight: 18 }}>
+                {rateLoading ? '환율 조회 중…' : rateError ? rateError : editingKrw ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <span>≈ ₩</span>
+                    <input
+                      type="text" inputMode="numeric" autoFocus value={krwDraft}
+                      onChange={(e) => setKrwDraft(e.target.value.replace(/[^0-9]/g, ''))}
+                      onBlur={() => { setManualKrw(krwDraft || '0'); setEditingKrw(false); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                      style={{ width: 110, border: '1px solid #e4e2e6', borderRadius: 8, padding: '3px 6px', fontSize: 12.5, color: '#191722', fontFamily: 'inherit' }}
+                    />
+                  </span>
+                ) : (
+                  <span onClick={() => { setKrwDraft(String(previewKrw)); setEditingKrw(true); }} style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}>
+                    ≈ ₩{previewKrw.toLocaleString('ko-KR')} (눌러서 수정)
+                  </span>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
               <KeyBtn label="⌫" onClick={pressBackspace} bg="#fde8ee" color="#FF4358" />
               <KeyBtn label="C" onClick={pressClear} bg="#fde8ee" color="#FF4358" />

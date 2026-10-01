@@ -50,6 +50,10 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
   const [content, setContent] = useState(initial?.content || '');
   const [memo, setMemo] = useState(initial?.memo || '');
   const [settlementTargetId, setSettlementTargetId] = useState(initial?.settlement_target_id ? String(initial.settlement_target_id) : '');
+  // 외화로 입력했을 때의 원본 통화·금액·환율 스냅샷(원화로 입력했으면 null). CalcAmountInput 이 관리.
+  const [currencyMeta, setCurrencyMeta] = useState(
+    initial?.input_currency ? { input_currency: initial.input_currency, input_amount: initial.input_amount, fx_rate: initial.fx_rate } : null
+  );
 
   const [categories, setCategories] = useState([]);
   const [sources, setSources] = useState([]);
@@ -176,6 +180,9 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
       category_id, category_name, category_emoji, category_color,
       source_id, source_name,
       content, memo,
+      input_currency: currencyMeta?.input_currency || null,
+      input_amount: currencyMeta?.input_amount ?? null,
+      fx_rate: currencyMeta?.fx_rate ?? null,
       settlement_target_id: (isSettlement && settlementTargetId) ? Number(settlementTargetId) : null,
       group_id: groupId || null,
       ...(showPeriods ? { periods: Math.max(Number(periods) || 1, 1) } : {}),
@@ -221,7 +228,11 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
         <div className="grid2">
           <div className="field">
             <label>금액</label>
-            <CalcAmountInput value={amount} onChange={onAmountChange} autoFocus />
+            <CalcAmountInput
+              value={amount} onChange={onAmountChange} autoFocus
+              initialCurrency={currencyMeta?.input_currency} initialForeignAmount={currencyMeta?.input_amount}
+              onCurrencyChange={setCurrencyMeta}
+            />
           </div>
           <div className="field">
             <label>기간(회차)</label>
@@ -231,7 +242,11 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
       ) : (
         <div className="field">
           <label>금액</label>
-          <CalcAmountInput value={amount} onChange={onAmountChange} autoFocus />
+          <CalcAmountInput
+            value={amount} onChange={onAmountChange} autoFocus
+            initialCurrency={currencyMeta?.input_currency} initialForeignAmount={currencyMeta?.input_amount}
+            onCurrencyChange={setCurrencyMeta}
+          />
         </div>
       )}
 
