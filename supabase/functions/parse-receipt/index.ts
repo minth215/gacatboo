@@ -54,11 +54,27 @@ Deno.serve(async (req) => {
   "merchant": "상호명 또는 가게 이름. 확인할 수 없으면 null",
   "category": ${catList.length
     ? `"다음 목록 중 이 영수증에 가장 어울리는 것을 목록에 있는 문자열 그대로 하나만 반환하세요. 어울리는 것이 없으면 null. 목록: ${catList.join(', ')}"`
-    : 'null'}
+    : 'null'},
+  "items": [{ "name": "구매한 품목명", "qty": 수량(정수, 확인 안되면 1), "amount": 그 품목의 영수증에 표시된 금액(수량 반영된 합계, 정수) }] — 영수증에 품목이 여러 개 나열되어 있으면 모두 담고, 품목을 구분할 수 없으면 빈 배열
 }`;
 
-  const model = Deno.env.get('GEMINI_MODEL') || 'gemini-3.8-flash';
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  // 과금/혼잡 대비: 기본 모델이 일시적으로 혼잡(503)하면 재시도 후, 그래도 안 되면
+  // 별도 용량을 쓰는 보조 모델로 한 번 더 시도한다.
+  const primaryModel = Deno.env.get('GEMINI_MODEL') || 'gemini-3.8-flash';
+  const fallbackModel = Deno.env.get('GEMINI_FALLBACK_MODEL') || 'gemini-flash-lite-latest';
+
+  const callGemini = async (model: string, body: string, retries: number) => {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    let res: Response;
+    let result: any;
+    for (let attempt = 0; ; attempt++) {
+      res = await fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      result = await res.json();
+      if (res.ok || (res.status !== 503 && res.status !== 429) || attempt >= retries) break;
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+    }
+    return { res: res!, result };
+  };
 
   try {
     const body = JSON.stringify({
@@ -66,17 +82,12 @@ Deno.serve(async (req) => {
       generationConfig: { responseMimeType: 'application/json' },
     });
 
-    // 모델이 일시적으로 혼잡(503)할 때는 잠깐 쉬었다가 최대 2번 더 시도
-    let res: Response;
-    let result: any;
-    for (let attempt = 0; ; attempt++) {
-      res = await fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
-      result = await res.json();
-      if (res.ok || res.status !== 503 || attempt >= 2) break;
-      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+    let { res, result } = await callGemini(primaryModel, body, 2);
+    if (!res.ok && (res.status === 503 || res.status === 429) && fallbackModel && fallbackModel !== primaryModel) {
+      ({ res, result } = await callGemini(fallbackModel, body, 1));
     }
     if (!res.ok) {
-      if (res.status === 503) return json({ error: '현재 AI 서버가 혼잡합니다. 잠시 후 다시 시도해 주세요.' }, 503);
+      if (res.status === 503 || res.status === 429) return json({ error: '현재 AI 서버가 혼잡합니다. 잠시 후 다시 시도해 주세요.' }, 503);
       return json({ error: result?.error?.message || 'Gemini 호출에 실패했습니다.' }, 502);
     }
     const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -92,11 +103,22 @@ Deno.serve(async (req) => {
     }
 
     const amount = Number(parsed.amount);
+    const items = Array.isArray(parsed.items)
+      ? parsed.items
+          .map((it: any) => {
+            const itAmount = Number(it?.amount);
+            const qty = Number(it?.qty);
+            if (typeof it?.name !== 'string' || !it.name.trim() || !Number.isFinite(itAmount) || itAmount <= 0) return null;
+            return { name: it.name.trim(), qty: Number.isFinite(qty) && qty > 0 ? Math.round(qty) : 1, amount: Math.round(itAmount) };
+          })
+          .filter(Boolean)
+      : [];
     return json({
       date: typeof parsed.date === 'string' ? parsed.date : null,
       amount: Number.isFinite(amount) && amount > 0 ? Math.round(amount) : null,
       merchant: typeof parsed.merchant === 'string' ? parsed.merchant : null,
       category: typeof parsed.category === 'string' && catList.includes(parsed.category) ? parsed.category : null,
+      items,
     });
   } catch (e) {
     return json({ error: String((e as Error).message ?? e) }, 500);

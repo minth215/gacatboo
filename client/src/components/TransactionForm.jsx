@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { today, fmtWon, renderTemplate } from '../lib/format.js';
+import { today, fmtWon, fmtNum, renderTemplate } from '../lib/format.js';
 import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
 import CalcAmountInput from './CalcAmountInput.jsx';
 import RecurrenceModal from './RecurrenceModal.jsx';
@@ -161,6 +161,10 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
       if (result.category) {
         const c = categories.find((x) => x.type === 'expense' && x.name === result.category);
         if (c) setCategoryId(String(c.id));
+      }
+      // 구매 품목이 여러 개면 메모에 "품목명*수량 금액" 형식으로 한 줄씩 채워줌
+      if (Array.isArray(result.items) && result.items.length > 1) {
+        setMemo(result.items.map((it) => `${it.name}*${it.qty} ${fmtNum(it.amount)}`).join('\n'));
       }
       if (!result.date && !result.amount && !result.merchant && !result.category) {
         setScanError('영수증에서 정보를 인식하지 못했어요. 직접 입력해 주세요.');
