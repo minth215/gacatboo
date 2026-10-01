@@ -6,6 +6,7 @@ import { today, fmtWon, renderTemplate } from '../lib/format.js';
 import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
 import CalcAmountInput from './CalcAmountInput.jsx';
 import RecurrenceModal from './RecurrenceModal.jsx';
+import ConfirmModal from './ConfirmModal.jsx';
 
 // "반복 관리" 메뉴와 동일한 반복 아이콘(채워진 순환 화살표)
 const RepeatIcon = ({ color }) => (
@@ -68,6 +69,8 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
   const [recurringLabel, setRecurringLabel] = useState(initial?.recurring?.label || '');
   const [pendingRecurrence, setPendingRecurrence] = useState(initialPendingRecurrence || null);
   const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
+  const [backfillPrompt, setBackfillPrompt] = useState(null); // { n, resolve } | null
+  const askBackfill = (n) => new Promise((resolve) => setBackfillPrompt({ n, resolve }));
 
   const [categories, setCategories] = useState([]);
   const [sources, setSources] = useState([]);
@@ -205,9 +208,7 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
     let backfillPast = false;
     if (recurrence && date < today()) {
       const n = countDueDates(recurrence, date, today());
-      if (n > 0) {
-        backfillPast = confirm(`과거의 반복 내역 ${n}개를 일괄 생성할까요?\n\n예: 선택한 날짜부터 오늘까지의 반복 내역을 모두 만듭니다.\n아니요: 이번 항목만 저장하고, 다음 반복부터 자동 생성됩니다.`);
-      }
+      if (n > 0) backfillPast = await askBackfill(n);
     }
 
     const payload = {
@@ -274,6 +275,14 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
 
       {showRecurrenceModal && (
         <RecurrenceModal onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
+      )}
+
+      {backfillPrompt && (
+        <ConfirmModal
+          message={`과거의 반복 내역 ${backfillPrompt.n}개를 일괄 생성할까요?`}
+          onYes={() => { backfillPrompt.resolve(true); setBackfillPrompt(null); }}
+          onNo={() => { backfillPrompt.resolve(false); setBackfillPrompt(null); }}
+        />
       )}
 
       {showPeriods ? (
