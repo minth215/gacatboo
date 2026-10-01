@@ -498,9 +498,11 @@ a { color: inherit; text-decoration: none; }
 .calc-key {
   cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   user-select: none; -webkit-user-select: none;
-  transition: transform .05s ease, filter .05s ease;
+  transition: filter .05s ease;
 }
-.calc-key:active { filter: brightness(0.9); transform: scale(0.95); }
+/* transform(scale)은 쓰지 않음: 눌림 애니메이션 중 버튼의 실제 히트 영역이 일시적으로
+   작아져 빠르게 연타할 때 다음 터치가 버튼 사이 여백으로 새는 원인이 될 수 있음 */
+.calc-key:active { filter: brightness(0.88); }
 
 /* ---------- 설정 페이지 ---------- */
 .settings-profile-card {

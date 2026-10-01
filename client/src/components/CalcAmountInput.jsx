@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 const OP_CHARS = '+-×÷';
 const OP_SYMBOL = { '+': '+', '-': '−', '×': '×', '÷': '÷' };
@@ -92,9 +92,12 @@ const KeyBtn = ({ label, onClick, bg, color, style }) => (
 export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus }) {
   const [focused, setFocused] = useState(false);
   const [expr, setExpr] = useState('');
-  const [justEvaluated, setJustEvaluated] = useState(false);
+  // state 대신 ref 사용: setExpr 함수형 업데이트 안에서 읽는 값이라, state로 두면
+  // 빠르게 연타했을 때(리렌더 전에 두 번째 입력이 들어오면) 직전 렌더의 낡은 값을
+  // 읽어 방금 입력한 숫자를 덮어써버리는(글자가 씹히는) 문제가 생김.
+  const justEvaluatedRef = useRef(false);
 
-  const open = () => { setExpr(value || ''); setJustEvaluated(false); setFocused(true); };
+  const open = () => { setExpr(value || ''); justEvaluatedRef.current = false; setFocused(true); };
   const commit = (e) => { const result = evaluate(e); onChange(String(result)); return result; };
   const close = () => { commit(expr); setFocused(false); };
 
@@ -106,32 +109,32 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   };
 
   const pressDigit = (d) => setExpr((prev) => {
-    if (justEvaluated) { setJustEvaluated(false); return d; }
+    if (justEvaluatedRef.current) { justEvaluatedRef.current = false; return d; }
     if (currentSegment(prev).endsWith('%')) return prev; // % 뒤엔 연산자를 눌러야 새 숫자를 시작할 수 있음
     if (prev === '0') return d;
     return prev + d;
   });
   const pressDot = () => setExpr((prev) => {
-    if (justEvaluated) { setJustEvaluated(false); return '0.'; }
+    if (justEvaluatedRef.current) { justEvaluatedRef.current = false; return '0.'; }
     const seg = currentSegment(prev);
     if (seg.includes('.') || seg.endsWith('%')) return prev;
     return prev + (seg === '' ? '0.' : '.');
   });
   const pressPercent = () => setExpr((prev) => {
-    setJustEvaluated(false);
+    justEvaluatedRef.current = false;
     const seg = currentSegment(prev);
     if (!seg || seg.endsWith('%')) return prev;
     return prev + '%';
   });
   const pressOp = (op) => setExpr((prev) => {
-    setJustEvaluated(false);
+    justEvaluatedRef.current = false;
     if (!prev) return prev;
     if (OP_CHARS.includes(prev[prev.length - 1])) return prev.slice(0, -1) + op;
     return prev + op;
   });
   const pressBackspace = () => setExpr((prev) => prev.slice(0, -1));
   const pressClear = () => setExpr('');
-  const pressEquals = () => { const result = commit(expr); setExpr(String(result)); setJustEvaluated(true); };
+  const pressEquals = () => { const result = commit(expr); setExpr(String(result)); justEvaluatedRef.current = true; };
 
   const onKeyDown = (e) => {
     e.preventDefault();
