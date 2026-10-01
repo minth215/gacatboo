@@ -61,16 +61,22 @@ Deno.serve(async (req) => {
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   try {
-    const res = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: image } }] }],
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
+    const body = JSON.stringify({
+      contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: image } }] }],
+      generationConfig: { responseMimeType: 'application/json' },
     });
-    const result = await res.json();
+
+    // 모델이 일시적으로 혼잡(503)할 때는 잠깐 쉬었다가 최대 2번 더 시도
+    let res: Response;
+    let result: any;
+    for (let attempt = 0; ; attempt++) {
+      res = await fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      result = await res.json();
+      if (res.ok || res.status !== 503 || attempt >= 2) break;
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+    }
     if (!res.ok) {
+      if (res.status === 503) return json({ error: '현재 AI 서버가 혼잡합니다. 잠시 후 다시 시도해 주세요.' }, 503);
       return json({ error: result?.error?.message || 'Gemini 호출에 실패했습니다.' }, 502);
     }
     const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
