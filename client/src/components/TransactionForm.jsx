@@ -242,7 +242,7 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
       {!editing && !fixedType && (
         <>
           <input
-            ref={receiptInputRef} type="file" accept="image/*" capture="environment"
+            ref={receiptInputRef} type="file" accept="image/*"
             style={{ display: 'none' }} onChange={onReceiptFile}
           />
           {scanError && <p className="small muted" style={{ margin: '0 2px 12px', color: '#FF4358' }}>{scanError}</p>}
