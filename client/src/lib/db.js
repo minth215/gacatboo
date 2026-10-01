@@ -434,11 +434,11 @@ export const db = {
 
   // ---------- 결제 내역 (총대 지출 자동기입) ----------
   async listPayments(groupId) {
-    return unwrap(await supabase.from('subscription_payments').select('*')
+    return unwrap(await supabase.from('subscription_payments').select('*, recurring:recurring_rules(id, label)')
       .eq('group_id', groupId).order('date', { ascending: false }).order('id', { ascending: false }));
   },
   async getPayment(id) {
-    return unwrap(await supabase.from('subscription_payments').select('*').eq('id', id).single());
+    return unwrap(await supabase.from('subscription_payments').select('*, recurring:recurring_rules(id, label)').eq('id', id).single());
   },
   // 정산 대상 후보: 이 그룹에서 입력된 결제 내역(지출)만, tx_id(가계부 지출 항목 id) 기준
   async listGroupPaymentExpenses(groupId) {
@@ -455,24 +455,62 @@ export const db = {
       source_id: p.source_id || null, source_name: p.source_name || '',
       content: (p.content || '').trim(), memo: (p.memo || '').trim(), created_by: userId,
     }).select('id').single());
+
+    // 반복 설정을 새로 켠 경우: 규칙을 만들고(target='subscription_payment') 결제·미러 거래 양쪽에 연결.
+    // 이후 서버(pg_cron)가 생성하는 결제도 동일한 규칙을 보고 같은 방식으로 subscription_payments +
+    // 미러 거래를 함께 만듦(아래 generate_due_recurring_transactions 참고).
+    let recurring_id = null;
+    if (p.recurrence) {
+      const r = p.recurrence;
+      const rule = unwrap(await supabase.from('recurring_rules').insert({
+        user_id: userId, group_id: groupId, target: 'subscription_payment', type: 'expense', amount: p.amount,
+        category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
+        source_id: p.source_id || null, source_name: p.source_name || '',
+        content: (p.content || '').trim(), memo: (p.memo || '').trim(),
+        start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label,
+      }).select().single());
+      recurring_id = rule.id;
+      unwrap(await supabase.from('transactions').update({ recurring_id }).eq('id', tx.id));
+    }
+
     const pay = unwrap(await supabase.from('subscription_payments').insert({
       group_id: groupId, date: p.date, amount: p.amount, periods: Math.max(Number(p.periods) || 1, 1),
       category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
       source_id: p.source_id || null, source_name: p.source_name || '',
       content: (p.content || '').trim(), memo: (p.memo || '').trim(), tx_id: tx.id, created_by: userId,
+      recurring_id,
     }).select().single());
     // 미러 tx 에 원본 링크
     unwrap(await supabase.from('transactions').update({ origin_type: 'payment', origin_id: pay.id, origin_group_id: groupId }).eq('id', tx.id));
     return pay;
   },
   // 결제 수정 → 트리거가 미러 tx 동기화
-  async updatePayment(id, p) {
-    return unwrap(await supabase.from('subscription_payments').update({
+  async updatePayment(id, p, userId) {
+    // 수정 중에 반복을 새로 켠 경우(원래 반복이 아니었던 결제): 규칙을 만들고 이 결제·미러 거래에 연결
+    let recurring_id;
+    if (p.recurrence) {
+      const existing = unwrap(await supabase.from('subscription_payments').select('group_id, tx_id, recurring_id').eq('id', id).single());
+      if (!existing.recurring_id) {
+        const r = p.recurrence;
+        const rule = unwrap(await supabase.from('recurring_rules').insert({
+          user_id: userId, group_id: existing.group_id, target: 'subscription_payment', type: 'expense', amount: p.amount,
+          category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
+          source_id: p.source_id || null, source_name: p.source_name || '',
+          content: (p.content || '').trim(), memo: (p.memo || '').trim(),
+          start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label,
+        }).select().single());
+        recurring_id = rule.id;
+        if (existing.tx_id) unwrap(await supabase.from('transactions').update({ recurring_id }).eq('id', existing.tx_id));
+      }
+    }
+    const patch = {
       date: p.date, amount: p.amount, periods: Math.max(Number(p.periods) || 1, 1),
       category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
       source_id: p.source_id || null, source_name: p.source_name || '',
       content: (p.content || '').trim(), memo: (p.memo || '').trim(),
-    }).eq('id', id).select().single());
+      ...(recurring_id ? { recurring_id } : {}),
+    };
+    return unwrap(await supabase.from('subscription_payments').update(patch).eq('id', id).select().single());
   },
   async deletePayment(id) {
     const pay = unwrap(await supabase.from('subscription_payments').select('tx_id').eq('id', id).single());

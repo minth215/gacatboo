@@ -249,18 +249,16 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
         <label>날짜</label>
         <div style={{ display: 'flex', gap: 8 }}>
           <input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} style={{ flex: 1 }} />
-          {!fixedType && (
-            <button
-              type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
-              style={{
-                width: 42, height: 42, borderRadius: 10, border: 'none', flex: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: (recurringId || pendingRecurrence) ? (type === 'income' ? '#E5FBF6' : '#FFE9EF') : '#f4f2f0',
-              }}
-            >
-              <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : (type === 'income' ? '#2CDDB9' : '#FF6F91')} />
-            </button>
-          )}
+          <button
+            type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
+            style={{
+              width: 42, height: 42, borderRadius: 10, border: 'none', flex: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: (recurringId || pendingRecurrence) ? (type === 'income' ? '#E5FBF6' : '#FFE9EF') : '#f4f2f0',
+            }}
+          >
+            <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : (type === 'income' ? '#2CDDB9' : '#FF6F91')} />
+          </button>
         </div>
       </div>
 
