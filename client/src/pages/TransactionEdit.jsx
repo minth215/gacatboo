@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { isSubscription, isSettlement, leaderLabel } from '../lib/format.js';
@@ -24,8 +24,10 @@ export default function TransactionEdit() {
   const isPayment = kind === 'payment';
   const isDeposit = kind === 'deposit';
   const nav = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const editing = !!id;
+  const pendingRecurrence = location.state?.pendingRecurrence || null;
 
   const [initial, setInitial] = useState(null);
   const [group, setGroup] = useState(null);
@@ -147,6 +149,7 @@ export default function TransactionEdit() {
           ref={formRef} onScanBusyChange={setScanBusy}
           initial={initial} groupId={isPayment ? null : groupId} onSaved={done} onClose={() => nav(-1)}
           fixedType={isPayment ? 'expense' : undefined}
+          initialPendingRecurrence={pendingRecurrence}
           defaultCategoryName={isPayment ? (isSettlement(group?.category) ? '정산' : '구독') : undefined}
           defaultAmount={isPayment ? sub?.billing_amount : undefined}
           defaultContentTemplate={isPayment ? sub?.payment_content_template : undefined}

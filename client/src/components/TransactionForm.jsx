@@ -3,7 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { today, fmtWon, renderTemplate } from '../lib/format.js';
+import { resolveRecurrence } from '../lib/recurrence.js';
 import CalcAmountInput from './CalcAmountInput.jsx';
+import RecurrenceModal from './RecurrenceModal.jsx';
+
+// "반복 관리" 메뉴와 동일한 반복 아이콘(채워진 순환 화살표)
+const RepeatIcon = ({ color }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill={color}>
+    <path d="M12,4V1L8,5l4,4V6c3.31,0,6,2.69,6,6c0,1.01-0.25,1.97-0.7,2.8l1.46,1.46C19.54,15.03,20,13.57,20,12C20,7.58,16.42,4,12,4z M6,12c0-1.01,0.25-1.97,0.7-2.8L5.24,7.74C4.46,8.97,4,10.43,4,12c0,4.42,3.58,8,8,8v3l4-4l-4-4v3c-3.31,0-6-2.69-6-6z" />
+  </svg>
+);
 
 // 분류/원천에 id 는 없고 이름(스냅샷)만 있는 항목(그룹 자동기입 등)을 표시하기 위한 센티넬
 const SNAP = '__snap__';
@@ -33,7 +42,7 @@ async function fileToResizedBase64(file, maxSize = 1600, quality = 0.85) {
 // defaultContentTemplate 지정 시 신규 작성 때 "내용"을 이 템플릿({연}/{월}/{일} 변수 지원)으로 자동 채우고,
 // 날짜를 바꾸면 그 날짜 기준으로 다시 채워짐.
 // onSubmit 지정 시 db.saveTransaction 대신 이 함수로 저장을 위임(그룹 결제 등 별도 저장 로직).
-const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate, onSubmit, topNotice, showPeriods, onScanBusyChange }, ref) {
+const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate, onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence }, ref) {
   const { user } = useAuth();
   const nav = useNavigate();
   const editing = !!initial?.id;
@@ -54,6 +63,11 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
   const [currencyMeta, setCurrencyMeta] = useState(
     initial?.input_currency ? { input_currency: initial.input_currency, input_amount: initial.input_amount, fx_rate: initial.fx_rate } : null
   );
+  // 반복 설정: 이미 저장된 반복(recurringId)이거나, 아직 저장 전인 선택값(pendingRecurrence) 중 하나만 있을 수 있음
+  const [recurringId, setRecurringId] = useState(initial?.recurring?.id || null);
+  const [recurringLabel, setRecurringLabel] = useState(initial?.recurring?.label || '');
+  const [pendingRecurrence, setPendingRecurrence] = useState(initialPendingRecurrence || null);
+  const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
 
   const [categories, setCategories] = useState([]);
   const [sources, setSources] = useState([]);
@@ -104,6 +118,17 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
   const onDateChange = (v) => {
     setDate(v);
     if (!editing && defaultContentTemplate) setContent(renderTemplate(defaultContentTemplate, v));
+  };
+
+  // 반복 아이콘 클릭: 이미 저장된 반복이면 해제 확인, 선택만 해둔 상태면 선택 취소, 둘 다 아니면 모달을 띄움
+  const onRecurrenceIconClick = async () => {
+    if (recurringId) {
+      if (!confirm(`'${recurringLabel || '반복'}' 설정을 해제할까요? (이미 기록된 내역은 그대로 남습니다)`)) return;
+      try { await db.deleteRecurringRule(recurringId); setRecurringId(null); setRecurringLabel(''); } catch (err) { alert(err.message); }
+      return;
+    }
+    if (pendingRecurrence) { setPendingRecurrence(null); return; }
+    setShowRecurrenceModal(true);
   };
 
   // 금액 입력 시 정기결제금액(defaultAmount) 대비 회차 자동 계산(직접 수정도 가능)
@@ -183,6 +208,7 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
       input_currency: currencyMeta?.input_currency || null,
       input_amount: currencyMeta?.input_amount ?? null,
       fx_rate: currencyMeta?.fx_rate ?? null,
+      recurrence: (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, date) : null,
       settlement_target_id: (isSettlement && settlementTargetId) ? Number(settlementTargetId) : null,
       group_id: groupId || null,
       ...(showPeriods ? { periods: Math.max(Number(periods) || 1, 1) } : {}),
@@ -221,8 +247,26 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
 
       <div className="field">
         <label>날짜</label>
-        <input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} style={{ flex: 1 }} />
+          {!fixedType && !groupId && (
+            <button
+              type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
+              style={{
+                width: 42, height: 42, borderRadius: 10, border: 'none', flex: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: (recurringId || pendingRecurrence) ? (type === 'income' ? '#E5FBF6' : '#FFE9EF') : '#f4f2f0',
+              }}
+            >
+              <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : (type === 'income' ? '#2CDDB9' : '#FF6F91')} />
+            </button>
+          )}
+        </div>
       </div>
+
+      {showRecurrenceModal && (
+        <RecurrenceModal onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
+      )}
 
       {showPeriods ? (
         <div className="grid2">

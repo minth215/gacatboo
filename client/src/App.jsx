@@ -15,6 +15,7 @@ import SourceManage from './pages/SourceManage.jsx';
 import CardBenefits from './pages/CardBenefits.jsx';
 import GroupCategoryManage from './pages/GroupCategoryManage.jsx';
 import CurrencySettings from './pages/CurrencySettings.jsx';
+import RecurringManage from './pages/RecurringManage.jsx';
 import Groups from './pages/Groups.jsx';
 import GroupDetail from './pages/GroupDetail.jsx';
 import GroupEdit from './pages/GroupEdit.jsx';
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/settings/card-benefits" element={<CardBenefits />} />
         <Route path="/settings/group-categories" element={<GroupCategoryManage />} />
         <Route path="/settings/currency" element={<CurrencySettings />} />
+        <Route path="/settings/recurring" element={<RecurringManage />} />
         <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
       </Route>
 

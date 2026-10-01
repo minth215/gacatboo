@@ -22,7 +22,7 @@ function sourceName(flat, id) {
   return s ? s.name : ''; // 세부 항목명만(상위 항목 표기 없이)
 }
 
-const TX_SELECT = '*, group:groups(name)';
+const TX_SELECT = '*, group:groups(name), recurring:recurring_rules(id, label, freq_unit, freq_interval, weekdays)';
 
 // 조회 결과를 평탄화 (group_name)
 function flattenTx(rows) {
@@ -96,6 +96,16 @@ export const db = {
   },
   async deleteCurrency(id) {
     return unwrap(await supabase.from('user_currencies').delete().eq('id', id));
+  },
+
+  // ---------- 반복 수입/지출 ----------
+  // 규칙 생성/삭제만 지원(필드 수정은 해제 후 재등록). 실제 거래 생성은 서버 pg_cron이 매일 수행.
+  async listRecurringRules() {
+    return unwrap(await supabase.from('recurring_rules').select('*').eq('active', true).order('created_at', { ascending: false }));
+  },
+  // 규칙을 삭제하면 연결된 과거 거래의 recurring_id 는 자동으로 null 이 됨(on delete set null) — 과거 내역은 유지.
+  async deleteRecurringRule(id) {
+    return unwrap(await supabase.from('recurring_rules').delete().eq('id', id));
   },
 
   // ---------- 트랜잭션 ----------
@@ -260,10 +270,28 @@ export const db = {
       input_amount: payload.input_currency ? payload.input_amount ?? null : null,
       fx_rate: payload.input_currency ? payload.fx_rate ?? null : null,
     };
-    if (id) {
-      return unwrap(await supabase.from('transactions').update(base).eq('id', id).select(TX_SELECT).single());
+
+    // 반복 설정을 새로 켠 경우: 규칙을 먼저 만들고 이 거래에 연결(규칙의 시작일 = 이 거래의 날짜)
+    let recurring_id;
+    if (payload.recurrence) {
+      const r = payload.recurrence;
+      const rule = unwrap(await supabase.from('recurring_rules').insert({
+        user_id: userId, type: payload.type, amount: payload.amount,
+        category_id: base.category_id, category_name: base.category_name,
+        category_emoji: base.category_emoji, category_color: base.category_color,
+        source_id: base.source_id, source_name: base.source_name,
+        content: base.content, memo: base.memo,
+        start_date: payload.date,
+        freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label,
+      }).select().single());
+      recurring_id = rule.id;
     }
-    const insert = { ...base, user_id: userId, created_by: userId, group_id: payload.group_id || null };
+
+    if (id) {
+      const patch = { ...base, ...(recurring_id ? { recurring_id } : {}) };
+      return unwrap(await supabase.from('transactions').update(patch).eq('id', id).select(TX_SELECT).single());
+    }
+    const insert = { ...base, user_id: userId, created_by: userId, group_id: payload.group_id || null, ...(recurring_id ? { recurring_id } : {}) };
     return unwrap(await supabase.from('transactions').insert(insert).select(TX_SELECT).single());
   },
   async deleteTransaction(id) {

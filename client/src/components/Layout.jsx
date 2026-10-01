@@ -25,7 +25,7 @@ const NAV = [
 ];
 
 // 설정의 상세 메뉴 페이지(드릴다운)에서는 하단 탭바를 숨김
-const HIDE_BOTTOMNAV_PREFIXES = ['/settings/profile', '/settings/categories', '/settings/sources', '/settings/card-benefits', '/settings/group-categories', '/settings/currency'];
+const HIDE_BOTTOMNAV_PREFIXES = ['/settings/profile', '/settings/categories', '/settings/sources', '/settings/card-benefits', '/settings/group-categories', '/settings/currency', '/settings/recurring'];
 
 export default function Layout() {
   const { user, logout } = useAuth();
