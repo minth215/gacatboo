@@ -249,7 +249,7 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
         <label>날짜</label>
         <div style={{ display: 'flex', gap: 8 }}>
           <input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} style={{ flex: 1 }} />
-          {!fixedType && !groupId && (
+          {!fixedType && (
             <button
               type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
               style={{

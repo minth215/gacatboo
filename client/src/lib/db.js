@@ -101,7 +101,8 @@ export const db = {
   // ---------- 반복 수입/지출 ----------
   // 규칙 생성/삭제만 지원(필드 수정은 해제 후 재등록). 실제 거래 생성은 서버 pg_cron이 매일 수행.
   async listRecurringRules() {
-    return unwrap(await supabase.from('recurring_rules').select('*').eq('active', true).order('created_at', { ascending: false }));
+    const rows = unwrap(await supabase.from('recurring_rules').select('*, group:groups(name)').eq('active', true).order('created_at', { ascending: false }));
+    return rows.map((r) => ({ ...r, group_name: r.group?.name || null }));
   },
   // 규칙을 삭제하면 연결된 과거 거래의 recurring_id 는 자동으로 null 이 됨(on delete set null) — 과거 내역은 유지.
   async deleteRecurringRule(id) {
@@ -114,7 +115,9 @@ export const db = {
     let q = supabase.from('transactions').select(TX_SELECT).gte('date', start).lt('date', endExclusive)
       .order('date', { ascending: false }).order('id', { ascending: false });
     if (groupId) q = q.eq('group_id', groupId);
-    else q = q.is('group_id', null);
+    // 개인 가계부 화면: 보통 group_id 가 없는 내 항목만 보여주되, 그룹 내에서 설정한 반복 항목은
+    // (반복 설정을 건 그룹 거래 자체 포함) 그룹 카드 스타일로 개인 가계부에도 함께 노출
+    else q = q.or('group_id.is.null,recurring_id.not.is.null');
     return flattenTx(unwrap(await q));
   },
   // 그룹 내역 탭(정산형 등): 월 이동 없이 전체 기간을 한 번에 불러와 월별로 묶어 보여줄 때 사용
@@ -276,7 +279,7 @@ export const db = {
     if (payload.recurrence) {
       const r = payload.recurrence;
       const rule = unwrap(await supabase.from('recurring_rules').insert({
-        user_id: userId, type: payload.type, amount: payload.amount,
+        user_id: userId, group_id: payload.group_id || null, type: payload.type, amount: payload.amount,
         category_id: base.category_id, category_name: base.category_name,
         category_emoji: base.category_emoji, category_color: base.category_color,
         source_id: base.source_id, source_name: base.source_name,

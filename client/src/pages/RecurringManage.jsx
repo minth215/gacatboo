@@ -41,8 +41,13 @@ export default function RecurringManage() {
                 {r.category_emoji || (r.type === 'income' ? '💰' : '💸')}
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 13.75, fontWeight: 700, color: '#191722', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {r.content || r.category_name || (r.type === 'income' ? '수입' : '지출')}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 13.75, fontWeight: 700, color: '#191722', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {r.content || r.category_name || (r.type === 'income' ? '수입' : '지출')}
+                  </span>
+                  {r.group_name && (
+                    <span style={{ flex: 'none', fontSize: 9.5, fontWeight: 700, color: '#FF8A00', background: '#FFF1DC', borderRadius: 999, padding: '2px 6px' }}>{r.group_name}</span>
+                  )}
                 </span>
                 <span style={{ display: 'block', fontSize: 11.5, color: '#a29ead', marginTop: 2 }}>
                   {describeRule(r)} · {dotDate(r.start_date)}부터 · {fmtWon(r.amount)}
