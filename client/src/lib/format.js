@@ -2,6 +2,13 @@ export const fmtWon = (n) => `${Number(n || 0).toLocaleString('ko-KR')}원`;
 
 export const fmtNum = (n) => Number(n || 0).toLocaleString('ko-KR');
 
+// 외화 금액 표시: 정수면 소수점 없이, 소수가 있으면 둘째 자리까지 + 통화 코드(예: "19.99 USD")
+export const fmtForeign = (n, code) => {
+  const v = Number(n || 0);
+  const formatted = Number.isInteger(v) ? v.toLocaleString('ko-KR') : v.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${formatted} ${code}`;
+};
+
 // YYYY-MM-DD → YYYY.MM.DD
 export const dotDate = (d) => (d ? d.replace(/-/g, '.') : '');
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db } from '../lib/db.js';
-import { fmtNum, monthPillLabel } from '../lib/format.js';
+import { fmtNum, fmtForeign, monthPillLabel } from '../lib/format.js';
 import SwipeRow from './SwipeRow.jsx';
 
 // 분류명 → 부드러운 타일 배경 (시안의 파스텔 톤)
@@ -131,8 +131,11 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
                     </div>
                     <div className="tx-row-sub">{sub}</div>
                   </div>
-                  <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: t.type === 'income' ? '#2CDDB9' : '#FF4358' }}>
-                    {t.type === 'income' ? '+' : '-'}{fmtNum(t.amount)}
+                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flex: 'none' }}>
+                    <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : '#FF4358' }}>
+                      {t.type === 'income' ? '+' : '-'}{t.input_currency ? fmtForeign(t.input_amount, t.input_currency) : fmtNum(t.amount)}
+                    </span>
+                    {t.input_currency && <span style={{ fontSize: 10.5, color: '#a29ead', marginTop: 1 }}>₩{fmtNum(t.amount)}</span>}
                   </span>
               </DayCardRow>
             );

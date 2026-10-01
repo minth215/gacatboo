@@ -152,6 +152,15 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
       onCurrencyChange?.({ input_currency: currency, input_amount: typedAmount, fx_rate: rate ?? null });
     }
   };
+  // 금액 필드 아래의 회색 환산 금액을 직접 고칠 때(키패드가 닫혀 있어도 동작) — 즉시 부모에 반영
+  const commitManualKrw = (krwStr) => {
+    const krw = Number(krwStr) || 0;
+    const amt = focused ? typedAmount : Number(foreignAmount || 0);
+    setManualKrw(krwStr);
+    setEditingKrw(false);
+    onChange(String(krw));
+    onCurrencyChange?.({ input_currency: currency, input_amount: amt, fx_rate: rate ?? null });
+  };
   // 환율이 아직 로딩 중이면 닫기를 막아서(완료 버튼·바깥 탭·Esc 전부) 0원으로 저장되는 것을 방지
   const close = () => {
     if (currency !== 'KRW' && rateLoading) return;
@@ -213,8 +222,15 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
     else if (e.key === 'Escape') close();
   };
 
-  const displayValue = focused ? formatExpr(expr) : (value ? Number(value).toLocaleString('ko-KR') : '');
-  const previewKrw = manualKrw != null ? Number(manualKrw) : Math.round(typedAmount * (rate || 0));
+  // 닫혀 있을 때도(처음 진입했을 때 포함) 외화로 입력된 거래면 그 통화로 표시(값은 항상 원화 그대로 유지)
+  const displayValue = focused
+    ? formatExpr(expr)
+    : (currency !== 'KRW' && foreignAmount
+        ? Number(foreignAmount).toLocaleString('ko-KR')
+        : (value ? Number(value).toLocaleString('ko-KR') : ''));
+  // 회색 환산 금액 미리보기: 입력 중엔 실시간 수식 결과, 닫혀 있으면 마지막으로 확정된 외화 금액 기준
+  const previewAmount = focused ? typedAmount : Number(foreignAmount || 0);
+  const previewKrw = manualKrw != null ? Number(manualKrw) : Math.round(previewAmount * (rate || 0));
 
   return (
     <div style={{ position: 'relative' }}>
@@ -223,8 +239,30 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
           readOnly value={displayValue} placeholder={placeholder} autoFocus={autoFocus}
           onFocus={open} onClick={open} onKeyDown={onKeyDown}
         />
-        <span className="suffix">{focused && currency !== 'KRW' ? currency : '원'}</span>
+        <span className="suffix">{currency !== 'KRW' ? currency : '원'}</span>
       </div>
+
+      {/* 원화 환산 금액 — 키패드가 닫혀 있어도 금액 필드 바로 아래 항상 표시, 눌러서 직접 수정 가능 */}
+      {currency !== 'KRW' && (
+        <div style={{ padding: '6px 2px 0', fontSize: 12.5, color: '#a29ead' }}>
+          {rateLoading ? '환율 조회 중…' : rateError ? rateError : editingKrw ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span>≈ ₩</span>
+              <input
+                type="text" inputMode="numeric" autoFocus value={krwDraft}
+                onChange={(e) => setKrwDraft(e.target.value.replace(/[^0-9]/g, ''))}
+                onBlur={() => commitManualKrw(krwDraft || '0')}
+                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                style={{ width: 110, border: '1px solid #e4e2e6', borderRadius: 8, padding: '3px 6px', fontSize: 12.5, color: '#191722', fontFamily: 'inherit' }}
+              />
+            </span>
+          ) : (
+            <span onClick={() => { setKrwDraft(String(previewKrw)); setEditingKrw(true); }} style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}>
+              ≈ ₩{previewKrw.toLocaleString('ko-KR')} (눌러서 수정)
+            </span>
+          )}
+        </div>
+      )}
 
       {focused && (
         <>
@@ -257,27 +295,6 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
                     {code === 'KRW' ? '원화' : (CURRENCY_NAME[code] || code)}
                   </button>
                 ))}
-              </div>
-            )}
-
-            {currency !== 'KRW' && (
-              <div style={{ padding: '0 2px 10px', fontSize: 12.5, color: '#a29ead', minHeight: 18 }}>
-                {rateLoading ? '환율 조회 중…' : rateError ? rateError : editingKrw ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <span>≈ ₩</span>
-                    <input
-                      type="text" inputMode="numeric" autoFocus value={krwDraft}
-                      onChange={(e) => setKrwDraft(e.target.value.replace(/[^0-9]/g, ''))}
-                      onBlur={() => { setManualKrw(krwDraft || '0'); setEditingKrw(false); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                      style={{ width: 110, border: '1px solid #e4e2e6', borderRadius: 8, padding: '3px 6px', fontSize: 12.5, color: '#191722', fontFamily: 'inherit' }}
-                    />
-                  </span>
-                ) : (
-                  <span onClick={() => { setKrwDraft(String(previewKrw)); setEditingKrw(true); }} style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}>
-                    ≈ ₩{previewKrw.toLocaleString('ko-KR')} (눌러서 수정)
-                  </span>
-                )}
               </div>
             )}
 
