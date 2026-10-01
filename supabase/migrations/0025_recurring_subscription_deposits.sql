@@ -20,17 +20,7 @@ alter table public.recurring_rules add column if not exists leader_category_name
 alter table public.recurring_rules add column if not exists leader_category_emoji text not null default '';
 alter table public.recurring_rules add column if not exists deposit_source_name text not null default '';
 
-do $$
-declare c record;
-begin
-  for c in
-    select conname from pg_constraint
-    where conrelid = 'public.recurring_rules'::regclass and contype = 'c'
-      and pg_get_constraintdef(oid) ilike '%target%in%'
-  loop
-    execute format('alter table public.recurring_rules drop constraint %I', c.conname);
-  end loop;
-end $$;
+alter table public.recurring_rules drop constraint if exists recurring_rules_target_check;
 alter table public.recurring_rules add constraint recurring_rules_target_check
   check (target in ('transaction','subscription_payment','subscription_deposit'));
 
