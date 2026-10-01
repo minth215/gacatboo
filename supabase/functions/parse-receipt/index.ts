@@ -4,7 +4,7 @@
 //
 // 시크릿 설정 필요(Supabase 대시보드 > Edge Functions > Secrets, 또는 CLI):
 //   supabase secrets set GEMINI_API_KEY=발급받은_API_키
-// (선택) GEMINI_MODEL 로 모델을 바꿀 수 있습니다. 기본값: gemini-2.0-flash
+// (선택) GEMINI_MODEL 로 모델을 바꿀 수 있습니다. 기본값: gemini-3.8-flash
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     : 'null'}
 }`;
 
-  const model = Deno.env.get('GEMINI_MODEL') || 'gemini-2.0-flash';
+  const model = Deno.env.get('GEMINI_MODEL') || 'gemini-3.8-flash';
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   try {
