@@ -496,6 +496,7 @@ a { color: inherit; text-decoration: none; }
 /* 계산기 키패드(CalcAmountInput) 버튼 — 터치 하이라이트/확대 제스처 제거로 빠른 연타 시 입력 누락 방지,
    눌렸을 때(hover 아님, :active)만 스타일이 바뀌도록 */
 .calc-key {
+  position: relative;
   cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   user-select: none; -webkit-user-select: none;
   transition: filter .05s ease;
@@ -503,6 +504,9 @@ a { color: inherit; text-decoration: none; }
 /* transform(scale)은 쓰지 않음: 눌림 애니메이션 중 버튼의 실제 히트 영역이 일시적으로
    작아져 빠르게 연타할 때 다음 터치가 버튼 사이 여백으로 새는 원인이 될 수 있음 */
 .calc-key:active { filter: brightness(0.88); }
+/* 버튼 사이 grid gap(8px)만큼 보이지 않는 히트 영역을 사방으로 넓혀, 버튼과 버튼
+   사이의 틈을 빠르게 연타할 때 아무 반응 없이 입력이 씹히는 것을 방지(시각적 크기는 그대로) */
+.calc-key::after { content: ''; position: absolute; inset: -4px; }
 
 /* ---------- 설정 페이지 ---------- */
 .settings-profile-card {
