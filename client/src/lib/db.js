@@ -101,7 +101,7 @@ export const db = {
   // ---------- 반복 수입/지출 ----------
   // 규칙 생성/삭제만 지원(필드 수정은 해제 후 재등록). 실제 거래 생성은 서버 pg_cron이 매일 수행.
   async listRecurringRules() {
-    const rows = unwrap(await supabase.from('recurring_rules').select('*, group:groups(name)').eq('active', true).order('created_at', { ascending: false }));
+    const rows = unwrap(await supabase.from('recurring_rules').select('*, group:groups(name, owner_id)').eq('active', true).order('created_at', { ascending: false }));
     return rows.map((r) => ({ ...r, group_name: r.group?.name || null }));
   },
   // 규칙을 삭제하면 연결된 과거 거래의 recurring_id 는 자동으로 null 이 됨(on delete set null) — 과거 내역은 유지.
