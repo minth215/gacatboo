@@ -2,10 +2,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, addInterval } from '../lib/format.js';
+import { fmtWon, fmtNum, addInterval, monthPillLabel } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
+import { tileBg, formatDate, DayCardRow } from '../components/TransactionList.jsx';
+import { groupByMonthThenDate } from './SubscriptionGroup.jsx';
 
 export default function MemberDetail() {
   const { id, memberId } = useParams();
@@ -19,6 +21,9 @@ export default function MemberDetail() {
   const [sub, setSub] = useState(null);
   const [deposits, setDeposits] = useState([]);
   const [editor, setEditor] = useState(null);    // 카드 수정
+  const [openId, setOpenId] = useState(null);    // 입금 내역: 한 번에 하나의 카드만 스와이프로 열려 있도록
+  const [incomeCats, setIncomeCats] = useState([]);
+  const [expenseCats, setExpenseCats] = useState([]);
 
   const loadGroup = useCallback(() => {
     db.getGroup(gid).then(({ group, members }) => {
@@ -33,6 +38,10 @@ export default function MemberDetail() {
   }, [gid, mid]);
 
   useEffect(() => { loadGroup(); loadDeps(); db.getSubscription(gid).then(setSub).catch(() => {}); }, [loadGroup, loadDeps, gid]);
+  useEffect(() => {
+    db.listCategories('income').then(setIncomeCats).catch(() => {});
+    db.listCategories('expense').then(setExpenseCats).catch(() => {});
+  }, []);
 
   if (!group || !member) return <Spinner />;
 
@@ -55,19 +64,25 @@ export default function MemberDetail() {
     try { await db.updateMember(mid, gid, editor); setEditor(null); loadGroup(); loadDeps(); }
     catch (e) { alert(e.message); }
   };
+  const delDeposit = async (d) => {
+    if (!confirm('입금 내역을 삭제할까요? (연결된 가계부 항목도 함께 삭제됩니다)')) return;
+    try { await db.deleteDeposit(d.id); loadDeps(); } catch (e) { alert(e.message); }
+  };
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title={group.name} />
+      <PageHeader title={member.nickname} flat right={isOwner && (
+        <button className="tb-icon-btn" onClick={openEdit} aria-label="멤버 정보 수정">
+          <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </button>
+      )} />
 
       {/* 상단 카드 */}
       <div className="card">
-        <div className="between" style={{ marginBottom: 10 }}>
-          <div style={{ fontWeight: 800, fontSize: 18 }}>{member.nickname}
-            {!member.is_account && <span className="badge pending" style={{ marginLeft: 6 }}>외부</span>}
-          </div>
-          {isOwner && <button className="btn sm" onClick={openEdit}>수정</button>}
-        </div>
+        {!member.is_account && <div style={{ marginBottom: 10 }}><span className="badge pending">외부</span></div>}
         <div className="summary">
           <div className="box"><div className="lbl">누적 입금액</div><div className="val income">{fmtWon(cum)}</div></div>
           <div className="box"><div className="lbl">마지막 입금일</div><div className="val" style={{ fontSize: 14 }}>{last || '-'}</div></div>
@@ -81,15 +96,49 @@ export default function MemberDetail() {
         )}
       </div>
 
-      {/* 입금 내역 */}
+      {/* 입금 내역 — 가계부 페이지와 동일한 카드 스타일(왼쪽으로 스와이프 시 삭제 버튼) */}
       <h3 style={{ margin: '18px 2px 10px', fontSize: 16 }}>입금 내역</h3>
-      {deposits.length === 0 ? <div className="empty">입금 내역이 없습니다.</div> : deposits.map((d) => (
-        <div className="tx" key={d.id} onClick={() => canEditDep && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)} style={{ cursor: canEditDep ? 'pointer' : 'default' }}>
-          <span className="cat-emoji">{d.category_emoji || '💸'}</span>
-          <div className="tx-main">
-            <div className="tx-title">{fmtWon(d.amount)} <span className="tag-group">{d.periods}회차</span></div>
-            <div className="tx-sub">{d.date} · {[d.content, d.category_name, d.deposit_source_name].filter(Boolean).join(' · ')}</div>
-          </div>
+      {deposits.length === 0 ? <div className="empty">입금 내역이 없습니다.</div> : groupByMonthThenDate(deposits).map(([mo, dateGroups]) => (
+        <div key={mo}>
+          <div className="month-pill-wrap" style={{ margin: '16px 0 8px' }}><span className="month-pill">{monthPillLabel(mo)}</span></div>
+          {dateGroups.map(([date, items]) => {
+            const net = items.reduce((s, d) => s + Number(d.amount), 0);
+            return (
+              <div key={date}>
+                <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>+{fmtNum(net)}</span>
+                </div>
+                <div className="tx-daygroup">
+                  {items.map((d, i) => {
+                    const tileEmoji = isOwner ? d.leader_category_emoji : d.category_emoji;
+                    const tileCat = isOwner ? d.leader_category_name : d.category_name;
+                    const tileColor = (isOwner ? incomeCats : expenseCats).find((c) => c.name === tileCat)?.color || '';
+                    return (
+                      <DayCardRow
+                        key={d.id} index={i} count={items.length}
+                        isOpen={openId === d.id} onOpenChange={(open) => setOpenId(open ? d.id : null)}
+                        clickable={canEditDep} onTap={() => canEditDep && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)}
+                        onDelete={canEditDep ? () => delDeposit(d) : undefined}
+                      >
+                          <span className="tx-tile" style={{ background: tileColor || (tileEmoji ? tileBg(tileCat) : '#f2f1f5') }}>{tileEmoji || '💸'}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="tx-row-title">
+                              <span className="ttext">
+                                {d.content || d.category_name || '입금'}
+                                {' '}<span className="tag-periods">{d.periods} 회분</span>
+                              </span>
+                            </div>
+                            <div className="tx-row-sub">{[tileCat, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
+                          </div>
+                          <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: 'var(--income)' }}>+{fmtNum(d.amount)}</span>
+                      </DayCardRow>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       ))}
 

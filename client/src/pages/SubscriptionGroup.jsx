@@ -45,7 +45,7 @@ function groupByDate(list) {
 }
 
 // 월 → 날짜 2단계로 묶기: [[month, [[date, items], ...]], ...] (최신순)
-function groupByMonthThenDate(list) {
+export function groupByMonthThenDate(list) {
   const byMonth = {};
   for (const t of list) (byMonth[t.date.slice(0, 7)] ||= []).push(t);
   return Object.keys(byMonth).sort((a, b) => (a < b ? 1 : -1)).map((mo) => [mo, groupByDate(byMonth[mo])]);
@@ -733,23 +733,25 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   const memberStats = members.map((m) => {
     if (m.role === 'owner') {
       const cum = payments.reduce((s, p) => s + Number(p.amount), 0);
+      const periods = payments.reduce((s, p) => s + Number(p.periods || 0), 0);
       const lastPay = payments.length ? [...payments].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)).slice(-1)[0] : null;
       const last = lastPay ? lastPay.date : null;
       // 다음 결제일 = 마지막 결제일이 속한 달의 정기결제일 + 그 결제가 커버한 기간(회차)만큼 주기 추가
       const base = billingAlignedDate(last, sub?.billing_day);
       const auto = base && sub ? addInterval(base, sub.period_unit, sub.period_count, Math.max(Number(lastPay?.periods) || 1, 1)) : null;
       const next = m.next_due_override || auto;
-      return { id: m.id, nickname: m.nickname, isOwner: true, cum, last, next, lastLabel: '마지막 결제일', nextLabel: '다음 결제일', overdue: !!(next && next < todayStr) };
+      return { id: m.id, nickname: m.nickname, isOwner: true, cum, periods, last, next, lastLabel: '마지막 결제일', nextLabel: '다음 결제일', overdue: !!(next && next < todayStr) };
     }
     const ds = [...deposits.filter((d) => d.member_id === m.id)].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     const cum = ds.reduce((s, d) => s + Number(d.amount), 0);
+    const periods = ds.reduce((s, d) => s + Number(d.periods || 0), 0);
     const lastDep = ds.length ? ds[ds.length - 1] : null;
     const last = lastDep ? lastDep.date : null;
     // 다음 입금일 = 마지막 입금일이 속한 달의 정기결제일 + 그 입금이 커버한 기간(회차)만큼 주기 추가
     const base = billingAlignedDate(last, sub?.billing_day);
     const auto = base && sub ? addInterval(base, sub.period_unit, sub.period_count, Math.max(Number(lastDep.periods) || 1, 1)) : (m.start_date || null);
     const next = m.next_due_override || auto;
-    return { id: m.id, nickname: m.nickname, isOwner: false, cum, last, next, lastLabel: '마지막 입금일', nextLabel: '다음 입금일', overdue: !!(next && next < todayStr) };
+    return { id: m.id, nickname: m.nickname, isOwner: false, cum, periods, last, next, lastLabel: '마지막 입금일', nextLabel: '다음 입금일', overdue: !!(next && next < todayStr) };
   });
 
   return (
@@ -830,6 +832,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
+                  <span className="tag-periods">{m.periods} 회차</span>
                   {m.isOwner && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>{leaderName}</span>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
