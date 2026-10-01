@@ -620,7 +620,18 @@ export const db = {
     const { data, error } = await supabase.functions.invoke('parse-receipt', {
       body: { image, mimeType, categoryNames },
     });
-    if (error) throw new Error(data?.error || error.message);
+    if (error) {
+      // supabase-js 는 Edge Function이 2xx가 아니면 data 를 비우고 실제 응답 본문을
+      // error.context(Response) 안에 읽지 않은 채로 둔다 — 여기서 꺼내야 진짜 에러 메시지가 보임.
+      let msg = error.message;
+      if (error.context && typeof error.context.json === 'function') {
+        try {
+          const body = await error.context.clone().json();
+          if (body?.error) msg = body.error;
+        } catch {}
+      }
+      throw new Error(msg);
+    }
     if (data?.error) throw new Error(data.error);
     return data;
   },
