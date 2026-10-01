@@ -493,6 +493,15 @@ a { color: inherit; text-decoration: none; }
 .spinner { width: 34px; height: 34px; border: 3px solid #eceae7; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* 계산기 키패드(CalcAmountInput) 버튼 — 터치 하이라이트/확대 제스처 제거로 빠른 연타 시 입력 누락 방지,
+   눌렸을 때(hover 아님, :active)만 스타일이 바뀌도록 */
+.calc-key {
+  cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
+  transition: transform .05s ease, filter .05s ease;
+}
+.calc-key:active { filter: brightness(0.9); transform: scale(0.95); }
+
 /* ---------- 설정 페이지 ---------- */
 .settings-profile-card {
   background: #fff; border-radius: 20px; padding: 18px 18px 18px 22px;

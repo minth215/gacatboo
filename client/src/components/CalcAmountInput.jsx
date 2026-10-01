@@ -72,12 +72,15 @@ function formatExpr(expr) {
   return out;
 }
 
+// onClick 대신 onPointerDown 으로 즉시 반응(터치 클릭 합성 지연으로 인한 빠른 연타 시
+// 입력 누락을 방지). 눌림 표시는 CSS :active(.calc-key)로 처리.
 const KeyBtn = ({ label, onClick, bg, color, style }) => (
   <button
-    type="button" onClick={onClick}
+    type="button" className="calc-key"
+    onPointerDown={(e) => { e.preventDefault(); onClick(); }}
     style={{
       height: 46, border: 'none', borderRadius: 12, background: bg || '#f4f2f0', color: color || '#191722',
-      fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', ...style,
+      fontSize: 16, fontWeight: 700, fontFamily: 'inherit', ...style,
     }}
   >
     {label}
@@ -162,7 +165,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
           <div style={{
             position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100,
             background: '#fff', borderRadius: '20px 20px 0 0', boxShadow: '0 -4px 20px rgba(25,23,34,.12)',
-            padding: '10px 12px calc(20px + env(safe-area-inset-bottom, 0px))',
+            padding: '10px 12px calc(32px + env(safe-area-inset-bottom, 0px))',
           }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '2px 2px 8px' }}>
               <button type="button" onClick={close} style={{ border: 'none', background: 'none', color: '#191722', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>완료</button>
