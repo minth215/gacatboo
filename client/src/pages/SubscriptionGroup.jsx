@@ -174,6 +174,8 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   // (rows 에 애초에 짤짤이가 없음). "정산 일괄 완료"는 짤짤이도 함께 완료 처리하므로
   // 짤짤이만 미완료여도 버튼이 보이게 포함한다.
   const anyUnsettled = nonOwnerRows.some((r) => !r.settled) || !!(leftoverRow && !leftoverRow.settled && leftoverRow.remaining > 0);
+  // 멤버 전원이 외부 멤버(실제 계정에 연결되지 않음)면 알림을 보낼 대상이 없으므로 버튼 자체를 숨긴다.
+  const hasAccountMember = nonOwnerRows.some((r) => r.is_account);
   // 총무가 개별 정산 금액을 임의로 낮춰서, 전원 몫의 합(총무 포함 + 짤짤이)이
   // 총 결제 금액보다 적어지면 총무가 손해를 보게 되므로 경고로 대체한다.
   // (짤짤이 카드를 삭제해 감춰도 자투리 금액 자체는 합계에 포함한다.)
@@ -324,10 +326,15 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   };
 
   // "정산 일괄 완료" 버튼: 바로 실행하지 않고 입금 날짜(오늘/결제일자)를 고르는 모달을 띄운다.
+  // 단, 오늘 날짜와 결제일자가 같으면 두 선택지가 같은 결과이므로 모달 없이 바로 처리한다.
   const openSettleAll = () => {
     const targets = nonOwnerRows.filter((r) => !r.settled);
     const includeLeftover = !!(leftoverRow && !leftoverRow.settled && leftoverRow.remaining > 0);
     if (!targets.length && !includeLeftover) return;
+    if (settleTargetPayment && settleTargetPayment.date === today()) {
+      settleAll(today());
+      return;
+    }
     setSettleDateOpen(true);
   };
 
@@ -560,7 +567,9 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
           <button type="button" className="btn-settle-all" style={{ flex: 1, height: 48, marginTop: 0 }} disabled={bulkBusy} onClick={openSettleAll}>
             {bulkBusy ? '처리 중…' : '정산 일괄 완료'}
           </button>
-          <button type="button" className="btn-ink-pill" style={{ flex: 1, height: 48, marginTop: 0 }} onClick={requestSettlement}>정산 요청하기</button>
+          {hasAccountMember && (
+            <button type="button" className="btn-ink-pill" style={{ flex: 1, height: 48, marginTop: 0 }} onClick={requestSettlement}>정산 요청하기</button>
+          )}
         </div>
       )}
 
@@ -611,7 +620,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                 <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
               </button>
             </div>
-            <p className="small muted" style={{ margin: 0 }}>입금 내역에 기록할 날짜를 선택하세요.</p>
+            <p className="small muted" style={{ margin: '-12px 0 0' }}>입금 내역에 기록할 날짜를 선택하세요.</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button type="button" className="btn-settle-all" style={{ marginTop: 0 }} onClick={() => settleAll(today())}>오늘 날짜로</button>
               <button
