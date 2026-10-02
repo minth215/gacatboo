@@ -45,18 +45,16 @@ export default function Settings() {
       ],
     },
   ];
-  if (user.role === 'admin') {
-    groups.push({
-      label: '관리자',
-      items: [
-        { label: '회원 관리', desc: '가입 승인·역할 부여 등 회원 계정 관리', bg: '#fde8ee', icon: '👤', to: '/admin' },
-      ],
-    });
-  }
-
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title="설정" showBack={false} />
+      <PageHeader title="설정" showBack={false} right={user.role === 'admin' && (
+        <button className="tb-icon-btn" onClick={() => nav('/admin')} aria-label="관리자 페이지">
+          <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2a5 5 0 0 1 5 5v2h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5z" />
+            <circle cx="12" cy="16" r="1.6" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
+      )} />
 
       <div className="settings-profile-card" style={{ marginTop: 14 }} onClick={() => nav('/settings/profile')}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
