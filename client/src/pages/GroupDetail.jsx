@@ -66,6 +66,7 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
   const [month, setMonth] = useState(currentMonth());
   const [allTxs, setAllTxs] = useState([]);
   const [deposits, setDeposits] = useState([]);
+  const [sub, setSub] = useState(null);
 
   const myMember = members.find((m) => m.user_id === user.id && m.role !== 'owner');
 
@@ -78,6 +79,10 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
   }, [gid, settlementMode]);
   useEffect(() => { loadTxs(); }, [loadTxs]);
   useEffect(() => { loadDep(); }, [loadDep]);
+  useEffect(() => {
+    if (!settlementMode) return;
+    db.getSubscription(gid).then(setSub).catch(() => setSub(null));
+  }, [gid, settlementMode]);
 
   const canEdit = (t) => t.created_by === user.id;
   const removeTx = async (t) => {
@@ -131,7 +136,7 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
       {settlementMode && tab === 'settlement' && (
         <SettlementTab
           gid={gid} group={group} members={members} isOwner={isOwner} userId={user.id}
-          payments={paidTxs} deposits={deposits} reloadMembers={reloadMembers} loadDep={loadDep}
+          payments={paidTxs} deposits={deposits} reloadMembers={reloadMembers} loadDep={loadDep} sub={sub}
         />
       )}
 

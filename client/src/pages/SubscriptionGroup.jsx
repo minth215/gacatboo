@@ -255,7 +255,9 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     group_id: gid, member_id: m.id, date, amount: m.remaining, periods: 1,
     category_name: settleTargetPayment?.category_name || '정산', category_emoji: settleTargetPayment?.category_emoji || '',
     leader_category_name: '정산', leader_category_emoji: '',
-    leader_settlement_target_id: settleTargetPayment?.tx_id || null,
+    // payments 는 구독 그룹(subscription_payments, tx_id로 미러 거래 연결)과 정산 그룹(결제 내역 자체가
+    // transactions 행, id가 곧 거래 id)에서 모양이 달라 둘 다 지원한다.
+    leader_settlement_target_id: settleTargetPayment?.tx_id || settleTargetPayment?.id || null,
     deposit_source_name: sub?.deposit_source_name || '',
     content: settleContentDefault,
   });
