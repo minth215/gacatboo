@@ -194,7 +194,10 @@ export default function Settings() {
                         {(acc.display_name || acc.username || '?').slice(0, 1).toUpperCase()}
                       </span>
                       <span style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ display: 'block', fontSize: 13.75, fontWeight: 700, color: '#191722' }}>{acc.display_name}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ fontSize: 13.75, fontWeight: 700, color: '#191722' }}>{acc.display_name}</span>
+                          {acc.role === 'admin' && <span className="settings-admin-badge">관리자</span>}
+                        </span>
                         <span style={{ display: 'block', fontSize: 11, color: '#8b8798' }}>@{acc.username}</span>
                       </span>
                       {acc.id === user.id && <span className="tag-periods">현재 계정</span>}
