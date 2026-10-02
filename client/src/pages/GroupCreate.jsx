@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { today, dotDate } from '../lib/format.js';
 import PageHeader from '../components/PageHeader.jsx';
 
-const PALETTE = ['#FDE2E2', '#FCE8D6', '#FDF0C8', '#EAF4D6', '#DFF3E3', '#D9F1EC', '#D7EEF5', '#DCE9FB', '#E1E3F7', '#E6DEF5', '#F0DEF0', '#F7DCE8', '#F3E4E4'];
+const PALETTE = ['#EEEBFE', '#E8F4EC', '#FDEEE6', '#E6EEFD', '#FDE8EE', '#FBF1D3', '#FDE2E2'];
 const STEP_LABELS = ['그룹 정보', '내 정보', '멤버 추가'];
 
 const fieldStyle = {
@@ -153,7 +153,7 @@ export default function GroupCreate() {
         })}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 0 24px' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 6px 24px', margin: '0 -6px' }}>
         {step === 1 && (
           <div>
             <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', padding: '24px 20px 22px', marginBottom: 18 }}>
@@ -182,7 +182,7 @@ export default function GroupCreate() {
               <div style={{ height: 1, background: '#f0eee9', margin: '0 0 20px' }} />
 
               <div style={{ fontSize: 13, fontWeight: 700, color: '#191722', textAlign: 'center', marginBottom: 11 }}>배경 색</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'nowrap', gap: 8 }}>
                 <button
                   type="button" onClick={() => setColor('')}
                   style={{ width: 30, height: 30, flex: 'none', borderRadius: '50%', background: '#fff', border: 'none', boxShadow: color === '' ? '0 0 0 2px #fdfcfe, 0 0 0 4px #47444F' : 'inset 0 0 0 1.2px rgba(0,0,0,.18)', cursor: 'pointer', padding: 0, position: 'relative', overflow: 'hidden' }}
@@ -341,7 +341,7 @@ export default function GroupCreate() {
         {error && <p className="error" style={{ marginTop: 14 }}>{error}</p>}
       </div>
 
-      <div style={{ flex: 'none', padding: '14px 0 22px', display: 'flex', gap: 10, boxShadow: '0 -8px 24px rgba(25,23,34,.04)' }}>
+      <div style={{ flex: 'none', padding: '14px 0 22px', display: 'flex', gap: 10 }}>
         {step > 1 && (
           <button type="button" onClick={goPrev} disabled={busy} style={{ flex: 'none', fontFamily: 'inherit', height: 52, padding: '0 20px', border: '1.5px solid #efeef2', borderRadius: 999, background: '#fff', color: '#6c6779', fontSize: 14, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>
             이전
