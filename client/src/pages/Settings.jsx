@@ -204,7 +204,7 @@ export default function Settings() {
                     </button>
                   ))}
                 </div>
-                <button type="button" className="btn-ink-pill" style={{ marginTop: 0 }} disabled={busy} onClick={openAdd}>
+                <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 44 }} disabled={busy} onClick={openAdd}>
                   ＋ 다른 계정으로 로그인
                 </button>
               </>

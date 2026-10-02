@@ -4,11 +4,6 @@ import { useAuth } from '../lib/auth.jsx';
 import { db } from '../lib/db.js';
 import PageHeader from '../components/PageHeader.jsx';
 
-const fieldInputStyle = {
-  fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: '#fff',
-  border: '1.5px solid #efeef2', borderRadius: 12, padding: '13px 14px', outline: 'none', width: '100%',
-};
-
 export default function ProfileInfoEdit() {
   const { user, setUser } = useAuth();
   const nav = useNavigate();
@@ -16,6 +11,12 @@ export default function ProfileInfoEdit() {
   const [username, setUsername] = useState(user.username);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [focus, setFocus] = useState('');
+
+  const fieldInputStyle = (name) => ({
+    fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: '#fff',
+    border: `1.5px solid ${focus === name ? '#191722' : '#efeef2'}`, borderRadius: 12, padding: '13px 14px', outline: 'none', width: '100%',
+  });
 
   const save = async () => {
     setError('');
@@ -44,15 +45,17 @@ export default function ProfileInfoEdit() {
           <span style={{ fontSize: 12, fontWeight: 700, color: '#6c6779' }}>닉네임</span>
           <input
             type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="닉네임 입력" style={fieldInputStyle}
+            onFocus={() => setFocus('nickname')} onBlur={() => setFocus('')}
+            placeholder="닉네임 입력" style={fieldInputStyle('nickname')}
           />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: '#6c6779' }}>아이디</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fff', border: '1.5px solid #efeef2', borderRadius: 12, padding: '13px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fff', border: `1.5px solid ${focus === 'username' ? '#191722' : '#efeef2'}`, borderRadius: 12, padding: '13px 14px' }}>
             <span style={{ fontSize: 13.75, fontWeight: 600, color: '#a29ead' }}>@</span>
             <input
               type="text" value={username} onChange={(e) => setUsername(e.target.value.replace(/\s/g, ''))}
+              onFocus={() => setFocus('username')} onBlur={() => setFocus('')}
               placeholder="아이디 입력"
               style={{ flex: 1, fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: 'transparent', border: 'none', outline: 'none', minWidth: 0, padding: 0 }}
             />
