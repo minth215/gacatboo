@@ -18,7 +18,7 @@ export default function GroupCreate() {
   const nav = useNavigate();
   const [step, setStep] = useState(1);
   const [groupCats, setGroupCats] = useState([]);
-  const [sources, setSources] = useState([]);
+  const [sources, setSources] = useState({ tree: [], flat: [] });
   const [friends, setFriends] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -49,9 +49,9 @@ export default function GroupCreate() {
       setGroupCats(cs);
       setCategory((c) => c || cs[0]?.name || '');
     }).catch(() => {});
-    db.listSources().then(({ flat }) => {
-      setSources(flat);
-      const primary = flat.find((s) => s.is_primary_deposit);
+    db.listSources().then((s) => {
+      setSources(s);
+      const primary = s.flat.find((x) => x.is_primary_deposit);
       if (primary) setDepositSourceId(String(primary.id));
     }).catch(() => {});
     db.listFriends().then(setFriends).catch(() => {});
@@ -86,7 +86,7 @@ export default function GroupCreate() {
         start_date: startDate, end_date: endDate, nickname,
       });
       if (depositSourceId) {
-        const src = sources.find((s) => String(s.id) === String(depositSourceId));
+        const src = sources.flat.find((s) => String(s.id) === String(depositSourceId));
         try { await db.upsertSubscription(g.id, { deposit_source_id: Number(depositSourceId), deposit_source_name: src?.name || '' }); } catch {}
       }
       const memberErrors = [];
@@ -252,26 +252,36 @@ export default function GroupCreate() {
 
             <div style={{ marginTop: 24, fontSize: 13, fontWeight: 700, color: '#191722', marginBottom: 3 }}>입금 수단<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></div>
             <div style={{ fontSize: 11, color: '#a29ead', marginBottom: 11 }}>다른 멤버가 입금할 때 받을 원천을 선택하세요</div>
-            {sources.length === 0 ? (
+            {sources.flat.length === 0 ? (
               <div className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 등록된 원천이 없습니다. <button type="button" className="edit-link" onClick={() => nav('/settings/sources')}>편집 ›</button>
               </div>
             ) : (
               <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
-                {sources.map((src, i) => {
-                  const selected = String(depositSourceId) === String(src.id);
-                  return (
+                {sources.tree.map((top, gi) => {
+                  const topSelected = String(depositSourceId) === String(top.id);
+                  const SourceRow = ({ src, selected, indent }) => (
                     <button
-                      key={src.id} type="button" onClick={() => setDepositSourceId(String(src.id))}
-                      style={{ width: '100%', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5' }}
+                      type="button" onClick={() => setDepositSourceId(String(src.id))}
+                      style={{ width: '100%', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 12, padding: `13px 16px 13px ${16 + indent}px`, border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer' }}
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13.25, fontWeight: 600, color: '#191722' }}>{src.name}</div>
+                        <div style={{ fontSize: indent ? 13 : 13.25, fontWeight: indent ? 500 : 600, color: indent ? '#4a4652' : '#191722' }}>{src.name}</div>
                       </div>
                       <span style={{ width: 19, height: 19, borderRadius: '50%', border: `1.5px solid ${selected ? '#191722' : '#d8d5de'}`, background: selected ? '#191722' : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
                         {selected && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />}
                       </span>
                     </button>
+                  );
+                  return (
+                    <div key={top.id} style={{ borderTop: gi === 0 ? 'none' : '1.5px solid #f2f1f5' }}>
+                      <SourceRow src={top} selected={topSelected} indent={0} />
+                      {top.children?.map((c) => (
+                        <div key={c.id} style={{ borderTop: '1.5px solid #f2f1f5' }}>
+                          <SourceRow src={c} selected={String(depositSourceId) === String(c.id)} indent={16} />
+                        </div>
+                      ))}
+                    </div>
                   );
                 })}
               </div>
