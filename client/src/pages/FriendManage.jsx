@@ -29,6 +29,10 @@ export default function FriendManage() {
     setErr(''); setLookupErr(''); setNewGroupName(null);
     setEditor({ username: '', foundProfile: null, nickname: '', groupId: '' });
   };
+  const openAddToGroup = (groupId) => {
+    setErr(''); setLookupErr(''); setNewGroupName(null);
+    setEditor({ username: '', foundProfile: null, nickname: '', groupId: groupId ? String(groupId) : '' });
+  };
   const openEdit = (f) => {
     setErr(''); setLookupErr(''); setNewGroupName(null);
     setEditor({
@@ -120,7 +124,7 @@ export default function FriendManage() {
   const friendRow = (f, i) => (
     <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 8px 13px 18px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{f.nickname}</div>
+        <div style={{ fontSize: 13.25, fontWeight: 500, color: '#191722' }}>{f.nickname}</div>
         {f.friend_user_id && <div style={{ marginTop: 2, fontSize: 10.5, color: '#a29ead' }}>@{f.friend?.username}</div>}
       </div>
       <button aria-label="친구 수정" onClick={() => openEdit(f)} className="row-icon-btn sm">
@@ -143,36 +147,41 @@ export default function FriendManage() {
       {sections.length === 0 ? (
         <div className="empty empty-center">등록된 친구가 없습니다.</div>
       ) : sections.map(({ group, items }) => (
-        <div className="tx-daycard" style={{ marginTop: 14 }} key={group?.id ?? '_ungrouped'}>
-          {group ? (
-            editingGroupId === group.id ? (
-              <div className="inline-edit-row">
-                <input
-                  type="text" value={editGroupDraft} onChange={(e) => setEditGroupDraft(e.target.value)}
-                  autoFocus onKeyDown={(e) => e.key === 'Enter' && saveEditGroup(group)} className="inline-edit-input"
-                />
-                <button className="inline-cancel-btn" onClick={cancelEditGroup}>취소</button>
-                <button className="inline-save-btn" onClick={() => saveEditGroup(group)}>저장</button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 8px 14px 18px' }}>
-                <span style={{ flex: 1, fontSize: 13.75, fontWeight: 700, color: '#191722' }}>{group.name}</span>
-                <button aria-label="분류 수정" onClick={() => startEditGroup(group)} className="row-icon-btn">
-                  <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-                </button>
-                <button aria-label="분류 삭제" onClick={() => deleteGroup(group)} className="row-icon-btn danger">
-                  <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
-                </button>
-              </div>
-            )
+        <div style={{ marginTop: 20 }} key={group?.id ?? '_ungrouped'}>
+          {group && editingGroupId === group.id ? (
+            <div className="inline-edit-row">
+              <input
+                type="text" value={editGroupDraft} onChange={(e) => setEditGroupDraft(e.target.value)}
+                autoFocus onKeyDown={(e) => e.key === 'Enter' && saveEditGroup(group)} className="inline-edit-input"
+              />
+              <button className="inline-cancel-btn" onClick={cancelEditGroup}>취소</button>
+              <button className="inline-save-btn" onClick={() => saveEditGroup(group)}>저장</button>
+            </div>
           ) : (
-            <div style={{ padding: '14px 8px 14px 18px' }}>
-              <span style={{ fontSize: 13.75, fontWeight: 700, color: '#a29ead' }}>미분류</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 8px 0 18px', marginBottom: 8 }}>
+              {group ? (
+                <>
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#191722' }}>{group.name}</span>
+                  <button aria-label="분류 수정" onClick={() => startEditGroup(group)} className="row-icon-btn sm">
+                    <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                  </button>
+                  <button aria-label="분류 삭제" onClick={() => deleteGroup(group)} className="row-icon-btn sm danger">
+                    <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
+                  </button>
+                </>
+              ) : (
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#a29ead' }}>미분류</span>
+              )}
+              <button aria-label="친구 추가" onClick={() => openAddToGroup(group?.id)} className="row-icon-btn sm">
+                <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              </button>
             </div>
           )}
-          {items.length === 0 ? (
-            <div className="small muted" style={{ padding: '0 18px 14px' }}>등록된 친구가 없습니다.</div>
-          ) : items.map((f, i) => friendRow(f, i))}
+          <div className="tx-daycard">
+            {items.length === 0 ? (
+              <div className="small muted" style={{ padding: '14px 18px' }}>등록된 친구가 없습니다.</div>
+            ) : items.map((f, i) => friendRow(f, i))}
+          </div>
         </div>
       ))}
 
