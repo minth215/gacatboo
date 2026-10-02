@@ -332,6 +332,8 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     const includeLeftover = !!(leftoverRow && !leftoverRow.settled && leftoverRow.remaining > 0);
     if (!targets.length && !includeLeftover) return;
     if (settleTargetPayment && settleTargetPayment.date === today()) {
+      const count = targets.length + (includeLeftover ? 1 : 0);
+      if (!confirm(`${count} 명의 정산 내역을 일괄로 등록합니다.`)) return;
       settleAll(today());
       return;
     }
