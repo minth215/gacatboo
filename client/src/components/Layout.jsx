@@ -24,8 +24,8 @@ const NAV = [
   { to: '/settings', label: '설정', icon: 'settings' },
 ];
 
-// 설정의 상세 메뉴 페이지(드릴다운)에서는 하단 탭바를 숨김
-const HIDE_BOTTOMNAV_PREFIXES = ['/settings/profile', '/settings/categories', '/settings/sources', '/settings/card-benefits', '/settings/group-categories', '/settings/currency', '/settings/recurring'];
+// 설정의 상세 메뉴 페이지(드릴다운)와 그룹 만들기(자체 하단 액션 바가 있는 전체 화면 마법사)에서는 하단 탭바를 숨김
+const HIDE_BOTTOMNAV_PREFIXES = ['/settings/profile', '/settings/categories', '/settings/sources', '/settings/card-benefits', '/settings/group-categories', '/settings/currency', '/settings/recurring', '/groups/new'];
 
 export default function Layout() {
   const { user, logout } = useAuth();

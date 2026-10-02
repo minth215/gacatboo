@@ -2,10 +2,8 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { leaderLabel, today, dotDate } from '../lib/format.js';
+import { leaderLabel, dotDate } from '../lib/format.js';
 import Spinner from '../components/Spinner.jsx';
-
-const PALETTE = ['#FDE2E2', '#FCE8D6', '#FDF0C8', '#EAF4D6', '#DFF3E3', '#D9F1EC', '#D7EEF5', '#DCE9FB', '#E1E3F7', '#E6DEF5', '#F0DEF0', '#F7DCE8', '#F3E4E4'];
 
 export default function Groups() {
   const nav = useNavigate();
@@ -13,10 +11,6 @@ export default function Groups() {
   const [groups, setGroups] = useState([]);
   const [groupCats, setGroupCats] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState(null);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef(null);
@@ -36,28 +30,6 @@ export default function Groups() {
   }, [user.id]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { db.listGroupCategories().then(setGroupCats).catch(() => setGroupCats([])); }, []);
-
-  const openModal = () => {
-    setForm({
-      emoji: '📦', color: PALETTE[0], name: '', category: '',
-      description: '', start_date: today(), end_date: '',
-    });
-    setError('');
-    setModal(true);
-  };
-  const closeModal = () => setModal(false);
-
-  const create = async () => {
-    const name = form.name.trim();
-    if (!name) return setError('그룹명을 입력하세요.');
-    if (!form.category) return setError('카테고리를 선택하세요.');
-    setBusy(true); setError('');
-    try {
-      const g = await db.createGroup(user.id, { ...form, name, category_emoji: form.emoji });
-      setModal(false);
-      nav(`/groups/${g.id}`);
-    } catch (err) { setError(err.message); setBusy(false); }
-  };
 
   const isEnded = (g) => !!(g.end_date && new Date(g.end_date) < new Date());
   const filterActive = !!filterCategory || !showEnded;
@@ -146,87 +118,9 @@ export default function Groups() {
         ))
       )}
 
-      <button className="fab" onClick={openModal} aria-label="그룹 만들기">
+      <button className="fab" onClick={() => nav('/groups/new')} aria-label="그룹 만들기">
         <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
       </button>
-
-      {modal && form && (
-        <div className="catmodal-overlay" onClick={closeModal}>
-          <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '88%', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>그룹 만들기</div>
-              <button aria-label="닫기" onClick={closeModal} className="catmodal-icon-btn">
-                <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ position: 'relative', width: 52, height: 52, flex: 'none' }}>
-                <div style={{ position: 'absolute', inset: 0, borderRadius: 14, background: form.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, pointerEvents: 'none' }}>{form.emoji}</div>
-                <input
-                  type="text" value={form.emoji} maxLength={2} autoFocus
-                  onChange={(e) => setForm({ ...form, emoji: [...e.target.value].slice(-1).join('') })}
-                  className="catmodal-emoji-input"
-                />
-              </div>
-              <input
-                type="text" placeholder="그룹명" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="catmodal-name-input"
-              />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '10px 8px' }}>
-              {PALETTE.map((sw) => (
-                <button
-                  type="button" key={sw} aria-label={sw} onClick={() => setForm({ ...form, color: sw })}
-                  className="catmodal-swatch"
-                  style={{ background: sw, border: form.color === sw ? '2px solid #191722' : '1.5px solid #e4e2e6', boxShadow: form.color === sw ? '0 0 0 3px #efeef2' : 'none' }}
-                />
-              ))}
-              <label className="catmodal-swatch catmodal-custom-swatch">
-                <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} style={{ position: 'absolute', inset: -4, width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', cursor: 'pointer', opacity: 0 }} />
-                <svg width="13" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2.4" strokeLinecap="round" style={{ pointerEvents: 'none' }}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-              </label>
-            </div>
-
-            {groupCats.length === 0 ? (
-              <div className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                카테고리가 없습니다. <button type="button" className="edit-link" onClick={() => nav('/settings/group-categories')}>편집 ›</button>
-              </div>
-            ) : (
-              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="catmodal-name-input" style={{ flex: 'none', appearance: 'none' }}>
-                <option value="" disabled>카테고리 선택</option>
-                {groupCats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-              </select>
-            )}
-
-            <textarea
-              placeholder="설명 (선택)" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="catmodal-name-input" style={{ resize: 'none' }}
-            />
-
-            <div style={{ display: 'flex', gap: 8 }}>
-              <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>시작일자</span>
-                <div className="catmodal-date-field">
-                  <div className={`catmodal-date-value${form.start_date ? '' : ' placeholder'}`}>{form.start_date ? dotDate(form.start_date) : '날짜 선택'}</div>
-                  <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="catmodal-date-input" />
-                </div>
-              </label>
-              <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>종료일자 (선택)</span>
-                <div className="catmodal-date-field">
-                  <div className={`catmodal-date-value${form.end_date ? '' : ' placeholder'}`}>{form.end_date ? dotDate(form.end_date) : '날짜 선택'}</div>
-                  <input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="catmodal-date-input" />
-                </div>
-              </label>
-            </div>
-
-            {error && <p className="error" style={{ margin: 0 }}>{error}</p>}
-            <button className="btn-ink-pill" disabled={busy} onClick={create}>{busy ? '만드는 중…' : '만들기'}</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -323,12 +323,14 @@ export const db = {
       member_count: g.group_members?.[0]?.count ?? 0,
     }));
   },
-  async createGroup(userId, { name, description, category, category_emoji, color, start_date, end_date }) {
+  async createGroup(userId, { name, description, category, category_emoji, color, start_date, end_date, nickname }) {
     const g = unwrap(await supabase.from('groups').insert({
       name, description: description || '', category, category_emoji: category_emoji || '', color: color || '', owner_id: userId,
       start_date: start_date || null, end_date: end_date || null,
     }).select().single());
-    unwrap(await supabase.from('group_members').insert({ group_id: g.id, user_id: userId, role: 'owner', end_date: end_date || null }));
+    unwrap(await supabase.from('group_members').insert({
+      group_id: g.id, user_id: userId, role: 'owner', nickname: (nickname || '').trim(), end_date: end_date || null,
+    }));
     return g;
   },
   async updateGroup(id, patch) {

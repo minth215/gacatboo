@@ -20,6 +20,7 @@ import GroupCategoryManage from './pages/GroupCategoryManage.jsx';
 import CurrencySettings from './pages/CurrencySettings.jsx';
 import RecurringManage from './pages/RecurringManage.jsx';
 import Groups from './pages/Groups.jsx';
+import GroupCreate from './pages/GroupCreate.jsx';
 import GroupDetail from './pages/GroupDetail.jsx';
 import GroupEdit from './pages/GroupEdit.jsx';
 import MemberDetail from './pages/MemberDetail.jsx';
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="/tx/:id" element={<TransactionEdit />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/groups" element={<Groups />} />
+        <Route path="/groups/new" element={<GroupCreate />} />
         <Route path="/groups/:id" element={<GroupDetail />} />
         <Route path="/groups/:id/edit" element={<GroupEdit />} />
         <Route path="/groups/:id/member/:memberId" element={<MemberDetail />} />
