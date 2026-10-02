@@ -93,7 +93,7 @@ export default function Groups() {
         filteredGroups.map((g) => (
           <div
             key={g.id} className="group-card" onClick={() => nav(`/groups/${g.id}`)}
-            style={{ display: 'flex', gap: 12, alignItems: 'center', opacity: isEnded(g) ? 0.55 : 1, filter: isEnded(g) ? 'grayscale(0.6)' : 'none' }}
+            style={{ display: 'flex', gap: 12, alignItems: 'center', opacity: isEnded(g) ? 0.55 : 1 }}
           >
             <span style={{ width: 38, height: 38, borderRadius: 12, background: g.color || '#f4f2f0', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16.5, flex: 'none' }}>{g.category_emoji || '📦'}</span>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
