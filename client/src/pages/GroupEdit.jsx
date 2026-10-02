@@ -68,13 +68,11 @@ export default function GroupEdit() {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginBottom: 18 }}>
           <div style={{ position: 'relative', width: 96, height: 96 }}>
             <div style={{
-              position: 'absolute', inset: 0, borderRadius: 26, background: form.color || '#f4f2f0', border: '1.5px solid #efeef2',
+              position: 'absolute', inset: 0, borderRadius: 26, background: form.color || 'transparent', border: '1.5px solid #efeef2',
               boxShadow: '0 3px 10px rgba(25,23,34,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 38, pointerEvents: 'none', color: form.category_emoji ? '#191722' : '#a29ead',
+              fontSize: 38, pointerEvents: 'none',
             }}>
-              {form.category_emoji || (
-                <svg width="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-              )}
+              {form.category_emoji || '💸'}
             </div>
             <input
               type="text" value={form.category_emoji} maxLength={2}
@@ -84,7 +82,6 @@ export default function GroupEdit() {
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 12, color: '#8b8798' }}>그룹을 나타낼 이모지를 직접 입력해 주세요</div>
-            <div style={{ marginTop: 2, fontSize: 11, color: '#c7c3cc' }}>비워 둬도 괜찮아요</div>
           </div>
         </div>
 
