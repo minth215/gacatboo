@@ -53,7 +53,7 @@ export default function Ledger() {
 
   const load = useCallback(() => {
     setLoading(true);
-    db.listLedger({ month })
+    db.listLedger({ month, userId: user.id })
       .then(async (list) => {
         setTxs(list);
         const exList = list.filter((t) => t.type === 'expense');
@@ -68,7 +68,7 @@ export default function Ledger() {
       })
       .catch(() => { setTxs([]); setSummary({ income: 0, expense: 0 }); })
       .finally(() => setLoading(false));
-  }, [month]);
+  }, [month, user.id]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -82,10 +82,10 @@ export default function Ledger() {
     setSLoading(true);
     db.searchTransactions({
       from: sFrom || undefined, to: sTo || undefined, type: sType,
-      category: sCat || undefined, source: sSrc || undefined,
+      category: sCat || undefined, source: sSrc || undefined, userId: user.id,
     })
       .then(setSResults).catch(() => setSResults([])).finally(() => setSLoading(false));
-  }, [sFrom, sTo, sType, sCat, sSrc]);
+  }, [sFrom, sTo, sType, sCat, sSrc, user.id]);
 
   useEffect(() => { if (searchOpen) loadSearch(); }, [searchOpen, loadSearch]);
 

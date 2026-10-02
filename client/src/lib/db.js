@@ -22,7 +22,7 @@ function sourceName(flat, id) {
   return s ? s.name : ''; // 세부 항목명만(상위 항목 표기 없이)
 }
 
-const TX_SELECT = '*, group:groups(name), recurring:recurring_rules(id, label, freq_unit, freq_interval, weekdays)';
+const TX_SELECT = '*, group:groups(name, category), recurring:recurring_rules(id, label, freq_unit, freq_interval, weekdays)';
 
 // 조회 결과를 평탄화 (group_name)
 function flattenTx(rows) {
@@ -30,6 +30,12 @@ function flattenTx(rows) {
     ...r,
     group_name: r.group?.name || null,
   }));
+}
+
+// 개인 가계부(내 가계부/검색) 전용 필터: 정산 그룹의 결제 내역은 그룹 멤버 전원에게 RLS로 노출되지만
+// (그룹 자체의 "결제 내역" 탭에서는 전원이 봐야 함), 각자의 개인 가계부에는 본인이 작성한 항목만 반영한다.
+function hideOthersSettlementPayments(rows, userId) {
+  return (rows || []).filter((r) => !(r.group_id && r.group?.category === '정산' && r.user_id !== userId));
 }
 
 export const db = {
@@ -134,12 +140,12 @@ export const db = {
   },
 
   // 개인 가계부: 개인 항목 + 내가 속한 그룹 항목(반영)
-  async listLedger({ month }) {
+  async listLedger({ month, userId }) {
     const { start, endExclusive } = monthBounds(month);
     const rows = unwrap(await supabase.from('transactions').select(TX_SELECT)
       .gte('date', start).lt('date', endExclusive)
       .order('date', { ascending: false }).order('id', { ascending: false }));
-    return this.attachSubscriptionPeriods(flattenTx(rows));
+    return this.attachSubscriptionPeriods(flattenTx(hideOthersSettlementPayments(rows, userId)));
   },
   // 구독 그룹의 결제/입금이 가계부에 반영된 항목에 회차(몇 회분) 정보를 붙인다.
   // 가계부 행에는 회차가 없어서 원본(subscription_payments/deposits)에서 가져오며,
@@ -180,7 +186,7 @@ export const db = {
   },
 
   // 전체 기간 검색 (개인+참여그룹, RLS 범위). 구조 필터는 서버, 텍스트는 화면에서.
-  async searchTransactions({ from, to, type, category, source } = {}) {
+  async searchTransactions({ from, to, type, category, source, userId } = {}) {
     let query = supabase.from('transactions').select(TX_SELECT)
       .order('date', { ascending: false }).order('id', { ascending: false }).limit(2000);
     if (from) query = query.gte('date', from);
@@ -188,7 +194,7 @@ export const db = {
     if (type === 'income' || type === 'expense') query = query.eq('type', type);
     if (category) query = query.eq('category_name', category);
     if (source) query = query.eq('source_name', source);
-    return this.attachSubscriptionPeriods(flattenTx(unwrap(await query)));
+    return this.attachSubscriptionPeriods(flattenTx(hideOthersSettlementPayments(unwrap(await query), userId)));
   },
 
   // 내용 자동완성용: 과거에 쓴 내용(중복 제거, 최신순)

@@ -44,11 +44,12 @@ export default function Search() {
       type: typeFilter,
       category: catFilter || undefined,
       source: srcFilter || undefined,
+      userId: user.id,
     })
       .then(setRows)
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
-  }, [from, to, typeFilter, catFilter, srcFilter]);
+  }, [from, to, typeFilter, catFilter, srcFilter, user.id]);
 
   useEffect(() => { load(); }, [load]);
 

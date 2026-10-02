@@ -676,6 +676,7 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
                     const tileEmoji = isOwner ? d.leader_category_emoji : d.category_emoji;
                     const tileCat = isOwner ? d.leader_category_name : d.category_name;
                     const tileColor = (isOwner ? incomeCats : expenseCats).find((c) => c.name === tileCat)?.color || '';
+                    const tileSource = isOwner ? d.deposit_source_name : d.source_name;
                     return (
                       <DayCardRow
                         key={d.id} index={i} count={items.length}
@@ -691,7 +692,7 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
                                 {showPeriods && <span className="tag-periods">{d.periods} 회분</span>}
                               </span>
                             </div>
-                            <div className="tx-row-sub">{[tileCat, d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
+                            <div className="tx-row-sub">{[tileCat, tileSource].filter(Boolean).join(' · ') || '—'}</div>
                           </div>
                           <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: 'var(--income)' }}>+{fmtNum(d.amount)}</span>
                       </DayCardRow>
