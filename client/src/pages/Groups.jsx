@@ -114,10 +114,8 @@ export default function Groups() {
       {loading ? (
         <Spinner />
       ) : filteredGroups.length === 0 ? (
-        <div className="empty">
-          {groups.length === 0
-            ? <>아직 참여 중인 그룹이 없습니다.<br />여행·구독·N빵 등을 그룹으로 함께 관리해 보세요.</>
-            : '조건에 맞는 그룹이 없습니다.'}
+        <div className="empty empty-center-notabs">
+          {groups.length === 0 ? '아직 참여 중인 그룹이 없습니다.' : '조건에 맞는 그룹이 없습니다.'}
         </div>
       ) : (
         filteredGroups.map((g) => (
