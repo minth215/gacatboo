@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase.js';
 import PageHeader from '../components/PageHeader.jsx';
+import { passwordPolicyError } from '../lib/validators.js';
 
 const fieldInputStyle = {
   fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: '#fff',
@@ -17,10 +18,12 @@ export default function PasswordChange() {
   const [busy, setBusy] = useState(false);
 
   const pwMismatch = pwConfirm.length > 0 && pwNew !== pwConfirm;
-  const canSubmit = !!(pwCurrent && pwNew && pwConfirm && pwNew === pwConfirm) && !busy;
+  const canSubmit = !!(pwCurrent && pwNew && pwConfirm && pwNew === pwConfirm && !passwordPolicyError(pwNew)) && !busy;
 
   const submit = async () => {
     if (!canSubmit) return;
+    const pwErr = passwordPolicyError(pwNew);
+    if (pwErr) return setError(pwErr);
     setError(''); setBusy(true);
     try {
       const { data } = await supabase.auth.getUser();

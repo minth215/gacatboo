@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
 import CatMascot from '../components/CatMascot.jsx';
+import { passwordPolicyError } from '../lib/validators.js';
 
 export default function Register() {
   const { register, isConfigured } = useAuth();
@@ -16,7 +17,8 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
-    if (form.password.length < 6) return setError('비밀번호는 6자 이상이어야 합니다.');
+    const pwErr = passwordPolicyError(form.password);
+    if (pwErr) return setError(pwErr);
     setBusy(true);
     try {
       const res = await register({
@@ -79,17 +81,17 @@ export default function Register() {
                 onFocus={() => setFocus('email')} onBlur={() => setFocus('')} style={inputStyle('email')}
               />
               <input
-                placeholder="아이디" type="text" autoComplete="off"
+                placeholder="아이디 (변경 가능)" type="text" autoComplete="off"
                 value={form.username} onChange={set('username')}
                 onFocus={() => setFocus('username')} onBlur={() => setFocus('')} style={inputStyle('username')}
               />
               <input
-                placeholder="닉네임" type="text" autoComplete="off"
+                placeholder="닉네임 (변경 가능)" type="text" autoComplete="off"
                 value={form.display_name} onChange={set('display_name')}
                 onFocus={() => setFocus('nickname')} onBlur={() => setFocus('')} style={inputStyle('nickname')}
               />
               <input
-                placeholder="비밀번호 (6자 이상)" type="password" autoComplete="new-password"
+                placeholder="비밀번호(영문, 숫자 포함 8자 이상)" type="password" autoComplete="new-password"
                 value={form.password} onChange={set('password')}
                 onFocus={() => setFocus('password')} onBlur={() => setFocus('')} style={inputStyle('password')}
               />
