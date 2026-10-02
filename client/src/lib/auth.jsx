@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, isConfigured } from './supabase.js';
+import { rememberAccount, forgetAccount, getSavedAccount } from './accounts.js';
 
 const AuthContext = createContext(null);
 
@@ -19,7 +20,7 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         const profile = await fetchProfile(session.user.id);
-        if (profile?.status === 'approved') setUser(profile);
+        if (profile?.status === 'approved') { setUser(profile); rememberAccount(profile, session); }
         else { await supabase.auth.signOut(); setUser(null); }
       }
       setLoading(false);
@@ -33,6 +34,8 @@ export function AuthProvider({ children }) {
       setTimeout(async () => {
         const profile = await fetchProfile(session.user.id);
         setUser(profile?.status === 'approved' ? profile : null);
+        // 토큰이 갱신될 때마다(TOKEN_REFRESHED 등) 저장된 계정 전환용 토큰도 최신으로 유지
+        if (profile?.status === 'approved') rememberAccount(profile, session);
       }, 0);
     });
     return () => sub.subscription.unsubscribe();
@@ -51,7 +54,35 @@ export function AuthProvider({ children }) {
         : '로그인이 거부된 계정입니다. 관리자에게 문의하세요.');
     }
     setUser(profile);
+    rememberAccount(profile, data.session);
     return profile;
+  };
+
+  // 계정 전환 — 이 기기에서 전에 로그인했던 다른 계정으로 비밀번호 재입력 없이 전환.
+  // (다른 사람의 계정으로는 전환할 수 없음 — 저장된 토큰은 본인이 직접 로그인했던 계정의 것뿐)
+  const switchAccount = async (id) => {
+    const saved = getSavedAccount(id);
+    if (!saved) throw new Error('저장된 계정 정보를 찾을 수 없습니다. 다시 로그인해 주세요.');
+    const { data, error } = await supabase.auth.setSession({
+      access_token: saved.access_token, refresh_token: saved.refresh_token,
+    });
+    if (error || !data.session) {
+      forgetAccount(id);
+      throw new Error('세션이 만료되어 다시 로그인이 필요합니다.');
+    }
+    const profile = await fetchProfile(data.session.user.id);
+    if (!profile || profile.status !== 'approved') {
+      await supabase.auth.signOut({ scope: 'local' });
+      throw new Error('로그인할 수 없는 계정입니다.');
+    }
+    setUser(profile);
+    rememberAccount(profile, data.session);
+    return profile;
+  };
+
+  // 다른 계정 추가 — 현재 세션은 기기에 그대로 저장해 두고(서버 쪽은 로그아웃하지 않음) 로그인 화면으로 이동
+  const addAccount = async () => {
+    await supabase.auth.signOut({ scope: 'local' });
   };
 
   // 가입 신청 — 승인 전에는 로그인 불가(세션 종료). 최초 사용자는 트리거로 관리자·승인 처리됨.
@@ -71,12 +102,13 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
+    if (user) forgetAccount(user.id);
     await supabase.auth.signOut();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, register, logout, isConfigured }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, register, logout, switchAccount, addAccount, isConfigured }}>
       {children}
     </AuthContext.Provider>
   );
