@@ -219,14 +219,19 @@ export default function Ledger() {
             </div>
           )}
 
-          <div className="small muted" style={{ margin: '2px 2px 10px' }}>
-            결과 {sFiltered.length}건 · <span style={{ color: 'var(--income)', fontWeight: 700 }}>+{fmtNum(sIncome)}</span> · <span style={{ color: 'var(--expense)', fontWeight: 700 }}>-{fmtNum(sExpense)}</span>
-          </div>
+          {(sLoading || sFiltered.length > 0) && (
+            <div className="small muted" style={{ margin: '2px 2px 10px' }}>
+              결과 {sFiltered.length}건 · <span style={{ color: 'var(--income)', fontWeight: 700 }}>+{fmtNum(sIncome)}</span> · <span style={{ color: 'var(--expense)', fontWeight: 700 }}>-{fmtNum(sExpense)}</span>
+            </div>
+          )}
 
           {sLoading ? (
             <Spinner />
           ) : (
-            <TransactionList transactions={sFiltered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} dateFormat="full" />
+            <TransactionList
+              transactions={sFiltered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} dateFormat="full"
+              emptyText="데이터가 없습니다." emptyCenter="notabs"
+            />
           )}
         </>
       ) : (

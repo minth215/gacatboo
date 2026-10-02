@@ -83,7 +83,9 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
   }, []);
 
   if (!transactions.length) {
-    return <div className={`empty${emptyCenter ? ' empty-center' : ''}`}>{emptyText || <>항목이 없습니다.<br />＋ 버튼으로 첫 항목을 추가해 보세요.</>}</div>;
+    // emptyCenter: true=상단바+탭 줄(100px) 기준, 'notabs'=상단바만(56px) 있는 화면 기준
+    const centerClass = emptyCenter === 'notabs' ? ' empty-center-notabs' : emptyCenter ? ' empty-center' : '';
+    return <div className={`empty${centerClass}`}>{emptyText || <>항목이 없습니다.<br />＋ 버튼으로 첫 항목을 추가해 보세요.</>}</div>;
   }
 
   const groups = {};
