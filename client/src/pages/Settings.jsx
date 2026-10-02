@@ -24,22 +24,41 @@ const SwitchIcon = () => (
 );
 
 export default function Settings() {
-  const { user, switchAccount, addAccount } = useAuth();
+  const { user, login, switchAccount } = useAuth();
   const nav = useNavigate();
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
+  // 계정 전환 모달 안에서 "다른 계정으로 로그인" 눌렀을 때 보여줄 인라인 로그인 폼 상태
+  const [adding, setAdding] = useState(false);
+  const [addEmail, setAddEmail] = useState('');
+  const [addPassword, setAddPassword] = useState('');
+  const [addBusy, setAddBusy] = useState(false);
+  const [addErr, setAddErr] = useState('');
   const savedAccounts = listSavedAccounts();
+  // 지금 계정이 관리자이거나, 이 기기에 저장된 계정 중 관리자가 하나라도 있으면
+  // (그 관리자 계정으로 다시 전환할 수 있도록) 계정 전환 버튼을 보여준다.
+  const canSwitch = user.role === 'admin' || savedAccounts.some((a) => a.role === 'admin');
+  const busy = switching || addBusy;
 
+  const closeSwitcher = () => {
+    if (busy) return;
+    setSwitcherOpen(false); setAdding(false); setAddEmail(''); setAddPassword(''); setAddErr('');
+  };
   const doSwitch = async (acc) => {
-    if (acc.id === user.id || switching) return;
+    if (acc.id === user.id || busy) return;
     setSwitching(true);
-    try { await switchAccount(acc.id); setSwitcherOpen(false); }
+    try { await switchAccount(acc.id); closeSwitcher(); }
     catch (e) { alert(e.message); }
     finally { setSwitching(false); }
   };
-  // 로그아웃하면 <Protected> 가 자동으로 로그인 화면으로 보내줌
-  const doAddAccount = async () => {
-    try { await addAccount(); setSwitcherOpen(false); } catch (e) { alert(e.message); }
+  const openAdd = () => { setAdding(true); setAddEmail(''); setAddPassword(''); setAddErr(''); };
+  const submitAdd = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    setAddErr(''); setAddBusy(true);
+    try { await login(addEmail.trim(), addPassword); closeSwitcher(); }
+    catch (e2) { setAddErr(e2.message); }
+    finally { setAddBusy(false); }
   };
 
   const groups = [
@@ -72,17 +91,19 @@ export default function Settings() {
   ];
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title="설정" showBack={false} right={user.role === 'admin' && (
+      <PageHeader title="설정" showBack={false} right={canSwitch && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button className="tb-icon-btn" onClick={() => setSwitcherOpen(true)} aria-label="계정 전환">
             <SwitchIcon />
           </button>
-          <button className="tb-icon-btn" onClick={() => nav('/admin')} aria-label="관리자 페이지">
-            <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a5 5 0 0 1 5 5v2h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5z" />
-              <circle cx="12" cy="16" r="1.6" fill="currentColor" stroke="none" />
-            </svg>
-          </button>
+          {user.role === 'admin' && (
+            <button className="tb-icon-btn" onClick={() => nav('/admin')} aria-label="관리자 페이지">
+              <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2a5 5 0 0 1 5 5v2h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5z" />
+                <circle cx="12" cy="16" r="1.6" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
+          )}
         </div>
       )} />
 
@@ -119,39 +140,72 @@ export default function Settings() {
       ))}
 
       {switcherOpen && (
-        <div className="catmodal-overlay" onClick={() => !switching && setSwitcherOpen(false)}>
+        <div className="catmodal-overlay" onClick={closeSwitcher}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>계정 전환</div>
-              <button aria-label="닫기" disabled={switching} onClick={() => setSwitcherOpen(false)} className="catmodal-icon-btn">
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>
+                {adding ? '다른 계정으로 로그인' : '계정 전환'}
+              </div>
+              <button aria-label="닫기" disabled={busy} onClick={closeSwitcher} className="catmodal-icon-btn">
                 <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
               </button>
             </div>
-            <div style={{ maxHeight: '50vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-              {savedAccounts.map((acc, i) => (
-                <button
-                  key={acc.id} type="button" onClick={() => doSwitch(acc)} disabled={switching}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'transparent',
-                    padding: '12px 2px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5',
-                    cursor: acc.id === user.id ? 'default' : 'pointer', textAlign: 'left', fontFamily: 'inherit', width: '100%',
-                    opacity: switching && acc.id !== user.id ? 0.5 : 1,
-                  }}
-                >
-                  <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#f4f2f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#191722', flex: 'none' }}>
-                    {(acc.display_name || acc.username || '?').slice(0, 1).toUpperCase()}
-                  </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: 'block', fontSize: 13.75, fontWeight: 700, color: '#191722' }}>{acc.display_name}</span>
-                    <span style={{ display: 'block', fontSize: 11, color: '#8b8798' }}>@{acc.username}</span>
-                  </span>
-                  {acc.id === user.id && <span className="tag-periods">현재 계정</span>}
+
+            {adding ? (
+              <form onSubmit={submitAdd} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input
+                  type="email" placeholder="이메일" autoComplete="username" autoFocus
+                  value={addEmail} onChange={(e) => setAddEmail(e.target.value)}
+                  style={{ fontFamily: 'inherit', fontSize: 14, color: '#191722', background: '#fff', border: '1.5px solid #e9e9ee', borderRadius: 12, padding: '13px 16px', outline: 'none', width: '100%' }}
+                />
+                <input
+                  type="password" placeholder="비밀번호" autoComplete="current-password"
+                  value={addPassword} onChange={(e) => setAddPassword(e.target.value)}
+                  style={{ fontFamily: 'inherit', fontSize: 14, color: '#191722', background: '#fff', border: '1.5px solid #e9e9ee', borderRadius: 12, padding: '13px 16px', outline: 'none', width: '100%' }}
+                />
+                {addErr && <p style={{ margin: '0 2px', fontSize: 12.5, color: '#FF4358', fontWeight: 600 }}>{addErr}</p>}
+                <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                  <button type="button" onClick={() => setAdding(false)} disabled={busy}
+                    style={{ flex: 1, height: 48, border: 'none', borderRadius: 999, background: '#f4f2f0', color: '#191722', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    뒤로
+                  </button>
+                  <button type="submit" disabled={busy || !addEmail || !addPassword}
+                    style={{ flex: 1, height: 48, border: 'none', borderRadius: 999, background: '#191722', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', opacity: (busy || !addEmail || !addPassword) ? 0.6 : 1 }}
+                  >
+                    {addBusy ? '로그인 중…' : '로그인'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div style={{ maxHeight: '50vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+                  {savedAccounts.map((acc, i) => (
+                    <button
+                      key={acc.id} type="button" onClick={() => doSwitch(acc)} disabled={busy}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'transparent',
+                        padding: '12px 2px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5',
+                        cursor: acc.id === user.id ? 'default' : 'pointer', textAlign: 'left', fontFamily: 'inherit', width: '100%',
+                        opacity: busy && acc.id !== user.id ? 0.5 : 1,
+                      }}
+                    >
+                      <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#f4f2f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#191722', flex: 'none' }}>
+                        {(acc.display_name || acc.username || '?').slice(0, 1).toUpperCase()}
+                      </span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: 'block', fontSize: 13.75, fontWeight: 700, color: '#191722' }}>{acc.display_name}</span>
+                        <span style={{ display: 'block', fontSize: 11, color: '#8b8798' }}>@{acc.username}</span>
+                      </span>
+                      {acc.id === user.id && <span className="tag-periods">현재 계정</span>}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" className="btn-ink-pill" style={{ marginTop: 0 }} disabled={busy} onClick={openAdd}>
+                  ＋ 다른 계정으로 로그인
                 </button>
-              ))}
-            </div>
-            <button type="button" className="btn-ink-pill" style={{ marginTop: 0 }} disabled={switching} onClick={doAddAccount}>
-              ＋ 다른 계정으로 로그인
-            </button>
+              </>
+            )}
           </div>
         </div>
       )}

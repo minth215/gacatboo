@@ -80,11 +80,6 @@ export function AuthProvider({ children }) {
     return profile;
   };
 
-  // 다른 계정 추가 — 현재 세션은 기기에 그대로 저장해 두고(서버 쪽은 로그아웃하지 않음) 로그인 화면으로 이동
-  const addAccount = async () => {
-    await supabase.auth.signOut({ scope: 'local' });
-  };
-
   // 가입 신청 — 승인 전에는 로그인 불가(세션 종료). 최초 사용자는 트리거로 관리자·승인 처리됨.
   const register = async ({ email, password, username, display_name }) => {
     const { data, error } = await supabase.auth.signUp({
@@ -108,7 +103,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, register, logout, switchAccount, addAccount, isConfigured }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, register, logout, switchAccount, isConfigured }}>
       {children}
     </AuthContext.Provider>
   );

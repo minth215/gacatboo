@@ -24,7 +24,7 @@ export function rememberAccount(profile, session) {
   if (!profile?.id || !session?.access_token || !session?.refresh_token) return;
   const all = loadAll();
   all[profile.id] = {
-    id: profile.id, username: profile.username, display_name: profile.display_name,
+    id: profile.id, username: profile.username, display_name: profile.display_name, role: profile.role,
     access_token: session.access_token, refresh_token: session.refresh_token,
     updated_at: Date.now(),
   };
