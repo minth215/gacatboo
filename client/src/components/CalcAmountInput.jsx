@@ -266,7 +266,8 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
 
       {focused && (
         <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={close} />
+          {/* 상단바(56px) 아래부터만 덮어서, 키패드가 떠 있어도 상단바 버튼(영수증 스캔 등)이 한 번에 눌리게 함 */}
+          <div style={{ position: 'fixed', top: 56, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={close} />
           <div style={{
             position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100,
             background: '#fff', borderRadius: '20px 20px 0 0', boxShadow: '0 -4px 20px rgba(25,23,34,.12)',
