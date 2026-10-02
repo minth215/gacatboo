@@ -1,110 +1,63 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
 import { supabase } from '../lib/supabase.js';
-import { db } from '../lib/db.js';
 import PageHeader from '../components/PageHeader.jsx';
 
+const Chevron = () => (
+  <svg width="16" viewBox="0 0 24 24" fill="none" stroke="#c7c3cc" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}>
+    <polyline points="9 6 15 12 9 18" />
+  </svg>
+);
+
 export default function ProfileEdit() {
-  const { user, setUser, logout } = useAuth();
+  const { user, logout } = useAuth();
+  const nav = useNavigate();
   const [email, setEmail] = useState('');
-  const [displayName, setDisplayName] = useState(user.display_name);
-  const [username, setUsername] = useState(user.username);
-  const [profileError, setProfileError] = useState('');
-  const [profileDone, setProfileDone] = useState('');
-  const [profileBusy, setProfileBusy] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data?.user?.email || ''));
   }, []);
 
-  const saveProfile = async () => {
-    setProfileError(''); setProfileDone('');
-    const dn = displayName.trim();
-    const un = username.trim();
-    if (!dn) return setProfileError('닉네임을 입력하세요.');
-    if (!un) return setProfileError('아이디를 입력하세요.');
-    setProfileBusy(true);
-    try {
-      const updated = await db.updateMyProfile(un, dn);
-      setUser(updated);
-      setDisplayName(updated.display_name);
-      setUsername(updated.username);
-      setProfileDone('저장되었습니다.');
-    } catch (e) {
-      setProfileError(e.message);
-    } finally {
-      setProfileBusy(false);
-    }
-  };
-
-  const [pw, setPw] = useState('');
-  const [pw2, setPw2] = useState('');
-  const [error, setError] = useState('');
-  const [done, setDone] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setError(''); setDone('');
-    if (pw.length < 6) return setError('비밀번호는 6자 이상이어야 합니다.');
-    if (pw !== pw2) return setError('비밀번호가 일치하지 않습니다.');
-    setBusy(true);
-    try {
-      const { error: err } = await supabase.auth.updateUser({ password: pw });
-      if (err) throw new Error(err.message);
-      setPw(''); setPw2('');
-      setDone('비밀번호가 변경되었습니다.');
-    } catch (err) {
-      setError(err.message || '비밀번호 변경에 실패했습니다.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="내 정보" flat />
 
-      <div className="card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3 style={{ margin: 0 }}>계정 정보</h3>
-          {user.role === 'admin' && (
-            <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>관리자</span>
-          )}
+      <div style={{ marginTop: 14, background: '#fff', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
+        <div style={{ padding: '18px 18px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 18, fontWeight: 800, color: '#191722', letterSpacing: '-.3px' }}>{user.display_name}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#a29ead' }}>@{user.username}</span>
+            {user.role === 'admin' && <span className="settings-admin-badge">관리자</span>}
+          </div>
+          <button
+            aria-label="내 정보 수정" onClick={() => nav('/settings/profile/edit')} className="profile-edit-pencil-btn"
+            style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'transparent', color: '#a29ead', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}
+          >
+            <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+          </button>
         </div>
-        <div className="field">
-          <label>이메일</label>
-          <input value={email} disabled />
+        <div style={{ padding: '0 18px 18px' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 400, color: '#a29ead', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>
         </div>
-        <div className="field">
-          <label>닉네임</label>
-          <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="표시될 이름" />
-        </div>
-        <div className="field">
-          <label>아이디</label>
-          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="그룹 초대 등에 쓰일 아이디" />
-        </div>
-        {profileError && <p className="error">{profileError}</p>}
-        {profileDone && <p className="small" style={{ color: 'var(--income)', fontWeight: 700 }}>{profileDone}</p>}
-        <button className="btn primary block" disabled={profileBusy} onClick={saveProfile}>{profileBusy ? '저장 중…' : '저장'}</button>
       </div>
 
-      <form className="card" onSubmit={submit}>
-        <h3>비밀번호 변경</h3>
-        <div className="field">
-          <label>새 비밀번호</label>
-          <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" placeholder="6자 이상" />
-        </div>
-        <div className="field">
-          <label>비밀번호 확인</label>
-          <input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" placeholder="새 비밀번호 다시 입력" />
-        </div>
-        {error && <p className="error">{error}</p>}
-        {done && <p className="small" style={{ color: 'var(--income)', fontWeight: 700 }}>{done}</p>}
-        <button className="btn primary block" disabled={busy}>{busy ? '변경 중…' : '비밀번호 변경'}</button>
-      </form>
-
-      <button className="btn block" style={{ marginTop: 4 }} onClick={logout}>로그아웃</button>
+      <div style={{ marginTop: 22, background: '#fff', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
+        <button className="settings-menu-row" onClick={() => nav('/settings/profile/password')}>
+          <span className="settings-menu-tile" style={{ background: '#eef1fb' }}>🔒</span>
+          <span className="settings-menu-main"><span className="settings-menu-label">비밀번호 변경</span></span>
+          <Chevron />
+        </button>
+        <button className="settings-menu-row" onClick={logout} style={{ borderTop: '1.5px solid #f2f1f5' }}>
+          <span className="settings-menu-tile" style={{ background: '#fff1e6' }}>🚪</span>
+          <span className="settings-menu-main"><span className="settings-menu-label">로그아웃</span></span>
+        </button>
+        <button className="settings-menu-row" onClick={() => nav('/settings/profile/withdraw')} style={{ borderTop: '1.5px solid #f2f1f5' }}>
+          <span className="settings-menu-tile" style={{ background: '#fde8ee' }}>👋</span>
+          <span className="settings-menu-main"><span className="settings-menu-label">회원 탈퇴</span></span>
+          <Chevron />
+        </button>
+      </div>
     </div>
   );
 }

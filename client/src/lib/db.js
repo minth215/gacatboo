@@ -763,6 +763,13 @@ export const db = {
     if (data?.error) throw new Error(data.error);
     return data;
   },
+  // 본인 계정 탈퇴(관리자 권한 불필요 — 로그인한 누구나 자기 자신만 삭제 가능)
+  async withdrawMyAccount() {
+    const { data, error } = await supabase.functions.invoke('admin', { body: { action: 'delete_self' } });
+    if (error) throw new Error(data?.error || error.message);
+    if (data?.error) throw new Error(data.error);
+    return data;
+  },
 
   // 영수증 사진(base64) → { date, amount, merchant, category } 추출(Gemini Vision, 서버 함수 호출)
   async parseReceipt(image, mimeType, categoryNames) {

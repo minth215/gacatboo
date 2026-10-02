@@ -29,10 +29,6 @@ Deno.serve(async (req) => {
   const { data: userData, error: authErr } = await admin.auth.getUser(token);
   if (authErr || !userData?.user) return json({ error: '인증이 필요합니다.' }, 401);
 
-  // 호출자가 관리자인지 확인
-  const { data: me } = await admin.from('profiles').select('role').eq('id', userData.user.id).single();
-  if (me?.role !== 'admin') return json({ error: '관리자 권한이 필요합니다.' }, 403);
-
   let payload: any;
   try {
     payload = await req.json();
@@ -40,6 +36,27 @@ Deno.serve(async (req) => {
     return json({ error: '잘못된 요청입니다.' }, 400);
   }
   const { action } = payload;
+
+  // 본인 계정 탈퇴는 관리자 권한 없이 누구나(자기 자신에 한해) 가능
+  if (action === 'delete_self') {
+    try {
+      const selfId = userData.user.id;
+      const { data: self } = await admin.from('profiles').select('role').eq('id', selfId).single();
+      if (self?.role === 'admin') {
+        const { count } = await admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'admin');
+        if ((count || 0) <= 1) return json({ error: '최소 한 명의 관리자가 필요합니다. 다른 계정에 관리자 권한을 먼저 부여한 뒤 탈퇴해 주세요.' }, 400);
+      }
+      const { error: dErr } = await admin.auth.admin.deleteUser(selfId); // profiles 는 on delete cascade
+      if (dErr) return json({ error: dErr.message }, 400);
+      return json({ message: '탈퇴가 완료되었습니다.' });
+    } catch (e) {
+      return json({ error: String((e as Error).message ?? e) }, 500);
+    }
+  }
+
+  // 그 외 작업(계정 생성/삭제)은 관리자 전용
+  const { data: me } = await admin.from('profiles').select('role').eq('id', userData.user.id).single();
+  if (me?.role !== 'admin') return json({ error: '관리자 권한이 필요합니다.' }, 403);
 
   try {
     if (action === 'create_user') {

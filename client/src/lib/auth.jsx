@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, isConfigured } from './supabase.js';
+import { db } from './db.js';
 import { rememberAccount, forgetAccount, getSavedAccount } from './accounts.js';
 
 const AuthContext = createContext(null);
@@ -102,8 +103,16 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // 회원 탈퇴 — 서버에서 계정을 완전히 삭제한 뒤, 이미 사라진 세션을 로컬에서만 정리
+  const withdraw = async () => {
+    await db.withdrawMyAccount();
+    if (user) forgetAccount(user.id);
+    await supabase.auth.signOut({ scope: 'local' });
+    setUser(null);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, register, logout, switchAccount, isConfigured }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, register, logout, switchAccount, withdraw, isConfigured }}>
       {children}
     </AuthContext.Provider>
   );

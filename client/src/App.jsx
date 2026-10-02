@@ -9,6 +9,9 @@ import TransactionEdit from './pages/TransactionEdit.jsx';
 import Stats from './pages/Stats.jsx';
 import Settings from './pages/Settings.jsx';
 import ProfileEdit from './pages/ProfileEdit.jsx';
+import ProfileInfoEdit from './pages/ProfileInfoEdit.jsx';
+import PasswordChange from './pages/PasswordChange.jsx';
+import Withdraw from './pages/Withdraw.jsx';
 import FriendManage from './pages/FriendManage.jsx';
 import CategoryManage from './pages/CategoryManage.jsx';
 import SourceManage from './pages/SourceManage.jsx';
@@ -51,6 +54,9 @@ export default function App() {
         <Route path="/groups/:id/member/:memberId" element={<MemberDetail />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/profile" element={<ProfileEdit />} />
+        <Route path="/settings/profile/edit" element={<ProfileInfoEdit />} />
+        <Route path="/settings/profile/password" element={<PasswordChange />} />
+        <Route path="/settings/profile/withdraw" element={<Withdraw />} />
         <Route path="/settings/friends" element={<FriendManage />} />
         <Route path="/settings/categories/:type" element={<CategoryManage />} />
         <Route path="/settings/sources" element={<SourceManage />} />

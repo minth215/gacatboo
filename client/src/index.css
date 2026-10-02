@@ -531,6 +531,7 @@ a { color: inherit; text-decoration: none; }
 .settings-menu-main { flex: 1; min-width: 0; }
 .settings-menu-label { display: block; font-size: 13.75px; font-weight: 600; color: #191722; }
 .settings-menu-desc { display: block; margin-top: 2px; font-size: 10.75px; color: #a29ead; }
+.profile-edit-pencil-btn:hover { color: #191722; background: #f4f2f0; }
 
 /* ---------- 분류 관리 페이지(시안) ---------- */
 .cat-del-btn { width: 30px; height: 30px; border-radius: 50%; border: none; background: transparent; color: #c7c3cc; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
