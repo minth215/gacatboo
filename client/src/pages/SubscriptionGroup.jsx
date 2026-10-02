@@ -87,6 +87,8 @@ const matchSourceId = (flat, name) => { const s = flat.find((x) => x.name === na
 // 정산 탭: 결제 총액을 멤버 수로 나눈 기본 정산액 기준으로 멤버별 입금 현황을 관리
 // (정산 카테고리 그룹의 그룹 상세 페이지에서도 재사용)
 export function SettlementTab({ gid, group, members, isOwner, userId, payments, deposits, reloadMembers, loadDep, sub }) {
+  const [incomeCats, setIncomeCats] = useState([]);
+  useEffect(() => { db.listCategories('income').then(setIncomeCats).catch(() => {}); }, []);
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState('');
   const [toast, setToast] = useState('');
@@ -250,11 +252,12 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     ? (payments.length === 1 ? payments[0] : [...payments].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)).slice(-1)[0])
     : null;
   const settleContentDefault = group?.name ? `${group.name} 정산` : '정산';
+  const settleIncomeCat = incomeCats.find((c) => c.name === '정산');
 
   const createSettleDeposit = (m, date = today()) => db.createDeposit({
     group_id: gid, member_id: m.id, date, amount: m.remaining, periods: 1,
     category_name: settleTargetPayment?.category_name || '정산', category_emoji: settleTargetPayment?.category_emoji || '',
-    leader_category_name: '정산', leader_category_emoji: '',
+    leader_category_name: '정산', leader_category_emoji: settleIncomeCat?.emoji || '',
     // payments 는 구독 그룹(subscription_payments, tx_id로 미러 거래 연결)과 정산 그룹(결제 내역 자체가
     // transactions 행, id가 곧 거래 id)에서 모양이 달라 둘 다 지원한다.
     leader_settlement_target_id: settleTargetPayment?.tx_id || settleTargetPayment?.id || null,
