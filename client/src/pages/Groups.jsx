@@ -100,13 +100,15 @@ export default function Groups() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
                   <span style={{ fontSize: 13.75, fontWeight: 700, color: '#191722' }}>{g.name}</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: '#6c6779', background: '#f4f2f0', borderRadius: 999, padding: '2px 8px' }}>{g.category}</span>
-                  {g.owner_id === user.id && <span style={{ fontSize: 9.5, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>{leaderLabel(g.category)}</span>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#6c6779', background: '#f4f2f0', borderRadius: 999, padding: '2px 8px' }}>{g.category}</span>
+                    {g.owner_id === user.id && <span style={{ fontSize: 9.5, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>{leaderLabel(g.category)}</span>}
+                  </div>
                 </div>
                 <span style={{ fontSize: 10.5, fontWeight: 600, color: '#a29ead', flex: 'none', whiteSpace: 'nowrap' }}>{g.member_count} 명</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
-                <span style={{ fontSize: 11, color: '#8b8798', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.description || '설명 없음'}</span>
+                <span style={{ fontSize: 11, color: '#8b8798', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.description || '-'}</span>
                 <span style={{ fontSize: 10.5, color: '#a29ead', flex: 'none', whiteSpace: 'nowrap' }}>
                   {g.start_date
                     ? (!g.end_date ? `${dotDate(g.start_date)} ~` : g.end_date === g.start_date ? dotDate(g.start_date) : `${dotDate(g.start_date)} ~ ${dotDate(g.end_date)}`)
