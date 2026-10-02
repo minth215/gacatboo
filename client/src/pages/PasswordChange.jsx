@@ -4,11 +4,6 @@ import { supabase } from '../lib/supabase.js';
 import PageHeader from '../components/PageHeader.jsx';
 import { passwordPolicyError } from '../lib/validators.js';
 
-const fieldInputStyle = {
-  fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: '#fff',
-  border: '1.5px solid #efeef2', borderRadius: 12, padding: '13px 14px', outline: 'none', width: '100%',
-};
-
 export default function PasswordChange() {
   const nav = useNavigate();
   const [pwCurrent, setPwCurrent] = useState('');
@@ -16,8 +11,15 @@ export default function PasswordChange() {
   const [pwConfirm, setPwConfirm] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [focus, setFocus] = useState('');
+
+  const fieldInputStyle = (name) => ({
+    fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: '#fff',
+    border: `1.5px solid ${focus === name ? '#191722' : '#efeef2'}`, borderRadius: 12, padding: '13px 14px', outline: 'none', width: '100%',
+  });
 
   const pwMismatch = pwConfirm.length > 0 && pwNew !== pwConfirm;
+  const pwPolicyInvalid = pwNew.length > 0 && !!passwordPolicyError(pwNew);
   const canSubmit = !!(pwCurrent && pwNew && pwConfirm && pwNew === pwConfirm && !passwordPolicyError(pwNew)) && !busy;
 
   const submit = async () => {
@@ -51,22 +53,25 @@ export default function PasswordChange() {
           <span style={{ fontSize: 12, fontWeight: 700, color: '#6c6779' }}>현재 비밀번호</span>
           <input
             type="password" value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)}
-            autoComplete="current-password" placeholder="현재 비밀번호 입력" style={fieldInputStyle}
+            onFocus={() => setFocus('current')} onBlur={() => setFocus('')}
+            autoComplete="current-password" placeholder="현재 비밀번호 입력" style={fieldInputStyle('current')}
           />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: '#6c6779' }}>새 비밀번호</span>
           <input
             type="password" value={pwNew} onChange={(e) => setPwNew(e.target.value)}
-            autoComplete="new-password" placeholder="영문, 숫자 포함 8자 이상" style={fieldInputStyle}
+            onFocus={() => setFocus('new')} onBlur={() => setFocus('')}
+            autoComplete="new-password" placeholder="영문, 숫자 포함 8 자 이상" style={fieldInputStyle('new')}
           />
+          {pwPolicyInvalid && <span style={{ fontSize: 11.5, fontWeight: 600, color: '#FF4358' }}>영문, 숫자 포함 8 자 이상의 비밀번호만 사용 가능합니다.</span>}
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: '#6c6779' }}>새 비밀번호 확인</span>
           <input
             type="password" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)}
-            autoComplete="new-password" placeholder="새 비밀번호 다시 입력"
-            style={{ ...fieldInputStyle, borderColor: pwMismatch ? '#f3b6bd' : '#efeef2' }}
+            onFocus={() => setFocus('confirm')} onBlur={() => setFocus('')}
+            autoComplete="new-password" placeholder="새 비밀번호 다시 입력" style={fieldInputStyle('confirm')}
           />
           {pwMismatch && <span style={{ fontSize: 11.5, fontWeight: 600, color: '#c7414e' }}>비밀번호가 일치하지 않습니다.</span>}
         </label>

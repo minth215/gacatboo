@@ -91,7 +91,7 @@ export default function Register() {
                 onFocus={() => setFocus('nickname')} onBlur={() => setFocus('')} style={inputStyle('nickname')}
               />
               <input
-                placeholder="비밀번호(영문, 숫자 포함 8자 이상)" type="password" autoComplete="new-password"
+                placeholder="비밀번호 (영문, 숫자 포함 8 자 이상)" type="password" autoComplete="new-password"
                 value={form.password} onChange={set('password')}
                 onFocus={() => setFocus('password')} onBlur={() => setFocus('')} style={inputStyle('password')}
               />
