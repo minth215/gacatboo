@@ -86,7 +86,7 @@ const matchSourceId = (flat, name) => { const s = flat.find((x) => x.name === na
 
 // 정산 탭: 결제 총액을 멤버 수로 나눈 기본 정산액 기준으로 멤버별 입금 현황을 관리
 // (정산 카테고리 그룹의 그룹 상세 페이지에서도 재사용)
-export function SettlementTab({ gid, group, members, isOwner, userId, payments, deposits, reloadMembers, loadDep }) {
+export function SettlementTab({ gid, group, members, isOwner, userId, payments, deposits, reloadMembers, loadDep, sub }) {
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState('');
   const [toast, setToast] = useState('');
@@ -256,6 +256,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     category_name: settleTargetPayment?.category_name || '정산', category_emoji: settleTargetPayment?.category_emoji || '',
     leader_category_name: '정산', leader_category_emoji: '',
     leader_settlement_target_id: settleTargetPayment?.tx_id || null,
+    deposit_source_name: sub?.deposit_source_name || '',
     content: settleContentDefault,
   });
 
@@ -864,7 +865,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
       {settlementMode && tab === 'settlement' && (
         <SettlementTab
           gid={gid} group={group} members={members} isOwner={isOwner} userId={user.id}
-          payments={payments} deposits={deposits} reloadMembers={reloadMembers} loadDep={loadDep}
+          payments={payments} deposits={deposits} reloadMembers={reloadMembers} loadDep={loadDep} sub={sub}
         />
       )}
 
@@ -941,6 +942,11 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     if (editing || f.lSourceId || !sub?.deposit_source_id) return;
     setF((prev) => ({ ...prev, lSourceId: String(sub.deposit_source_id) }));
   }, [editing, sub]);
+  // 정산 대상 지출이 하나뿐이면 자동으로 선택해 둔다.
+  useEffect(() => {
+    if (editing || !isOwner || f.lSettleId || !isSettleMode || recentExpenses.length !== 1) return;
+    setF((prev) => ({ ...prev, lSettleId: String(recentExpenses[0].id) }));
+  }, [editing, isOwner, isSettleMode, recentExpenses]);
   // 수정 화면 진입 시 분류/원천 목록이 initial 보다 늦게 도착해 "(기존)"으로만
   // 표시되던 문제 보정: 목록이 도착한 뒤 실제로 일치하는 항목이 있으면 교체
   useEffect(() => {
