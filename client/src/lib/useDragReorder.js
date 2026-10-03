@@ -15,10 +15,13 @@ export function useDragReorder(items, setItems, persist) {
 
   const startDrag = (id) => (e) => {
     e.preventDefault();
-    const el = e.currentTarget;
-    el.setPointerCapture(e.pointerId);
     setDragId(id);
 
+    // 핸들 엘리먼트(el)가 아니라 window 에 리스너를 건다. 한 칸 옮길 때마다 React가 목록을
+    // 재정렬하며 핸들을 DOM 안에서 이동시키는데, setPointerCapture 로 캡처해둔 상태로 그
+    // 이동이 일어나면 브라우저가 캡처를 조용히 풀어버려 다음 pointermove부터는 이벤트가
+    // 와야 할 el로 오지 않는다(핸들을 놓았다 다시 잡아야만 계속 움직이던 원인). window는
+    // 목록 재정렬과 무관하게 항상 같은 자리에 있으므로 이 문제가 없다.
     const onMove = (ev) => {
       const y = ev.clientY;
       const list = orderRef.current;
@@ -36,15 +39,15 @@ export function useDragReorder(items, setItems, persist) {
       }
     };
     const onUp = () => {
-      el.removeEventListener('pointermove', onMove);
-      el.removeEventListener('pointerup', onUp);
-      el.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
       setDragId(null);
       persist(orderRef.current.map((x) => x.id));
     };
-    el.addEventListener('pointermove', onMove);
-    el.addEventListener('pointerup', onUp);
-    el.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   };
 
   return { dragId, setRowRef, startDrag };
