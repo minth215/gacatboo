@@ -89,6 +89,29 @@ Deno.serve(async (req) => {
       return json({ message: '계정이 삭제되었습니다.' });
     }
 
+    // 관리자 페이지 회원 카드/상세에 이메일을 보여주기 위함. profiles 테이블에는 이메일을
+    // 두지 않는다(전원 조회 가능한 RLS라 다른 사용자에게 노출될 수 있어서). auth.users 는
+    // service_role 로만 읽을 수 있어 이 함수를 거쳐야 한다.
+    if (action === 'list_user_emails') {
+      const perPage = 1000;
+      const all: { id: string; email: string | null }[] = [];
+      for (let page = 1; ; page++) {
+        const { data, error: lErr } = await admin.auth.admin.listUsers({ page, perPage });
+        if (lErr) return json({ error: lErr.message }, 400);
+        all.push(...data.users.map((u) => ({ id: u.id, email: u.email ?? null })));
+        if (data.users.length < perPage) break;
+      }
+      return json({ users: all });
+    }
+
+    if (action === 'reset_password') {
+      const { id, password } = payload;
+      if (!id || !password) return json({ error: '대상과 새 비밀번호가 필요합니다.' }, 400);
+      const { error: rErr } = await admin.auth.admin.updateUserById(id, { password });
+      if (rErr) return json({ error: rErr.message }, 400);
+      return json({ message: '비밀번호가 초기화되었습니다.' });
+    }
+
     return json({ error: '알 수 없는 작업입니다.' }, 400);
   } catch (e) {
     return json({ error: String((e as Error).message ?? e) }, 500);

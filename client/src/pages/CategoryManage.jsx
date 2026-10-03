@@ -62,9 +62,10 @@ export default function CategoryManage() {
         ) : categories.map((c, i) => (
           <div
             key={c.id} ref={setRowRef(c.id)}
+            className={dragId === c.id ? 'drag-lift' : ''}
             style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 16px', background: '#fff',
-              borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5', opacity: dragId === c.id ? 0.35 : 1,
+              borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5',
             }}
           >
             <button onClick={() => openEdit(c)} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', minWidth: 0 }}>

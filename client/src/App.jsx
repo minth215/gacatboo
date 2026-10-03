@@ -27,6 +27,7 @@ import GroupDetail from './pages/GroupDetail.jsx';
 import GroupEdit from './pages/GroupEdit.jsx';
 import MemberDetail from './pages/MemberDetail.jsx';
 import Admin from './pages/Admin.jsx';
+import AdminUserDetail from './pages/AdminUserDetail.jsx';
 import Spinner from './components/Spinner.jsx';
 
 function Protected({ children, adminOnly }) {
@@ -71,6 +72,7 @@ export default function App() {
         <Route path="/settings/notifications" element={<SettingsNotifications />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
+        <Route path="/admin/users/:id" element={<Protected adminOnly><AdminUserDetail /></Protected>} />
       </Route>
 
       <Route path="*" element={<Navigate to={loading ? '/login' : '/'} replace />} />

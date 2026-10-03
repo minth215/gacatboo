@@ -1,10 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
-import { useAuth } from '../lib/auth.jsx';
 import { useDragReorder } from '../lib/useDragReorder.js';
 import Modal from '../components/Modal.jsx';
 
-const STATUS_LABEL = { approved: '승인됨', pending: '대기중', rejected: '거부됨' };
+const Chevron = () => (
+  <svg width="16" viewBox="0 0 24 24" fill="none" stroke="#c7c3cc" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}>
+    <polyline points="9 6 15 12 9 18" />
+  </svg>
+);
 
 export default function Admin() {
   const [tab, setTab] = useState('members'); // members | notifications
@@ -23,27 +27,25 @@ export default function Admin() {
 }
 
 function AdminMembers() {
-  const { user } = useAuth();
+  const nav = useNavigate();
   const [users, setUsers] = useState([]);
+  const [emails, setEmails] = useState({}); // id -> email
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ email: '', username: '', display_name: '', password: '', role: 'user' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(() => db.listUsers().then(setUsers).catch((e) => alert(e.message)), []);
+  const load = useCallback(() => {
+    db.listUsers().then(setUsers).catch((e) => alert(e.message));
+    db.listUserEmails().then((rows) => {
+      const m = {};
+      (rows || []).forEach((r) => { m[r.id] = r.email; });
+      setEmails(m);
+    }).catch(() => {});
+  }, []);
   useEffect(() => { load(); }, [load]);
 
   const setStatus = async (u, status) => { try { await db.setUserStatus(u.id, status); load(); } catch (e) { alert(e.message); } };
-  const setRole = async (u, role) => {
-    if (u.role === 'admin' && role === 'user' && users.filter((x) => x.role === 'admin').length <= 1) {
-      return alert('최소 한 명의 관리자가 필요합니다.');
-    }
-    try { await db.setUserRole(u.id, role); load(); } catch (e) { alert(e.message); }
-  };
-  const remove = async (u) => {
-    if (!confirm(`${u.display_name}(@${u.username}) 계정을 삭제할까요?`)) return;
-    try { await db.deleteUser(u.id); load(); } catch (e) { alert(e.message); }
-  };
 
   const create = async (e) => {
     e.preventDefault();
@@ -78,28 +80,24 @@ function AdminMembers() {
         </div>
       )}
 
-      <div className="card">
-        <h3>전체 회원 ({users.length})</h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '18px 2px 10px' }}>
+        <span style={{ fontSize: 15, fontWeight: 800, color: '#191722' }}>전체 회원</span>
+        <span className="chip">{users.length}</span>
+      </div>
+
+      <div className="ntpl-list">
         {users.map((u) => (
-          <div className="list-item" key={u.id}>
-            <div className="li-main">
-              <div style={{ fontWeight: 600 }}>
+          <button key={u.id} type="button" className="ntpl-card ntpl-card-btn" onClick={() => nav(`/admin/users/${u.id}`)}>
+            <span className="ntpl-main" style={{ cursor: 'default' }}>
+              <span className="ntpl-title">
                 {u.display_name}
-                {u.role === 'admin' && <span className="badge admin" style={{ marginLeft: 6 }}>관리자</span>}
-              </div>
-              <div className="small muted">@{u.username} · <span className={`badge ${u.status}`}>{STATUS_LABEL[u.status]}</span></div>
-            </div>
-            {u.id !== user.id && (
-              <div className="row">
-                {u.status !== 'approved' && <button className="btn sm ghost" onClick={() => setStatus(u, 'approved')}>승인</button>}
-                {u.status === 'approved' && <button className="btn sm ghost" onClick={() => setStatus(u, 'rejected')}>차단</button>}
-                <button className="btn sm ghost" onClick={() => setRole(u, u.role === 'admin' ? 'user' : 'admin')}>
-                  {u.role === 'admin' ? '관리자 해제' : '관리자 지정'}
-                </button>
-                <button className="btn sm ghost" style={{ color: 'var(--expense)' }} onClick={() => remove(u)}>삭제</button>
-              </div>
-            )}
-          </div>
+                <span className="member-username"> @{u.username}</span>
+                {u.role === 'admin' && <span className="settings-admin-badge" style={{ marginLeft: 6 }}>관리자</span>}
+              </span>
+              <span className="ntpl-body">{emails[u.id] || ''}</span>
+            </span>
+            <Chevron />
+          </button>
         ))}
       </div>
 
@@ -187,8 +185,8 @@ function AdminNotifications() {
       ) : (
         <div className="ntpl-list">
           {templates.map((t) => (
-            <div key={t.id} ref={setRowRef(t.id)} className="ntpl-card"
-              style={{ opacity: dragId === t.id ? 0.4 : t.active ? 1 : 0.5 }}>
+            <div key={t.id} ref={setRowRef(t.id)} className={`ntpl-card${dragId === t.id ? ' drag-lift' : ''}`}
+              style={{ opacity: dragId === t.id ? 1 : t.active ? 1 : 0.5 }}>
               <span
                 className={`ntpl-emoji${editMode ? ' draggable' : ''}${dragId === t.id ? ' dragging' : ''}`}
                 style={{ background: t.color || '#f4f2f0' }}

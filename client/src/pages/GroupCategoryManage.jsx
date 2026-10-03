@@ -78,9 +78,10 @@ export default function GroupCategoryManage() {
           ) : (
             <div
               key={c.id} ref={setRowRef(c.id)}
+              className={dragId === c.id ? 'drag-lift' : ''}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 18px', background: '#fff',
-                borderTop: (i === 0 && !adding) ? 'none' : '1.5px solid #f2f1f5', opacity: dragId === c.id ? 0.35 : 1,
+                borderTop: (i === 0 && !adding) ? 'none' : '1.5px solid #f2f1f5',
               }}
             >
               <span style={{ flex: 1, fontSize: 13.75, fontWeight: 600, color: '#191722' }}>{c.name}</span>

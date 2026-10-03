@@ -788,6 +788,20 @@ export const db = {
     if (data?.error) throw new Error(data.error);
     return data;
   },
+  // 회원 카드/상세에 표시할 이메일 목록(profiles 테이블에는 이메일을 두지 않음 — 전원 조회
+  // 가능한 RLS라 다른 사용자에게 노출될 수 있어서). [{id, email}]
+  async listUserEmails() {
+    const { data, error } = await supabase.functions.invoke('admin', { body: { action: 'list_user_emails' } });
+    if (error) throw new Error(data?.error || error.message);
+    if (data?.error) throw new Error(data.error);
+    return data.users;
+  },
+  async resetUserPassword(id, password) {
+    const { data, error } = await supabase.functions.invoke('admin', { body: { action: 'reset_password', id, password } });
+    if (error) throw new Error(data?.error || error.message);
+    if (data?.error) throw new Error(data.error);
+    return data;
+  },
   // 본인 계정 탈퇴(관리자 권한 불필요 — 로그인한 누구나 자기 자신만 삭제 가능)
   async withdrawMyAccount() {
     const { data, error } = await supabase.functions.invoke('admin', { body: { action: 'delete_self' } });
