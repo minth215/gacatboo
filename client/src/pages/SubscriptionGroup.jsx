@@ -242,9 +242,15 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     toastTimer.current = setTimeout(() => setToast(''), 2200);
   };
 
-  const poke = (m) => {
+  const poke = async (m) => {
     if (!m.is_account) { showToast('외부 멤버에게는 알림을 보낼 수 없습니다.'); return; }
-    alert(`${m.nickname}님에게 정산 알림을 보냈습니다. (푸시 알림 기능은 추후 제공될 예정입니다)`);
+    const vars = { group_name: group?.name || '', amount: fmtNum(m.remaining), group_id: gid };
+    const link = `/groups/${gid}?tab=settlement`;
+    try {
+      await db.notifyUser(m.user_id, 'settlement_request', vars, link);
+      db.sendPushBestEffort(m.user_id, 'settlement_request', vars, link);
+      showToast(`${m.nickname}님에게 정산 알림을 보냈습니다.`);
+    } catch (e) { alert(e.message); }
   };
 
   // 정산 대상 지출: 결제 내역이 한 건뿐이면 그 항목, 여러 건이면 가장 최근 결제 항목을 정산 대상으로 삼는다.
@@ -305,10 +311,16 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     try { await createSettleDeposit(m); setPayOpen(null); loadDep(); } catch (e) { alert(e.message); }
   };
 
-  const requestSettlement = () => {
+  const requestSettlement = async () => {
     const targets = rows.filter((r) => r.role !== 'owner' && r.is_account && !r.settled);
     if (!targets.length) return alert('알림을 보낼 대상이 없습니다.');
-    alert(`${targets.length}명에게 정산 요청 알림을 보냈습니다. (푸시 알림 기능은 추후 제공될 예정입니다)`);
+    const link = `/groups/${gid}?tab=settlement`;
+    await Promise.all(targets.map((t) => {
+      const vars = { group_name: group?.name || '', amount: fmtNum(t.remaining), group_id: gid };
+      db.sendPushBestEffort(t.user_id, 'settlement_request', vars, link);
+      return db.notifyUser(t.user_id, 'settlement_request', vars, link).catch(() => {});
+    }));
+    showToast(`${targets.length}명에게 정산 요청 알림을 보냈습니다.`);
   };
 
   const settleAll = async (date) => {

@@ -424,6 +424,13 @@ export const db = {
     if (memo && memo.trim()) {
       unwrap(await supabase.from('group_member_notes').insert({ member_id: row.id, group_id: groupId, memo: memo.trim() }));
     }
+    if (user_id) {
+      const group = unwrap(await supabase.from('groups').select('name').eq('id', groupId).maybeSingle());
+      const vars = { group_name: group?.name || '', group_id: groupId };
+      const link = `/groups/${groupId}`;
+      this.notifyUser(user_id, 'group_invite', vars, link).catch(() => {});
+      this.sendPushBestEffort(user_id, 'group_invite', vars, link);
+    }
     return row;
   },
   async updateMember(memberId, groupId, patch) {
@@ -590,6 +597,7 @@ export const db = {
       if (txIds.length) unwrap(await supabase.from('transactions').update({ recurring_id: rule.id }).in('id', txIds));
       // 과거 날짜로 반복을 새로 걸었고 사용자가 일괄 생성을 선택한 경우: 밀린 회차를 한 번에 생성
       if (p.backfillPast) await this.backfillRecurringRule(rule.id);
+      this._notifyRecurringRegistered(p.group_id, p.member_id, userId, p.content || r.label || '');
     }
     return depId;
   },
@@ -613,6 +621,7 @@ export const db = {
         recurring_id = rule.id;
         const txIds = [existing.leader_tx_id, existing.member_tx_id].filter(Boolean);
         if (txIds.length) unwrap(await supabase.from('transactions').update({ recurring_id }).in('id', txIds));
+        this._notifyRecurringRegistered(existing.group_id, existing.member_id, userId, p.content || r.label || '');
       }
     }
     const patch = {
@@ -806,5 +815,93 @@ export const db = {
     }
     if (data?.error) throw new Error(data.error);
     return data;
+  },
+
+  // ---------- 알림 ----------
+  // 인앱 알림 피드(푸시 허용 여부와 무관하게 항상 쌓임)
+  async listNotifications() {
+    return unwrap(await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(200));
+  },
+  async countUnreadNotifications() {
+    const { count, error } = await supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null);
+    if (error) throw new Error(error.message);
+    return count || 0;
+  },
+  async markNotificationRead(id) {
+    return unwrap(await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id));
+  },
+  async markAllNotificationsRead() {
+    return unwrap(await supabase.from('notifications').update({ read_at: new Date().toISOString() }).is('read_at', null));
+  },
+  async deleteNotification(id) {
+    return unwrap(await supabase.from('notifications').delete().eq('id', id));
+  },
+
+  // 알림 생성(RPC, SECURITY DEFINER — 다른 사용자에게도 알림을 만들 수 있음).
+  // group_id 를 vars 에 넣으면 서버에서 호출자·수신자가 같은 그룹 멤버인지 확인함.
+  // 실패해도(예: 권한 없음, 템플릿 비활성) 호출부의 본 작업을 막지 않도록 항상 조용히 넘어가게 쓸 것.
+  async notifyUser(userId, eventKey, vars = {}, link = null) {
+    const { data, error } = await supabase.rpc('notify_user', { p_user_id: userId, p_event_key: eventKey, p_vars: vars, p_link: link });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  // 구독 그룹에 반복 항목이 등록됐을 때, 등록한 사람이 아닌 "상대방"(총대 ↔ 멤버)에게 알림.
+  // 실패해도 반복 등록 자체를 막지 않도록 내부에서 에러를 모두 삼킨다.
+  async _notifyRecurringRegistered(groupId, memberId, initiatorUserId, content) {
+    try {
+      const group = unwrap(await supabase.from('groups').select('id, name, owner_id').eq('id', groupId).maybeSingle());
+      const member = unwrap(await supabase.from('group_members').select('user_id').eq('id', memberId).maybeSingle());
+      const counterpart = group?.owner_id === initiatorUserId ? member?.user_id : group?.owner_id;
+      if (!counterpart || counterpart === initiatorUserId) return;
+      const vars = { group_name: group?.name || '', content: (content || '').trim(), group_id: groupId };
+      const link = `/groups/${groupId}`;
+      this.notifyUser(counterpart, 'recurring_registered', vars, link).catch(() => {});
+      this.sendPushBestEffort(counterpart, 'recurring_registered', vars, link);
+    } catch {}
+  },
+
+  // 알림 설정(푸시 전체 on/off + 상황별 on/off)
+  async getNotificationSettings() {
+    return unwrap(await supabase.from('user_notification_settings').select('*').maybeSingle());
+  },
+  async setPushEnabled(userId, enabled) {
+    return unwrap(await supabase.from('user_notification_settings')
+      .upsert({ user_id: userId, push_enabled: enabled, updated_at: new Date().toISOString() }).select().single());
+  },
+  async listNotificationEventPrefs() {
+    return unwrap(await supabase.from('user_notification_event_prefs').select('*'));
+  },
+  async setNotificationEventPref(userId, eventKey, enabled) {
+    return unwrap(await supabase.from('user_notification_event_prefs')
+      .upsert({ user_id: userId, event_key: eventKey, enabled }).select().single());
+  },
+
+  // 푸시 구독(기기별). endpoint 가 곧 식별자.
+  async addPushSubscription(userId, sub) {
+    return unwrap(await supabase.from('push_subscriptions')
+      .upsert({ user_id: userId, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth }, { onConflict: 'endpoint' }));
+  },
+  async removePushSubscription(endpoint) {
+    return unwrap(await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint));
+  },
+
+  // 관리자: 알림 템플릿 관리(제목/본문/이모지/배경색, {{변수}} 치환 지원)
+  async listNotificationTemplates() {
+    return unwrap(await supabase.from('notification_templates').select('*').order('id'));
+  },
+  async upsertNotificationTemplate(t) {
+    return unwrap(await supabase.from('notification_templates').upsert(t).select().single());
+  },
+  async deleteNotificationTemplate(id) {
+    return unwrap(await supabase.from('notification_templates').delete().eq('id', id));
+  },
+
+  // 실제 OS 푸시 발송(서버 Edge Function, best-effort). 함수가 아직 배포되지 않았거나
+  // 네트워크 문제로 실패해도 호출부에서 조용히 무시하도록 설계됨(인앱 알림은 이미 저장됨).
+  async sendPushBestEffort(userId, eventKey, vars = {}, link = null) {
+    try {
+      await supabase.functions.invoke('send-push', { body: { userId, eventKey, vars, link } });
+    } catch {}
   },
 };

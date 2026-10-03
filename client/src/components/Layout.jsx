@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
+import { db } from '../lib/db.js';
 
 const S = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
 const Icon = ({ name }) => {
@@ -12,6 +14,8 @@ const Icon = ({ name }) => {
       return (<svg viewBox="0 0 24 24" {...S}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>);
     case 'settings':
       return (<svg viewBox="0 0 24 24" {...S}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>);
+    case 'notifications':
+      return (<svg viewBox="0 0 24 24" {...S}><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>);
     default:
       return null;
   }
@@ -21,11 +25,12 @@ const NAV = [
   { to: '/', label: '가계부', icon: 'ledger', end: true },
   { to: '/stats', label: '통계', icon: 'stats' },
   { to: '/groups', label: '그룹', icon: 'groups' },
+  { to: '/notifications', label: '알림', icon: 'notifications' },
   { to: '/settings', label: '설정', icon: 'settings' },
 ];
 
 // 설정의 상세 메뉴 페이지(드릴다운)와 그룹 만들기(자체 하단 액션 바가 있는 전체 화면 마법사)에서는 하단 탭바를 숨김
-const HIDE_BOTTOMNAV_PREFIXES = ['/settings/profile', '/settings/categories', '/settings/sources', '/settings/card-benefits', '/settings/group-categories', '/settings/currency', '/settings/recurring', '/groups/new'];
+const HIDE_BOTTOMNAV_PREFIXES = ['/settings/profile', '/settings/categories', '/settings/sources', '/settings/card-benefits', '/settings/group-categories', '/settings/currency', '/settings/recurring', '/settings/notifications', '/groups/new'];
 
 // 그룹 상세의 "그룹 정보" 수정 페이지(/groups/:id/edit)도 하단 탭바를 숨김. id가 경로 중간에
 // 오는 동적 라우트라 접두사만으로는 매칭할 수 없어 별도로 검사한다.
@@ -35,6 +40,10 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const hideBottomNav = HIDE_BOTTOMNAV_PREFIXES.some((p) => location.pathname.startsWith(p)) || isGroupEditPath(location.pathname);
+
+  // 하단 탭의 알림 배지(안 읽은 개수). 페이지를 이동할 때마다 다시 확인.
+  const [unread, setUnread] = useState(0);
+  useEffect(() => { db.countUnreadNotifications().then(setUnread).catch(() => {}); }, [location.pathname]);
 
   return (
     <div className={`app${hideBottomNav ? ' no-bottomnav' : ''}`}>
@@ -54,7 +63,15 @@ export default function Layout() {
         <nav className="bottomnav">
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
-              <span className="ico"><Icon name={n.icon} /></span>
+              <span className="ico" style={{ position: 'relative' }}>
+                <Icon name={n.icon} />
+                {n.icon === 'notifications' && unread > 0 && (
+                  <span style={{
+                    position: 'absolute', top: -3, right: -5, minWidth: 8, height: 8, borderRadius: 999,
+                    background: '#FF3B5C', border: '1.5px solid #fff',
+                  }} />
+                )}
+              </span>
               {n.label}
             </NavLink>
           ))}

@@ -82,7 +82,7 @@ export default function Settings() {
     {
       label: '설정',
       items: [
-        { label: '알림 관리', desc: '세부 항목별 알림 수신 설정', bg: '#fff1e6', icon: '🔔' },
+        { label: '알림 관리', desc: '세부 항목별 알림 수신 설정', bg: '#fff1e6', icon: '🔔', to: '/settings/notifications' },
         { label: '화폐 설정', desc: '보조 화폐 추가 및 환율 자동 환산 설정', bg: '#eef1fb', icon: '💱', to: '/settings/currency' },
         { label: '내보내기', desc: '가계부 데이터 파일 백업', bg: '#eef1fb', icon: '📤' },
         { label: '가져오기', desc: '파일 업로드로 가계부 데이터 복원', bg: '#e8f6ee', icon: '📥' },
