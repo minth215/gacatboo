@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtWon, fmtNum, dotDate } from '../lib/format.js';
-import { describeRule, periodDetailLabel } from '../lib/recurrence.js';
+import { describeRule, periodDetailLabel, BUSINESS_DAY_LABELS } from '../lib/recurrence.js';
 import PageHeader from '../components/PageHeader.jsx';
 import RecurrenceModal from '../components/RecurrenceModal.jsx';
 
@@ -23,7 +23,7 @@ export default function RecurringManage() {
   const [rules, setRules] = useState([]);
   const [picking, setPicking] = useState(false);
   const [detail, setDetail] = useState(null);
-  const [savingEnd, setSavingEnd] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => db.listRecurringRules().then(setRules).catch((e) => alert(e.message)), []);
   useEffect(() => { load(); }, [load]);
@@ -43,12 +43,22 @@ export default function RecurringManage() {
 
   const saveEndDate = async (value) => {
     if (!detail) return;
-    setSavingEnd(true);
+    setSaving(true);
     try {
       await db.updateRecurringRuleEndDate(detail.id, value || null);
       setRules((prev) => prev.map((x) => (x.id === detail.id ? { ...x, end_date: value || null } : x)));
       setDetail((d) => (d ? { ...d, end_date: value || null } : d));
-    } catch (e) { alert(e.message); } finally { setSavingEnd(false); }
+    } catch (e) { alert(e.message); } finally { setSaving(false); }
+  };
+
+  const saveBusinessDay = async (value) => {
+    if (!detail || detail.business_day_rule === value) return;
+    setSaving(true);
+    try {
+      await db.updateRecurringRuleBusinessDay(detail.id, value);
+      setRules((prev) => prev.map((x) => (x.id === detail.id ? { ...x, business_day_rule: value } : x)));
+      setDetail((d) => (d ? { ...d, business_day_rule: value } : d));
+    } catch (e) { alert(e.message); } finally { setSaving(false); }
   };
 
   return (
@@ -142,12 +152,12 @@ export default function RecurringManage() {
                         {detail.end_date ? dotDate(detail.end_date) : '종료일 없음'}
                       </div>
                       <input
-                        type="date" value={detail.end_date || ''} disabled={savingEnd} className="catmodal-date-input"
+                        type="date" value={detail.end_date || ''} disabled={saving} className="catmodal-date-input"
                         onChange={(e) => { if (e.target.value) saveEndDate(e.target.value); }}
                       />
                     </div>
                     {detail.end_date && (
-                      <button type="button" onClick={() => saveEndDate('')} disabled={savingEnd} className="edit-link" style={{ flex: 'none' }}>지우기</button>
+                      <button type="button" onClick={() => saveEndDate('')} disabled={saving} className="edit-link" style={{ flex: 'none' }}>지우기</button>
                     )}
                   </div>
                 </div>
@@ -156,6 +166,26 @@ export default function RecurringManage() {
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>반복 주기</span>
                   <span style={{ fontSize: 13.25, color: '#6c6779' }}>{periodDetailLabel(detail)}</span>
                 </div>
+
+                {(detail.freq_unit === 'month' || detail.freq_unit === 'year') && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>영업일 처리</span>
+                    <div style={{ display: 'flex', background: '#f4f2f0', borderRadius: 999, padding: 3 }}>
+                      {Object.entries(BUSINESS_DAY_LABELS).map(([v, label]) => (
+                        <button
+                          key={v} type="button" disabled={saving} onClick={() => saveBusinessDay(v)}
+                          style={{
+                            flex: 1, border: 'none', borderRadius: 999, padding: '8px 0', fontFamily: 'inherit',
+                            fontSize: 11.75, fontWeight: 700, cursor: saving ? 'default' : 'pointer',
+                            background: (detail.business_day_rule || 'none') === v ? '#fff' : 'transparent',
+                            color: (detail.business_day_rule || 'none') === v ? '#191722' : '#8b8798',
+                          }}
+                        >{label}</button>
+                      ))}
+                    </div>
+                    <p className="small muted" style={{ margin: 0 }}>반복일이 토·일요일이면 전/후 영업일로 자동 조정됩니다.</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

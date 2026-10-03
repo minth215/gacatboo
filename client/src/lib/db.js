@@ -118,6 +118,10 @@ export const db = {
   async updateRecurringRuleEndDate(id, endDate) {
     return unwrap(await supabase.from('recurring_rules').update({ end_date: endDate || null }).eq('id', id).select().single());
   },
+  // 영업일 보정: 'none' | 'before'(전 영업일) | 'after'(후 영업일). 월/연 반복에만 의미가 있음.
+  async updateRecurringRuleBusinessDay(id, rule) {
+    return unwrap(await supabase.from('recurring_rules').update({ business_day_rule: rule }).eq('id', id).select().single());
+  },
   // 과거 날짜로 반복을 새로 걸었을 때 밀린 회차를 한 번에 생성(시작일 다음날 ~ 오늘). 생성 개수 반환.
   async backfillRecurringRule(ruleId) {
     const { data, error } = await supabase.rpc('backfill_recurring_rule', { p_rule_id: ruleId });

@@ -108,17 +108,23 @@ export function describeRule(rule) {
   return `${rule.freq_interval}${UNIT_LABEL[rule.freq_unit]}마다`;
 }
 
+export const BUSINESS_DAY_LABELS = { none: '없음', before: '전 영업일', after: '후 영업일' };
+
 // 반복 상세 화면용: 시작일에서 뽑아낸 실제 일자(월/연 반복일 때)까지 포함한 사람이 읽는 주기 설명.
 // 예: 매월(간격1) → "매월 1 일", 매년(간격1) → "매년 1 월 1 일", 3개월마다 → "3개월마다 1 일".
+// 영업일 보정이 설정돼 있으면 뒤에 괄호로 덧붙인다(예: "매월 25 일 (전 영업일)").
 export function periodDetailLabel(rule) {
   if (rule.freq_unit === 'month' || rule.freq_unit === 'year') {
     const d = new Date(`${rule.start_date}T00:00:00`);
     const day = d.getDate();
-    if (rule.freq_unit === 'month') {
-      return rule.freq_interval > 1 ? `${rule.freq_interval}개월마다 ${day} 일` : `매월 ${day} 일`;
-    }
-    const month = d.getMonth() + 1;
-    return rule.freq_interval > 1 ? `${rule.freq_interval}년마다 ${month} 월 ${day} 일` : `매년 ${month} 월 ${day} 일`;
+    const base = rule.freq_unit === 'month'
+      ? (rule.freq_interval > 1 ? `${rule.freq_interval}개월마다 ${day} 일` : `매월 ${day} 일`)
+      : (() => {
+        const month = d.getMonth() + 1;
+        return rule.freq_interval > 1 ? `${rule.freq_interval}년마다 ${month} 월 ${day} 일` : `매년 ${month} 월 ${day} 일`;
+      })();
+    return rule.business_day_rule && rule.business_day_rule !== 'none'
+      ? `${base} (${BUSINESS_DAY_LABELS[rule.business_day_rule]})` : base;
   }
   return describeRule(rule);
 }
