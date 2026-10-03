@@ -389,9 +389,17 @@ export default function Stats() {
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button aria-label="이전" onClick={() => movePeriod(-1)} style={roundBtn}>{arrow('15 6 9 12 15 18')}</button>
-          <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', minWidth: periodMode === 'week' ? 0 : 88, textAlign: 'center', whiteSpace: 'nowrap' }}>
-            {periodLabel(periodMode, anchor)}
-          </span>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: periodMode === 'week' ? 0 : 88 }}>
+            <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>
+              {periodLabel(periodMode, anchor)}
+            </span>
+            {periodMode === 'month' && (
+              <input
+                type="month" value={month} aria-label="연월 선택" className="catmodal-date-input"
+                onChange={(e) => { if (e.target.value) setMonth(e.target.value); }}
+              />
+            )}
+          </div>
           <button aria-label="다음" onClick={() => movePeriod(1)} style={roundBtn}>{arrow('9 6 15 12 9 18')}</button>
         </div>
       )}
