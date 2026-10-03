@@ -243,7 +243,7 @@ export default function Ledger() {
               <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
             </button>
             {/* 가운데 연월 텍스트를 누르면 네이티브 월 선택기가 떠서 직접 고를 수 있음(텍스트는 숨긴 input 아래 그대로 보임) */}
-            <div style={{ position: 'relative', minWidth: 88, textAlign: 'center' }}>
+            <div style={{ position: 'relative', minWidth: 88, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px' }}>{label}</span>
               <input
                 type="month" value={month} aria-label="연월 선택" className="catmodal-date-input"
