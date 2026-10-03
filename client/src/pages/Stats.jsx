@@ -101,6 +101,14 @@ export default function Stats() {
   const [week, setWeek] = useState(() => restoreRef.current?.week ?? weekStartOf(today()));
   const [year, setYear] = useState(() => restoreRef.current?.year ?? currentYear());
   const [range, setRange] = useState(() => restoreRef.current?.range ?? { from: shiftDate(today(), -6), to: today() });
+  // 연별 모드의 연도 선택기(select) 목록. 현재 연도 기준 앞뒤로 넉넉히 두고, 선택된 연도가 범위 밖이어도 포함시킴.
+  const yearOptions = useMemo(() => {
+    const cur = Number(currentYear());
+    const set = new Set();
+    for (let y = cur - 20; y <= cur + 5; y++) set.add(y);
+    set.add(Number(year));
+    return [...set].sort((a, b) => a - b).map(String);
+  }, [year]);
 
   const [tab, setTab] = useState(() => restoreRef.current?.tab ?? 'expense'); // expense | income
   const [statView, setStatView] = useState(() => restoreRef.current?.statView ?? 'category'); // category | source | item
@@ -400,11 +408,12 @@ export default function Stats() {
               />
             )}
             {periodMode === 'year' && (
-              <input
-                type="number" inputMode="numeric" value={year} aria-label="연도 선택" className="catmodal-date-input"
-                min={2000} max={2099}
-                onChange={(e) => { if (/^\d{4}$/.test(e.target.value)) setYear(e.target.value); }}
-              />
+              <select
+                value={year} aria-label="연도 선택" className="catmodal-date-input"
+                onChange={(e) => setYear(e.target.value)}
+              >
+                {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
             )}
           </div>
           <button aria-label="다음" onClick={() => movePeriod(1)} style={roundBtn}>{arrow('9 6 15 12 9 18')}</button>
