@@ -3,7 +3,6 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { useDragReorder } from '../lib/useDragReorder.js';
 import Modal from '../components/Modal.jsx';
-import PageHeader from '../components/PageHeader.jsx';
 
 const STATUS_LABEL = { approved: '승인됨', pending: '대기중', rejected: '거부됨' };
 
@@ -11,10 +10,9 @@ export default function Admin() {
   const [tab, setTab] = useState('members'); // members | notifications
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title="관리자" />
-
-      <div className="underline-tabs" style={{ marginTop: 4 }}>
+    <div style={{ padding: '32px 0 12px' }}>
+      {/* 뒤로가기 헤더 없이 탭이 바로 상단바 역할을 함(최상위 탭 화면이므로 바텀 네비로 벗어남) */}
+      <div className="underline-tabs" style={{ top: 0 }}>
         <button className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>회원 관리</button>
         <button className={tab === 'notifications' ? 'active' : ''} onClick={() => setTab('notifications')}>알림 관리</button>
       </div>
