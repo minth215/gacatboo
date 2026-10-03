@@ -183,7 +183,6 @@ export default function RecurringManage() {
                         >{label}</button>
                       ))}
                     </div>
-                    <p className="small muted" style={{ margin: 0 }}>반복일이 토·일요일이면 전/후 영업일로 자동 조정됩니다.</p>
                   </div>
                 )}
               </div>
