@@ -890,12 +890,16 @@ export const db = {
   async listNotificationTemplates() {
     return unwrap(await supabase.from('notification_templates').select('*').order('sort_order').order('id'));
   },
+  // id 는 generated always as identity 라 upsert()로 넘기면(수정 시 기존 id 포함) 에러가 나서
+  // 추가/수정을 명시적으로 나눠 처리한다.
   async upsertNotificationTemplate(t) {
-    if (!t.id && t.sort_order == null) {
-      const existing = unwrap(await supabase.from('notification_templates').select('sort_order').order('sort_order', { ascending: false }).limit(1));
-      t = { ...t, sort_order: (existing[0]?.sort_order ?? -1) + 1 };
+    if (t.id) {
+      const { id, ...patch } = t;
+      return unwrap(await supabase.from('notification_templates').update(patch).eq('id', id).select().single());
     }
-    return unwrap(await supabase.from('notification_templates').upsert(t).select().single());
+    const existing = unwrap(await supabase.from('notification_templates').select('sort_order').order('sort_order', { ascending: false }).limit(1));
+    const sort_order = t.sort_order ?? (existing[0]?.sort_order ?? -1) + 1;
+    return unwrap(await supabase.from('notification_templates').insert({ ...t, sort_order }).select().single());
   },
   async deleteNotificationTemplate(id) {
     return unwrap(await supabase.from('notification_templates').delete().eq('id', id));
