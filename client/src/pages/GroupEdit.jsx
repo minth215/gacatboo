@@ -68,7 +68,7 @@ export default function GroupEdit() {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginBottom: 18 }}>
           <div style={{ position: 'relative', width: 96, height: 96 }}>
             <div style={{
-              position: 'absolute', inset: 0, borderRadius: 26, background: form.color || 'transparent', border: '1.5px solid #efeef2',
+              position: 'absolute', inset: 0, borderRadius: 26, background: form.color || 'transparent', border: form.color ? '1.5px solid #efeef2' : 'none',
               boxShadow: '0 3px 10px rgba(25,23,34,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 38, pointerEvents: 'none',
             }}>

@@ -95,7 +95,7 @@ export default function Groups() {
             key={g.id} className="group-card" onClick={() => nav(`/groups/${g.id}`)}
             style={{ display: 'flex', gap: 12, alignItems: 'center', opacity: isEnded(g) ? 0.55 : 1 }}
           >
-            <span style={{ width: 38, height: 38, borderRadius: 12, background: g.color || 'transparent', border: g.color ? 'none' : '1.5px solid #efeef2', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16.5, flex: 'none' }}>{g.category_emoji || '💸'}</span>
+            <span style={{ width: 38, height: 38, borderRadius: 12, background: g.color || 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16.5, flex: 'none' }}>{g.category_emoji || '💸'}</span>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
