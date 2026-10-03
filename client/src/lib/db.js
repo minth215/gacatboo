@@ -888,13 +888,20 @@ export const db = {
 
   // 관리자: 알림 템플릿 관리(제목/본문/이모지/배경색, {{변수}} 치환 지원)
   async listNotificationTemplates() {
-    return unwrap(await supabase.from('notification_templates').select('*').order('id'));
+    return unwrap(await supabase.from('notification_templates').select('*').order('sort_order').order('id'));
   },
   async upsertNotificationTemplate(t) {
+    if (!t.id && t.sort_order == null) {
+      const existing = unwrap(await supabase.from('notification_templates').select('sort_order').order('sort_order', { ascending: false }).limit(1));
+      t = { ...t, sort_order: (existing[0]?.sort_order ?? -1) + 1 };
+    }
     return unwrap(await supabase.from('notification_templates').upsert(t).select().single());
   },
   async deleteNotificationTemplate(id) {
     return unwrap(await supabase.from('notification_templates').delete().eq('id', id));
+  },
+  async reorderNotificationTemplates(orderedIds) {
+    await Promise.all(orderedIds.map((id, i) => supabase.from('notification_templates').update({ sort_order: i }).eq('id', id)));
   },
 
   // 실제 OS 푸시 발송(서버 Edge Function, best-effort). 함수가 아직 배포되지 않았거나

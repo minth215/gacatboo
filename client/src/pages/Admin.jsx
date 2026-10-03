@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
+import { useDragReorder } from '../lib/useDragReorder.js';
 import Modal from '../components/Modal.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 
@@ -138,6 +139,7 @@ const emptyTemplate = { event_key: '', title_template: '', body_template: '', em
 function AdminNotifications() {
   const [templates, setTemplates] = useState([]);
   const [editing, setEditing] = useState(null); // null | 템플릿 객체(새 템플릿이면 id 없음)
+  const [editMode, setEditMode] = useState(false); // 정렬 수정 모드
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -145,7 +147,7 @@ function AdminNotifications() {
   useEffect(() => { load(); }, [load]);
 
   const openNew = () => { setErr(''); setEditing({ ...emptyTemplate }); };
-  const openEdit = (t) => { setErr(''); setEditing({ ...t }); };
+  const openEdit = (t) => { if (editMode) return; setErr(''); setEditing({ ...t }); };
 
   const save = async (e) => {
     e.preventDefault();
@@ -159,42 +161,59 @@ function AdminNotifications() {
 
   const remove = async (t) => {
     if (!confirm(`'${t.title_template || t.event_key}' 템플릿을 삭제할까요? 해당 상황의 알림이 더 이상 생성되지 않습니다.`)) return;
-    try { await db.deleteNotificationTemplate(t.id); load(); } catch (e) { alert(e.message); }
+    try { await db.deleteNotificationTemplate(t.id); setEditing(null); load(); } catch (e) { alert(e.message); }
   };
+
+  const { dragId, setRowRef, startDrag } = useDragReorder(templates, setTemplates, async (ids) => {
+    try { await db.reorderNotificationTemplates(ids); } catch (e) { alert(e.message); load(); }
+  });
 
   return (
     <>
       <p className="small muted" style={{ marginTop: 14 }}>
         제목·본문에 <code>{'{{group_name}}'}</code> 처럼 이중 중괄호로 변수를 넣을 수 있습니다(코드에서 해당 상황에 맞는 값을 채워 보냅니다).
       </p>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-        <button className="btn primary sm" onClick={openNew}>＋ 템플릿 추가</button>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '4px 2px 10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 15, fontWeight: 800, color: '#191722' }}>알림 메시지</span>
+          <span className="chip">{templates.length}</span>
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <span className="small muted">정렬 수정</span>
+          <button type="button" role="switch" aria-checked={editMode} aria-label="정렬 수정"
+            className={`ios-toggle${editMode ? ' on' : ''}`} onClick={() => setEditMode((v) => !v)}>
+            <span className="ios-toggle-knob" />
+          </button>
+        </label>
       </div>
 
       {templates.length === 0 ? (
         <div className="empty empty-center">등록된 알림 템플릿이 없습니다.</div>
       ) : (
-        <div className="tx-daycard">
-          {templates.map((t, i) => (
-            <div key={t.id} onClick={() => openEdit(t)} style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', cursor: 'pointer',
-              borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5', opacity: t.active ? 1 : 0.5,
-            }}>
-              <span style={{ width: 36, height: 36, borderRadius: 11, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, background: t.color || '#f4f2f0' }}>
+        <div className="ntpl-list">
+          {templates.map((t) => (
+            <button key={t.id} ref={setRowRef(t.id)} type="button" className="ntpl-card"
+              onClick={() => openEdit(t)}
+              style={{ cursor: editMode ? 'default' : 'pointer', opacity: dragId === t.id ? 0.4 : t.active ? 1 : 0.5 }}>
+              <span
+                className={`ntpl-emoji${editMode ? ' draggable' : ''}${dragId === t.id ? ' dragging' : ''}`}
+                style={{ background: t.color || '#f4f2f0' }}
+                onPointerDown={editMode ? startDrag(t.id) : undefined}
+              >
                 {t.emoji || '🔔'}
               </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{t.title_template || '(제목 없음)'}</div>
-                <div style={{ marginTop: 2, fontSize: 11, color: '#a29ead', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {t.event_key} · {t.body_template}{!t.active && ' · 비활성'}
-                </div>
-              </div>
-              <button aria-label="템플릿 삭제" onClick={(e) => { e.stopPropagation(); remove(t); }} className="cat-del-btn">
-                <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
-              </button>
-            </div>
+              <span className="ntpl-main">
+                <span className="ntpl-title">{t.title_template || '(제목 없음)'}</span>
+                <span className="ntpl-body">{t.body_template}{!t.active && ' · 비활성'}</span>
+              </span>
+            </button>
           ))}
         </div>
+      )}
+
+      {!editMode && (
+        <button className="fab" onClick={openNew} aria-label="템플릿 추가">＋</button>
       )}
 
       {editing && (
@@ -223,6 +242,9 @@ function AdminNotifications() {
               <button type="button" className="btn block" onClick={() => setEditing(null)}>취소</button>
               <button className="btn primary block" disabled={busy}>{busy ? '저장 중…' : '저장'}</button>
             </div>
+            {editing.id && (
+              <button type="button" onClick={() => remove(editing)} style={{ display: 'block', margin: '12px auto 0', border: 'none', background: 'transparent', color: 'var(--expense)', fontSize: 12.5, fontWeight: 700, padding: '6px 10px', cursor: 'pointer' }}>템플릿 삭제</button>
+            )}
           </form>
         </Modal>
       )}

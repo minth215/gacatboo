@@ -539,6 +539,20 @@ a { color: inherit; text-decoration: none; }
 .cat-drag-handle { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; color: #c7c3cc; cursor: grab; flex: none; }
 .cat-drag-handle:hover { color: #8b8798; }
 
+/* ---------- 알림 템플릿 목록(관리자): 카드가 각각 떨어진 리스트 ---------- */
+.ntpl-list { display: flex; flex-direction: column; gap: 10px; }
+.ntpl-card {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  background: #fff; border-radius: 16px; box-shadow: 0 4px 16px rgba(25,23,34,.05);
+  text-align: left; border: none; width: 100%; font-family: inherit; cursor: pointer;
+}
+.ntpl-emoji { width: 40px; height: 40px; border-radius: 13px; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 17px; }
+.ntpl-emoji.draggable { cursor: grab; touch-action: none; }
+.ntpl-emoji.dragging { cursor: grabbing; }
+.ntpl-main { flex: 1; min-width: 0; }
+.ntpl-title { font-size: 13.5px; font-weight: 700; color: #191722; }
+.ntpl-body { margin-top: 2px; font-size: 11.5px; color: #a29ead; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .catmodal-overlay { position: fixed; inset: 0; background: rgba(25,23,34,.42); display: flex; align-items: center; justify-content: center; padding: 0 16px; z-index: 60; }
 .catmodal-sheet { width: 100%; max-width: 720px; background: #fff; border-radius: 22px; padding: 24px 20px; display: flex; flex-direction: column; gap: 18px; }
 .catmodal-emoji-input {
