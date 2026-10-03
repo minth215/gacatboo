@@ -168,11 +168,7 @@ function AdminNotifications() {
 
   return (
     <>
-      <p className="small muted" style={{ marginTop: 14 }}>
-        제목·본문에 <code>{'{{group_name}}'}</code> 처럼 이중 중괄호로 변수를 넣을 수 있습니다(코드에서 해당 상황에 맞는 값을 채워 보냅니다).
-      </p>
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '4px 2px 10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '14px 2px 10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 15, fontWeight: 800, color: '#191722' }}>알림 메시지</span>
           <span className="chip">{templates.length}</span>
@@ -191,9 +187,8 @@ function AdminNotifications() {
       ) : (
         <div className="ntpl-list">
           {templates.map((t) => (
-            <button key={t.id} ref={setRowRef(t.id)} type="button" className="ntpl-card"
-              onClick={() => openEdit(t)}
-              style={{ cursor: editMode ? 'default' : 'pointer', opacity: dragId === t.id ? 0.4 : t.active ? 1 : 0.5 }}>
+            <div key={t.id} ref={setRowRef(t.id)} className="ntpl-card"
+              style={{ opacity: dragId === t.id ? 0.4 : t.active ? 1 : 0.5 }}>
               <span
                 className={`ntpl-emoji${editMode ? ' draggable' : ''}${dragId === t.id ? ' dragging' : ''}`}
                 style={{ background: t.color || '#f4f2f0' }}
@@ -201,11 +196,11 @@ function AdminNotifications() {
               >
                 {t.emoji || '🔔'}
               </span>
-              <span className="ntpl-main">
+              <button type="button" className="ntpl-main" disabled={editMode} onClick={() => openEdit(t)}>
                 <span className="ntpl-title">{t.title_template || '(제목 없음)'}</span>
                 <span className="ntpl-body">{t.body_template}{!t.active && ' · 비활성'}</span>
-              </span>
-            </button>
+              </button>
+            </div>
           ))}
         </div>
       )}

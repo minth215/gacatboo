@@ -540,16 +540,22 @@ a { color: inherit; text-decoration: none; }
 .cat-drag-handle:hover { color: #8b8798; }
 
 /* ---------- 알림 템플릿 목록(관리자): 카드가 각각 떨어진 리스트 ---------- */
+/* 드래그 핸들(이모지)을 수정 버튼 밖의 형제 요소로 둬야 정렬 모드에서 핸들의 포인터
+   이벤트가 버튼에 가로막히지 않는다(분류 관리 페이지와 동일한 구조). */
 .ntpl-list { display: flex; flex-direction: column; gap: 10px; }
 .ntpl-card {
   display: flex; align-items: center; gap: 12px; padding: 12px 14px;
   background: #fff; border-radius: 16px; box-shadow: 0 4px 16px rgba(25,23,34,.05);
-  text-align: left; border: none; width: 100%; font-family: inherit; cursor: pointer;
 }
 .ntpl-emoji { width: 40px; height: 40px; border-radius: 13px; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 17px; }
 .ntpl-emoji.draggable { cursor: grab; touch-action: none; }
 .ntpl-emoji.dragging { cursor: grabbing; }
-.ntpl-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ntpl-main {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+  border: none; background: transparent; padding: 0; margin: 0;
+  text-align: left; font-family: inherit; cursor: pointer;
+}
+.ntpl-main:disabled { cursor: default; }
 .ntpl-title { font-size: 13.5px; font-weight: 700; color: #191722; }
 .ntpl-body { margin-top: 2px; font-size: 11.5px; color: #a29ead; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
