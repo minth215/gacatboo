@@ -105,7 +105,7 @@ export const db = {
   },
 
   // ---------- 반복 수입/지출 ----------
-  // 규칙 생성/삭제만 지원(필드 수정은 해제 후 재등록). 실제 거래 생성은 서버 pg_cron이 매일 수행.
+  // 생성/삭제와 종료일 수정만 지원(그 외 필드 수정은 해제 후 재등록). 실제 거래 생성은 서버 pg_cron이 매일 수행.
   async listRecurringRules() {
     const rows = unwrap(await supabase.from('recurring_rules').select('*, group:groups(name, owner_id)').eq('active', true).order('created_at', { ascending: false }));
     return rows.map((r) => ({ ...r, group_name: r.group?.name || null }));
@@ -113,6 +113,10 @@ export const db = {
   // 규칙을 삭제하면 연결된 과거 거래의 recurring_id 는 자동으로 null 이 됨(on delete set null) — 과거 내역은 유지.
   async deleteRecurringRule(id) {
     return unwrap(await supabase.from('recurring_rules').delete().eq('id', id));
+  },
+  // 반복 종료일 설정/해제. 값이 있으면 그 날짜까지만(포함) 반복 생성(서버 함수에서 체크).
+  async updateRecurringRuleEndDate(id, endDate) {
+    return unwrap(await supabase.from('recurring_rules').update({ end_date: endDate || null }).eq('id', id).select().single());
   },
   // 과거 날짜로 반복을 새로 걸었을 때 밀린 회차를 한 번에 생성(시작일 다음날 ~ 오늘). 생성 개수 반환.
   async backfillRecurringRule(ruleId) {
