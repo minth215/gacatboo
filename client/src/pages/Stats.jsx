@@ -625,7 +625,7 @@ export default function Stats() {
           </div>
         </>
       ) : (
-        <div style={{ marginTop: 22, background: '#fff', borderRadius: 16, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
+        <div style={{ marginTop: statView === 'category' ? 34 : 22, background: '#fff', borderRadius: 16, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid #f2f1f5' }}>
             {[['name', '내용', { flex: 1 }], ['count', '건수', { width: 52 }], ['amount', '금액', { minWidth: 84 }]].map(([key, label, style]) => (
               <button key={key} onClick={() => setSort((s) => ({
