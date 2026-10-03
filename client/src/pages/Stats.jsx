@@ -399,6 +399,13 @@ export default function Stats() {
                 onChange={(e) => { if (e.target.value) setMonth(e.target.value); }}
               />
             )}
+            {periodMode === 'year' && (
+              <input
+                type="number" inputMode="numeric" value={year} aria-label="연도 선택" className="catmodal-date-input"
+                min={2000} max={2099}
+                onChange={(e) => { if (/^\d{4}$/.test(e.target.value)) setYear(e.target.value); }}
+              />
+            )}
           </div>
           <button aria-label="다음" onClick={() => movePeriod(1)} style={roundBtn}>{arrow('9 6 15 12 9 18')}</button>
         </div>
