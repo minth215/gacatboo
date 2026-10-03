@@ -549,7 +549,7 @@ a { color: inherit; text-decoration: none; }
 .ntpl-emoji { width: 40px; height: 40px; border-radius: 13px; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 17px; }
 .ntpl-emoji.draggable { cursor: grab; touch-action: none; }
 .ntpl-emoji.dragging { cursor: grabbing; }
-.ntpl-main { flex: 1; min-width: 0; }
+.ntpl-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .ntpl-title { font-size: 13.5px; font-weight: 700; color: #191722; }
 .ntpl-body { margin-top: 2px; font-size: 11.5px; color: #a29ead; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
