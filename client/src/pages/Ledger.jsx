@@ -244,7 +244,7 @@ export default function Ledger() {
             </button>
             {/* 가운데 연월 텍스트를 누르면 네이티브 월 선택기가 떠서 직접 고를 수 있음(텍스트는 숨긴 input 아래 그대로 보임) */}
             <div style={{ position: 'relative' }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#191722', letterSpacing: '-.2px' }}>{label}</span>
+              <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px' }}>{label}</span>
               <input
                 type="month" value={month} aria-label="연월 선택" className="catmodal-date-input"
                 onChange={(e) => { if (e.target.value) { setMonth(e.target.value); setSelDay(null); } }}
