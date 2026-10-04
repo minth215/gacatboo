@@ -100,7 +100,6 @@ export default function AdminUserDetail() {
       </div>
 
       <div style={{ marginTop: 18 }}>
-        <div className="settings-group-label">역할 / 상태</div>
         <div className="tx-daycard">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px' }}>
             <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>역할</span>
@@ -120,12 +119,12 @@ export default function AdminUserDetail() {
         {isSelf && <p className="small muted" style={{ marginTop: 8 }}>본인 계정은 여기서 역할/상태를 변경할 수 없습니다.</p>}
       </div>
 
-      <button className="btn-ink-pill" style={{ marginTop: 22 }} onClick={() => { setPw(DEFAULT_PASSWORD); setPwErr(''); setPwModal(true); }}>
+      <button className="btn-ink-pill" style={{ marginTop: 22, height: 42, fontSize: 13.5 }} onClick={() => { setPw(DEFAULT_PASSWORD); setPwErr(''); setPwModal(true); }}>
         비밀번호 초기화
       </button>
 
       {!isSelf && (
-        <button type="button" onClick={removeAccount} style={{ display: 'block', margin: '14px auto 0', border: 'none', background: 'transparent', color: 'var(--expense)', fontSize: 12.5, fontWeight: 700, padding: '6px 10px', cursor: 'pointer' }}>
+        <button type="button" onClick={removeAccount} style={{ display: 'block', margin: '4px auto 0', border: 'none', background: 'transparent', color: 'var(--expense)', fontSize: 12.5, fontWeight: 700, padding: '6px 10px', cursor: 'pointer' }}>
           계정 삭제
         </button>
       )}
