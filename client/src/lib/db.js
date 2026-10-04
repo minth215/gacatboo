@@ -892,9 +892,14 @@ export const db = {
   },
 
   // 푸시 구독(기기별). endpoint 가 곧 식별자.
+  // 같은 기기(endpoint)를 다른 계정에서 재사용(로그인 전환)할 수 있어, 소유자 교체까지
+  // 안전하게 처리하는 RPC(SECURITY DEFINER)를 쓴다. 일반 upsert()는 기존 소유자가 다르면
+  // RLS(USING user_id=auth.uid())에 막혀 실패한다.
   async addPushSubscription(userId, sub) {
-    return unwrap(await supabase.from('push_subscriptions')
-      .upsert({ user_id: userId, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth }, { onConflict: 'endpoint' }));
+    const { error } = await supabase.rpc('upsert_push_subscription', {
+      p_endpoint: sub.endpoint, p_p256dh: sub.keys.p256dh, p_auth: sub.keys.auth,
+    });
+    if (error) throw new Error(error.message);
   },
   async removePushSubscription(endpoint) {
     return unwrap(await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint));
