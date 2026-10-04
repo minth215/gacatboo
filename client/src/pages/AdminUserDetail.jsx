@@ -82,20 +82,21 @@ export default function AdminUserDetail() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title="회원 상세" />
+      <PageHeader title="회원 상세" flat />
 
-      <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', padding: '18px 16px', marginTop: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 16, fontWeight: 800, color: '#191722' }}>{target.display_name}</span>
-          {target.role === 'admin' && <span className="settings-admin-badge">관리자</span>}
-        </div>
-        <div className="member-username" style={{ marginTop: 4, fontSize: 12.5 }}>@{target.username}</div>
-        {email && <div className="member-username" style={{ marginTop: 2, fontSize: 12.5 }}>{email}</div>}
-        {!email && emailErr && (
-          <div className="small muted" style={{ marginTop: 4 }}>
-            이메일을 불러오지 못했습니다. <code>admin</code> Edge Function을 재배포했는지 확인해 주세요.
+      <div style={{ marginTop: 14, background: '#fff', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
+        <div style={{ padding: '18px 18px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 18, fontWeight: 800, color: '#191722', letterSpacing: '-.3px' }}>{target.display_name}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#a29ead' }}>@{target.username}</span>
+            {target.role === 'admin' && <span className="settings-admin-badge">관리자</span>}
           </div>
-        )}
+        </div>
+        <div style={{ padding: '0 18px 18px' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 400, color: '#a29ead', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {email || (emailErr ? <>이메일을 불러오지 못했습니다. <code>admin</code> Edge Function을 재배포했는지 확인해 주세요.</> : '')}
+          </div>
+        </div>
       </div>
 
       <div style={{ marginTop: 18 }}>
