@@ -14,6 +14,7 @@ export default function AdminUserDetail() {
   const { user: me } = useAuth();
   const [target, setTarget] = useState(null);
   const [email, setEmail] = useState('');
+  const [emailErr, setEmailErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [pwModal, setPwModal] = useState(false);
   const [pw, setPw] = useState(DEFAULT_PASSWORD);
@@ -28,8 +29,9 @@ export default function AdminUserDetail() {
     }).catch((e) => { alert(e.message); nav('/admin'); });
     db.listUserEmails().then((rows) => {
       const found = (rows || []).find((r) => r.id === id);
-      if (found) setEmail(found.email || '');
-    }).catch(() => {});
+      setEmail(found?.email || '');
+      setEmailErr('');
+    }).catch((e) => setEmailErr(e.message));
   }, [id, nav]);
   useEffect(() => { load(); }, [load]);
 
@@ -89,6 +91,11 @@ export default function AdminUserDetail() {
         </div>
         <div className="member-username" style={{ marginTop: 4, fontSize: 12.5 }}>@{target.username}</div>
         {email && <div className="member-username" style={{ marginTop: 2, fontSize: 12.5 }}>{email}</div>}
+        {!email && emailErr && (
+          <div className="small muted" style={{ marginTop: 4 }}>
+            이메일을 불러오지 못했습니다. <code>admin</code> Edge Function을 재배포했는지 확인해 주세요.
+          </div>
+        )}
       </div>
 
       <div style={{ marginTop: 18 }}>

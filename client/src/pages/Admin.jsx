@@ -30,6 +30,7 @@ function AdminMembers() {
   const nav = useNavigate();
   const [users, setUsers] = useState([]);
   const [emails, setEmails] = useState({}); // id -> email
+  const [emailErr, setEmailErr] = useState('');
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ email: '', username: '', display_name: '', password: '', role: 'user' });
   const [err, setErr] = useState('');
@@ -41,7 +42,8 @@ function AdminMembers() {
       const m = {};
       (rows || []).forEach((r) => { m[r.id] = r.email; });
       setEmails(m);
-    }).catch(() => {});
+      setEmailErr('');
+    }).catch((e) => setEmailErr(e.message));
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -60,9 +62,11 @@ function AdminMembers() {
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
-        <button className="btn primary sm" onClick={() => setModal(true)}>＋ 계정 생성</button>
-      </div>
+      {emailErr && (
+        <p className="small muted" style={{ marginTop: 14 }}>
+          이메일을 불러오지 못했습니다. <code>admin</code> Edge Function을 재배포했는지 확인해 주세요. ({emailErr})
+        </p>
+      )}
 
       {pending.length > 0 && (
         <div className="card" style={{ borderColor: '#ffe0b2', background: '#fffdf8' }}>
@@ -100,6 +104,8 @@ function AdminMembers() {
           </button>
         ))}
       </div>
+
+      <button className="fab" onClick={() => setModal(true)} aria-label="계정 생성">＋</button>
 
       {modal && (
         <Modal title="계정 생성" onClose={() => setModal(false)}>
