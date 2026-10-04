@@ -5,6 +5,13 @@ import { subscribePush, unsubscribePush, pushSupported } from '../lib/push.js';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 
+// 설정 화면에는 관리자가 자유롭게 바꾸는 템플릿 제목 대신, 상황을 바로 알 수 있는 고정 이름을 보여준다.
+const EVENT_LABELS = {
+  group_invite: '그룹 초대',
+  settlement_request: '그룹 정산 요청',
+  recurring_registered: '반복 항목 등록',
+};
+
 function Toggle({ on, onClick, disabled, label }) {
   return (
     <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled}
@@ -81,20 +88,22 @@ export default function SettingsNotifications() {
 
       {pushEnabled && (
         <div style={{ marginTop: 18 }}>
-          <div className="settings-group-label">상황별 알림</div>
           {templates.length === 0 ? (
-            <div className="small muted" style={{ marginTop: 8 }}>설정 가능한 알림 상황이 없습니다.</div>
+            <div className="small muted">설정 가능한 알림 상황이 없습니다.</div>
           ) : (
             <div className="tx-daycard">
-              {templates.map((t, i) => (
-                <div key={t.event_key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5' }}>
-                  <span style={{ width: 32, height: 32, borderRadius: 10, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, background: t.color || '#f4f2f0' }}>
-                    {t.emoji || '🔔'}
-                  </span>
-                  <span style={{ flex: 1, fontSize: 13.25, fontWeight: 600, color: '#191722' }}>{t.title_template || t.event_key}</span>
-                  <Toggle on={prefs[t.event_key] ?? true} onClick={() => toggleEvent(t.event_key)} disabled={busy} label={t.title_template || t.event_key} />
-                </div>
-              ))}
+              {templates.map((t, i) => {
+                const label = EVENT_LABELS[t.event_key] || t.title_template || t.event_key;
+                return (
+                  <div key={t.event_key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5' }}>
+                    <span style={{ width: 32, height: 32, borderRadius: 10, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, background: t.color || '#f4f2f0' }}>
+                      {t.emoji || '🔔'}
+                    </span>
+                    <span style={{ flex: 1, fontSize: 13.25, fontWeight: 600, color: '#191722' }}>{label}</span>
+                    <Toggle on={prefs[t.event_key] ?? true} onClick={() => toggleEvent(t.event_key)} disabled={busy} label={label} />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
