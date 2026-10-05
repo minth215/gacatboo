@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const DEFAULT_OPEN = 72; // 스와이프 시 드러나는 영역 기본 폭(px)
 
-// 임시 디버그 패널: URL에 ?debug=swipe 를 붙이면 화면 상단에 터치 이벤트 정보를 표시한다.
-// 문제 해결 후 이 블록과 호출부는 제거할 것.
+// ?debug=swipe 를 붙이면 화면 상단에 터치 이벤트 로그 패널을 띄운다(진단용, 평소엔 비표시).
 const SWIPE_DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === 'swipe';
 function debugLog(line) {
   if (!SWIPE_DEBUG) return;
@@ -22,11 +21,13 @@ function describeTarget(el) {
   const cls = (el.className || '').toString().split(' ').filter(Boolean).slice(0, 2).join('.');
   return `${el.tagName}${cls ? '.' + cls : ''}`;
 }
-// 전역(캡처 단계) 리스너: SwipeRow 의 onPointerDown 과 무관하게, 브라우저에 터치 자체가
-// 들어오는지, 들어온다면 실제로 무슨 엘리먼트에 맞는지를 확인한다(우리 핸들러가 전혀
-// 안 찍히는 경우, 다른 엘리먼트가 가로채는지 vs 애초에 이벤트가 안 오는지 구분하기 위함).
-if (SWIPE_DEBUG && typeof document !== 'undefined' && !window.__swipeDebugGlobalBound) {
-  window.__swipeDebugGlobalBound = true;
+// 문서 전체에 캡처 단계 touchstart/pointerdown 리스너를 하나 걸어 둔다. 원래는 진단용으로
+// 추가한 것인데, 이 리스너가 있을 때만(=?debug=swipe 로 열었을 때만) 오래된 카드의 스와이프가
+// 안정적으로 먹히는 현상이 실제로 관찰되어 — 정확한 원인은 아직 모르지만(아마도 캡처 단계에
+// 리스너가 하나라도 있으면 iOS Safari 가 네이티브 스크롤/제스처 판정을 더 일찍 확정하는 듯) —
+// 평소에도(디버그 모드가 아니어도) 항상 걸어 둔다. 로그 패널만 ?debug=swipe 일 때 표시된다.
+if (typeof document !== 'undefined' && !window.__swipeGlobalTouchBound) {
+  window.__swipeGlobalTouchBound = true;
   document.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
     const real = t ? document.elementFromPoint(t.clientX, t.clientY) : null;
@@ -74,11 +75,8 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
 
   const down = (e) => {
     if (!swipeEnabled) return;
-    if (SWIPE_DEBUG) {
-      const real = document.elementFromPoint(e.clientX, e.clientY);
-      debugLog(`DOWN target=${describeTarget(e.target)} elementFromPoint=${describeTarget(real)} ta=${real ? getComputedStyle(real).touchAction : '?'} pointerType=${e.pointerType}`);
-    }
-    if (!swipeEnabled) return;
+    const real = document.elementFromPoint(e.clientX, e.clientY);
+    debugLog(`DOWN target=${describeTarget(e.target)} elementFromPoint=${describeTarget(real)} ta=${real ? getComputedStyle(real).touchAction : '?'} pointerType=${e.pointerType}`);
     if (fullSwipe && wrapRef.current) openDistRef.current = wrapRef.current.getBoundingClientRect().width;
     st.current = { x: e.clientX, y: e.clientY, base: openRef.current ? -openDistRef.current : 0 };
     moved.current = false;
@@ -95,27 +93,27 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
       // 세로 쪽이 가로의 1.3배 넘게 더 커야 스크롤로 보고 포기한다. 살짝만 비스듬해도
       // 바로 포기하던 예전 기준이 실제 터치에서 스와이프가 들쭉날쭉 먹히던 원인이었다.
       if (absY > absX * 1.3) {
-        if (SWIPE_DEBUG) debugLog(`ABORT(scroll) absX=${absX.toFixed(0)} absY=${absY.toFixed(0)}`);
+        debugLog(`ABORT(scroll) absX=${absX.toFixed(0)} absY=${absY.toFixed(0)}`);
         st.current = null; return;
       }
       if (absX < 10) return;
       moved.current = true; setDragging(true);
-      if (SWIPE_DEBUG) debugLog(`COMMIT(horizontal) absX=${absX.toFixed(0)} absY=${absY.toFixed(0)}`);
+      debugLog(`COMMIT(horizontal) absX=${absX.toFixed(0)} absY=${absY.toFixed(0)}`);
       // 실제로 가로로 밀기 시작했을 때만 포인터를 잡는다. pointerdown 에서 바로 잡으면
       // 클릭이 카드 전체로 넘어가 카드 안의 버튼(연필 등)이 마우스 클릭에 반응하지 않는다.
-      try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch (err) { if (SWIPE_DEBUG) debugLog(`setPointerCapture ERROR ${err}`); }
+      try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch (err) { debugLog(`setPointerCapture ERROR ${err}`); }
     }
     // 가로 드래그로 확정된 뒤에는 매 move 마다 기본 동작을 명시적으로 막아야 한다. 안 그러면
     // (특히 iOS Safari에서) 브라우저가 뒤늦게 이 제스처를 스크롤/바운스로 가로채 버려서
     // pointermove 가 더 이상 오지 않고 스와이프가 끊기는 경우가 간헐적으로 있었다.
-    try { e.preventDefault?.(); } catch (err) { if (SWIPE_DEBUG) debugLog(`preventDefault ERROR ${err}`); }
+    try { e.preventDefault?.(); } catch (err) { debugLog(`preventDefault ERROR ${err}`); }
     let nx = st.current.base + mx;
     const max = openDistRef.current;
     nx = Math.max(-max - 16, Math.min(0, nx));
     setDx(nx);
   };
   const up = () => {
-    if (SWIPE_DEBUG) debugLog(`UP moved=${moved.current} dx=${dx}`);
+    debugLog(`UP moved=${moved.current} dx=${dx}`);
     if (!st.current) return;
     st.current = null;
     setDragging(false);
