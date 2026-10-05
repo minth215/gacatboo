@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -8,6 +8,16 @@ import Spinner from '../components/Spinner.jsx';
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 const onlyDigits = (v) => v.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
+
+// 통계 페이지와 동일한 원형 화살표 버튼 스타일
+const roundBtn = {
+  width: 32, height: 32, borderRadius: '50%', border: 'none', background: '#fff',
+  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: '#8b8798',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none',
+};
+const arrow = (points) => (
+  <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points={points} /></svg>
+);
 
 // 금액 입력: 오른쪽 정렬 인라인 필드 + "원" 접미사. value 가 비어 있으면(= 이 달은 재정의 없음)
 // placeholder 로 실제 적용될 금액(기본 예산)을 흐리게 보여준다.
@@ -50,6 +60,15 @@ export default function BudgetSet() {
     setParams(next, { replace: true });
   };
 
+  // 연도 선택기(select) 목록. 현재 연도 기준 앞뒤로 넉넉히 두고, 선택된 연도가 범위 밖이어도 포함시킨다.
+  const yearOptions = useMemo(() => {
+    const cur = Number(currentYear());
+    const set = new Set();
+    for (let y = cur - 20; y <= cur + 5; y++) set.add(y);
+    set.add(Number(year));
+    return [...set].sort((a, b) => a - b).map(String);
+  }, [year]);
+
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
@@ -86,10 +105,15 @@ export default function BudgetSet() {
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title={`${category.name} 예산 설정`} flat />
 
-      <div className="month-nav" style={{ marginTop: 14 }}>
-        <button onClick={() => setYearAndUrl(String(Number(year) - 1))}>‹</button>
-        <div className="mlabel">{year}년</div>
-        <button onClick={() => setYearAndUrl(String(Number(year) + 1))}>›</button>
+      <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <button aria-label="이전" onClick={() => setYearAndUrl(String(Number(year) - 1))} style={roundBtn}>{arrow('15 6 9 12 15 18')}</button>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 60 }}>
+          <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>{year}년</span>
+          <select value={year} aria-label="연도 선택" className="catmodal-date-input" onChange={(e) => setYearAndUrl(e.target.value)}>
+            {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <button aria-label="다음" onClick={() => setYearAndUrl(String(Number(year) + 1))} style={roundBtn}>{arrow('9 6 15 12 9 18')}</button>
       </div>
 
       <div className="tx-daycard">
