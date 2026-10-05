@@ -48,8 +48,14 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
     const mx = e.clientX - st.current.x;
     const my = e.clientY - st.current.y;
     if (!moved.current) {
-      if (Math.abs(my) > Math.abs(mx) && Math.abs(my) > 6) { st.current = null; return; }
-      if (Math.abs(mx) < 6) return;
+      const absX = Math.abs(mx), absY = Math.abs(my);
+      // 손가락이 닿는 순간의 미세한 흔들림(실제 터치는 마우스보다 훨씬 들쭉날쭉함)을
+      // 섣불리 세로 스크롤로 오판하지 않도록, 둘 다 충분히 움직이기 전까지는 더 지켜본다.
+      if (absX < 10 && absY < 10) return;
+      // 세로 쪽이 가로의 1.3배 넘게 더 커야 스크롤로 보고 포기한다. 살짝만 비스듬해도
+      // 바로 포기하던 예전 기준이 실제 터치에서 스와이프가 들쭉날쭉 먹히던 원인이었다.
+      if (absY > absX * 1.3) { st.current = null; return; }
+      if (absX < 10) return;
       moved.current = true; setDragging(true);
       // 실제로 가로로 밀기 시작했을 때만 포인터를 잡는다. pointerdown 에서 바로 잡으면
       // 클릭이 카드 전체로 넘어가 카드 안의 버튼(연필 등)이 마우스 클릭에 반응하지 않는다.
