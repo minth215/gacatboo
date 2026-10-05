@@ -22,6 +22,20 @@ function describeTarget(el) {
   const cls = (el.className || '').toString().split(' ').filter(Boolean).slice(0, 2).join('.');
   return `${el.tagName}${cls ? '.' + cls : ''}`;
 }
+// 전역(캡처 단계) 리스너: SwipeRow 의 onPointerDown 과 무관하게, 브라우저에 터치 자체가
+// 들어오는지, 들어온다면 실제로 무슨 엘리먼트에 맞는지를 확인한다(우리 핸들러가 전혀
+// 안 찍히는 경우, 다른 엘리먼트가 가로채는지 vs 애초에 이벤트가 안 오는지 구분하기 위함).
+if (SWIPE_DEBUG && typeof document !== 'undefined' && !window.__swipeDebugGlobalBound) {
+  window.__swipeDebugGlobalBound = true;
+  document.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    const real = t ? document.elementFromPoint(t.clientX, t.clientY) : null;
+    debugLog(`[global] touchstart target=${describeTarget(e.target)} elementFromPoint=${describeTarget(real)}`);
+  }, { capture: true, passive: true });
+  document.addEventListener('pointerdown', (e) => {
+    debugLog(`[global] pointerdown target=${describeTarget(e.target)} type=${e.pointerType}`);
+  }, { capture: true });
+}
 
 // 왼쪽으로 스와이프하면 액션 영역이 드러나는 행.
 // actions 를 주면 기본 삭제 버튼 대신 그 내용을 보여준다(폭은 actionsWidth).
