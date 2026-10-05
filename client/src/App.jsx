@@ -14,6 +14,8 @@ import PasswordChange from './pages/PasswordChange.jsx';
 import Withdraw from './pages/Withdraw.jsx';
 import FriendManage from './pages/FriendManage.jsx';
 import CategoryManage from './pages/CategoryManage.jsx';
+import BudgetManage from './pages/BudgetManage.jsx';
+import BudgetSet from './pages/BudgetSet.jsx';
 import SourceManage from './pages/SourceManage.jsx';
 import CardBenefits from './pages/CardBenefits.jsx';
 import GroupCategoryManage from './pages/GroupCategoryManage.jsx';
@@ -64,6 +66,8 @@ export default function App() {
         <Route path="/settings/profile/withdraw" element={<Withdraw />} />
         <Route path="/settings/friends" element={<FriendManage />} />
         <Route path="/settings/categories/:type" element={<CategoryManage />} />
+        <Route path="/settings/budget" element={<BudgetManage />} />
+        <Route path="/settings/budget/:type/:categoryId" element={<BudgetSet />} />
         <Route path="/settings/sources" element={<SourceManage />} />
         <Route path="/settings/card-benefits" element={<CardBenefits />} />
         <Route path="/settings/group-categories" element={<GroupCategoryManage />} />

@@ -75,6 +75,7 @@ export default function Settings() {
       items: [
         { label: '수입 분류 관리', desc: '월급·부수입·용돈 등 수입 분류 관리', bg: '#e8f6ee', icon: '💵', to: '/settings/categories/income' },
         { label: '지출 분류 관리', desc: '식당·교통·쇼핑 등 지출 분류 관리', bg: '#fde8ee', icon: '🧾', to: '/settings/categories/expense' },
+        { label: '예산 관리', desc: '수입·지출 분류별 예산 설정', bg: '#fff1e6', icon: '📊', to: '/settings/budget' },
         { label: '원천 관리', desc: '현금·은행·카드 등 원천 자산 관리', bg: '#eef1fb', icon: '🏦', to: '/settings/sources' },
         { label: '카드 실적 관리', desc: '카드별 실적 구간에 따른 혜택 관리', bg: '#fff1e6', icon: '💳', to: '/settings/card-benefits' },
       ],

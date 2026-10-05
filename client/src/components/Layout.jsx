@@ -30,7 +30,7 @@ const NAV = [
 ];
 
 // 설정의 상세 메뉴 페이지(드릴다운)와 그룹 만들기(자체 하단 액션 바가 있는 전체 화면 마법사)에서는 하단 탭바를 숨김
-const HIDE_BOTTOMNAV_PREFIXES = ['/settings/profile', '/settings/categories', '/settings/sources', '/settings/card-benefits', '/settings/group-categories', '/settings/currency', '/settings/recurring', '/settings/notifications', '/groups/new', '/admin/users'];
+const HIDE_BOTTOMNAV_PREFIXES = ['/settings/profile', '/settings/categories', '/settings/budget', '/settings/sources', '/settings/card-benefits', '/settings/group-categories', '/settings/currency', '/settings/recurring', '/settings/notifications', '/groups/new', '/admin/users'];
 
 // 그룹 상세의 "그룹 정보" 수정 페이지(/groups/:id/edit)도 하단 탭바를 숨김. id가 경로 중간에
 // 오는 동적 라우트라 접두사만으로는 매칭할 수 없어 별도로 검사한다.

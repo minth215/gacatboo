@@ -63,6 +63,28 @@ export const db = {
   async reorderCategories(orderedIds) {
     await Promise.all(orderedIds.map((id, i) => supabase.from('categories').update({ sort_order: i }).eq('id', id)));
   },
+  async getCategory(id) {
+    return unwrap(await supabase.from('categories').select('*').eq('id', id).single());
+  },
+
+  // ---------- 분류별 예산 ----------
+  // month: 0 = 그 해의 기본 예산(재정의 없는 모든 달에 적용), 1~12 = 특정 달 재정의.
+  // 화면에 보여줄 값 계산(= 재정의 ?? 기본 예산 ?? 미설정)은 클라이언트에서 한다.
+  async listCategoryBudgetsForYear(year) {
+    return unwrap(await supabase.from('category_budgets').select('*').eq('year', year));
+  },
+  async listCategoryBudgetsForCategoryYear(categoryId, year) {
+    return unwrap(await supabase.from('category_budgets').select('*').eq('category_id', categoryId).eq('year', year));
+  },
+  async upsertCategoryBudget(userId, categoryId, year, month, amount) {
+    return unwrap(await supabase.from('category_budgets')
+      .upsert({ user_id: userId, category_id: categoryId, year, month, amount, updated_at: new Date().toISOString() }, { onConflict: 'user_id,category_id,year,month' })
+      .select().single());
+  },
+  // 값을 비우면(= 재정의 해제) 기본 예산을 다시 따르도록 행을 지운다.
+  async deleteCategoryBudget(categoryId, year, month) {
+    return unwrap(await supabase.from('category_budgets').delete().eq('category_id', categoryId).eq('year', year).eq('month', month));
+  },
 
   // ---------- 원천 ----------
   async listSources() {
