@@ -343,7 +343,8 @@ export default function Stats() {
   // 상세 뷰의 항목 카드를 눌러 기록 수정 페이지로 이동. 그룹 결제/입금 건은 가계부와
   // 동일하게 해당 그룹의 수정 화면으로 보낸다. 지금 화면 상태를 현재 history 항목에
   // 실어 두고 이동해서, "<"나 저장으로 뒤로 돌아오면(nav(-1)) 그대로 복원되게 한다.
-  const canEditTx = (t) => (t.origin_type ? true : t.created_by === user.id);
+  // 보이는 항목(개인 항목 + 내가 속한 그룹의 공유 항목)은 누가 등록했든 전부 수정/삭제 가능.
+  const canEditTx = () => true;
   const openDetailTx = (t) => {
     nav(location.pathname + location.search, {
       replace: true,

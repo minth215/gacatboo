@@ -84,7 +84,8 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
     db.getSubscription(gid).then(setSub).catch(() => setSub(null));
   }, [gid, settlementMode]);
 
-  const canEdit = (t) => t.created_by === user.id;
+  // 그룹에 보이는 항목은 누가 등록했든 멤버 누구나 수정/삭제 가능(공유 내역이므로).
+  const canEdit = () => true;
   const removeTx = async (t) => {
     if (!confirm('이 항목을 삭제할까요?')) return;
     try { await db.deleteTransaction(t.id); loadTxs(); } catch (e) { alert(e.message); }

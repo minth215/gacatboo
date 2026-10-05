@@ -124,7 +124,8 @@ export default function Ledger() {
   const onSearchIcon = () => { if (searchOpen) searchRef.current?.focus(); else openSearch(); };
   const onFilterClick = () => { if (searchOpen) setShowSearchFilter((v) => !v); else setShowFilter((v) => !v); };
 
-  const canEdit = (t) => (t.origin_type ? true : t.created_by === user.id);
+  // 보이는 항목(개인 항목 + 내가 속한 그룹의 공유 항목)은 누가 등록했든 전부 수정/삭제 가능.
+  const canEdit = () => true;
   const openEdit = (t) => {
     if (t.origin_type === 'payment') nav(`/tx/${t.origin_id}?group=${t.origin_group_id}&kind=payment`);
     else if (t.origin_type === 'deposit') nav(`/tx/${t.origin_id}?group=${t.origin_group_id}&kind=deposit`);
