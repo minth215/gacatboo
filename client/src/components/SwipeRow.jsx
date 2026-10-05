@@ -61,6 +61,10 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
       // 클릭이 카드 전체로 넘어가 카드 안의 버튼(연필 등)이 마우스 클릭에 반응하지 않는다.
       e.currentTarget.setPointerCapture?.(e.pointerId);
     }
+    // 가로 드래그로 확정된 뒤에는 매 move 마다 기본 동작을 명시적으로 막아야 한다. 안 그러면
+    // (특히 iOS Safari에서) 브라우저가 뒤늦게 이 제스처를 스크롤/바운스로 가로채 버려서
+    // pointermove 가 더 이상 오지 않고 스와이프가 끊기는 경우가 간헐적으로 있었다.
+    e.preventDefault?.();
     let nx = st.current.base + mx;
     const max = openDistRef.current;
     nx = Math.max(-max - 16, Math.min(0, nx));
