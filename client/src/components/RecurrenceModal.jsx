@@ -1,19 +1,52 @@
 import { useState } from 'react';
-import { RECURRENCE_PRESETS, WEEKDAY_LABELS } from '../lib/recurrence.js';
+import { RECURRENCE_PRESETS, WEEKDAY_LABELS, BUSINESS_DAY_LABELS } from '../lib/recurrence.js';
 
-// "반복 기간 선택" 모달. 프리셋을 고르면 바로 onSelect({ preset }), "사용자화"를 고르면
-// 추가 폼(횟수+단위, 단위가 "주"면 요일 다중선택)을 보여주고 확인 시 onSelect({ preset:'custom', interval, unit, weekdays }).
+// 프리셋별 실제 반복 단위(영업일 처리는 월/연 반복에만 의미가 있어, 그 경우에만 다음 단계로 물어본다)
+const PRESET_UNIT = {
+  daily: 'day', weekday: 'week', weekend: 'week', weekly: 'week', biweekly: 'week',
+  monthly: 'month', every2m: 'month', every3m: 'month', every6m: 'month', yearly: 'year',
+};
+
+function BusinessDayPicker({ value, onChange }) {
+  return (
+    <div style={{ display: 'flex', background: '#f4f2f0', borderRadius: 999, padding: 3 }}>
+      {Object.entries(BUSINESS_DAY_LABELS).map(([v, label]) => (
+        <button
+          key={v} type="button" onClick={() => onChange(v)}
+          style={{
+            flex: 1, border: 'none', borderRadius: 999, padding: '8px 0', fontFamily: 'inherit',
+            fontSize: 11.75, fontWeight: 700, cursor: 'pointer',
+            background: value === v ? '#fff' : 'transparent', color: value === v ? '#191722' : '#8b8798',
+          }}
+        >{label}</button>
+      ))}
+    </div>
+  );
+}
+
+// "반복 기간 선택" 모달. 프리셋을 고르면(월/연 반복이면 영업일 처리를 한 번 더 물은 뒤)
+// onSelect({ preset, business_day_rule }), "사용자화"를 고르면 추가 폼(횟수+단위, 단위가
+// "주"면 요일 다중선택, "개월"/"년"이면 영업일 처리)을 보여주고 확인 시
+// onSelect({ preset:'custom', interval, unit, weekdays, business_day_rule }).
 export default function RecurrenceModal({ onClose, onSelect }) {
   const [custom, setCustom] = useState(false);
   const [interval, setIntervalVal] = useState('1');
   const [unit, setUnit] = useState('month');
   const [weekdays, setWeekdays] = useState([]);
+  const [pendingPreset, setPendingPreset] = useState(null); // 영업일 처리를 물어보는 중인 월/연 프리셋
+  const [businessDayRule, setBusinessDayRule] = useState('none');
 
   const toggleWeekday = (i) => setWeekdays((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i].sort()));
 
+  const pickPreset = (key) => {
+    const u = PRESET_UNIT[key];
+    if (u === 'month' || u === 'year') { setPendingPreset(key); setBusinessDayRule('none'); }
+    else onSelect({ preset: key });
+  };
+
   const saveCustom = () => {
     const n = Math.max(1, Number(interval) || 1);
-    onSelect({ preset: 'custom', interval: n, unit, weekdays });
+    onSelect({ preset: 'custom', interval: n, unit, weekdays, business_day_rule: businessDayRule });
   };
 
   return (
@@ -26,12 +59,26 @@ export default function RecurrenceModal({ onClose, onSelect }) {
           </button>
         </div>
 
-        {!custom ? (
+        {pendingPreset ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#191722' }}>
+              {RECURRENCE_PRESETS.find((p) => p.key === pendingPreset)?.label}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>영업일 처리</span>
+              <BusinessDayPicker value={businessDayRule} onChange={setBusinessDayRule} />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="btn" style={{ flex: 1 }} onClick={() => setPendingPreset(null)}>뒤로</button>
+              <button type="button" className="btn-ink-pill" style={{ flex: 1, marginTop: 0 }} onClick={() => onSelect({ preset: pendingPreset, business_day_rule: businessDayRule })}>확인</button>
+            </div>
+          </div>
+        ) : !custom ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {RECURRENCE_PRESETS.map((p) => (
               <button
                 key={p.key} type="button"
-                onClick={() => (p.key === 'custom' ? setCustom(true) : onSelect({ preset: p.key }))}
+                onClick={() => (p.key === 'custom' ? setCustom(true) : pickPreset(p.key))}
                 style={{ padding: '12px 4px', borderRadius: 12, border: '1.5px solid #e4e2e6', background: '#fff', fontSize: 12.75, fontWeight: 700, color: '#191722', cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 {p.label}
@@ -68,6 +115,13 @@ export default function RecurrenceModal({ onClose, onSelect }) {
                     {w}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {(unit === 'month' || unit === 'year') && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '2px 0 14px' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>영업일 처리</span>
+                <BusinessDayPicker value={businessDayRule} onChange={setBusinessDayRule} />
               </div>
             )}
 

@@ -28,26 +28,28 @@ function weekdayOf(dateStr) {
 
 const UNIT_LABEL = { day: '일', week: '주', month: '개월', year: '년' };
 
-// pending: 모달에서 고른 선택값. { preset } 또는 사용자화의 경우 { preset: 'custom', interval, unit, weekdays }
+// pending: 모달에서 고른 선택값. { preset, business_day_rule? } 또는 사용자화의 경우
+// { preset: 'custom', interval, unit, weekdays, business_day_rule? }
 // dateStr: 기록 페이지에 최종 입력된 날짜('YYYY-MM-DD') — 매주/격주의 기준 요일 계산에 사용.
 export function resolveRecurrence(pending, dateStr) {
   if (!pending) return null;
   const dow = weekdayOf(dateStr);
+  const bdr = pending.business_day_rule || 'none'; // 일/주 반복에는 의미 없지만 그대로 넣어도 서버에서 무시됨
   switch (pending.preset) {
-    case 'daily': return { freq_unit: 'day', freq_interval: 1, weekdays: [], label: '매일' };
-    case 'weekday': return { freq_unit: 'week', freq_interval: 1, weekdays: [1, 2, 3, 4, 5], label: '평일' };
-    case 'weekend': return { freq_unit: 'week', freq_interval: 1, weekdays: [0, 6], label: '주말' };
-    case 'weekly': return { freq_unit: 'week', freq_interval: 1, weekdays: [dow], label: '매주' };
-    case 'biweekly': return { freq_unit: 'week', freq_interval: 2, weekdays: [dow], label: '격주' };
-    case 'monthly': return { freq_unit: 'month', freq_interval: 1, weekdays: [], label: '매월' };
-    case 'every2m': return { freq_unit: 'month', freq_interval: 2, weekdays: [], label: '2개월마다' };
-    case 'every3m': return { freq_unit: 'month', freq_interval: 3, weekdays: [], label: '3개월마다' };
-    case 'every6m': return { freq_unit: 'month', freq_interval: 6, weekdays: [], label: '6개월마다' };
-    case 'yearly': return { freq_unit: 'year', freq_interval: 1, weekdays: [], label: '매년' };
+    case 'daily': return { freq_unit: 'day', freq_interval: 1, weekdays: [], label: '매일', business_day_rule: bdr };
+    case 'weekday': return { freq_unit: 'week', freq_interval: 1, weekdays: [1, 2, 3, 4, 5], label: '평일', business_day_rule: bdr };
+    case 'weekend': return { freq_unit: 'week', freq_interval: 1, weekdays: [0, 6], label: '주말', business_day_rule: bdr };
+    case 'weekly': return { freq_unit: 'week', freq_interval: 1, weekdays: [dow], label: '매주', business_day_rule: bdr };
+    case 'biweekly': return { freq_unit: 'week', freq_interval: 2, weekdays: [dow], label: '격주', business_day_rule: bdr };
+    case 'monthly': return { freq_unit: 'month', freq_interval: 1, weekdays: [], label: '매월', business_day_rule: bdr };
+    case 'every2m': return { freq_unit: 'month', freq_interval: 2, weekdays: [], label: '2개월마다', business_day_rule: bdr };
+    case 'every3m': return { freq_unit: 'month', freq_interval: 3, weekdays: [], label: '3개월마다', business_day_rule: bdr };
+    case 'every6m': return { freq_unit: 'month', freq_interval: 6, weekdays: [], label: '6개월마다', business_day_rule: bdr };
+    case 'yearly': return { freq_unit: 'year', freq_interval: 1, weekdays: [], label: '매년', business_day_rule: bdr };
     case 'custom': {
       const weekdays = pending.unit === 'week' ? (pending.weekdays?.length ? pending.weekdays : [dow]) : [];
       const weekdayPart = pending.unit === 'week' ? ` (${weekdays.map((w) => WEEKDAY_LABELS[w]).join(',')})` : '';
-      return { freq_unit: pending.unit, freq_interval: pending.interval, weekdays, label: `${pending.interval}${UNIT_LABEL[pending.unit]}마다${weekdayPart}` };
+      return { freq_unit: pending.unit, freq_interval: pending.interval, weekdays, label: `${pending.interval}${UNIT_LABEL[pending.unit]}마다${weekdayPart}`, business_day_rule: bdr };
     }
     default: return null;
   }

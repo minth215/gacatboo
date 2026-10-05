@@ -327,7 +327,7 @@ export const db = {
         source_id: base.source_id, source_name: base.source_name,
         content: base.content, memo: base.memo,
         start_date: payload.date,
-        freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label,
+        freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
       }).select().single());
       recurring_id = rule.id;
     }
@@ -523,7 +523,7 @@ export const db = {
         category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
         source_id: p.source_id || null, source_name: p.source_name || '',
         content: (p.content || '').trim(), memo: (p.memo || '').trim(),
-        start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label,
+        start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
       }).select().single());
       recurring_id = rule.id;
       unwrap(await supabase.from('transactions').update({ recurring_id }).eq('id', tx.id));
@@ -556,7 +556,7 @@ export const db = {
           category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
           source_id: p.source_id || null, source_name: p.source_name || '',
           content: (p.content || '').trim(), memo: (p.memo || '').trim(),
-          start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label,
+          start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
         }).select().single());
         recurring_id = rule.id;
         if (existing.tx_id) unwrap(await supabase.from('transactions').update({ recurring_id }).eq('id', existing.tx_id));
@@ -612,7 +612,7 @@ export const db = {
         leader_category_name: p.leader_category_name || '', leader_category_emoji: p.leader_category_emoji || '',
         deposit_source_name: p.deposit_source_name || '',
         content: (p.content || '').trim(), memo: (p.memo || '').trim(),
-        start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label,
+        start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
       }).select().single());
       const dep = unwrap(await supabase.from('subscription_deposits').update({ recurring_id: rule.id }).eq('id', depId).select('leader_tx_id, member_tx_id').single());
       const txIds = [dep.leader_tx_id, dep.member_tx_id].filter(Boolean);
@@ -638,7 +638,7 @@ export const db = {
           leader_category_name: p.leader_category_name || '', leader_category_emoji: p.leader_category_emoji || '',
           deposit_source_name: p.deposit_source_name || '',
           content: (p.content || '').trim(), memo: (p.memo || '').trim(),
-          start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label,
+          start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
         }).select().single());
         recurring_id = rule.id;
         const txIds = [existing.leader_tx_id, existing.member_tx_id].filter(Boolean);
