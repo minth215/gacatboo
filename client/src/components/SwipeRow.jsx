@@ -2,6 +2,27 @@ import { useEffect, useRef, useState } from 'react';
 
 const DEFAULT_OPEN = 72; // 스와이프 시 드러나는 영역 기본 폭(px)
 
+// 임시 디버그 패널: URL에 ?debug=swipe 를 붙이면 화면 상단에 터치 이벤트 정보를 표시한다.
+// 문제 해결 후 이 블록과 호출부는 제거할 것.
+const SWIPE_DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === 'swipe';
+function debugLog(line) {
+  if (!SWIPE_DEBUG) return;
+  let panel = document.getElementById('__swipe_debug_panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = '__swipe_debug_panel';
+    panel.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:rgba(0,0,0,0.85);color:#0f0;font:10px/1.4 monospace;padding:6px;max-height:40vh;overflow:auto;white-space:pre-wrap;pointer-events:none;';
+    document.body.appendChild(panel);
+  }
+  const time = new Date().toISOString().slice(11, 23);
+  panel.textContent = `[${time}] ${line}\n` + panel.textContent.split('\n').slice(0, 25).join('\n');
+}
+function describeTarget(el) {
+  if (!el) return 'null';
+  const cls = (el.className || '').toString().split(' ').filter(Boolean).slice(0, 2).join('.');
+  return `${el.tagName}${cls ? '.' + cls : ''}`;
+}
+
 // 왼쪽으로 스와이프하면 액션 영역이 드러나는 행.
 // actions 를 주면 기본 삭제 버튼 대신 그 내용을 보여준다(폭은 actionsWidth).
 // actions 가 함수면 스와이프 진행도(0~1)를 받아 렌더링한다(카드가 밀리는 만큼 액션이 나타나는 효과용).
@@ -39,6 +60,11 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
 
   const down = (e) => {
     if (!swipeEnabled) return;
+    if (SWIPE_DEBUG) {
+      const real = document.elementFromPoint(e.clientX, e.clientY);
+      debugLog(`DOWN target=${describeTarget(e.target)} elementFromPoint=${describeTarget(real)} ta=${real ? getComputedStyle(real).touchAction : '?'} pointerType=${e.pointerType}`);
+    }
+    if (!swipeEnabled) return;
     if (fullSwipe && wrapRef.current) openDistRef.current = wrapRef.current.getBoundingClientRect().width;
     st.current = { x: e.clientX, y: e.clientY, base: openRef.current ? -openDistRef.current : 0 };
     moved.current = false;
@@ -54,23 +80,28 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
       if (absX < 10 && absY < 10) return;
       // 세로 쪽이 가로의 1.3배 넘게 더 커야 스크롤로 보고 포기한다. 살짝만 비스듬해도
       // 바로 포기하던 예전 기준이 실제 터치에서 스와이프가 들쭉날쭉 먹히던 원인이었다.
-      if (absY > absX * 1.3) { st.current = null; return; }
+      if (absY > absX * 1.3) {
+        if (SWIPE_DEBUG) debugLog(`ABORT(scroll) absX=${absX.toFixed(0)} absY=${absY.toFixed(0)}`);
+        st.current = null; return;
+      }
       if (absX < 10) return;
       moved.current = true; setDragging(true);
+      if (SWIPE_DEBUG) debugLog(`COMMIT(horizontal) absX=${absX.toFixed(0)} absY=${absY.toFixed(0)}`);
       // 실제로 가로로 밀기 시작했을 때만 포인터를 잡는다. pointerdown 에서 바로 잡으면
       // 클릭이 카드 전체로 넘어가 카드 안의 버튼(연필 등)이 마우스 클릭에 반응하지 않는다.
-      e.currentTarget.setPointerCapture?.(e.pointerId);
+      try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch (err) { if (SWIPE_DEBUG) debugLog(`setPointerCapture ERROR ${err}`); }
     }
     // 가로 드래그로 확정된 뒤에는 매 move 마다 기본 동작을 명시적으로 막아야 한다. 안 그러면
     // (특히 iOS Safari에서) 브라우저가 뒤늦게 이 제스처를 스크롤/바운스로 가로채 버려서
     // pointermove 가 더 이상 오지 않고 스와이프가 끊기는 경우가 간헐적으로 있었다.
-    e.preventDefault?.();
+    try { e.preventDefault?.(); } catch (err) { if (SWIPE_DEBUG) debugLog(`preventDefault ERROR ${err}`); }
     let nx = st.current.base + mx;
     const max = openDistRef.current;
     nx = Math.max(-max - 16, Math.min(0, nx));
     setDx(nx);
   };
   const up = () => {
+    if (SWIPE_DEBUG) debugLog(`UP moved=${moved.current} dx=${dx}`);
     if (!st.current) return;
     st.current = null;
     setDragging(false);
