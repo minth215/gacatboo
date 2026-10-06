@@ -2,7 +2,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useDragReorder } from '../lib/useDragReorder.js';
+import { currentMonth, shiftMonth, today } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
+
+const roundBtn = (size = 36) => ({
+  width: size, height: size, borderRadius: '50%', border: 'none', background: '#fff',
+  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: '#6c6779',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none',
+});
 
 const Chevron = () => (
   <svg width="16" viewBox="0 0 24 24" fill="none" stroke="#c7c3cc" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}>
@@ -11,7 +18,7 @@ const Chevron = () => (
 );
 
 export default function Admin() {
-  const [tab, setTab] = useState('members'); // members | notifications
+  const [tab, setTab] = useState('members'); // members | notifications | holidays
 
   return (
     <div style={{ padding: '32px 0 12px' }}>
@@ -19,9 +26,10 @@ export default function Admin() {
       <div className="underline-tabs" style={{ top: 0 }}>
         <button className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>회원 관리</button>
         <button className={tab === 'notifications' ? 'active' : ''} onClick={() => setTab('notifications')}>알림 관리</button>
+        <button className={tab === 'holidays' ? 'active' : ''} onClick={() => setTab('holidays')}>공휴일 관리</button>
       </div>
 
-      {tab === 'members' ? <AdminMembers /> : <AdminNotifications />}
+      {tab === 'members' ? <AdminMembers /> : tab === 'notifications' ? <AdminNotifications /> : <AdminHolidays />}
     </div>
   );
 }
@@ -245,6 +253,112 @@ function AdminNotifications() {
           </form>
         </Modal>
       )}
+    </>
+  );
+}
+
+// 공휴일 관리: 가계부 페이지의 연월 컨트롤 바 + 캘린더 뷰와 같은 모양으로, 날짜를 누르면
+// 공휴일로 추가/삭제할 수 있다(영업일 보정이 이 kr_holidays 테이블을 그대로 참조함).
+function AdminHolidays() {
+  const [month, setMonth] = useState(currentMonth());
+  const [holidays, setHolidays] = useState({}); // 'YYYY-MM-DD' -> name
+  const [busyDate, setBusyDate] = useState(null);
+
+  const [y, m] = month.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const firstDow = new Date(y, m - 1, 1).getDay();
+  const todayStr = today();
+  const todayDay = todayStr.slice(0, 7) === month ? Number(todayStr.slice(8, 10)) : null;
+  const [yy, mm] = month.split('-');
+  const label = `${yy} 년 ${Number(mm)} 월`;
+  const pad = (n) => String(n).padStart(2, '0');
+
+  const load = useCallback(() => {
+    const from = `${month}-01`;
+    const to = `${month}-${pad(daysInMonth)}`;
+    db.listHolidays(from, to).then((rows) => {
+      const map = {};
+      for (const r of rows) map[r.date] = r.name;
+      setHolidays(map);
+    }).catch((e) => alert(e.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month]);
+  useEffect(() => { load(); }, [load]);
+
+  const toggle = async (day) => {
+    const dateStr = `${month}-${pad(day)}`;
+    const existing = holidays[dateStr];
+    setBusyDate(dateStr);
+    try {
+      if (existing) {
+        if (!confirm(`${Number(mm)}월 ${day}일 '${existing}'을(를) 공휴일에서 제거할까요?`)) return;
+        await db.deleteHoliday(dateStr);
+      } else {
+        const name = prompt(`${Number(mm)}월 ${day}일을 공휴일로 추가합니다. 이름을 입력하세요.`, '공휴일');
+        if (!name) return;
+        await db.upsertHoliday(dateStr, name);
+      }
+      load();
+    } catch (e) { alert(e.message); } finally { setBusyDate(null); }
+  };
+
+  const count = Object.keys(holidays).length;
+
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '18px 2px 10px' }}>
+        <span style={{ fontSize: 15, fontWeight: 800, color: '#191722' }}>이 달 공휴일</span>
+        <span className="chip">{count}</span>
+      </div>
+      <p className="small muted" style={{ margin: '0 2px 14px' }}>
+        날짜를 누르면 공휴일로 추가하거나(이미 있으면) 제거할 수 있어요. 반복 항목의 영업일 보정이 이 목록을 기준으로 동작해요.
+      </p>
+
+      {/* 월 이동 — 가계부 페이지와 동일한 구성 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button aria-label="이전 달" onClick={() => setMonth(shiftMonth(month, -1))} style={roundBtn(32)}>
+          <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
+        </button>
+        <div style={{ position: 'relative', minWidth: 88, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px' }}>{label}</span>
+          <input
+            type="month" value={month} aria-label="연월 선택" className="catmodal-date-input"
+            onChange={(e) => { if (e.target.value) setMonth(e.target.value); }}
+          />
+        </div>
+        <button aria-label="다음 달" onClick={() => setMonth(shiftMonth(month, 1))} style={roundBtn(32)}>
+          <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
+        </button>
+      </div>
+
+      {/* 캘린더 — 가계부 페이지 캘린더 뷰와 동일한 구성(선택 대신 공휴일 표시) */}
+      <div style={{ marginTop: 16, background: '#fff', borderRadius: 20, padding: '14px 12px 12px', boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', textAlign: 'center', fontSize: 10.5, fontWeight: 700, color: '#a29ead' }}>
+          <span style={{ color: '#e0607a' }}>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span style={{ color: '#7b93c9' }}>토</span>
+        </div>
+        <div style={{ marginTop: 7, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
+          {Array.from({ length: firstDow }).map((_, i) => <div key={`b${i}`} />)}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1;
+            const dateStr = `${month}-${pad(day)}`;
+            const name = holidays[dateStr];
+            const isToday = day === todayDay;
+            return (
+              <button
+                key={day} type="button" onClick={() => toggle(day)} disabled={busyDate === dateStr}
+                style={{
+                  minHeight: 54, border: 'none', borderRadius: 10, padding: '5px 2px 3px', textAlign: 'center', cursor: 'pointer',
+                  background: name ? '#FDE8EE' : 'transparent', fontFamily: 'inherit',
+                  outline: isToday ? '1.5px solid #FF8A00' : '1.5px solid transparent', outlineOffset: -1.5,
+                  opacity: busyDate === dateStr ? 0.5 : 1,
+                }}>
+                <div style={{ fontSize: 11, fontWeight: name ? 800 : 600, color: name ? '#FF4358' : '#6c6779' }}>{day}</div>
+                {name && <div style={{ marginTop: 2, fontSize: 8.5, fontWeight: 700, color: '#FF4358', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </>
   );
 }

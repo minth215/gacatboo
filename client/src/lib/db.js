@@ -956,4 +956,16 @@ export const db = {
       await supabase.functions.invoke('send-push', { body: { userId, eventKey, vars, link } });
     } catch {}
   },
+
+  // 공휴일 관리(관리자 전용 쓰기, RLS에서 강제). 월 단위로만 조회해도 충분하지만
+  // 달력에 앞뒤 달 일부가 걸쳐 보일 수 있어 범위로 받는다.
+  async listHolidays(fromDateStr, toDateStr) {
+    return unwrap(await supabase.from('kr_holidays').select('*').gte('date', fromDateStr).lte('date', toDateStr).order('date'));
+  },
+  async upsertHoliday(dateStr, name) {
+    return unwrap(await supabase.from('kr_holidays').upsert({ date: dateStr, name }).select().single());
+  },
+  async deleteHoliday(dateStr) {
+    return unwrap(await supabase.from('kr_holidays').delete().eq('date', dateStr));
+  },
 };
