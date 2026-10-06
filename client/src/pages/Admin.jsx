@@ -257,12 +257,16 @@ function AdminNotifications() {
   );
 }
 
+const WEEKDAY_FULL = ['일', '월', '화', '수', '목', '금', '토'];
+
 // 공휴일 관리: 가계부 페이지의 연월 컨트롤 바 + 캘린더 뷰와 같은 모양으로, 날짜를 누르면
-// 공휴일로 추가/삭제할 수 있다(영업일 보정이 이 kr_holidays 테이블을 그대로 참조함).
+// 공휴일로 추가하거나(이미 있으면) 선택해서 아래 카드에서 수정/삭제할 수 있다
+// (영업일 보정이 이 kr_holidays 테이블을 그대로 참조함).
 function AdminHolidays() {
   const [month, setMonth] = useState(currentMonth());
   const [holidays, setHolidays] = useState({}); // 'YYYY-MM-DD' -> name
   const [busyDate, setBusyDate] = useState(null);
+  const [selDate, setSelDate] = useState(null);
 
   const [y, m] = month.split('-').map(Number);
   const daysInMonth = new Date(y, m, 0).getDate();
@@ -283,39 +287,42 @@ function AdminHolidays() {
     }).catch((e) => alert(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); setSelDate(null); }, [load]);
 
-  const toggle = async (day) => {
+  const clickDay = async (day) => {
     const dateStr = `${month}-${pad(day)}`;
-    const existing = holidays[dateStr];
+    if (holidays[dateStr]) { setSelDate((d) => (d === dateStr ? null : dateStr)); return; }
+    const name = prompt(`${Number(mm)}월 ${day}일을 공휴일로 추가합니다. 이름을 입력하세요.`, '공휴일');
+    if (!name) return;
     setBusyDate(dateStr);
-    try {
-      if (existing) {
-        if (!confirm(`${Number(mm)}월 ${day}일 '${existing}'을(를) 공휴일에서 제거할까요?`)) return;
-        await db.deleteHoliday(dateStr);
-      } else {
-        const name = prompt(`${Number(mm)}월 ${day}일을 공휴일로 추가합니다. 이름을 입력하세요.`, '공휴일');
-        if (!name) return;
-        await db.upsertHoliday(dateStr, name);
-      }
-      load();
-    } catch (e) { alert(e.message); } finally { setBusyDate(null); }
+    try { await db.upsertHoliday(dateStr, name); load(); setSelDate(dateStr); }
+    catch (e) { alert(e.message); } finally { setBusyDate(null); }
   };
 
-  const count = Object.keys(holidays).length;
+  const renameSelected = async () => {
+    const name = prompt('공휴일 이름 수정', holidays[selDate]);
+    if (!name || name === holidays[selDate]) return;
+    setBusyDate(selDate);
+    try { await db.upsertHoliday(selDate, name); load(); }
+    catch (e) { alert(e.message); } finally { setBusyDate(null); }
+  };
+  const deleteSelected = async () => {
+    const name = holidays[selDate];
+    if (!confirm(`'${name}'을(를) 공휴일에서 제거할까요?`)) return;
+    setBusyDate(selDate);
+    try { await db.deleteHoliday(selDate); load(); setSelDate(null); }
+    catch (e) { alert(e.message); } finally { setBusyDate(null); }
+  };
+
+  const selLabel = selDate ? (() => {
+    const [sy, sm, sd] = selDate.split('-').map(Number);
+    return `${sm}월 ${sd}일 ${WEEKDAY_FULL[new Date(sy, sm - 1, sd).getDay()]}요일`;
+  })() : '';
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '18px 2px 10px' }}>
-        <span style={{ fontSize: 15, fontWeight: 800, color: '#191722' }}>이 달 공휴일</span>
-        <span className="chip">{count}</span>
-      </div>
-      <p className="small muted" style={{ margin: '0 2px 14px' }}>
-        날짜를 누르면 공휴일로 추가하거나(이미 있으면) 제거할 수 있어요. 반복 항목의 영업일 보정이 이 목록을 기준으로 동작해요.
-      </p>
-
       {/* 월 이동 — 가계부 페이지와 동일한 구성 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
         <button aria-label="이전 달" onClick={() => setMonth(shiftMonth(month, -1))} style={roundBtn(32)}>
           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
         </button>
@@ -331,7 +338,8 @@ function AdminHolidays() {
         </button>
       </div>
 
-      {/* 캘린더 — 가계부 페이지 캘린더 뷰와 동일한 구성(선택 대신 공휴일 표시) */}
+      {/* 캘린더 — 가계부 페이지 캘린더 뷰와 동일한 구성(선택 대신 공휴일 표시). 칸 크기는
+          내용 길이와 무관하게 항상 고정(height)이고, 긴 이름은 말줄임표로 줄인다. */}
       <div style={{ marginTop: 16, background: '#fff', borderRadius: 20, padding: '14px 12px 12px', boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', textAlign: 'center', fontSize: 10.5, fontWeight: 700, color: '#a29ead' }}>
           <span style={{ color: '#e0607a' }}>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span style={{ color: '#7b93c9' }}>토</span>
@@ -343,22 +351,44 @@ function AdminHolidays() {
             const dateStr = `${month}-${pad(day)}`;
             const name = holidays[dateStr];
             const isToday = day === todayDay;
+            const isSel = selDate === dateStr;
             return (
               <button
-                key={day} type="button" onClick={() => toggle(day)} disabled={busyDate === dateStr}
+                key={day} type="button" onClick={() => clickDay(day)} disabled={busyDate === dateStr}
                 style={{
-                  minHeight: 54, border: 'none', borderRadius: 10, padding: '5px 2px 3px', textAlign: 'center', cursor: 'pointer',
-                  background: name ? '#FDE8EE' : 'transparent', fontFamily: 'inherit',
+                  height: 54, width: '100%', minWidth: 0, border: 'none', borderRadius: 10, padding: '5px 2px 3px',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', cursor: 'pointer',
+                  background: isSel ? '#FFE3EA' : name ? '#FDE8EE' : 'transparent', fontFamily: 'inherit',
                   outline: isToday ? '1.5px solid #FF8A00' : '1.5px solid transparent', outlineOffset: -1.5,
                   opacity: busyDate === dateStr ? 0.5 : 1,
                 }}>
                 <div style={{ fontSize: 11, fontWeight: name ? 800 : 600, color: name ? '#FF4358' : '#6c6779' }}>{day}</div>
-                {name && <div style={{ marginTop: 2, fontSize: 8.5, fontWeight: 700, color: '#FF4358', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>}
+                {name && (
+                  <div style={{ marginTop: 2, width: '100%', fontSize: 8.5, fontWeight: 700, color: '#FF4358', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {name}
+                  </div>
+                )}
               </button>
             );
           })}
         </div>
       </div>
+
+      {/* 선택한 공휴일 카드 — 우측 끝에 수정/삭제 아이콘 */}
+      {selDate && holidays[selDate] && (
+        <div style={{ marginTop: 10, background: '#fff', borderRadius: 14, padding: '12px 8px 12px 16px', boxShadow: '0 4px 16px rgba(25,23,34,.05)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#191722' }}>{holidays[selDate]}</div>
+            <div style={{ marginTop: 2, fontSize: 11.5, color: '#a29ead' }}>{selLabel}</div>
+          </div>
+          <button aria-label="공휴일 이름 수정" onClick={renameSelected} className="row-icon-btn">
+            <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+          </button>
+          <button aria-label="공휴일 삭제" onClick={deleteSelected} className="row-icon-btn danger">
+            <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
+          </button>
+        </div>
+      )}
     </>
   );
 }
