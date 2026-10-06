@@ -150,6 +150,14 @@ export default function Ledger() {
   const [y, m] = month.split('-').map(Number);
   const daysInMonth = new Date(y, m, 0).getDate();
   const firstDow = new Date(y, m - 1, 1).getDay();
+  // 일요일/공휴일은 "일" 헤더와 같은 색, 토요일은 "토" 헤더와 같은 색(토요일이 공휴일이면 공휴일 색 우선)
+  const [holidaySet, setHolidaySet] = useState(new Set());
+  useEffect(() => {
+    const pad = (n) => String(n).padStart(2, '0');
+    db.listHolidays(`${month}-01`, `${month}-${pad(daysInMonth)}`)
+      .then((rows) => setHolidaySet(new Set(rows.map((r) => r.date))))
+      .catch(() => setHolidaySet(new Set()));
+  }, [month, daysInMonth]);
   const todayStr = today();
   const todayDay = todayStr.slice(0, 7) === month ? Number(todayStr.slice(8, 10)) : null;
   const perDay = useMemo(() => {
@@ -317,6 +325,9 @@ export default function Ledger() {
                       const pd = perDay[day];
                       const sel = selDay === day;
                       const isToday = day === todayDay;
+                      const dow = (firstDow + i) % 7;
+                      const isHoliday = holidaySet.has(`${month}-${String(day).padStart(2, '0')}`);
+                      const dayColor = isHoliday || dow === 0 ? '#e0607a' : dow === 6 ? '#7b93c9' : (sel ? '#191722' : '#6c6779');
                       return (
                         <div key={day} onClick={() => setSelDay(sel ? null : day)}
                           style={{
@@ -324,7 +335,7 @@ export default function Ledger() {
                             background: sel ? '#FFF0DC' : 'transparent',
                             border: isToday ? '1.5px solid #FF8A00' : '1.5px solid transparent',
                           }}>
-                          <div style={{ fontSize: 11, fontWeight: sel ? 800 : 600, color: sel ? '#191722' : '#6c6779' }}>{day}</div>
+                          <div style={{ fontSize: 11, fontWeight: sel ? 800 : 600, color: dayColor }}>{day}</div>
                           {pd?.expense > 0 && <div style={{ marginTop: 2, fontSize: 8, fontWeight: 700, letterSpacing: '-.3px', color: '#FF4358' }}>-{fmtNum(pd.expense)}</div>}
                           {pd?.income > 0 && <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '-.3px', color: '#2CDDB9' }}>+{fmtNum(pd.income)}</div>}
                         </div>
