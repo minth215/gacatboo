@@ -103,6 +103,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   const [expr, setExpr] = useState('');
   const justEvaluatedRef = useRef(false);
   const firstOpenRef = useRef(true);
+  const rootRef = useRef(null);
 
   const [userCurrencies, setUserCurrencies] = useState([]);
   const [currency, setCurrency] = useState(initialCurrency || 'KRW');
@@ -167,6 +168,22 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
     commitAndNotify();
     setFocused(false);
   };
+  // close 는 매 렌더마다 새로 만들어지므로 ref 에 최신 버전을 담아 두고 바깥 클릭 리스너에서 참조한다.
+  const closeRef = useRef(close);
+  closeRef.current = close;
+
+  // 키패드가 떠 있는 동안 바깥(다른 필드 등)을 누르면 키패드를 닫는다. 예전엔 전체 화면을 덮는 투명
+  // 오버레이에 onClick 으로 닫았는데, 그러면 그 첫 클릭이 오버레이에 먹혀 정작 누르려던 필드(날짜/분류 등)엔
+  // 전달되지 않아 한 번 더 눌러야 했다. pointerdown 시점에 state 로 키패드를 먼저 닫아 버리면, 뒤이어
+  // 발생하는 click 이벤트가 도달할 때는 이미 오버레이가 사라져 있어 같은 탭 한 번으로 그 필드가 바로 열린다.
+  useEffect(() => {
+    if (!focused) return;
+    const onPointerDownOutside = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) closeRef.current();
+    };
+    document.addEventListener('pointerdown', onPointerDownOutside);
+    return () => document.removeEventListener('pointerdown', onPointerDownOutside);
+  }, [focused]);
 
   // 연산자 뒤에서 시작하는(또는 맨 앞) 현재 입력 중인 숫자 구간만 잘라냄(소수점·% 중복 입력 방지용)
   const currentSegment = (s) => {
@@ -233,7 +250,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   const previewKrw = manualKrw != null ? Number(manualKrw) : Math.round(previewAmount * (rate || 0));
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div ref={rootRef} style={{ position: 'relative' }}>
       <div className="with-suffix">
         <input
           readOnly value={displayValue} placeholder={placeholder} autoFocus={autoFocus}
@@ -266,8 +283,6 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
 
       {focused && (
         <>
-          {/* 상단바(56px) 아래부터만 덮어서, 키패드가 떠 있어도 상단바 버튼(영수증 스캔 등)이 한 번에 눌리게 함 */}
-          <div style={{ position: 'fixed', top: 56, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={close} />
           <div style={{
             position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100,
             background: '#fff', borderRadius: '20px 20px 0 0', boxShadow: '0 -4px 20px rgba(25,23,34,.12)',
