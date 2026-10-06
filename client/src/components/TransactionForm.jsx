@@ -18,6 +18,20 @@ const RepeatIcon = ({ color }) => (
 // 분류/원천에 id 는 없고 이름(스냅샷)만 있는 항목(그룹 자동기입 등)을 표시하기 위한 센티넬
 const SNAP = '__snap__';
 
+// 정산 참여 멤버 금액 균등분배: 내림으로 나누고 남는 1원 단위는 앞쪽 멤버부터 1원씩 더 받음
+function equalSplitAmounts(count, total) {
+  if (!count) return [];
+  const base = Math.floor(total / count);
+  const rem = total - base * count;
+  return Array.from({ length: count }, (_, i) => base + (i < rem ? 1 : 0));
+}
+// 체크된(참여) 멤버끼리 total 을 균등분배해 각 행의 amount 를 갱신(체크 해제된 멤버는 0)
+function applyEqualSplit(list, total) {
+  const amounts = equalSplitAmounts(list.filter((m) => m.checked).length, total);
+  let k = 0;
+  return list.map((m) => (m.checked ? { ...m, amount: amounts[k++] } : { ...m, amount: 0 }));
+}
+
 // 사진 파일을 리사이즈 후 base64(순수 데이터, data: 접두어 제외)로 변환(전송 용량 절감용)
 async function fileToResizedBase64(file, maxSize = 1600, quality = 0.85) {
   const img = await new Promise((resolve, reject) => {
@@ -43,7 +57,11 @@ async function fileToResizedBase64(file, maxSize = 1600, quality = 0.85) {
 // defaultContentTemplate 지정 시 신규 작성 때 "내용"을 이 템플릿({연}/{월}/{일} 변수 지원)으로 자동 채우고,
 // 날짜를 바꾸면 그 날짜 기준으로 다시 채워짐.
 // onSubmit 지정 시 db.saveTransaction 대신 이 함수로 저장을 위임(그룹 결제 등 별도 저장 로직).
-const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate, onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence }, ref) {
+// settlementMembers 지정 시(정산 그룹 결제 내역) 지출 금액 아래에 참여 멤버 체크리스트가 뜨고,
+// 기본으로 전원 체크되어 금액이 균등분배되며, 체크 해제/금액 직접 수정이 가능하다.
+// initialSettlementSplit 은 기존 저장된 분담 내역([{member_id, amount}])으로, 수정 화면에서
+// 비동기로 나중에 도착해도(아직 undefined 인 동안은 초기화를 기다림) 반영된다.
+const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate, onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence, settlementMembers, initialSettlementSplit }, ref) {
   const { user } = useAuth();
   const nav = useNavigate();
   const editing = !!initial?.id;
@@ -180,10 +198,41 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
   const selCategory = categories.find((c) => String(c.id) === String(categoryId));
   const isSettlement = type === 'income' && selCategory?.name === '정산';
 
+  // 정산 그룹 결제 내역: 참여 멤버 체크리스트 + 멤버별 분담액(균등분배가 기본, 직접 수정 가능)
+  const showMemberSplit = !!settlementMembers?.length && type === 'expense';
+  const [splitMembers, setSplitMembers] = useState(null); // null = 아직 초기화 전
+  const splitInitRef = useRef(false);
+  useEffect(() => {
+    if (splitInitRef.current) return;
+    if (!settlementMembers?.length) return;
+    if (editing && initialSettlementSplit === undefined) return; // 수정 화면: 기존 분담 내역 도착 대기
+    splitInitRef.current = true;
+    const existing = initialSettlementSplit?.length ? new Map(initialSettlementSplit.map((r) => [r.member_id, Number(r.amount)])) : null;
+    const base = settlementMembers.map((m) => ({ id: m.id, name: m.nickname, isOwner: m.role === 'owner', checked: true, amount: 0 }));
+    setSplitMembers(existing
+      ? base.map((m) => ({ ...m, checked: existing.has(m.id), amount: existing.get(m.id) || 0 }))
+      : applyEqualSplit(base, Number(amount) || 0));
+  }, [settlementMembers, initialSettlementSplit, editing]);
+  // 결제 금액이 바뀌면 현재 체크된 멤버끼리 다시 균등분배(직접 수정한 금액은 초기화됨)
+  useEffect(() => {
+    if (!splitMembers) return;
+    setSplitMembers((prev) => applyEqualSplit(prev, Number(amount) || 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amount]);
+  const toggleSplitMember = (id) => {
+    setSplitMembers((prev) => applyEqualSplit(prev.map((m) => (m.id === id ? { ...m, checked: !m.checked } : m)), Number(amount) || 0));
+  };
+  const setSplitAmount = (id, v) => {
+    setSplitMembers((prev) => prev.map((m) => (m.id === id ? { ...m, amount: Math.max(0, Number(v) || 0) } : m)));
+  };
+  const splitSum = splitMembers ? splitMembers.reduce((s, m) => (m.checked ? s + m.amount : s), 0) : 0;
+
   const submit = async (e) => {
     e.preventDefault();
     setError('');
     if (!amount || Number(amount) < 0) return setError('금액을 입력하세요.');
+    const checkedSplitMembers = showMemberSplit ? (splitMembers || []).filter((m) => m.checked) : null;
+    if (showMemberSplit && !checkedSplitMembers.length) return setError('정산에 참여할 멤버를 1명 이상 선택하세요.');
     setBusy(true);
 
     // 분류 결정 (SNAP=기존 스냅샷 유지 / 실제 선택 / 선택 안 함)
@@ -230,7 +279,12 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
     };
     try {
       if (onSubmit) await onSubmit(payload);
-      else await db.saveTransaction({ id: initial?.id, userId: user.id, payload, sourcesFlat });
+      else {
+        const saved = await db.saveTransaction({ id: initial?.id, userId: user.id, payload, sourcesFlat });
+        if (checkedSplitMembers) {
+          await db.saveSettlementSplit(saved.id, checkedSplitMembers.map((m) => ({ member_id: m.id, amount: m.amount })));
+        }
+      }
       onSaved?.();
     } catch (err) {
       setError(err.message);
@@ -312,6 +366,33 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
             initialCurrency={currencyMeta?.input_currency} initialForeignAmount={currencyMeta?.input_amount}
             onCurrencyChange={setCurrencyMeta}
           />
+        </div>
+      )}
+
+      {showMemberSplit && splitMembers && (
+        <div className="field">
+          <div className="field-label-row">
+            <label>정산 참여 멤버</label>
+            <span className="small muted" style={splitSum !== Math.round(Number(amount) || 0) ? { color: 'var(--expense)' } : undefined}>
+              합계 {fmtNum(splitSum)}{splitSum !== Math.round(Number(amount) || 0) ? ` (결제금액 ${fmtNum(Number(amount) || 0)}과 다름)` : ''}
+            </span>
+          </div>
+          <div style={{ background: '#faf9f7', borderRadius: 12, padding: '0 10px' }}>
+            {splitMembers.map((m, i) => (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0', borderTop: i > 0 ? '1px solid #efeef2' : 'none' }}>
+                <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: m.checked ? '#191722' : '#c7c3cc' }}>
+                  {m.name}{m.isOwner ? ' (총무)' : ''}
+                </span>
+                <input
+                  type="text" inputMode="numeric" disabled={!m.checked}
+                  value={m.checked ? String(m.amount) : ''}
+                  onChange={(e) => setSplitAmount(m.id, e.target.value.replace(/[^0-9]/g, ''))}
+                  style={{ width: 92, textAlign: 'right', border: '1px solid #e4e2e6', borderRadius: 8, padding: '6px 8px', fontSize: 13, color: '#191722', fontFamily: 'inherit', opacity: m.checked ? 1 : 0.4 }}
+                />
+                <input type="checkbox" checked={m.checked} onChange={() => toggleSplitMember(m.id)} style={{ width: 18, height: 18, flex: 'none' }} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

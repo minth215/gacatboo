@@ -4,7 +4,7 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { isSubscription, isSettlement, leaderLabel } from '../lib/format.js';
 import TransactionForm from '../components/TransactionForm.jsx';
-import { DepositForm } from './SubscriptionGroup.jsx';
+import { DepositForm, isLeftoverName } from './SubscriptionGroup.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 
@@ -36,6 +36,9 @@ export default function TransactionEdit() {
   const [error, setError] = useState('');
   const formRef = useRef(null);
   const [scanBusy, setScanBusy] = useState(false);
+  // 정산 그룹의 일반 결제 내역(생성 시 URL의 group, 수정 시 기존 항목의 group_id)
+  const effectiveGroupId = groupId || initial?.group_id || null;
+  const [initialSplit, setInitialSplit] = useState(undefined); // undefined=아직 조회 전, []=저장된 분담 없음(레거시)
 
   // 입금 내역 전용 부가 데이터
   const [sub, setSub] = useState(null);
@@ -48,6 +51,19 @@ export default function TransactionEdit() {
     if ((!isPayment && !isDeposit) || !groupId) return;
     db.getGroup(groupId).then(({ group, members }) => { setGroup(group); setMembers(members); }).catch(() => {});
   }, [isPayment, isDeposit, groupId]);
+
+  // 정산 그룹의 일반 결제 내역(신규/수정 모두): 멤버 체크리스트/분담액 UI에 필요한 그룹·멤버 정보.
+  // 신규는 URL의 group, 수정은 기존 항목이 로드된 뒤 그 group_id 로 가져온다.
+  useEffect(() => {
+    if (isPayment || isDeposit || !effectiveGroupId) return;
+    db.getGroup(effectiveGroupId).then(({ group, members }) => { setGroup(group); setMembers(members); }).catch(() => {});
+  }, [isPayment, isDeposit, effectiveGroupId]);
+
+  // 수정 화면: 이 결제 건에 이미 저장된 참여 멤버/분담액(없으면 이 기능 이전에 등록된 결제)
+  useEffect(() => {
+    if (isPayment || isDeposit || !editing || !id) return;
+    db.listSettlementSplits([Number(id)]).then(setInitialSplit).catch(() => setInitialSplit([]));
+  }, [isPayment, isDeposit, editing, id]);
 
   useEffect(() => {
     if ((!isPayment && !isDeposit) || !groupId) return;
@@ -101,6 +117,10 @@ export default function TransactionEdit() {
   const isOwner = isDeposit && group ? group.owner_id === user.id : false;
   const myMember = members.find((m) => m.user_id === user.id && m.role !== 'owner');
   const memberList = members.filter((m) => m.role !== 'owner');
+  // 정산 그룹의 일반 결제 내역: 참여 멤버 체크리스트용(자투리 보관용 가상 멤버 '짤짤이'는 제외)
+  const settlementSplitMembers = (!isPayment && !isDeposit && isSettlement(group?.category))
+    ? members.filter((m) => !isLeftoverName(m.nickname))
+    : undefined;
 
   // 영수증으로 채우기: 일반 개인/그룹 항목 신규 작성일 때만(결제·입금 내역 제외)
   const showReceiptBtn = !editing && !isPayment && !isDeposit;
@@ -156,6 +176,8 @@ export default function TransactionEdit() {
           defaultContentTemplate={isPayment ? sub?.payment_content_template : undefined}
           onSubmit={isPayment ? savePayment : undefined}
           showPeriods={isPayment && isSubscription(group?.category)}
+          settlementMembers={settlementSplitMembers}
+          initialSettlementSplit={editing ? initialSplit : undefined}
           topNotice={isPayment && group && (
             <div className="form-section-group">
               <div style={{ fontSize: 16, fontWeight: 800, color: '#191722' }}>{group.name}</div>

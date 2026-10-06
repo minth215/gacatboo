@@ -476,6 +476,20 @@ export const db = {
   async removeMember(memberId) {
     return unwrap(await supabase.from('group_members').delete().eq('id', memberId));
   },
+
+  // 정산 그룹 결제 내역의 "참여 멤버 + 멤버별 금액"(transaction_id 여러 개를 한 번에 조회 가능 —
+  // 정산 탭에서 모든 결제 건의 분담 내역을 한 번에 집계할 때 사용).
+  async listSettlementSplits(txIds) {
+    if (!txIds?.length) return [];
+    return unwrap(await supabase.from('transaction_settlement_members').select('*').in('transaction_id', txIds));
+  },
+  // 특정 결제 건의 참여 멤버 구성을 통째로 교체(제외된 멤버는 행 자체가 없음 = 0명이면 전부 삭제).
+  async saveSettlementSplit(txId, rows) {
+    await supabase.from('transaction_settlement_members').delete().eq('transaction_id', txId);
+    if (!rows?.length) return;
+    unwrap(await supabase.from('transaction_settlement_members')
+      .insert(rows.map((r) => ({ transaction_id: txId, member_id: r.member_id, amount: Math.max(Math.round(Number(r.amount)) || 0, 0) }))));
+  },
   async deleteGroup(id) {
     return unwrap(await supabase.from('groups').delete().eq('id', id));
   },

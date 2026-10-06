@@ -24,7 +24,7 @@ const KEEP = '__keep__'; // id 없이 이름만 있는 원천/분류(스냅샷) 
 // 기록하기 위한 가상 멤버의 닉네임. 이 닉네임으로 그룹 멤버를 찾아 식별한다.
 const LEFTOVER_NAME = '짤짤이';
 // 이전 명칭('짤랑이')으로 이미 만들어진 행도 같은 가상 멤버로 인식한다(0018 마이그레이션 전 대비).
-const isLeftoverName = (name) => name === LEFTOVER_NAME || name === '짤랑이';
+export const isLeftoverName = (name) => name === LEFTOVER_NAME || name === '짤랑이';
 
 // 날짜(dateStr)가 속한 달의 정기결제일(billingDay)로 날짜를 맞춰줌.
 // 예: dateStr=2026-08-22, billingDay=19 → 2026-08-19 (그 달의 마지막 날짜를 넘지 않도록 보정)
@@ -111,10 +111,31 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   // 정산 인원 수·1인당 몫은 짤짤이(자투리 가상 멤버)를 빼고 계산한다.
   const realMembers = members.filter((m) => !isLeftoverName(m.nickname));
   const memberCount = realMembers.length || 1;
+  // 결제 건별로 참여 멤버/금액이 따로 저장돼 있으면(기록 화면에서 멤버를 체크/해제해 등록한 경우)
+  // 그 값을 그대로 쓰고, 없는 결제 건(이 기능 이전에 등록됨)은 기존처럼 그 결제 금액을 전체
+  // 멤버가 균등분배한 것으로 본다.
+  const [splitByTx, setSplitByTx] = useState({}); // transaction_id -> { member_id: amount }
+  useEffect(() => {
+    const ids = payments.map((p) => p.id);
+    if (!ids.length) { setSplitByTx({}); return; }
+    db.listSettlementSplits(ids).then((rows) => {
+      const map = {};
+      for (const r of rows) (map[r.transaction_id] ||= {})[r.member_id] = Number(r.amount);
+      setSplitByTx(map);
+    }).catch(() => setSplitByTx({}));
+  }, [payments]);
+  const hasAnySplit = payments.some((p) => splitByTx[p.id]);
   // 1인당 몫은 내림으로 나누고, 남는 1원 단위 자투리는 짤짤이로 모은다(항상 0 이상).
-  const defaultShare = Math.floor(totalPaid / memberCount);
-  const defaultLeftover = totalPaid - defaultShare * memberCount;
-  const baseOwedOf = (m) => (m.settlement_override != null ? Number(m.settlement_override) : defaultShare);
+  const flatShare = Math.floor(totalPaid / memberCount);
+  const defaultShareOf = (m) => {
+    if (!hasAnySplit) return flatShare; // 이 기능을 한 번도 안 썼으면 기존 계산과 완전히 동일
+    return payments.reduce((s, p) => {
+      const split = splitByTx[p.id];
+      return s + (split ? (split[m.id] || 0) : Math.floor(Number(p.amount) / memberCount));
+    }, 0);
+  };
+  const defaultLeftover = totalPaid - realMembers.reduce((s, m) => s + defaultShareOf(m), 0);
+  const baseOwedOf = (m) => (m.settlement_override != null ? Number(m.settlement_override) : defaultShareOf(m));
   // 자동 계산으로 저장된 자투리는 짤짤이 멤버 행의 settlement_override 에 보관한다.
   const baseLeftover = leftoverMember?.settlement_override != null ? Number(leftoverMember.settlement_override) : defaultLeftover;
   // 총 결제 금액·인원이 바뀌면 이전에 감춰둔 짤짤이 카드를 다시 보여준다.
