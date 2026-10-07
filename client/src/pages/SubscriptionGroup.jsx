@@ -51,9 +51,9 @@ export function groupByMonthThenDate(list) {
   return Object.keys(byMonth).sort((a, b) => (a < b ? 1 : -1)).map((mo) => [mo, groupByDate(byMonth[mo])]);
 }
 
-function SourceSelect({ sources, value, onChange, keepLabel }) {
+function SourceSelect({ sources, value, onChange, keepLabel, style }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)}>
+    <select value={value} onChange={(e) => onChange(e.target.value)} style={style}>
       <option value="">선택 안 함</option>
       {value === KEEP && <option value={KEEP}>{keepLabel} (기존)</option>}
       {sources.map((top) => (
@@ -67,9 +67,9 @@ function SourceSelect({ sources, value, onChange, keepLabel }) {
     </select>
   );
 }
-function CategorySelect({ cats, value, onChange, keepLabel }) {
+function CategorySelect({ cats, value, onChange, keepLabel, style }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)}>
+    <select value={value} onChange={(e) => onChange(e.target.value)} style={style}>
       <option value="">선택 안 함</option>
       {value === KEEP && <option value={KEEP}>{keepLabel} (기존)</option>}
       {cats.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
@@ -1164,6 +1164,10 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     } catch (e) { setErr(e.message); setBusy(false); }
   };
 
+  const rowStyle = { display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' };
+  const rowLabelStyle = { width: 46, flex: 'none', fontSize: 13.5, fontWeight: 400, color: '#8b8798' };
+  const rowInputStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', padding: 0 };
+
   return (
     <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
       {topNotice}
@@ -1180,27 +1184,17 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
           </span>
         )}
 
-        {/* 공통 */}
-        <div className="field"><label>멤버</label>
-          <select value={f.memberId} onChange={(e) => setF({ ...f, memberId: e.target.value })} disabled={editing || members.length <= 1}>
-            {members.map((m) => <option key={m.id} value={m.id}>{m.nickname}</option>)}
-            {editing && !members.some((m) => String(m.id) === String(f.memberId)) && <option value={f.memberId}>{initial.member?.nickname || '멤버'}</option>}
-          </select>
-        </div>
-        <div className="field">
-          <label>날짜</label>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <div style={{ position: 'relative', flex: 1, background: 'rgb(244, 243, 247)', borderRadius: 10, padding: '11px 12px' }}>
-              <span style={{ fontSize: 14, color: '#191722' }}>{dotDate(f.date)}</span>
+        <div style={rowStyle}>
+          <span style={rowLabelStyle}>날짜</span>
+          <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <div style={{ position: 'relative' }}>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{dotDate(f.date)}</span>
               <input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택" />
             </div>
             {!multiSettle && (
               <button
                 type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
-                style={{
-                  border: 'none', background: 'transparent', padding: 0, flex: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0,
-                }}
+                style={{ border: 'none', background: 'transparent', padding: 0, flex: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0 }}
               >
                 <RepeatIcon color={(recurringId || pendingRecurrence) ? '#2CDDB9' : '#c7c3cc'} />
               </button>
@@ -1208,119 +1202,125 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
           </div>
         </div>
 
-          {showRecurrenceModal && (
-            <RecurrenceModal onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
-          )}
-          {backfillPrompt && (
-            <ConfirmModal
-              message={`과거의 반복 내역 ${backfillPrompt.n}개를 일괄 생성할까요?`}
-              onYes={() => { backfillPrompt.resolve(true); setBackfillPrompt(null); }}
-              onNo={() => { backfillPrompt.resolve(false); setBackfillPrompt(null); }}
-            />
-          )}
+        <div style={rowStyle}>
+          <span style={rowLabelStyle}>멤버</span>
+          <select
+            value={f.memberId} onChange={(e) => setF({ ...f, memberId: e.target.value })} disabled={editing || members.length <= 1}
+            style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}
+          >
+            {members.map((m) => <option key={m.id} value={m.id}>{m.nickname}</option>)}
+            {editing && !members.some((m) => String(m.id) === String(f.memberId)) && <option value={f.memberId}>{initial.member?.nickname || '멤버'}</option>}
+          </select>
+        </div>
 
-          {!multiSettle && (showPeriods ? (
-            <div className="grid2">
-              <div className="field"><label>금액</label>
-                <div className="with-suffix">
-                  <input
-                    type="text" inputMode="numeric"
-                    value={f.amount ? Number(f.amount).toLocaleString('ko-KR') : ''}
-                    onChange={(e) => onAmountChange(e.target.value)}
-                  />
-                  <span className="suffix">원</span>
-                </div>
-              </div>
-              <div className="field"><label>기간(회차)</label><input type="number" min="1" value={f.periods} onChange={(e) => setF({ ...f, periods: e.target.value })} /></div>
-            </div>
-          ) : (
-            <div className="field"><label>금액</label>
-              <div className="with-suffix">
-                <input
-                  type="text" inputMode="numeric"
-                  value={f.amount ? Number(f.amount).toLocaleString('ko-KR') : ''}
-                  onChange={(e) => onAmountChange(e.target.value)}
-                />
-                <span className="suffix">원</span>
-              </div>
-            </div>
-          ))}
+        {showRecurrenceModal && (
+          <RecurrenceModal onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
+        )}
+        {backfillPrompt && (
+          <ConfirmModal
+            message={`과거의 반복 내역 ${backfillPrompt.n}개를 일괄 생성할까요?`}
+            onYes={() => { backfillPrompt.resolve(true); setBackfillPrompt(null); }}
+            onNo={() => { backfillPrompt.resolve(false); setBackfillPrompt(null); }}
+          />
+        )}
 
+        <div style={rowStyle}>
+          <span style={rowLabelStyle}>분류</span>
           {isOwner ? (
-            /* 총대 가계부 영역 */
-            <div className="form-section-card">
-              <div className="form-section-title">총대 가계부 (수입)</div>
-              <div className="field"><label>분류</label>
-                <CategorySelect cats={incomeCats} value={f.lCatId} onChange={(v) => setF({ ...f, lCatId: v })} keepLabel={initial?.leader_category_name} />
-              </div>
-
-              {multiSettle ? (
-                <div className="field">
-                  <label>정산 대상 <span className="small muted">(여러 건을 한 번에 입금 처리할 수 있어요)</span></label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, padding: '9px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
-                    <span style={{ fontSize: 12.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
-                    <span />
-                  </div>
-                  {settleRows.map((r, idx) => (
-                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0' }}>
-                      <select
-                        value={r.targetId} onChange={(e) => onSettleTargetChange(idx, e.target.value)}
-                        style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, appearance: 'none' }}
-                      >
-                        <option value="">정산 대상 선택</option>
-                        {recentExpenses.map((x) => (
-                          <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {settleTargetLabel(x)} ({fmtWon(x.amount)})</option>
-                        ))}
-                      </select>
-                      <input
-                        type="text" inputMode="numeric" placeholder="0" value={r.amount ? Number(r.amount).toLocaleString('ko-KR') : ''}
-                        onChange={(e) => updateSettleRow(idx, { amount: e.target.value.replace(/[^0-9]/g, '') })}
-                        style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', minWidth: 0 }}
-                      />
-                      {settleRows.length > 1 ? (
-                        <button type="button" aria-label="행 삭제" onClick={() => removeSettleRow(idx)} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
-                        </button>
-                      ) : <span />}
-                    </div>
-                  ))}
-                  <button type="button" onClick={addSettleRow} className="rcpt-add-row">+ 행 추가</button>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '10px 0 0', marginTop: 9, borderTop: '1px dashed #cfccd4' }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
-                    <span style={{ fontSize: 13.75, fontWeight: 800, color: '#2CDDB9', textAlign: 'right' }}>{fmtNum(settleTotal)}</span>
-                    <span />
-                  </div>
-                </div>
-              ) : leaderIsSettle && (
-                <div className="field"><label>정산 대상 <span className="small muted">(정산할 지출 선택)</span></label>
-                  <select value={f.lSettleId} onChange={(e) => setF({ ...f, lSettleId: e.target.value })}>
-                    <option value="">선택 안 함</option>
-                    {recentExpenses.map((x) => (
-                      <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {settleTargetLabel(x)} ({fmtWon(x.amount)})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className="field"><label>원천</label>
-                <SourceSelect sources={sources.tree} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} />
-              </div>
-            </div>
+            <CategorySelect cats={incomeCats} value={f.lCatId} onChange={(v) => setF({ ...f, lCatId: v })} keepLabel={initial?.leader_category_name} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }} />
           ) : (
-            /* 멤버 가계부 영역 */
-            <div className="form-section">
-              <div className="form-section-title">내 가계부 (지출)</div>
-              <div className="field"><label>분류</label>
-                <CategorySelect cats={cats} value={f.mCatId} onChange={(v) => setF({ ...f, mCatId: v })} keepLabel={initial?.category_name} />
-              </div>
-              <div className="field"><label>원천</label>
-                <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} />
-              </div>
-            </div>
+            <CategorySelect cats={cats} value={f.mCatId} onChange={(v) => setF({ ...f, mCatId: v })} keepLabel={initial?.category_name} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }} />
           )}
+        </div>
 
-        <div className="field"><label>메모</label><textarea ref={memoRef} value={f.memo} onChange={(e) => setF({ ...f, memo: e.target.value })} style={{ overflow: 'hidden' }} /></div>
+        {isOwner && (multiSettle ? (
+          <div style={{ padding: '6px 0' }}>
+            <div style={{ fontSize: 12, color: '#8b8798', marginBottom: 4 }}>정산 대상 <span style={{ opacity: .7 }}>(여러 건을 한 번에 입금 처리할 수 있어요)</span></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, padding: '8px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
+              <span />
+            </div>
+            {settleRows.map((r, idx) => (
+              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '5px 0' }}>
+                <select
+                  value={r.targetId} onChange={(e) => onSettleTargetChange(idx, e.target.value)}
+                  style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, appearance: 'none' }}
+                >
+                  <option value="">정산 대상 선택</option>
+                  {recentExpenses.map((x) => (
+                    <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {settleTargetLabel(x)} ({fmtWon(x.amount)})</option>
+                  ))}
+                </select>
+                <input
+                  type="text" inputMode="numeric" placeholder="0" value={r.amount ? Number(r.amount).toLocaleString('ko-KR') : ''}
+                  onChange={(e) => updateSettleRow(idx, { amount: e.target.value.replace(/[^0-9]/g, '') })}
+                  style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', minWidth: 0 }}
+                />
+                {settleRows.length > 1 ? (
+                  <button type="button" aria-label="행 삭제" onClick={() => removeSettleRow(idx)} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+                  </button>
+                ) : <span />}
+              </div>
+            ))}
+            <button type="button" onClick={addSettleRow} className="rcpt-add-row">+ 행 추가</button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed #cfccd4' }}>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
+              <span style={{ fontSize: 13.75, fontWeight: 800, color: '#2CDDB9', textAlign: 'right' }}>{fmtNum(settleTotal)}</span>
+              <span />
+            </div>
+          </div>
+        ) : leaderIsSettle && (
+          <div style={rowStyle}>
+            <span style={rowLabelStyle}>정산대상</span>
+            <select value={f.lSettleId} onChange={(e) => setF({ ...f, lSettleId: e.target.value })} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}>
+              <option value="">선택 안 함</option>
+              {recentExpenses.map((x) => (
+                <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {settleTargetLabel(x)} ({fmtWon(x.amount)})</option>
+              ))}
+            </select>
+          </div>
+        ))}
+
+        <div style={rowStyle}>
+          <span style={rowLabelStyle}>원천</span>
+          {isOwner ? (
+            <SourceSelect sources={sources.tree} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }} />
+          ) : (
+            <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }} />
+          )}
+        </div>
+
+        {!multiSettle && (
+          <>
+            <div style={rowStyle}>
+              <span style={rowLabelStyle}>금액</span>
+              <input
+                type="text" inputMode="numeric"
+                value={f.amount ? Number(f.amount).toLocaleString('ko-KR') : ''}
+                onChange={(e) => onAmountChange(e.target.value)}
+                style={rowInputStyle}
+              />
+            </div>
+            {showPeriods && (
+              <div style={rowStyle}>
+                <span style={rowLabelStyle}>회차</span>
+                <input type="number" min="1" value={f.periods} onChange={(e) => setF({ ...f, periods: e.target.value })} style={rowInputStyle} />
+              </div>
+            )}
+          </>
+        )}
+
+        <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="rcpt-dots" />
+          <span style={{ flex: 'none', fontSize: 13.5, fontWeight: 400, color: '#a29ead', letterSpacing: '.3px' }}>메모</span>
+          <span className="rcpt-dots" style={{ textAlign: 'right' }} />
+        </div>
+        <textarea
+          ref={memoRef} value={f.memo} onChange={(e) => setF({ ...f, memo: e.target.value })} placeholder="추가 설명을 적어주세요" rows={2}
+          style={{ marginTop: 8, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.5, color: '#191722', outline: 'none', resize: 'none', padding: 0, overflow: 'hidden' }}
+        />
       </div>
 
       {err && <p className="error" style={{ marginTop: 14 }}>{err}</p>}
