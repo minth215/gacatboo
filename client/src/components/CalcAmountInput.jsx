@@ -98,7 +98,9 @@ const KeyBtn = ({ label, onClick, bg, color, style }) => (
 // 그 금액은 눌러서 직접 수정할 수 있다. initialCurrency/initialForeignAmount 는 기존 거래 수정 시
 // 원래 입력했던 외화 금액을 복원하기 위한 값이고, onCurrencyChange 는 저장용 스냅샷
 // ({ input_currency, input_amount, fx_rate } 또는 원화면 null)을 매 확정 시점에 알려준다.
-export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange }) {
+// compact=true: 영수증형 기록의 좁은 항목 행에 들어갈 때 쓰는 테두리 없는 작은 표시(원 단위
+// 접미사·환산 금액 미리보기 줄은 생략하고, 펼쳐지는 계산기 키패드는 그대로 동작).
+export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange, compact = false }) {
   const [focused, setFocused] = useState(false);
   const [expr, setExpr] = useState('');
   const justEvaluatedRef = useRef(false);
@@ -251,17 +253,29 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
 
   return (
     <div ref={rootRef} style={{ position: 'relative' }}>
-      <div className="with-suffix">
+      {compact ? (
         <input
           readOnly value={displayValue} placeholder={placeholder} autoFocus={autoFocus}
           onFocus={open} onClick={open} onKeyDown={onKeyDown}
+          style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', padding: 0 }}
         />
-        <span className="suffix">{currency !== 'KRW' ? currency : '원'}</span>
-      </div>
+      ) : (
+        <div className="with-suffix">
+          <input
+            readOnly value={displayValue} placeholder={placeholder} autoFocus={autoFocus}
+            onFocus={open} onClick={open} onKeyDown={onKeyDown}
+          />
+          <span className="suffix">{currency !== 'KRW' ? currency : '원'}</span>
+        </div>
+      )}
 
-      {/* 원화 환산 금액 — 키패드가 닫혀 있어도 금액 필드 바로 아래 항상 표시, 눌러서 직접 수정 가능 */}
+      {/* 원화 환산 금액 — 키패드가 닫혀 있어도 금액 필드 바로 아래 항상 표시, 눌러서 직접 수정 가능.
+          compact 에서는 좁은 항목 행 칸을 벗어나지 않도록 절대위치로 오른쪽 아래에 떠 있게 한다. */}
       {currency !== 'KRW' && (
-        <div style={{ padding: '6px 2px 0', fontSize: 12.5, color: '#a29ead' }}>
+        <div style={compact
+          ? { position: 'absolute', top: '100%', right: 0, marginTop: 2, fontSize: 10.5, color: '#a29ead', whiteSpace: 'nowrap', background: '#fff', padding: '2px 4px', borderRadius: 6, boxShadow: '0 2px 8px rgba(25,23,34,.1)', zIndex: 5 }
+          : { padding: '6px 2px 0', fontSize: 12.5, color: '#a29ead' }
+        }>
           {rateLoading ? '환율 조회 중…' : rateError ? rateError : editingKrw ? (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <span>≈ ₩</span>

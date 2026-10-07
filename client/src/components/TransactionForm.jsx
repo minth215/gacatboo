@@ -2,8 +2,9 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { today, fmtWon, fmtNum, renderTemplate } from '../lib/format.js';
+import { today, dotDate, fmtWon, fmtNum, renderTemplate } from '../lib/format.js';
 import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
+import CalcAmountInput from './CalcAmountInput.jsx';
 import RecurrenceModal from './RecurrenceModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
 
@@ -40,7 +41,7 @@ function memberRowsFor(item, members, total) {
   });
 }
 const itemTotalOf = (it) => (Number(it.amount) || 0) * (Number(it.qty) || 1);
-const emptyItem = () => ({ name: '', qty: '1', amount: '', expanded: false, memberChecked: {}, memberAmountOverride: {} });
+const emptyItem = () => ({ name: '', qty: '1', amount: '', currencyMeta: null, expanded: false, memberChecked: {}, memberAmountOverride: {} });
 
 // 사진 파일을 리사이즈 후 base64(순수 데이터, data: 접두어 제외)로 변환(전송 용량 절감용)
 async function fileToResizedBase64(file, maxSize = 1600, quality = 0.85) {
@@ -61,12 +62,12 @@ async function fileToResizedBase64(file, maxSize = 1600, quality = 0.85) {
 }
 
 // 영수증형 항목 입력 행 한 줄(내용/수량(또는 회차)/금액 [+정산 그룹이면 참여 멤버 펼치기]).
-function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, onName, onQty, onAmount, onRemove, onToggleExpand, onToggleMember, onMemberAmount }) {
+function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount }) {
   const hasSplit = !!settlementMembers?.length;
   const cols = hasSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '8px 0' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '5px 0' }}>
         <input
           type="text" placeholder="항목 기입" value={item.name} onChange={(e) => onName(e.target.value)}
           style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
@@ -83,10 +84,10 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, onName, on
           type="text" inputMode="numeric" placeholder="1" value={item.qty} onChange={(e) => onQty(e.target.value)}
           style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', textAlign: 'center', minWidth: 0 }}
         />
-        <input
-          type="text" inputMode="numeric" placeholder="0" value={item.amount ? Number(item.amount).toLocaleString('ko-KR') : ''}
-          onChange={(e) => onAmount(e.target.value.replace(/[^0-9]/g, ''))}
-          style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', minWidth: 0 }}
+        <CalcAmountInput
+          compact value={item.amount} onChange={onAmount}
+          initialCurrency={item.currencyMeta?.input_currency} initialForeignAmount={item.currencyMeta?.input_amount}
+          onCurrencyChange={onCurrencyChange}
         />
         {canRemove ? (
           <button type="button" aria-label="행 삭제" onClick={onRemove} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -95,7 +96,7 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, onName, on
         ) : <span />}
       </div>
       {hasSplit && item.expanded && (
-        <div style={{ padding: '2px 0 8px 14px' }}>
+        <div style={{ padding: '2px 0 6px 14px' }}>
           {memberRowsFor(item, settlementMembers, itemTotalOf(item)).map((m) => (
             <div key={m.id} style={{ display: 'grid', gridTemplateColumns: '1fr 20px 46px 84px 18px', gap: 8, alignItems: 'center', padding: '2px 0' }}>
               <span style={{ gridColumn: '1 / span 3', fontSize: 11.5, color: '#6c6779' }}>{m.name}{m.isOwner ? ' (총무)' : ''}</span>
@@ -341,11 +342,16 @@ const TransactionForm = forwardRef(function TransactionForm({
       if (n > 0) backfillPast = await askBackfill(n);
     }
 
+    // 외화 입력 스냅샷: 여러 항목 중 외화로 입력한 첫 항목 기준(보통 항목 1개 또는 전부 원화라 충분함)
+    const currencyItem = items.find((it) => it.currencyMeta);
     const payload = {
       type, date, amount: Math.round(total),
       category_id, category_name, category_emoji, category_color,
       source_id, source_name,
       content: (contentValue || '').trim(), memo,
+      input_currency: currencyItem?.currencyMeta?.input_currency || null,
+      input_amount: currencyItem?.currencyMeta?.input_amount ?? null,
+      fx_rate: currencyItem?.currencyMeta?.fx_rate ?? null,
       recurrence, backfillPast,
       settlement_target_id: (isSettlement && settlementTargetId) ? Number(settlementTargetId) : null,
       group_id: groupId || null,
@@ -400,125 +406,127 @@ const TransactionForm = forwardRef(function TransactionForm({
         />
       )}
 
-      <div style={{ position: 'relative' }}>
-        <div className="rcpt-card">
-          <input
-            type="text" list="tx-content-list" placeholder="내용" value={contentValue} onChange={onContentChange} autoComplete="off"
-            style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: groupBadge ? '0 0 6px' : '0 0 14px' }}
-          />
-          <datalist id="tx-content-list">
-            {contentSuggestions.map((s) => <option key={s} value={s} />)}
-          </datalist>
-          {groupBadge && (
-            <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
-              {groupBadge.name}
-            </span>
-          )}
+      <div className="rcpt-card">
+        <input
+          type="text" list="tx-content-list" placeholder="내용" value={contentValue} onChange={onContentChange} autoComplete="off"
+          style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: groupBadge ? '0 0 6px' : '0 0 14px' }}
+        />
+        <datalist id="tx-content-list">
+          {contentSuggestions.map((s) => <option key={s} value={s} />)}
+        </datalist>
+        {groupBadge && (
+          <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
+            {groupBadge.name}
+          </span>
+        )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-            <span style={rowLabelStyle}>날짜</span>
-            <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} style={{ ...rowInputStyle, flex: 'none' }} />
-              <button
-                type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
-                style={{
-                  width: 26, height: 26, borderRadius: 8, border: 'none', flex: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: (recurringId || pendingRecurrence) ? (type === 'income' ? '#E5FBF6' : '#FFE9EF') : '#f4f2f0',
-                }}
-              >
-                <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : (type === 'income' ? '#2CDDB9' : '#FF6F91')} />
-              </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
+          <span style={rowLabelStyle}>날짜</span>
+          <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <div style={{ position: 'relative' }}>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{dotDate(date)}</span>
+              <input
+                type="date" value={date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택"
+              />
             </div>
+            <button
+              type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
+              style={{
+                width: 26, height: 26, borderRadius: 8, border: 'none', flex: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: (recurringId || pendingRecurrence) ? (type === 'income' ? '#E5FBF6' : '#FFE9EF') : '#f4f2f0',
+              }}
+            >
+              <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : (type === 'income' ? '#2CDDB9' : '#FF6F91')} />
+            </button>
           </div>
+        </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-            <span style={rowLabelStyle}>분류</span>
-            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none' }}>
-              <option value="">선택 안 함</option>
-              {categoryId === SNAP && (
-                <option value={SNAP}>{initial?.category_emoji ? `${initial.category_emoji} ` : ''}{initial?.category_name} (기존)</option>
-              )}
-              {catOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
-            </select>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
+          <span style={rowLabelStyle}>분류</span>
+          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}>
+            <option value="">선택 안 함</option>
+            {categoryId === SNAP && (
+              <option value={SNAP}>{initial?.category_emoji ? `${initial.category_emoji} ` : ''}{initial?.category_name} (기존)</option>
+            )}
+            {catOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
+          </select>
+        </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-            <span style={rowLabelStyle}>원천</span>
-            <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
+          <span style={rowLabelStyle}>원천</span>
+          <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}>
+            <option value="">선택 안 함</option>
+            {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
+            {sources.map((top) => (
+              top.children?.length ? (
+                <optgroup key={top.id} label={top.name}>
+                  <option value={top.id}>{top.name} (전체)</option>
+                  {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </optgroup>
+              ) : (
+                <option key={top.id} value={top.id}>{top.name}</option>
+              )
+            ))}
+          </select>
+        </div>
+
+        {isSettlement && (
+          <div style={{ padding: '6px 0' }}>
+            <div style={{ fontSize: 12, color: '#8b8798', marginBottom: 4 }}>정산 대상 <span style={{ opacity: .7 }}>(정산할 지출 선택)</span></div>
+            <select value={settlementTargetId} onChange={(e) => setSettlementTargetId(e.target.value)} style={{ width: '100%', border: '1px solid #e4e2e6', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', background: '#fff' }}>
               <option value="">선택 안 함</option>
-              {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
-              {sources.map((top) => (
-                top.children?.length ? (
-                  <optgroup key={top.id} label={top.name}>
-                    <option value={top.id}>{top.name} (전체)</option>
-                    {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </optgroup>
-                ) : (
-                  <option key={top.id} value={top.id}>{top.name}</option>
-                )
+              {recentExpenses.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.date.slice(5)} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})
+                </option>
               ))}
             </select>
           </div>
+        )}
 
-          {isSettlement && (
-            <div style={{ padding: '8px 0' }}>
-              <div style={{ fontSize: 12, color: '#8b8798', marginBottom: 4 }}>정산 대상 <span style={{ opacity: .7 }}>(정산할 지출 선택)</span></div>
-              <select value={settlementTargetId} onChange={(e) => setSettlementTargetId(e.target.value)} style={{ width: '100%', border: '1px solid #e4e2e6', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', background: '#fff' }}>
-                <option value="">선택 안 함</option>
-                {recentExpenses.map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.date.slice(5)} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px', gap: 8, padding: '9px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
-            <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
-            {showMemberSplit && <span />}
-            <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'center' }}>{qtyLabel}</span>
-            <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
-            <span />
-          </div>
-
-          {items.map((it, idx) => (
-            <ItemRow
-              key={idx} item={it} idx={idx} canRemove={items.length > 1} qtyLabel={qtyLabel}
-              settlementMembers={showMemberSplit ? settlementMembers : null}
-              onName={(v) => updateItem(idx, { name: v })}
-              onQty={(v) => updateItem(idx, { qty: v.replace(/[^0-9]/g, '') })}
-              onAmount={(v) => updateItem(idx, { amount: v })}
-              onRemove={() => removeItem(idx)}
-              onToggleExpand={() => toggleItemExpand(idx)}
-              onToggleMember={(mid) => toggleItemMember(idx, mid)}
-              onMemberAmount={(mid, v) => setItemMemberAmount(idx, mid, v)}
-            />
-          ))}
-
-          <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>
-
-          <div style={{ display: 'grid', gridTemplateColumns: showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: '10px 0 0', marginTop: 9, borderTop: '1px dashed #cfccd4' }}>
-            <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
-            {showMemberSplit && <span />}
-            <span />
-            <span style={{ fontSize: 13.75, fontWeight: 800, color: type === 'expense' ? '#FF4358' : '#2CDDB9', textAlign: 'right' }}>{fmtNum(total)}</span>
-            <span />
-          </div>
-
-          <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="rcpt-dots" />
-            <span style={{ flex: 'none', fontSize: 13.5, fontWeight: 400, color: '#a29ead', letterSpacing: '.3px' }}>메모</span>
-            <span className="rcpt-dots" style={{ textAlign: 'right' }} />
-          </div>
-          <textarea
-            ref={memoRef} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="추가 설명을 적어주세요" rows={2}
-            style={{ marginTop: 10, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.5, color: '#191722', outline: 'none', resize: 'none', padding: 0, overflow: 'hidden' }}
-          />
+        <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px', gap: 8, padding: '8px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
+          <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
+          {showMemberSplit && <span />}
+          <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'center' }}>{qtyLabel}</span>
+          <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
+          <span />
         </div>
-        <div className="rcpt-notch rcpt-notch-top" />
-        <div className="rcpt-notch rcpt-notch-bottom" />
+
+        {items.map((it, idx) => (
+          <ItemRow
+            key={idx} item={it} idx={idx} canRemove={items.length > 1} qtyLabel={qtyLabel}
+            settlementMembers={showMemberSplit ? settlementMembers : null}
+            onName={(v) => updateItem(idx, { name: v })}
+            onQty={(v) => updateItem(idx, { qty: v.replace(/[^0-9]/g, '') })}
+            onAmount={(v) => updateItem(idx, { amount: v })}
+            onCurrencyChange={(meta) => updateItem(idx, { currencyMeta: meta })}
+            onRemove={() => removeItem(idx)}
+            onToggleExpand={() => toggleItemExpand(idx)}
+            onToggleMember={(mid) => toggleItemMember(idx, mid)}
+            onMemberAmount={(mid, v) => setItemMemberAmount(idx, mid, v)}
+          />
+        ))}
+
+        <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>
+
+        <div style={{ display: 'grid', gridTemplateColumns: showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed #cfccd4' }}>
+          <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
+          {showMemberSplit && <span />}
+          <span />
+          <span style={{ fontSize: 13.75, fontWeight: 800, color: type === 'expense' ? '#FF4358' : '#2CDDB9', textAlign: 'right' }}>{fmtNum(total)}</span>
+          <span />
+        </div>
+
+        <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="rcpt-dots" />
+          <span style={{ flex: 'none', fontSize: 13.5, fontWeight: 400, color: '#a29ead', letterSpacing: '.3px' }}>메모</span>
+          <span className="rcpt-dots" style={{ textAlign: 'right' }} />
+        </div>
+        <textarea
+          ref={memoRef} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="추가 설명을 적어주세요" rows={2}
+          style={{ marginTop: 8, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.5, color: '#191722', outline: 'none', resize: 'none', padding: 0, overflow: 'hidden' }}
+        />
       </div>
 
       {error && <p className="error" style={{ marginTop: 14 }}>{error}</p>}

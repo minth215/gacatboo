@@ -943,7 +943,9 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
       ? `${settleTargetLabel(recentExpenses.find((x) => String(x.id) === settleRowsValid[0].targetId))} 정산`
       : settleContentDefault;
   const defMemberCat = cats.find((c) => c.name === defaultCategoryName);     // 멤버 지출 기본(구독/정산 등)
-  const defLeaderCat = incomeCats.find((c) => c.name === (sub?.deposit_category || defaultCategoryName)); // 총대 수입 기본 = 입금분류(없으면 동일 기본값)
+  // 총대 수입 기본 = 입금분류(구독 설정에서 지정, 없으면 '정산' — 그룹 종류와 무관하게 총대 입장에선
+  // 늘 정산 수입이므로 멤버 지출 기본값(defaultCategoryName)과는 다르게 항상 '정산'으로 떨어진다)
+  const defLeaderCat = incomeCats.find((c) => c.name === (sub?.deposit_category || '정산'));
   const [f, setF] = useState(() => editing ? {
     memberId: String(initial.member_id), date: initial.date, amount: String(initial.amount), periods: String(initial.periods || 1),
     // 멤버 영역
@@ -1011,6 +1013,12 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     if (editing || f.lSourceId || !sub?.deposit_source_id) return;
     setF((prev) => ({ ...prev, lSourceId: String(sub.deposit_source_id) }));
   }, [editing, sub]);
+  // 멤버 본인이 입력할 때 원천 기본값: 멤버 본인의 주결제수단(원천 관리에서 지정한 것)
+  useEffect(() => {
+    if (editing || isOwner || f.mSourceId) return;
+    const s = sources.flat.find((x) => x.is_primary_payment);
+    if (s) setF((prev) => ({ ...prev, mSourceId: String(s.id) }));
+  }, [editing, isOwner, sources]);
   // 정산 대상 지출이 하나뿐이면 자동으로 선택해 둔다.
   useEffect(() => {
     if (editing || !isOwner || f.lSettleId || !isSettleMode || recentExpenses.length !== 1) return;
@@ -1130,7 +1138,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
       l_source = f.lSourceId === KEEP ? (initial?.deposit_source_name || '') : sourceNameOf(sources.flat, f.lSourceId);
     } else {
       if (editing) { l_name = initial.leader_category_name; l_emoji = initial.leader_category_emoji; l_settle = initial.leader_settlement_target_id || null; l_source = initial.deposit_source_name; }
-      else { l_name = sub?.deposit_category || ''; l_emoji = sub?.deposit_category_emoji || ''; l_settle = null; l_source = sub?.deposit_source_name || ''; }
+      else { l_name = sub?.deposit_category || '정산'; l_emoji = sub?.deposit_category_emoji || ''; l_settle = null; l_source = sub?.deposit_source_name || ''; }
     }
 
     const recurrence = (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, f.date) : null;
@@ -1160,44 +1168,46 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
       {topNotice}
 
-      <div style={{ position: 'relative' }}>
-        <div className="rcpt-card">
-          <input
-            type="text" value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })}
-            placeholder={isSettleMode ? settleContentDefault : '예: 넷플릭스 회비'}
-            style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: groupBadge ? '0 0 6px' : '0 0 14px' }}
-          />
-          {groupBadge && (
-            <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
-              {groupBadge.name}
-            </span>
-          )}
+      <div className="rcpt-card">
+        <input
+          type="text" value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })}
+          placeholder={isSettleMode ? settleContentDefault : '예: 넷플릭스 회비'}
+          style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: groupBadge ? '0 0 6px' : '0 0 14px' }}
+        />
+        {groupBadge && (
+          <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
+            {groupBadge.name}
+          </span>
+        )}
 
-          {/* 공통 */}
-          <div className="field"><label>멤버</label>
-            <select value={f.memberId} onChange={(e) => setF({ ...f, memberId: e.target.value })} disabled={editing || members.length <= 1}>
-              {members.map((m) => <option key={m.id} value={m.id}>{m.nickname}</option>)}
-              {editing && !members.some((m) => String(m.id) === String(f.memberId)) && <option value={f.memberId}>{initial.member?.nickname || '멤버'}</option>}
-            </select>
-          </div>
-          <div className="field">
-            <label>날짜</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} style={{ flex: 1 }} />
-              {!multiSettle && (
-                <button
-                  type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
-                  style={{
-                    width: 42, height: 42, borderRadius: 10, border: 'none', flex: 'none', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: (recurringId || pendingRecurrence) ? '#E5FBF6' : '#f4f2f0',
-                  }}
-                >
-                  <RepeatIcon color={(recurringId || pendingRecurrence) ? '#2CDDB9' : '#c7c3cc'} />
-                </button>
-              )}
+        {/* 공통 */}
+        <div className="field"><label>멤버</label>
+          <select value={f.memberId} onChange={(e) => setF({ ...f, memberId: e.target.value })} disabled={editing || members.length <= 1}>
+            {members.map((m) => <option key={m.id} value={m.id}>{m.nickname}</option>)}
+            {editing && !members.some((m) => String(m.id) === String(f.memberId)) && <option value={f.memberId}>{initial.member?.nickname || '멤버'}</option>}
+          </select>
+        </div>
+        <div className="field">
+          <label>날짜</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: 1, background: 'rgb(244, 243, 247)', borderRadius: 10, padding: '11px 12px' }}>
+              <span style={{ fontSize: 14, color: '#191722' }}>{dotDate(f.date)}</span>
+              <input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택" />
             </div>
+            {!multiSettle && (
+              <button
+                type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
+                style={{
+                  width: 42, height: 42, borderRadius: 10, border: 'none', flex: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: (recurringId || pendingRecurrence) ? '#E5FBF6' : '#f4f2f0',
+                }}
+              >
+                <RepeatIcon color={(recurringId || pendingRecurrence) ? '#2CDDB9' : '#c7c3cc'} />
+              </button>
+            )}
           </div>
+        </div>
 
           {showRecurrenceModal && (
             <RecurrenceModal onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
@@ -1311,10 +1321,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
             </div>
           )}
 
-          <div className="field"><label>메모</label><textarea ref={memoRef} value={f.memo} onChange={(e) => setF({ ...f, memo: e.target.value })} style={{ overflow: 'hidden' }} /></div>
-        </div>
-        <div className="rcpt-notch rcpt-notch-top" />
-        <div className="rcpt-notch rcpt-notch-bottom" />
+        <div className="field"><label>메모</label><textarea ref={memoRef} value={f.memo} onChange={(e) => setF({ ...f, memo: e.target.value })} style={{ overflow: 'hidden' }} /></div>
       </div>
 
       {err && <p className="error" style={{ marginTop: 14 }}>{err}</p>}

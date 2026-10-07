@@ -127,7 +127,7 @@ export default function TransactionEdit() {
   const showReceiptBtn = !editing && !isPayment && !isDeposit;
 
   return (
-    <div style={{ padding: '56px 0 32px', background: '#FEFCFC', minHeight: '100vh' }}>
+    <div style={{ padding: '56px 0 32px' }}>
       <div className="simple-topbar flat">
         <button className="tb-icon-btn" onClick={() => nav(-1)} aria-label="닫기">
           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
@@ -152,7 +152,7 @@ export default function TransactionEdit() {
         )}
       </div>
 
-      <div style={{ padding: '6px 20px 0', maxWidth: 720, margin: '0 auto' }}>
+      <div style={{ padding: '6px 0 0' }}>
         {loading ? (
           <Spinner />
         ) : error ? (
