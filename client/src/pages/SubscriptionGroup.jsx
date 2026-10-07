@@ -923,31 +923,29 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
   // (수정 화면은 이미 저장된 입금 1건 = 정산 대상 1건이므로 기존 단일 선택 UI를 그대로 쓴다.)
   const multiSettle = isOwner && isSettleMode && !editing;
   const settleTargetLabel = (x) => x?.content || x?.category_name || '지출';
-  const [settleRows, setSettleRows] = useState([{ targetId: '', amount: '' }]);
+  // 행의 "내용" 칸: targetId 가 선택된 행이면 정산 대상, 아니면 name 에 적은 자유 텍스트(분류가 정산이
+  // 아닐 때 사용 — isLeaderSettlement 참고)
+  const [settleRows, setSettleRows] = useState([{ targetId: '', name: '', amount: '' }]);
   useEffect(() => {
     if (!multiSettle || settleRows.length !== 1 || settleRows[0].targetId || recentExpenses.length !== 1) return;
-    setSettleRows([{ targetId: String(recentExpenses[0].id), amount: String(recentExpenses[0].amount) }]);
+    setSettleRows([{ targetId: String(recentExpenses[0].id), name: '', amount: String(recentExpenses[0].amount) }]);
   }, [multiSettle, recentExpenses]);
   const updateSettleRow = (idx, patch) => setSettleRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   const onSettleTargetChange = (idx, targetId) => {
     const target = recentExpenses.find((x) => String(x.id) === targetId);
     updateSettleRow(idx, { targetId, amount: (!settleRows[idx].amount && target) ? String(target.amount) : settleRows[idx].amount });
   };
-  const addSettleRow = () => setSettleRows((prev) => [...prev, { targetId: '', amount: '' }]);
+  const addSettleRow = () => setSettleRows((prev) => [...prev, { targetId: '', name: '', amount: '' }]);
   const removeSettleRow = (idx) => setSettleRows((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
-  const settleRowsValid = settleRows.filter((r) => r.targetId);
   const settleTotal = settleRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
-  const multiAutoContent = settleRowsValid.length > 1
-    ? settleContentDefault
-    : settleRowsValid.length === 1
-      ? `${settleTargetLabel(recentExpenses.find((x) => String(x.id) === settleRowsValid[0].targetId))} 정산`
-      : settleContentDefault;
 
   // 구독 그룹 입금 내역을 새로 등록할 때: 내용/회차/금액 항목 표(여러 건을 한 번에 기록 가능).
   // "회차"는 총 결제 건수 집계를 위한 참고값(금액에 곱해지는 수량이 아니라, 금액을 정기입금액으로
   // 나눈 값이 자동 채워지며 직접 수정도 가능 — 기존 단일 입력 때와 동일한 계산 규칙).
   const multiSub = !isSettleMode && !editing;
-  const [subRows, setSubRows] = useState([{ name: '', periods: '1', amount: '' }]);
+  // 행의 "내용" 칸: targetId 가 선택된 행이면 정산 대상, 아니면 name 에 적은 자유 텍스트(분류가 정산일
+  // 때만 정산 대상 셀렉트박스로 바뀜 — isLeaderSettlement 참고). "회차"는 구독 그룹이라 항상 표시.
+  const [subRows, setSubRows] = useState([{ name: '', targetId: '', periods: '1', amount: '' }]);
   useEffect(() => {
     if (!multiSub || subRows.length !== 1 || subRows[0].amount || !sub?.deposit_amount) return;
     setSubRows([{ ...subRows[0], amount: String(sub.deposit_amount) }]);
@@ -958,7 +956,11 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     const defAmt = Number(sub?.deposit_amount) || 0;
     updateSubRow(idx, { amount, periods: (defAmt > 0 && amount) ? String(Math.round(Number(amount) / defAmt)) : subRows[idx].periods });
   };
-  const addSubRow = () => setSubRows((prev) => [...prev, { name: '', periods: '1', amount: '' }]);
+  const onSubTargetChange = (idx, targetId) => {
+    const target = recentExpenses.find((x) => String(x.id) === targetId);
+    updateSubRow(idx, { targetId, amount: (!subRows[idx].amount && target) ? String(target.amount) : subRows[idx].amount });
+  };
+  const addSubRow = () => setSubRows((prev) => [...prev, { name: '', targetId: '', periods: '1', amount: '' }]);
   const removeSubRow = (idx) => setSubRows((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
   const subTotal = subRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const defMemberCat = cats.find((c) => c.name === defaultCategoryName);     // 멤버 지출 기본(구독/정산 등)
@@ -1069,17 +1071,6 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     if (editing || f.content || !sub?.deposit_content_template) return;
     setF((prev) => ({ ...prev, content: renderTemplate(sub.deposit_content_template, prev.date) }));
   }, [editing, sub]);
-  // 정산 대상 멀티 입금: 고른 대상에 따라 "내용"을 자동으로 채움(직접 수정하면 더 이상 자동 갱신 안 됨,
-  // 다시 지우면 자동 모드로 복귀)
-  const lastAutoContentRef = useRef('');
-  useEffect(() => {
-    if (!multiSettle) return;
-    if (f.content === '' || f.content === lastAutoContentRef.current) {
-      setF((prev) => (prev.content === multiAutoContent ? prev : { ...prev, content: multiAutoContent }));
-    }
-    lastAutoContentRef.current = multiAutoContent;
-  }, [multiSettle, multiAutoContent]);
-
   // 금액 입력 시 기본 입금액 대비 회차 자동 계산
   const defaultAmount = Number(sub?.deposit_amount) || 0;
   const onAmountChange = (v) => {
@@ -1103,27 +1094,49 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     ? { name: initial?.leader_category_name, emoji: initial?.leader_category_emoji }
     : incomeCats.find((c) => String(c.id) === f.lCatId);
   const leaderIsSettle = leaderCat?.name === '정산';
+  // 항목 표의 "내용" 칸을 정산 대상 셀렉트박스로 바꿀지 여부: 총무가 고른 분류가 "정산"일 때만
+  // (시안 7b/7c 동일 규칙 — 그룹 종류가 정산이든 구독이든 상관없이 분류 선택값으로 결정됨)
+  const isLeaderSettlement = isOwner && leaderIsSettle;
+  const activeRowsForContent = isLeaderSettlement ? (isSettleMode ? settleRows : subRows) : [];
+  const settleRowsValid = activeRowsForContent.filter((r) => r.targetId);
+  const multiAutoContent = settleRowsValid.length > 1
+    ? settleContentDefault
+    : settleRowsValid.length === 1
+      ? `${settleTargetLabel(recentExpenses.find((x) => String(x.id) === settleRowsValid[0].targetId))} 정산`
+      : settleContentDefault;
+  // 정산 대상 멀티 입금: 고른 대상에 따라 "내용"을 자동으로 채움(직접 수정하면 더 이상 자동 갱신 안 됨,
+  // 다시 지우면 자동 모드로 복귀)
+  const lastAutoContentRef = useRef('');
+  useEffect(() => {
+    if (!isLeaderSettlement || !(multiSettle || multiSub)) return;
+    if (f.content === '' || f.content === lastAutoContentRef.current) {
+      setF((prev) => (prev.content === multiAutoContent ? prev : { ...prev, content: multiAutoContent }));
+    }
+    lastAutoContentRef.current = multiAutoContent;
+  }, [isLeaderSettlement, multiSettle, multiSub, multiAutoContent]);
 
   const submit = async () => {
     if (!f.memberId) return setErr('멤버를 선택하세요.');
 
     if (multiSettle) {
-      const rows = settleRows.filter((r) => r.targetId && Number(r.amount) > 0);
-      if (!rows.length) return setErr('정산 대상과 금액을 입력하세요.');
+      // 분류가 "정산"일 때만(isLeaderSettlement) 각 행이 정산 대상 선택이고, 아니면 자유 입력 항목이므로
+      // targetId 없이 금액만 있어도 유효함
+      const rows = settleRows.filter((r) => (!isLeaderSettlement || r.targetId) && Number(r.amount) > 0);
+      if (!rows.length) return setErr(isLeaderSettlement ? '정산 대상과 금액을 입력하세요.' : '금액을 입력하세요.');
       setBusy(true); setErr('');
       const l_source = f.lSourceId === KEEP ? (initial?.deposit_source_name || '') : sourceNameOf(sources.flat, f.lSourceId);
       const lCat = f.lCatId === KEEP ? { name: initial?.leader_category_name, emoji: initial?.leader_category_emoji } : incomeCats.find((c) => String(c.id) === f.lCatId);
       const sharedContent = f.content.trim() || multiAutoContent;
       try {
         for (const r of rows) {
-          const target = recentExpenses.find((x) => String(x.id) === r.targetId);
+          const target = r.targetId ? recentExpenses.find((x) => String(x.id) === r.targetId) : null;
           await onSave({
             member_id: Number(f.memberId), date: f.date, amount: Math.round(Number(r.amount)), periods: 1,
             category_name: target?.category_name || defaultCategoryName, category_emoji: target?.category_emoji || '',
             source_id: null, source_name: '',
             deposit_source_name: l_source,
             leader_category_name: lCat?.name || '', leader_category_emoji: lCat?.emoji || '',
-            leader_settlement_target_id: Number(r.targetId),
+            leader_settlement_target_id: target ? Number(r.targetId) : null,
             content: sharedContent, memo: f.memo,
             recurrence: null, backfillPast: false,
           });
@@ -1164,16 +1177,22 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
         }
       }
 
+      // 분류가 "정산"이고(isLeaderSettlement) 행에서 정산 대상을 골랐으면, 멤버 가계부 쪽 분류도
+      // 그 지출의 분류를 그대로 따라감(정산 대상이 없는 행은 기존 기본값 유지)
+      const contentOverride = f.content.trim();
       setBusy(true); setErr('');
       try {
         for (const r of rows) {
+          const target = r.targetId ? recentExpenses.find((x) => String(x.id) === r.targetId) : null;
           await onSave({
             member_id: Number(f.memberId), date: f.date, amount: Math.round(Number(r.amount)),
             periods: Math.max(Number(r.periods) || 1, 1),
-            category_name: m_name, category_emoji: m_emoji, source_id: null, source_name: m_source,
+            category_name: target?.category_name || m_name, category_emoji: target?.category_emoji || m_emoji,
+            source_id: null, source_name: m_source,
             deposit_source_name: l_source,
-            leader_category_name: l_name, leader_category_emoji: l_emoji, leader_settlement_target_id: null,
-            content: f.content.trim(), memo: f.memo,
+            leader_category_name: l_name, leader_category_emoji: l_emoji,
+            leader_settlement_target_id: target ? Number(r.targetId) : null,
+            content: contentOverride || (isLeaderSettlement ? multiAutoContent : ''), memo: f.memo,
             recurrence, backfillPast,
           });
         }
@@ -1312,7 +1331,9 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
 
         {isOwner && (multiSettle ? (
           <div style={{ padding: '6px 0' }}>
-            <div style={{ fontSize: 12, color: '#8b8798', marginBottom: 4 }}>정산 대상 <span style={{ opacity: .7 }}>(여러 건을 한 번에 입금 처리할 수 있어요)</span></div>
+            {isLeaderSettlement && (
+              <div style={{ fontSize: 12, color: '#8b8798', marginBottom: 4 }}>정산 대상 <span style={{ opacity: .7 }}>(여러 건을 한 번에 입금 처리할 수 있어요)</span></div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, padding: '8px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
@@ -1320,15 +1341,22 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
             </div>
             {settleRows.map((r, idx) => (
               <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '5px 0' }}>
-                <select
-                  value={r.targetId} onChange={(e) => onSettleTargetChange(idx, e.target.value)}
-                  style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, appearance: 'none' }}
-                >
-                  <option value="">정산 대상 선택</option>
-                  {recentExpenses.map((x) => (
-                    <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {settleTargetLabel(x)} ({fmtWon(x.amount)})</option>
-                  ))}
-                </select>
+                {isLeaderSettlement ? (
+                  <select
+                    value={r.targetId} onChange={(e) => onSettleTargetChange(idx, e.target.value)}
+                    style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, appearance: 'none' }}
+                  >
+                    <option value="">정산 대상 선택</option>
+                    {recentExpenses.map((x) => (
+                      <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {settleTargetLabel(x)} ({fmtWon(x.amount)})</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text" placeholder="항목 기입" value={r.name} onChange={(e) => updateSettleRow(idx, { name: e.target.value })}
+                    style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
+                  />
+                )}
                 <input
                   type="text" inputMode="numeric" placeholder="0" value={r.amount ? Number(r.amount).toLocaleString('ko-KR') : ''}
                   onChange={(e) => updateSettleRow(idx, { amount: e.target.value.replace(/[^0-9]/g, '') })}
@@ -1370,10 +1398,22 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
             </div>
             {subRows.map((r, idx) => (
               <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: '5px 0' }}>
-                <input
-                  type="text" placeholder="항목 기입" value={r.name} onChange={(e) => updateSubRow(idx, { name: e.target.value })}
-                  style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
-                />
+                {isLeaderSettlement ? (
+                  <select
+                    value={r.targetId} onChange={(e) => onSubTargetChange(idx, e.target.value)}
+                    style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, appearance: 'none' }}
+                  >
+                    <option value="">정산 대상 선택</option>
+                    {recentExpenses.map((x) => (
+                      <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {settleTargetLabel(x)} ({fmtWon(x.amount)})</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text" placeholder="항목 기입" value={r.name} onChange={(e) => updateSubRow(idx, { name: e.target.value })}
+                    style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
+                  />
+                )}
                 <input
                   type="text" inputMode="numeric" placeholder="1" value={r.periods} onChange={(e) => updateSubRow(idx, { periods: e.target.value.replace(/[^0-9]/g, '') })}
                   style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', textAlign: 'center', minWidth: 0 }}
