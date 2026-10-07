@@ -1331,9 +1331,6 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
 
         {isOwner && (multiSettle ? (
           <div style={{ padding: '6px 0' }}>
-            {isLeaderSettlement && (
-              <div style={{ fontSize: 12, color: '#8b8798', marginBottom: 4 }}>정산 대상 <span style={{ opacity: .7 }}>(여러 건을 한 번에 입금 처리할 수 있어요)</span></div>
-            )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, padding: '8px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>

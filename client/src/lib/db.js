@@ -310,6 +310,7 @@ export const db = {
       source_name,
       content: (payload.content || '').trim(),
       memo: (payload.memo || '').trim(),
+      items: payload.items ?? null,
       settlement_target_id: payload.settlement_target_id ?? null,
       input_currency: payload.input_currency || '',
       input_amount: payload.input_currency ? payload.input_amount ?? null : null,

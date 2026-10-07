@@ -145,7 +145,11 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [sourceId, setSourceId] = useState(
     initial?.source_id ? String(initial.source_id) : (initial?.source_name ? SNAP : '')
   );
-  const [items, setItems] = useState(() => [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : '') }]);
+  const [items, setItems] = useState(() => (
+    Array.isArray(initial?.items) && initial.items.length
+      ? initial.items.map((it) => ({ ...emptyItem(), name: it.name || '', qty: String(it.qty || 1), amount: it.amount ? String(it.amount) : '' }))
+      : [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : '') }]
+  ));
   const [contentOverride, setContentOverride] = useState(initial?.content ?? null);
   const [memo, setMemo] = useState(initial?.memo || '');
   const memoRef = useRef(null);
@@ -352,11 +356,16 @@ const TransactionForm = forwardRef(function TransactionForm({
 
     // 외화 입력 스냅샷: 여러 항목 중 외화로 입력한 첫 항목 기준(보통 항목 1개 또는 전부 원화라 충분함)
     const currencyItem = items.find((it) => it.currencyMeta);
+    // 항목별 행(내용/수량/금액)을 그대로 저장해 수정 화면에서도 다시 보이도록 함
+    const savedItems = items
+      .filter((it) => it.name.trim() || Number(it.amount) > 0)
+      .map((it) => ({ name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0 }));
     const payload = {
       type, date, amount: Math.round(total),
       category_id, category_name, category_emoji, category_color,
       source_id, source_name,
       content: (contentValue || '').trim(), memo,
+      items: savedItems.length ? savedItems : null,
       input_currency: currencyItem?.currencyMeta?.input_currency || null,
       input_amount: currencyItem?.currencyMeta?.input_amount ?? null,
       fx_rate: currencyItem?.currencyMeta?.fx_rate ?? null,
