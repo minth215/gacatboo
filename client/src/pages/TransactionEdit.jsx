@@ -2,10 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { isSubscription, isSettlement, leaderLabel } from '../lib/format.js';
+import { isSubscription, isSettlement } from '../lib/format.js';
 import TransactionForm from '../components/TransactionForm.jsx';
 import { DepositForm, isLeftoverName } from './SubscriptionGroup.jsx';
-import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 
 // 항목 작성/수정 전용 화면 (하단 시트가 아닌 별도 화면).
@@ -121,71 +120,71 @@ export default function TransactionEdit() {
   const settlementSplitMembers = (!isPayment && !isDeposit && isSettlement(group?.category))
     ? members.filter((m) => !isLeftoverName(m.nickname))
     : undefined;
+  // 그룹 결제/입금 내역 상단 배지: 그룹 이모지 배경색과 동일(무색이면 회색)
+  const groupBadge = group ? { name: group.name, color: group.color || '#e4e2e6' } : undefined;
 
   // 영수증으로 채우기: 일반 개인/그룹 항목 신규 작성일 때만(결제·입금 내역 제외)
   const showReceiptBtn = !editing && !isPayment && !isDeposit;
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader
-        title={editing ? '기록 수정' : '기록'} flat
-        right={showReceiptBtn && (
-          <button
-            type="button" className="tb-icon-btn" disabled={scanBusy}
-            onClick={() => formRef.current?.openReceiptPicker()} aria-label="영수증으로 채우기"
-          >
-            {scanBusy ? (
-              <span style={{ width: 13, height: 13, border: '2px solid #d8d5d0', borderTopColor: '#191722', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-            ) : (
-              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                <circle cx="12" cy="13" r="4" />
-              </svg>
-            )}
-          </button>
+    <div style={{ padding: '56px 0 32px', background: '#FEFCFC', minHeight: '100vh' }}>
+      <div className="simple-topbar flat">
+        <button className="tb-icon-btn" onClick={() => nav(-1)} aria-label="닫기">
+          <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+        </button>
+        <div className="title">{editing ? '기록 수정' : '기록'}</div>
+        {showReceiptBtn && (
+          <div className="topbar-right">
+            <button
+              type="button" className="tb-icon-btn" disabled={scanBusy}
+              onClick={() => formRef.current?.openReceiptPicker()} aria-label="영수증으로 채우기"
+            >
+              {scanBusy ? (
+                <span style={{ width: 13, height: 13, border: '2px solid #d8d5d0', borderTopColor: '#191722', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              ) : (
+                <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              )}
+            </button>
+          </div>
         )}
-      />
+      </div>
 
-      {loading ? (
-        <Spinner />
-      ) : error ? (
-        <div className="empty">{error}</div>
-      ) : isDeposit ? (
-        <DepositForm
-          initial={initial} sub={sub} cats={cats} incomeCats={incomeCats} sources={sources}
-          members={isOwner ? memberList : (myMember ? [myMember] : [])} recentExpenses={recentExpenses}
-          isOwner={isOwner} onSave={saveDeposit} onSaved={done}
-          defaultCategoryName={isSettlement(group?.category) ? '정산' : '구독'}
-          showPeriods={!isSettlement(group?.category)}
-          groupName={group?.name || ''}
-          topNotice={group && (
-            <div className="form-section-group">
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#191722' }}>{group.name}</div>
-              <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>{leaderLabel(group.category)}(수입)·멤버(지출) 가계부와 자동 동기화됩니다.</p>
-            </div>
-          )}
-        />
-      ) : (
-        <TransactionForm
-          ref={formRef} onScanBusyChange={setScanBusy}
-          initial={initial} groupId={isPayment ? null : groupId} onSaved={done} onClose={() => nav(-1)}
-          fixedType={isPayment ? 'expense' : undefined}
-          initialPendingRecurrence={pendingRecurrence}
-          defaultCategoryName={isPayment ? (isSettlement(group?.category) ? '정산' : '구독') : undefined}
-          defaultAmount={isPayment ? sub?.billing_amount : undefined}
-          defaultContentTemplate={isPayment ? sub?.payment_content_template : undefined}
-          onSubmit={isPayment ? savePayment : undefined}
-          showPeriods={isPayment && isSubscription(group?.category)}
-          settlementMembers={settlementSplitMembers}
-          initialSettlementSplit={editing ? initialSplit : undefined}
-          topNotice={isPayment && group && (
-            <div className="form-section-group">
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#191722' }}>{group.name}</div>
-              <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>{leaderLabel(group.category)} 개인 가계부의 지출과 자동 동기화됩니다.</p>
-            </div>
-          )}
-        />
-      )}
+      <div style={{ padding: '6px 20px 0', maxWidth: 720, margin: '0 auto' }}>
+        {loading ? (
+          <Spinner />
+        ) : error ? (
+          <div className="empty">{error}</div>
+        ) : isDeposit ? (
+          <DepositForm
+            initial={initial} sub={sub} cats={cats} incomeCats={incomeCats} sources={sources}
+            members={isOwner ? memberList : (myMember ? [myMember] : [])} recentExpenses={recentExpenses}
+            isOwner={isOwner} onSave={saveDeposit} onSaved={done}
+            defaultCategoryName={isSettlement(group?.category) ? '정산' : '구독'}
+            showPeriods={!isSettlement(group?.category)}
+            groupName={group?.name || ''}
+            groupBadge={groupBadge}
+          />
+        ) : (
+          <TransactionForm
+            ref={formRef} onScanBusyChange={setScanBusy}
+            initial={initial} groupId={isPayment ? null : groupId} onSaved={done} onClose={() => nav(-1)}
+            fixedType={isPayment ? 'expense' : undefined}
+            initialPendingRecurrence={pendingRecurrence}
+            defaultCategoryName={isPayment ? (isSettlement(group?.category) ? '정산' : '구독') : undefined}
+            defaultAmount={isPayment ? sub?.billing_amount : undefined}
+            defaultContentTemplate={isPayment ? sub?.payment_content_template : undefined}
+            onSubmit={isPayment ? savePayment : undefined}
+            showPeriods={isPayment && isSubscription(group?.category)}
+            qtyLabel={isPayment && isSubscription(group?.category) ? '회차' : '수량'}
+            settlementMembers={settlementSplitMembers}
+            initialSettlementSplit={editing ? initialSplit : undefined}
+            groupBadge={(isPayment || effectiveGroupId) ? groupBadge : undefined}
+          />
+        )}
+      </div>
     </div>
   );
 }

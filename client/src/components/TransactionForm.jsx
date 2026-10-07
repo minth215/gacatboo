@@ -4,7 +4,6 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { today, fmtWon, fmtNum, renderTemplate } from '../lib/format.js';
 import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
-import CalcAmountInput from './CalcAmountInput.jsx';
 import RecurrenceModal from './RecurrenceModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
 
@@ -13,6 +12,9 @@ const RepeatIcon = ({ color }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill={color}>
     <path d="M12,4V1L8,5l4,4V6c3.31,0,6,2.69,6,6c0,1.01-0.25,1.97-0.7,2.8l1.46,1.46C19.54,15.03,20,13.57,20,12C20,7.58,16.42,4,12,4z M6,12c0-1.01,0.25-1.97,0.7-2.8L5.24,7.74C4.46,8.97,4,10.43,4,12c0,4.42,3.58,8,8,8v3l4-4l-4-4v3c-3.31,0-6-2.69-6-6z" />
   </svg>
+);
+const RemoveIcon = () => (
+  <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
 );
 
 // 분류/원천에 id 는 없고 이름(스냅샷)만 있는 항목(그룹 자동기입 등)을 표시하기 위한 센티넬
@@ -25,12 +27,20 @@ function equalSplitAmounts(count, total) {
   const rem = total - base * count;
   return Array.from({ length: count }, (_, i) => base + (i < rem ? 1 : 0));
 }
-// 체크된(참여) 멤버끼리 total 을 균등분배해 각 행의 amount 를 갱신(체크 해제된 멤버는 0)
-function applyEqualSplit(list, total) {
-  const amounts = equalSplitAmounts(list.filter((m) => m.checked).length, total);
-  let k = 0;
-  return list.map((m) => (m.checked ? { ...m, amount: amounts[k++] } : { ...m, amount: 0 }));
+// 항목 하나(행)의 참여 멤버별 금액을 계산(체크 해제된 멤버는 0, 직접 수정한 금액은 그대로 유지)
+function memberRowsFor(item, members, total) {
+  const checkedIds = members.filter((m) => item.memberChecked?.[m.id] !== false).map((m) => m.id);
+  const shares = equalSplitAmounts(checkedIds.length, total);
+  const shareOf = {};
+  checkedIds.forEach((id, i) => { shareOf[id] = shares[i]; });
+  return members.map((m) => {
+    const checked = item.memberChecked?.[m.id] !== false;
+    const override = item.memberAmountOverride?.[m.id];
+    return { id: m.id, name: m.nickname, isOwner: m.role === 'owner', checked, amount: checked ? (override ?? (shareOf[m.id] || 0)) : 0 };
+  });
 }
+const itemTotalOf = (it) => (Number(it.amount) || 0) * (Number(it.qty) || 1);
+const emptyItem = () => ({ name: '', qty: '1', amount: '', expanded: false, memberChecked: {}, memberAmountOverride: {} });
 
 // 사진 파일을 리사이즈 후 base64(순수 데이터, data: 접두어 제외)로 변환(전송 용량 절감용)
 async function fileToResizedBase64(file, maxSize = 1600, quality = 0.85) {
@@ -50,24 +60,83 @@ async function fileToResizedBase64(file, maxSize = 1600, quality = 0.85) {
   return { base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' };
 }
 
-// 수입/지출 항목 작성·수정 폼. groupId 지정 시 그룹 항목으로 저장.
+// 영수증형 항목 입력 행 한 줄(내용/수량(또는 회차)/금액 [+정산 그룹이면 참여 멤버 펼치기]).
+function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, onName, onQty, onAmount, onRemove, onToggleExpand, onToggleMember, onMemberAmount }) {
+  const hasSplit = !!settlementMembers?.length;
+  const cols = hasSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '8px 0' }}>
+        <input
+          type="text" placeholder="항목 기입" value={item.name} onChange={(e) => onName(e.target.value)}
+          style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
+        />
+        {hasSplit && (
+          <button
+            type="button" aria-label="참여 멤버 펼치기" onClick={onToggleExpand}
+            style={{ width: 20, height: 20, border: 'none', background: 'transparent', color: '#8b8798', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: item.expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+        )}
+        <input
+          type="text" inputMode="numeric" placeholder="1" value={item.qty} onChange={(e) => onQty(e.target.value)}
+          style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', textAlign: 'center', minWidth: 0 }}
+        />
+        <input
+          type="text" inputMode="numeric" placeholder="0" value={item.amount ? Number(item.amount).toLocaleString('ko-KR') : ''}
+          onChange={(e) => onAmount(e.target.value.replace(/[^0-9]/g, ''))}
+          style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', minWidth: 0 }}
+        />
+        {canRemove ? (
+          <button type="button" aria-label="행 삭제" onClick={onRemove} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <RemoveIcon />
+          </button>
+        ) : <span />}
+      </div>
+      {hasSplit && item.expanded && (
+        <div style={{ padding: '2px 0 8px 14px' }}>
+          {memberRowsFor(item, settlementMembers, itemTotalOf(item)).map((m) => (
+            <div key={m.id} style={{ display: 'grid', gridTemplateColumns: '1fr 20px 46px 84px 18px', gap: 8, alignItems: 'center', padding: '2px 0' }}>
+              <span style={{ gridColumn: '1 / span 3', fontSize: 11.5, color: '#6c6779' }}>{m.name}{m.isOwner ? ' (총무)' : ''}</span>
+              <input
+                type="text" inputMode="numeric" disabled={!m.checked}
+                value={m.checked ? String(m.amount) : ''}
+                onChange={(e) => onMemberAmount(m.id, e.target.value.replace(/[^0-9]/g, ''))}
+                style={{ gridColumn: 4, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, color: '#8b8798', textAlign: 'right', outline: 'none', minWidth: 0, opacity: m.checked ? 1 : 0.4 }}
+              />
+              <input type="checkbox" checked={m.checked} onChange={() => onToggleMember(m.id)} style={{ gridColumn: 5, width: 14, height: 14, cursor: 'pointer', justifySelf: 'center' }} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 수입/지출 항목 작성·수정 폼(영수증형: 대표 내용 + 항목별 행 + 합계). groupId 지정 시 그룹 항목으로 저장.
 // fixedType 지정 시 수입/지출 토글을 숨기고 해당 유형으로 고정(예: 그룹 결제=지출).
 // defaultCategoryName 지정 시 신규 작성 때 해당 이름의 분류를 기본 선택.
-// defaultAmount 지정 시 신규 작성 때 "금액"을 이 값으로 자동 채움(예: 그룹 결제 → 정기결제금액).
+// defaultAmount 지정 시 신규 작성 때 항목 금액을 이 값으로 자동 채움(예: 그룹 결제 → 정기결제금액).
 // defaultContentTemplate 지정 시 신규 작성 때 "내용"을 이 템플릿({연}/{월}/{일} 변수 지원)으로 자동 채우고,
 // 날짜를 바꾸면 그 날짜 기준으로 다시 채워짐.
 // onSubmit 지정 시 db.saveTransaction 대신 이 함수로 저장을 위임(그룹 결제 등 별도 저장 로직).
-// settlementMembers 지정 시(정산 그룹 결제 내역) 지출 금액 아래에 참여 멤버 체크리스트가 뜨고,
-// 기본으로 전원 체크되어 금액이 균등분배되며, 체크 해제/금액 직접 수정이 가능하다.
-// initialSettlementSplit 은 기존 저장된 분담 내역([{member_id, amount}])으로, 수정 화면에서
-// 비동기로 나중에 도착해도(아직 undefined 인 동안은 초기화를 기다림) 반영된다.
-const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate, onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence, settlementMembers, initialSettlementSplit }, ref) {
+// qtyLabel: 항목 표의 수량 칸 라벨(기본 "수량", 구독 그룹 결제는 "회차").
+// settlementMembers 지정 시(정산 그룹 결제 내역) 각 항목 행에 참여 멤버 펼치기가 생기고, 기본 전원
+// 체크·균등분배되며 체크 해제/금액 직접 수정이 가능하다. 저장 시 모든 항목의 합산액이 멤버별로 저장된다.
+// initialSettlementSplit 은 기존 저장된 분담 내역([{member_id, amount}])으로, 수정 화면에서 비동기로
+// 나중에 도착해도(아직 undefined 인 동안은 초기화를 기다림) 첫 번째 항목 행에 반영된다.
+// groupBadge 지정 시({name, color}) 내용 입력 아래에 그룹 배지가 뜬다.
+const TransactionForm = forwardRef(function TransactionForm({
+  initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate,
+  onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence,
+  settlementMembers, initialSettlementSplit, qtyLabel = '수량', groupBadge,
+}, ref) {
   const { user } = useAuth();
   const nav = useNavigate();
   const editing = !!initial?.id;
   const [type, setType] = useState(fixedType || initial?.type || 'expense');
   const [date, setDate] = useState(initial?.date || today());
-  const [amount, setAmount] = useState(initial?.amount ? String(initial.amount) : '');
   const [periods, setPeriods] = useState(initial?.periods ? String(initial.periods) : '1');
   const [categoryId, setCategoryId] = useState(
     initial?.category_id ? String(initial.category_id) : (initial?.category_name ? SNAP : '')
@@ -75,13 +144,11 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
   const [sourceId, setSourceId] = useState(
     initial?.source_id ? String(initial.source_id) : (initial?.source_name ? SNAP : '')
   );
-  const [content, setContent] = useState(initial?.content || '');
+  const [items, setItems] = useState(() => [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : '') }]);
+  const [contentOverride, setContentOverride] = useState(initial?.content ?? null);
   const [memo, setMemo] = useState(initial?.memo || '');
+  const memoRef = useRef(null);
   const [settlementTargetId, setSettlementTargetId] = useState(initial?.settlement_target_id ? String(initial.settlement_target_id) : '');
-  // 외화로 입력했을 때의 원본 통화·금액·환율 스냅샷(원화로 입력했으면 null). CalcAmountInput 이 관리.
-  const [currencyMeta, setCurrencyMeta] = useState(
-    initial?.input_currency ? { input_currency: initial.input_currency, input_amount: initial.input_amount, fx_rate: initial.fx_rate } : null
-  );
   // 반복 설정: 이미 저장된 반복(recurringId)이거나, 아직 저장 전인 선택값(pendingRecurrence) 중 하나만 있을 수 있음
   const [recurringId, setRecurringId] = useState(initial?.recurring?.id || null);
   const [recurringLabel, setRecurringLabel] = useState(initial?.recurring?.label || '');
@@ -120,13 +187,8 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
 
   // 신규 작성 시 "내용" 기본값 템플릿 적용(비동기로 나중에 도착해도 반영)
   useEffect(() => {
-    if (!editing && !content && defaultContentTemplate) setContent(renderTemplate(defaultContentTemplate, date));
+    if (!editing && contentOverride == null && defaultContentTemplate) setContentOverride(renderTemplate(defaultContentTemplate, date));
   }, [defaultContentTemplate]);
-
-  // 신규 작성 시 "금액" 기본값 적용(비동기로 나중에 도착해도 반영)
-  useEffect(() => {
-    if (!editing && !amount && defaultAmount) setAmount(String(defaultAmount));
-  }, [defaultAmount]);
 
   // 신규 작성 시 원천 기본값: 지출은 주결제수단, 수입은 주입금수단(원천 관리에서 지정한 것)
   useEffect(() => {
@@ -136,9 +198,17 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
     if (s) setSourceId(String(s.id));
   }, [editing, type, sourcesFlat]);
 
+  // 메모가 바뀌면(사용자 입력/영수증 인식 등) 높이를 내용에 맞게 늘림
+  useEffect(() => {
+    const el = memoRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [memo]);
+
   const onDateChange = (v) => {
     setDate(v);
-    if (!editing && defaultContentTemplate) setContent(renderTemplate(defaultContentTemplate, v));
+    if (!editing && defaultContentTemplate) setContentOverride(renderTemplate(defaultContentTemplate, v));
   };
 
   // 반복 아이콘 클릭: 이미 저장된 반복이면 해제 확인, 선택만 해둔 상태면 선택 취소, 둘 다 아니면 모달을 띄움
@@ -152,14 +222,21 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
     setShowRecurrenceModal(true);
   };
 
-  // 금액 입력 시 정기결제금액(defaultAmount) 대비 회차 자동 계산(직접 수정도 가능)
-  const onAmountChange = (v) => {
-    const amt = v.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
-    setAmount(amt);
-    if (showPeriods && defaultAmount > 0 && amt) {
-      setPeriods(String(Math.round(Number(amt) / defaultAmount)));
-    }
-  };
+  // 항목 행 조작
+  const updateItem = (idx, patch) => setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  const addItem = () => setItems((prev) => [...prev, emptyItem()]);
+  const removeItem = (idx) => setItems((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
+  const toggleItemExpand = (idx) => updateItem(idx, { expanded: !items[idx].expanded });
+  const toggleItemMember = (idx, memberId) => setItems((prev) => prev.map((it, i) => {
+    if (i !== idx) return it;
+    const checked = it.memberChecked?.[memberId] !== false;
+    const memberAmountOverride = { ...it.memberAmountOverride };
+    delete memberAmountOverride[memberId]; // 체크 상태가 바뀌면 직접 수정한 금액은 초기화(자동 재계산)
+    return { ...it, memberChecked: { ...it.memberChecked, [memberId]: !checked }, memberAmountOverride };
+  }));
+  const setItemMemberAmount = (idx, memberId, v) => updateItem(idx, {
+    memberAmountOverride: { ...items[idx].memberAmountOverride, [memberId]: Math.max(0, Number(v) || 0) },
+  });
 
   // 영수증 사진 선택 → Gemini 로 날짜/금액/상호명/분류 추출 → 폼에 제안값으로 채움(항상 사용자가 확인 후 저장)
   const onReceiptFile = async (e) => {
@@ -174,15 +251,15 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
       const result = await db.parseReceipt(base64, mimeType, expenseCategoryNames);
       if (!fixedType) setType('expense');
       if (result.date) onDateChange(result.date);
-      if (result.amount) onAmountChange(String(result.amount));
-      if (result.merchant) setContent(result.merchant);
+      if (result.amount) updateItem(0, { amount: String(result.amount) });
+      if (result.merchant) setContentOverride(result.merchant);
       if (result.category) {
         const c = categories.find((x) => x.type === 'expense' && x.name === result.category);
         if (c) setCategoryId(String(c.id));
       }
-      // 구매 품목이 여러 개면 메모에 "품목명*수량 금액" 형식으로 한 줄씩 채워줌
+      // 구매 품목이 여러 개면 항목 행에 하나씩 채워줌(수량은 기본 1, 첫 행은 재사용)
       if (Array.isArray(result.items) && result.items.length > 1) {
-        setMemo(result.items.map((it) => `${it.name}*${it.qty} ${fmtNum(it.amount)}`).join('\n'));
+        setItems(result.items.map((it) => ({ ...emptyItem(), name: it.name || '', qty: String(it.qty || 1), amount: String(it.amount || '') })));
       }
       if (!result.date && !result.amount && !result.merchant && !result.category) {
         setScanError('영수증에서 정보를 인식하지 못했어요. 직접 입력해 주세요.');
@@ -198,41 +275,41 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
   const selCategory = categories.find((c) => String(c.id) === String(categoryId));
   const isSettlement = type === 'income' && selCategory?.name === '정산';
 
-  // 정산 그룹 결제 내역: 참여 멤버 체크리스트 + 멤버별 분담액(균등분배가 기본, 직접 수정 가능)
+  // 정산 그룹 결제 내역: 항목 행마다 참여 멤버 펼치기 + 멤버별 분담액(균등분배가 기본, 직접 수정 가능)
   const showMemberSplit = !!settlementMembers?.length && type === 'expense';
-  const [splitMembers, setSplitMembers] = useState(null); // null = 아직 초기화 전
   const splitInitRef = useRef(false);
   useEffect(() => {
     if (splitInitRef.current) return;
-    if (!settlementMembers?.length) return;
+    if (!showMemberSplit) return;
     if (editing && initialSettlementSplit === undefined) return; // 수정 화면: 기존 분담 내역 도착 대기
     splitInitRef.current = true;
-    const existing = initialSettlementSplit?.length ? new Map(initialSettlementSplit.map((r) => [r.member_id, Number(r.amount)])) : null;
-    const base = settlementMembers.map((m) => ({ id: m.id, name: m.nickname, isOwner: m.role === 'owner', checked: true, amount: 0 }));
-    setSplitMembers(existing
-      ? base.map((m) => ({ ...m, checked: existing.has(m.id), amount: existing.get(m.id) || 0 }))
-      : applyEqualSplit(base, Number(amount) || 0));
-  }, [settlementMembers, initialSettlementSplit, editing]);
-  // 결제 금액이 바뀌면 현재 체크된 멤버끼리 다시 균등분배(직접 수정한 금액은 초기화됨)
-  useEffect(() => {
-    if (!splitMembers) return;
-    setSplitMembers((prev) => applyEqualSplit(prev, Number(amount) || 0));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amount]);
-  const toggleSplitMember = (id) => {
-    setSplitMembers((prev) => applyEqualSplit(prev.map((m) => (m.id === id ? { ...m, checked: !m.checked } : m)), Number(amount) || 0));
-  };
-  const setSplitAmount = (id, v) => {
-    setSplitMembers((prev) => prev.map((m) => (m.id === id ? { ...m, amount: Math.max(0, Number(v) || 0) } : m)));
-  };
-  const splitSum = splitMembers ? splitMembers.reduce((s, m) => (m.checked ? s + m.amount : s), 0) : 0;
+    if (!initialSettlementSplit?.length) return; // 신규이거나 저장된 분담이 없으면 기본값(전원 체크) 유지
+    const memberChecked = {}; const memberAmountOverride = {};
+    const checkedIds = new Set(initialSettlementSplit.map((r) => r.member_id));
+    for (const m of settlementMembers) memberChecked[m.id] = checkedIds.has(m.id);
+    for (const r of initialSettlementSplit) memberAmountOverride[r.member_id] = Number(r.amount);
+    setItems((prev) => prev.map((it, i) => (i === 0 ? { ...it, memberChecked, memberAmountOverride } : it)));
+  }, [showMemberSplit, initialSettlementSplit, editing]);
+
+  const total = items.reduce((s, it) => s + itemTotalOf(it), 0);
+  const autoContent = items.length > 1 ? `${items[0].name || ''} 외 ${items.length - 1}` : (items[0].name || '');
+  const contentValue = contentOverride ?? autoContent;
+  const onContentChange = (e) => setContentOverride(e.target.value === '' ? null : e.target.value);
 
   const submit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!amount || Number(amount) < 0) return setError('금액을 입력하세요.');
-    const checkedSplitMembers = showMemberSplit ? (splitMembers || []).filter((m) => m.checked) : null;
-    if (showMemberSplit && !checkedSplitMembers.length) return setError('정산에 참여할 멤버를 1명 이상 선택하세요.');
+    if (!total) return setError('금액을 입력하세요.');
+    const aggregateSplit = showMemberSplit ? (() => {
+      const totals = {};
+      for (const it of items) {
+        for (const r of memberRowsFor(it, settlementMembers, itemTotalOf(it))) {
+          if (r.checked) totals[r.id] = (totals[r.id] || 0) + r.amount;
+        }
+      }
+      return Object.entries(totals).map(([id, amount]) => ({ member_id: Number(id), amount }));
+    })() : null;
+    if (showMemberSplit && !aggregateSplit.length) return setError('정산에 참여할 멤버를 1명 이상 선택하세요.');
     setBusy(true);
 
     // 분류 결정 (SNAP=기존 스냅샷 유지 / 실제 선택 / 선택 안 함)
@@ -265,13 +342,10 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
     }
 
     const payload = {
-      type, date, amount: Math.round(Number(amount)),
+      type, date, amount: Math.round(total),
       category_id, category_name, category_emoji, category_color,
       source_id, source_name,
-      content, memo,
-      input_currency: currencyMeta?.input_currency || null,
-      input_amount: currencyMeta?.input_amount ?? null,
-      fx_rate: currencyMeta?.fx_rate ?? null,
+      content: (contentValue || '').trim(), memo,
       recurrence, backfillPast,
       settlement_target_id: (isSettlement && settlementTargetId) ? Number(settlementTargetId) : null,
       group_id: groupId || null,
@@ -281,9 +355,7 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
       if (onSubmit) await onSubmit(payload);
       else {
         const saved = await db.saveTransaction({ id: initial?.id, userId: user.id, payload, sourcesFlat });
-        if (checkedSplitMembers) {
-          await db.saveSettlementSplit(saved.id, checkedSplitMembers.map((m) => ({ member_id: m.id, amount: m.amount })));
-        }
+        if (aggregateSplit) await db.saveSettlementSplit(saved.id, aggregateSplit);
       }
       onSaved?.();
     } catch (err) {
@@ -292,6 +364,9 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
       setBusy(false);
     }
   };
+
+  const rowLabelStyle = { width: 46, flex: 'none', fontSize: 13.5, fontWeight: 400, color: '#8b8798' };
+  const rowInputStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', padding: 0 };
 
   return (
     <form onSubmit={submit}>
@@ -314,27 +389,9 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
         </div>
       )}
 
-      <div className="field">
-        <label>날짜</label>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} style={{ flex: 1 }} />
-          <button
-            type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
-            style={{
-              width: 42, height: 42, borderRadius: 10, border: 'none', flex: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: (recurringId || pendingRecurrence) ? (type === 'income' ? '#E5FBF6' : '#FFE9EF') : '#f4f2f0',
-            }}
-          >
-            <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : (type === 'income' ? '#2CDDB9' : '#FF6F91')} />
-          </button>
-        </div>
-      </div>
-
       {showRecurrenceModal && (
         <RecurrenceModal onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
       )}
-
       {backfillPrompt && (
         <ConfirmModal
           message={`과거의 반복 내역 ${backfillPrompt.n}개를 일괄 생성할까요?`}
@@ -343,124 +400,129 @@ const TransactionForm = forwardRef(function TransactionForm({ initial, groupId, 
         />
       )}
 
-      {showPeriods ? (
-        <div className="grid2">
-          <div className="field">
-            <label>금액</label>
-            <CalcAmountInput
-              value={amount} onChange={onAmountChange} autoFocus
-              initialCurrency={currencyMeta?.input_currency} initialForeignAmount={currencyMeta?.input_amount}
-              onCurrencyChange={setCurrencyMeta}
+      <div style={{ position: 'relative' }}>
+        <div className="rcpt-card">
+          <input
+            type="text" list="tx-content-list" placeholder="내용" value={contentValue} onChange={onContentChange} autoComplete="off"
+            style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: groupBadge ? '0 0 6px' : '0 0 14px' }}
+          />
+          <datalist id="tx-content-list">
+            {contentSuggestions.map((s) => <option key={s} value={s} />)}
+          </datalist>
+          {groupBadge && (
+            <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
+              {groupBadge.name}
+            </span>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+            <span style={rowLabelStyle}>날짜</span>
+            <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <input type="date" value={date} onChange={(e) => onDateChange(e.target.value)} style={{ ...rowInputStyle, flex: 'none' }} />
+              <button
+                type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
+                style={{
+                  width: 26, height: 26, borderRadius: 8, border: 'none', flex: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: (recurringId || pendingRecurrence) ? (type === 'income' ? '#E5FBF6' : '#FFE9EF') : '#f4f2f0',
+                }}
+              >
+                <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : (type === 'income' ? '#2CDDB9' : '#FF6F91')} />
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+            <span style={rowLabelStyle}>분류</span>
+            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none' }}>
+              <option value="">선택 안 함</option>
+              {categoryId === SNAP && (
+                <option value={SNAP}>{initial?.category_emoji ? `${initial.category_emoji} ` : ''}{initial?.category_name} (기존)</option>
+              )}
+              {catOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+            <span style={rowLabelStyle}>원천</span>
+            <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none' }}>
+              <option value="">선택 안 함</option>
+              {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
+              {sources.map((top) => (
+                top.children?.length ? (
+                  <optgroup key={top.id} label={top.name}>
+                    <option value={top.id}>{top.name} (전체)</option>
+                    {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </optgroup>
+                ) : (
+                  <option key={top.id} value={top.id}>{top.name}</option>
+                )
+              ))}
+            </select>
+          </div>
+
+          {isSettlement && (
+            <div style={{ padding: '8px 0' }}>
+              <div style={{ fontSize: 12, color: '#8b8798', marginBottom: 4 }}>정산 대상 <span style={{ opacity: .7 }}>(정산할 지출 선택)</span></div>
+              <select value={settlementTargetId} onChange={(e) => setSettlementTargetId(e.target.value)} style={{ width: '100%', border: '1px solid #e4e2e6', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', background: '#fff' }}>
+                <option value="">선택 안 함</option>
+                {recentExpenses.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.date.slice(5)} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px', gap: 8, padding: '9px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
+            <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
+            {showMemberSplit && <span />}
+            <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'center' }}>{qtyLabel}</span>
+            <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
+            <span />
+          </div>
+
+          {items.map((it, idx) => (
+            <ItemRow
+              key={idx} item={it} idx={idx} canRemove={items.length > 1} qtyLabel={qtyLabel}
+              settlementMembers={showMemberSplit ? settlementMembers : null}
+              onName={(v) => updateItem(idx, { name: v })}
+              onQty={(v) => updateItem(idx, { qty: v.replace(/[^0-9]/g, '') })}
+              onAmount={(v) => updateItem(idx, { amount: v })}
+              onRemove={() => removeItem(idx)}
+              onToggleExpand={() => toggleItemExpand(idx)}
+              onToggleMember={(mid) => toggleItemMember(idx, mid)}
+              onMemberAmount={(mid, v) => setItemMemberAmount(idx, mid, v)}
             />
+          ))}
+
+          <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>
+
+          <div style={{ display: 'grid', gridTemplateColumns: showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: '10px 0 0', marginTop: 9, borderTop: '1px dashed #cfccd4' }}>
+            <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
+            {showMemberSplit && <span />}
+            <span />
+            <span style={{ fontSize: 13.75, fontWeight: 800, color: type === 'expense' ? '#FF4358' : '#2CDDB9', textAlign: 'right' }}>{fmtNum(total)}</span>
+            <span />
           </div>
-          <div className="field">
-            <label>기간(회차)</label>
-            <input type="number" min="1" value={periods} onChange={(e) => setPeriods(e.target.value)} />
+
+          <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="rcpt-dots" />
+            <span style={{ flex: 'none', fontSize: 13.5, fontWeight: 400, color: '#a29ead', letterSpacing: '.3px' }}>메모</span>
+            <span className="rcpt-dots" style={{ textAlign: 'right' }} />
           </div>
-        </div>
-      ) : (
-        <div className="field">
-          <label>금액</label>
-          <CalcAmountInput
-            value={amount} onChange={onAmountChange} autoFocus
-            initialCurrency={currencyMeta?.input_currency} initialForeignAmount={currencyMeta?.input_amount}
-            onCurrencyChange={setCurrencyMeta}
+          <textarea
+            ref={memoRef} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="추가 설명을 적어주세요" rows={2}
+            style={{ marginTop: 10, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.5, color: '#191722', outline: 'none', resize: 'none', padding: 0, overflow: 'hidden' }}
           />
         </div>
-      )}
-
-      {showMemberSplit && splitMembers && (
-        <div className="field">
-          <div className="field-label-row">
-            <label>정산 참여 멤버</label>
-            <span className="small muted" style={splitSum !== Math.round(Number(amount) || 0) ? { color: 'var(--expense)' } : undefined}>
-              합계 {fmtNum(splitSum)}{splitSum !== Math.round(Number(amount) || 0) ? ` (결제금액 ${fmtNum(Number(amount) || 0)}과 다름)` : ''}
-            </span>
-          </div>
-          <div style={{ background: '#faf9f7', borderRadius: 12, padding: '0 10px' }}>
-            {splitMembers.map((m, i) => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0', borderTop: i > 0 ? '1px solid #efeef2' : 'none' }}>
-                <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: m.checked ? '#191722' : '#c7c3cc' }}>
-                  {m.name}{m.isOwner ? ' (총무)' : ''}
-                </span>
-                <input
-                  type="text" inputMode="numeric" disabled={!m.checked}
-                  value={m.checked ? String(m.amount) : ''}
-                  onChange={(e) => setSplitAmount(m.id, e.target.value.replace(/[^0-9]/g, ''))}
-                  style={{ width: 92, textAlign: 'right', border: '1px solid #e4e2e6', borderRadius: 8, padding: '6px 8px', fontSize: 13, color: '#191722', fontFamily: 'inherit', opacity: m.checked ? 1 : 0.4 }}
-                />
-                <input type="checkbox" checked={m.checked} onChange={() => toggleSplitMember(m.id)} style={{ width: 18, height: 18, flex: 'none' }} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="field">
-        <div className="field-label-row">
-          <label>분류</label>
-          <button type="button" className="edit-link" onClick={() => nav(`/settings/categories/${type}`)}>편집 ›</button>
-        </div>
-        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-          <option value="">선택 안 함</option>
-          {categoryId === SNAP && (
-            <option value={SNAP}>{initial?.category_emoji ? `${initial.category_emoji} ` : ''}{initial?.category_name} (기존)</option>
-          )}
-          {catOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
-        </select>
+        <div className="rcpt-notch rcpt-notch-top" />
+        <div className="rcpt-notch rcpt-notch-bottom" />
       </div>
 
-      <div className="field">
-        <div className="field-label-row">
-          <label>원천</label>
-          <button type="button" className="edit-link" onClick={() => nav('/settings/sources')}>편집 ›</button>
-        </div>
-        <select value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
-          <option value="">선택 안 함</option>
-          {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
-          {sources.map((top) => (
-            top.children?.length ? (
-              <optgroup key={top.id} label={top.name}>
-                <option value={top.id}>{top.name} (전체)</option>
-                {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </optgroup>
-            ) : (
-              <option key={top.id} value={top.id}>{top.name}</option>
-            )
-          ))}
-        </select>
-      </div>
-
-      {isSettlement && (
-        <div className="field">
-          <label>정산 대상 <span className="small muted">(정산할 지출 선택)</span></label>
-          <select value={settlementTargetId} onChange={(e) => setSettlementTargetId(e.target.value)}>
-            <option value="">선택 안 함</option>
-            {recentExpenses.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.date.slice(5)} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})
-              </option>
-            ))}
-          </select>
-          <p className="small muted" style={{ margin: '4px 2px 0' }}>선택한 지출에서 이 금액만큼 차감되고, 이 수입은 통계에서 제외됩니다.</p>
-        </div>
-      )}
-
-      <div className="field">
-        <label>내용</label>
-        <input list="tx-content-list" value={content} onChange={(e) => setContent(e.target.value)} placeholder="가계부에 표시될 내용" autoComplete="off" />
-        <datalist id="tx-content-list">
-          {contentSuggestions.map((s) => <option key={s} value={s} />)}
-        </datalist>
-      </div>
-
-      <div className="field">
-        <label>메모</label>
-        <textarea value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="추가 설명 (선택)" />
-      </div>
-
-      {error && <p className="error">{error}</p>}
-      <button className="btn-ink-pill" disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
+      {error && <p className="error" style={{ marginTop: 14 }}>{error}</p>}
+      <button className="btn-ink-pill" style={{ marginTop: 26 }} disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
     </form>
   );
 });

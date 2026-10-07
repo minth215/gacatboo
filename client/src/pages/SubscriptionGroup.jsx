@@ -915,10 +915,33 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   );
 }
 
-export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '' }) {
+export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '', groupBadge }) {
   const editing = !!initial;
   const isSettleMode = defaultCategoryName === '정산';
   const settleContentDefault = groupName ? `${groupName} 정산` : '정산';
+  // 총무가 정산 그룹 입금 내역을 새로 등록할 때만: 정산 대상을 여러 개 골라 한 번에 입금 처리.
+  // (수정 화면은 이미 저장된 입금 1건 = 정산 대상 1건이므로 기존 단일 선택 UI를 그대로 쓴다.)
+  const multiSettle = isOwner && isSettleMode && !editing;
+  const settleTargetLabel = (x) => x?.content || x?.category_name || '지출';
+  const [settleRows, setSettleRows] = useState([{ targetId: '', amount: '' }]);
+  useEffect(() => {
+    if (!multiSettle || settleRows.length !== 1 || settleRows[0].targetId || recentExpenses.length !== 1) return;
+    setSettleRows([{ targetId: String(recentExpenses[0].id), amount: String(recentExpenses[0].amount) }]);
+  }, [multiSettle, recentExpenses]);
+  const updateSettleRow = (idx, patch) => setSettleRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  const onSettleTargetChange = (idx, targetId) => {
+    const target = recentExpenses.find((x) => String(x.id) === targetId);
+    updateSettleRow(idx, { targetId, amount: (!settleRows[idx].amount && target) ? String(target.amount) : settleRows[idx].amount });
+  };
+  const addSettleRow = () => setSettleRows((prev) => [...prev, { targetId: '', amount: '' }]);
+  const removeSettleRow = (idx) => setSettleRows((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
+  const settleRowsValid = settleRows.filter((r) => r.targetId);
+  const settleTotal = settleRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const multiAutoContent = settleRowsValid.length > 1
+    ? settleContentDefault
+    : settleRowsValid.length === 1
+      ? `${settleTargetLabel(recentExpenses.find((x) => String(x.id) === settleRowsValid[0].targetId))} 정산`
+      : settleContentDefault;
   const defMemberCat = cats.find((c) => c.name === defaultCategoryName);     // 멤버 지출 기본(구독/정산 등)
   const defLeaderCat = incomeCats.find((c) => c.name === (sub?.deposit_category || defaultCategoryName)); // 총대 수입 기본 = 입금분류(없으면 동일 기본값)
   const [f, setF] = useState(() => editing ? {
@@ -941,6 +964,13 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     memo: '',
   });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
+  const memoRef = useRef(null);
+  useEffect(() => {
+    const el = memoRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [f.memo]);
   // 반복 설정: 이미 저장된 반복(recurringId)이거나, 아직 저장 전인 선택값(pendingRecurrence) 중 하나만 있을 수 있음
   const [recurringId, setRecurringId] = useState(initial?.recurring?.id || null);
   const [recurringLabel, setRecurringLabel] = useState(initial?.recurring?.label || '');
@@ -1012,6 +1042,16 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     if (editing || f.content || !sub?.deposit_content_template) return;
     setF((prev) => ({ ...prev, content: renderTemplate(sub.deposit_content_template, prev.date) }));
   }, [editing, sub]);
+  // 정산 대상 멀티 입금: 고른 대상에 따라 "내용"을 자동으로 채움(직접 수정하면 더 이상 자동 갱신 안 됨,
+  // 다시 지우면 자동 모드로 복귀)
+  const lastAutoContentRef = useRef('');
+  useEffect(() => {
+    if (!multiSettle) return;
+    if (f.content === '' || f.content === lastAutoContentRef.current) {
+      setF((prev) => (prev.content === multiAutoContent ? prev : { ...prev, content: multiAutoContent }));
+    }
+    lastAutoContentRef.current = multiAutoContent;
+  }, [multiSettle, multiAutoContent]);
 
   // 금액 입력 시 기본 입금액 대비 회차 자동 계산
   const defaultAmount = Number(sub?.deposit_amount) || 0;
@@ -1039,6 +1079,33 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
 
   const submit = async () => {
     if (!f.memberId) return setErr('멤버를 선택하세요.');
+
+    if (multiSettle) {
+      const rows = settleRows.filter((r) => r.targetId && Number(r.amount) > 0);
+      if (!rows.length) return setErr('정산 대상과 금액을 입력하세요.');
+      setBusy(true); setErr('');
+      const l_source = f.lSourceId === KEEP ? (initial?.deposit_source_name || '') : sourceNameOf(sources.flat, f.lSourceId);
+      const lCat = f.lCatId === KEEP ? { name: initial?.leader_category_name, emoji: initial?.leader_category_emoji } : incomeCats.find((c) => String(c.id) === f.lCatId);
+      const sharedContent = f.content.trim() || multiAutoContent;
+      try {
+        for (const r of rows) {
+          const target = recentExpenses.find((x) => String(x.id) === r.targetId);
+          await onSave({
+            member_id: Number(f.memberId), date: f.date, amount: Math.round(Number(r.amount)), periods: 1,
+            category_name: target?.category_name || defaultCategoryName, category_emoji: target?.category_emoji || '',
+            source_id: null, source_name: '',
+            deposit_source_name: l_source,
+            leader_category_name: lCat?.name || '', leader_category_emoji: lCat?.emoji || '',
+            leader_settlement_target_id: Number(r.targetId),
+            content: sharedContent, memo: f.memo,
+            recurrence: null, backfillPast: false,
+          });
+        }
+        onSaved?.();
+      } catch (e) { setErr(e.message); setBusy(false); }
+      return;
+    }
+
     if (!f.amount || Number(f.amount) < 0) return setErr('금액을 입력하세요.');
 
     // 멤버 가계부(지출) 필드
@@ -1092,105 +1159,166 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
   return (
     <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
       {topNotice}
-      {/* 공통 */}
-      <div className="field"><label>멤버</label>
-        <select value={f.memberId} onChange={(e) => setF({ ...f, memberId: e.target.value })} disabled={editing || members.length <= 1}>
-          {members.map((m) => <option key={m.id} value={m.id}>{m.nickname}</option>)}
-          {editing && !members.some((m) => String(m.id) === String(f.memberId)) && <option value={f.memberId}>{initial.member?.nickname || '멤버'}</option>}
-        </select>
-      </div>
-      <div className="field">
-        <label>날짜</label>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} style={{ flex: 1 }} />
-          <button
-            type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
-            style={{
-              width: 42, height: 42, borderRadius: 10, border: 'none', flex: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: (recurringId || pendingRecurrence) ? '#E5FBF6' : '#f4f2f0',
-            }}
-          >
-            <RepeatIcon color={(recurringId || pendingRecurrence) ? '#2CDDB9' : '#c7c3cc'} />
-          </button>
-        </div>
-      </div>
 
-      {showRecurrenceModal && (
-        <RecurrenceModal onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
-      )}
-      {backfillPrompt && (
-        <ConfirmModal
-          message={`과거의 반복 내역 ${backfillPrompt.n}개를 일괄 생성할까요?`}
-          onYes={() => { backfillPrompt.resolve(true); setBackfillPrompt(null); }}
-          onNo={() => { backfillPrompt.resolve(false); setBackfillPrompt(null); }}
-        />
-      )}
-      {showPeriods ? (
-        <div className="grid2">
-          <div className="field"><label>금액</label>
-            <div className="with-suffix">
-              <input
-                type="text" inputMode="numeric"
-                value={f.amount ? Number(f.amount).toLocaleString('ko-KR') : ''}
-                onChange={(e) => onAmountChange(e.target.value)}
-              />
-              <span className="suffix">원</span>
+      <div style={{ position: 'relative' }}>
+        <div className="rcpt-card">
+          <input
+            type="text" value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })}
+            placeholder={isSettleMode ? settleContentDefault : '예: 넷플릭스 회비'}
+            style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: groupBadge ? '0 0 6px' : '0 0 14px' }}
+          />
+          {groupBadge && (
+            <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
+              {groupBadge.name}
+            </span>
+          )}
+
+          {/* 공통 */}
+          <div className="field"><label>멤버</label>
+            <select value={f.memberId} onChange={(e) => setF({ ...f, memberId: e.target.value })} disabled={editing || members.length <= 1}>
+              {members.map((m) => <option key={m.id} value={m.id}>{m.nickname}</option>)}
+              {editing && !members.some((m) => String(m.id) === String(f.memberId)) && <option value={f.memberId}>{initial.member?.nickname || '멤버'}</option>}
+            </select>
+          </div>
+          <div className="field">
+            <label>날짜</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} style={{ flex: 1 }} />
+              {!multiSettle && (
+                <button
+                  type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
+                  style={{
+                    width: 42, height: 42, borderRadius: 10, border: 'none', flex: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: (recurringId || pendingRecurrence) ? '#E5FBF6' : '#f4f2f0',
+                  }}
+                >
+                  <RepeatIcon color={(recurringId || pendingRecurrence) ? '#2CDDB9' : '#c7c3cc'} />
+                </button>
+              )}
             </div>
           </div>
-          <div className="field"><label>기간(회차)</label><input type="number" min="1" value={f.periods} onChange={(e) => setF({ ...f, periods: e.target.value })} /></div>
-        </div>
-      ) : (
-        <div className="field"><label>금액</label>
-          <div className="with-suffix">
-            <input
-              type="text" inputMode="numeric"
-              value={f.amount ? Number(f.amount).toLocaleString('ko-KR') : ''}
-              onChange={(e) => onAmountChange(e.target.value)}
-            />
-            <span className="suffix">원</span>
-          </div>
-        </div>
-      )}
 
-      {isOwner ? (
-        /* 총대 가계부 영역 */
-        <div className="form-section-card">
-          <div className="form-section-title">총대 가계부 (수입)</div>
-          <div className="field"><label>분류</label>
-            <CategorySelect cats={incomeCats} value={f.lCatId} onChange={(v) => setF({ ...f, lCatId: v })} keepLabel={initial?.leader_category_name} />
-          </div>
-          {leaderIsSettle && (
-            <div className="field"><label>정산 대상 <span className="small muted">(정산할 지출 선택)</span></label>
-              <select value={f.lSettleId} onChange={(e) => setF({ ...f, lSettleId: e.target.value })}>
-                <option value="">선택 안 함</option>
-                {recentExpenses.map((x) => (
-                  <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})</option>
-                ))}
-              </select>
+          {showRecurrenceModal && (
+            <RecurrenceModal onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
+          )}
+          {backfillPrompt && (
+            <ConfirmModal
+              message={`과거의 반복 내역 ${backfillPrompt.n}개를 일괄 생성할까요?`}
+              onYes={() => { backfillPrompt.resolve(true); setBackfillPrompt(null); }}
+              onNo={() => { backfillPrompt.resolve(false); setBackfillPrompt(null); }}
+            />
+          )}
+
+          {!multiSettle && (showPeriods ? (
+            <div className="grid2">
+              <div className="field"><label>금액</label>
+                <div className="with-suffix">
+                  <input
+                    type="text" inputMode="numeric"
+                    value={f.amount ? Number(f.amount).toLocaleString('ko-KR') : ''}
+                    onChange={(e) => onAmountChange(e.target.value)}
+                  />
+                  <span className="suffix">원</span>
+                </div>
+              </div>
+              <div className="field"><label>기간(회차)</label><input type="number" min="1" value={f.periods} onChange={(e) => setF({ ...f, periods: e.target.value })} /></div>
+            </div>
+          ) : (
+            <div className="field"><label>금액</label>
+              <div className="with-suffix">
+                <input
+                  type="text" inputMode="numeric"
+                  value={f.amount ? Number(f.amount).toLocaleString('ko-KR') : ''}
+                  onChange={(e) => onAmountChange(e.target.value)}
+                />
+                <span className="suffix">원</span>
+              </div>
+            </div>
+          ))}
+
+          {isOwner ? (
+            /* 총대 가계부 영역 */
+            <div className="form-section-card">
+              <div className="form-section-title">총대 가계부 (수입)</div>
+              <div className="field"><label>분류</label>
+                <CategorySelect cats={incomeCats} value={f.lCatId} onChange={(v) => setF({ ...f, lCatId: v })} keepLabel={initial?.leader_category_name} />
+              </div>
+
+              {multiSettle ? (
+                <div className="field">
+                  <label>정산 대상 <span className="small muted">(여러 건을 한 번에 입금 처리할 수 있어요)</span></label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, padding: '9px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
+                    <span />
+                  </div>
+                  {settleRows.map((r, idx) => (
+                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0' }}>
+                      <select
+                        value={r.targetId} onChange={(e) => onSettleTargetChange(idx, e.target.value)}
+                        style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, appearance: 'none' }}
+                      >
+                        <option value="">정산 대상 선택</option>
+                        {recentExpenses.map((x) => (
+                          <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {settleTargetLabel(x)} ({fmtWon(x.amount)})</option>
+                        ))}
+                      </select>
+                      <input
+                        type="text" inputMode="numeric" placeholder="0" value={r.amount ? Number(r.amount).toLocaleString('ko-KR') : ''}
+                        onChange={(e) => updateSettleRow(idx, { amount: e.target.value.replace(/[^0-9]/g, '') })}
+                        style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', minWidth: 0 }}
+                      />
+                      {settleRows.length > 1 ? (
+                        <button type="button" aria-label="행 삭제" onClick={() => removeSettleRow(idx)} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+                        </button>
+                      ) : <span />}
+                    </div>
+                  ))}
+                  <button type="button" onClick={addSettleRow} className="rcpt-add-row">+ 행 추가</button>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '10px 0 0', marginTop: 9, borderTop: '1px dashed #cfccd4' }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
+                    <span style={{ fontSize: 13.75, fontWeight: 800, color: '#2CDDB9', textAlign: 'right' }}>{fmtNum(settleTotal)}</span>
+                    <span />
+                  </div>
+                </div>
+              ) : leaderIsSettle && (
+                <div className="field"><label>정산 대상 <span className="small muted">(정산할 지출 선택)</span></label>
+                  <select value={f.lSettleId} onChange={(e) => setF({ ...f, lSettleId: e.target.value })}>
+                    <option value="">선택 안 함</option>
+                    {recentExpenses.map((x) => (
+                      <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {settleTargetLabel(x)} ({fmtWon(x.amount)})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="field"><label>원천</label>
+                <SourceSelect sources={sources.tree} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} />
+              </div>
+            </div>
+          ) : (
+            /* 멤버 가계부 영역 */
+            <div className="form-section">
+              <div className="form-section-title">내 가계부 (지출)</div>
+              <div className="field"><label>분류</label>
+                <CategorySelect cats={cats} value={f.mCatId} onChange={(v) => setF({ ...f, mCatId: v })} keepLabel={initial?.category_name} />
+              </div>
+              <div className="field"><label>원천</label>
+                <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} />
+              </div>
             </div>
           )}
-          <div className="field"><label>원천</label>
-            <SourceSelect sources={sources.tree} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} />
-          </div>
-        </div>
-      ) : (
-        /* 멤버 가계부 영역 */
-        <div className="form-section">
-          <div className="form-section-title">내 가계부 (지출)</div>
-          <div className="field"><label>분류</label>
-            <CategorySelect cats={cats} value={f.mCatId} onChange={(v) => setF({ ...f, mCatId: v })} keepLabel={initial?.category_name} />
-          </div>
-          <div className="field"><label>원천</label>
-            <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} />
-          </div>
-        </div>
-      )}
 
-      <div className="field"><label>내용</label><input value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} placeholder={isSettleMode ? settleContentDefault : '예: 넷플릭스 회비'} /></div>
-      <div className="field"><label>메모</label><textarea value={f.memo} onChange={(e) => setF({ ...f, memo: e.target.value })} /></div>
-      {err && <p className="error">{err}</p>}
-      <button className="btn-ink-pill" disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
+          <div className="field"><label>메모</label><textarea ref={memoRef} value={f.memo} onChange={(e) => setF({ ...f, memo: e.target.value })} style={{ overflow: 'hidden' }} /></div>
+        </div>
+        <div className="rcpt-notch rcpt-notch-top" />
+        <div className="rcpt-notch rcpt-notch-bottom" />
+      </div>
+
+      {err && <p className="error" style={{ marginTop: 14 }}>{err}</p>}
+      <button className="btn-ink-pill" style={{ marginTop: 26 }} disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
     </form>
   );
 }
