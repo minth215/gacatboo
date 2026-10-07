@@ -191,6 +191,14 @@ const TransactionForm = forwardRef(function TransactionForm({
     if (!editing && contentOverride == null && defaultContentTemplate) setContentOverride(renderTemplate(defaultContentTemplate, date));
   }, [defaultContentTemplate]);
 
+  // 신규 작성 시 금액 기본값(예: 구독 그룹 결제 → 정기결제금액) 적용(비동기로 나중에 도착해도 반영).
+  // 아직 아무것도 입력 안 한 첫 항목 하나뿐일 때만 채운다(사용자가 이미 입력했으면 덮어쓰지 않음).
+  useEffect(() => {
+    if (editing || !defaultAmount) return;
+    setItems((prev) => (prev.length === 1 && !prev[0].name && !prev[0].amount)
+      ? [{ ...prev[0], amount: String(defaultAmount) }] : prev);
+  }, [defaultAmount]);
+
   // 신규 작성 시 원천 기본값: 지출은 주결제수단, 수입은 주입금수단(원천 관리에서 지정한 것)
   useEffect(() => {
     if (editing || sourceId) return;
@@ -432,9 +440,8 @@ const TransactionForm = forwardRef(function TransactionForm({
             <button
               type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
               style={{
-                width: 26, height: 26, borderRadius: 8, border: 'none', flex: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: (recurringId || pendingRecurrence) ? (type === 'income' ? '#E5FBF6' : '#FFE9EF') : '#f4f2f0',
+                border: 'none', background: 'transparent', padding: 0, flex: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0,
               }}
             >
               <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : (type === 'income' ? '#2CDDB9' : '#FF6F91')} />

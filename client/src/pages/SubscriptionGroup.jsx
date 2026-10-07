@@ -1198,9 +1198,8 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
               <button
                 type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
                 style={{
-                  width: 42, height: 42, borderRadius: 10, border: 'none', flex: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: (recurringId || pendingRecurrence) ? '#E5FBF6' : '#f4f2f0',
+                  border: 'none', background: 'transparent', padding: 0, flex: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0,
                 }}
               >
                 <RepeatIcon color={(recurringId || pendingRecurrence) ? '#2CDDB9' : '#c7c3cc'} />
