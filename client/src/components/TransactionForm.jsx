@@ -98,15 +98,18 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, onName, on
       {hasSplit && item.expanded && (
         <div style={{ padding: '2px 0 6px 14px' }}>
           {memberRowsFor(item, settlementMembers, itemTotalOf(item)).map((m) => (
-            <div key={m.id} style={{ display: 'grid', gridTemplateColumns: '1fr 20px 46px 84px 18px', gap: 8, alignItems: 'center', padding: '2px 0' }}>
+            <div key={m.id} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '2px 0' }}>
               <span style={{ gridColumn: '1 / span 3', fontSize: 11.5, color: '#6c6779' }}>{m.name}{m.isOwner ? ' (총무)' : ''}</span>
               <input
                 type="text" inputMode="numeric" disabled={!m.checked}
-                value={m.checked ? String(m.amount) : ''}
+                value={m.checked ? Number(m.amount).toLocaleString('ko-KR') : ''}
                 onChange={(e) => onMemberAmount(m.id, e.target.value.replace(/[^0-9]/g, ''))}
                 style={{ gridColumn: 4, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, color: '#8b8798', textAlign: 'right', outline: 'none', minWidth: 0, opacity: m.checked ? 1 : 0.4 }}
               />
-              <input type="checkbox" checked={m.checked} onChange={() => onToggleMember(m.id)} style={{ gridColumn: 5, width: 14, height: 14, cursor: 'pointer', justifySelf: 'center' }} />
+              <input
+                type="checkbox" checked={m.checked} onChange={() => onToggleMember(m.id)}
+                style={{ gridColumn: 5, width: 14, height: 14, cursor: 'pointer', justifySelf: 'center', accentColor: '#6c6779' }}
+              />
             </div>
           ))}
         </div>
@@ -530,7 +533,7 @@ const TransactionForm = forwardRef(function TransactionForm({
           <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
           {showMemberSplit && <span />}
           <span />
-          <span style={{ fontSize: 13.75, fontWeight: 800, color: type === 'expense' ? '#FF4358' : '#2CDDB9', textAlign: 'right' }}>{fmtNum(total)}</span>
+          <span style={{ fontSize: 15.5, fontWeight: 800, color: type === 'expense' ? '#FF4358' : '#2CDDB9', textAlign: 'right' }}>{fmtNum(total)}</span>
           <span />
         </div>
 
