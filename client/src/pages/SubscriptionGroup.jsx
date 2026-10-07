@@ -942,6 +942,25 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     : settleRowsValid.length === 1
       ? `${settleTargetLabel(recentExpenses.find((x) => String(x.id) === settleRowsValid[0].targetId))} 정산`
       : settleContentDefault;
+
+  // 구독 그룹 입금 내역을 새로 등록할 때: 내용/회차/금액 항목 표(여러 건을 한 번에 기록 가능).
+  // "회차"는 총 결제 건수 집계를 위한 참고값(금액에 곱해지는 수량이 아니라, 금액을 정기입금액으로
+  // 나눈 값이 자동 채워지며 직접 수정도 가능 — 기존 단일 입력 때와 동일한 계산 규칙).
+  const multiSub = !isSettleMode && !editing;
+  const [subRows, setSubRows] = useState([{ name: '', periods: '1', amount: '' }]);
+  useEffect(() => {
+    if (!multiSub || subRows.length !== 1 || subRows[0].amount || !sub?.deposit_amount) return;
+    setSubRows([{ ...subRows[0], amount: String(sub.deposit_amount) }]);
+  }, [multiSub, sub]);
+  const updateSubRow = (idx, patch) => setSubRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  const onSubRowAmountChange = (idx, v) => {
+    const amount = v.replace(/[^0-9]/g, '');
+    const defAmt = Number(sub?.deposit_amount) || 0;
+    updateSubRow(idx, { amount, periods: (defAmt > 0 && amount) ? String(Math.round(Number(amount) / defAmt)) : subRows[idx].periods });
+  };
+  const addSubRow = () => setSubRows((prev) => [...prev, { name: '', periods: '1', amount: '' }]);
+  const removeSubRow = (idx) => setSubRows((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
+  const subTotal = subRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const defMemberCat = cats.find((c) => c.name === defaultCategoryName);     // 멤버 지출 기본(구독/정산 등)
   // 총대 수입 기본 = 입금분류(구독 설정에서 지정, 없으면 '정산' — 그룹 종류와 무관하게 총대 입장에선
   // 늘 정산 수입이므로 멤버 지출 기본값(defaultCategoryName)과는 다르게 항상 '정산'으로 떨어진다)
@@ -1114,6 +1133,55 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
       return;
     }
 
+    if (multiSub) {
+      const rows = subRows.filter((r) => Number(r.amount) > 0);
+      if (!rows.length) return setErr('금액을 입력하세요.');
+
+      // 멤버 가계부(지출)·총대 가계부(수입) 필드 — 행마다 동일(구독료 성격은 변하지 않으므로)
+      let m_name = '', m_emoji = '', m_source = '';
+      if (isOwner) { m_name = defaultCategoryName; m_emoji = defMemberCat?.emoji || ''; m_source = ''; }
+      else {
+        if (f.mCatId === KEEP) { m_name = initial.category_name; m_emoji = initial.category_emoji; }
+        else if (f.mCatId) { const c = cats.find((x) => String(x.id) === f.mCatId); if (c) { m_name = c.name; m_emoji = c.emoji || ''; } }
+        m_source = f.mSourceId === KEEP ? (initial?.source_name || '') : sourceNameOf(sources.flat, f.mSourceId);
+      }
+      let l_name = '', l_emoji = '', l_source = '';
+      if (isOwner) {
+        if (f.lCatId === KEEP) { l_name = initial.leader_category_name; l_emoji = initial.leader_category_emoji; }
+        else if (f.lCatId) { const c = incomeCats.find((x) => String(x.id) === f.lCatId); if (c) { l_name = c.name; l_emoji = c.emoji || ''; } }
+        l_source = f.lSourceId === KEEP ? (initial?.deposit_source_name || '') : sourceNameOf(sources.flat, f.lSourceId);
+      } else {
+        l_name = sub?.deposit_category || '정산'; l_emoji = sub?.deposit_category_emoji || ''; l_source = sub?.deposit_source_name || '';
+      }
+
+      // 반복 설정은 결과가 한 건일 때만 의미가 있음(여러 건이면 반복 규칙이 중복 생성되므로 생략)
+      let recurrence = null, backfillPast = false;
+      if (rows.length === 1 && !recurringId && pendingRecurrence) {
+        recurrence = resolveRecurrence(pendingRecurrence, f.date);
+        if (recurrence && f.date < today()) {
+          const n = countDueDates(recurrence, f.date, today());
+          if (n > 0) backfillPast = await askBackfill(n);
+        }
+      }
+
+      setBusy(true); setErr('');
+      try {
+        for (const r of rows) {
+          await onSave({
+            member_id: Number(f.memberId), date: f.date, amount: Math.round(Number(r.amount)),
+            periods: Math.max(Number(r.periods) || 1, 1),
+            category_name: m_name, category_emoji: m_emoji, source_id: null, source_name: m_source,
+            deposit_source_name: l_source,
+            leader_category_name: l_name, leader_category_emoji: l_emoji, leader_settlement_target_id: null,
+            content: f.content.trim(), memo: f.memo,
+            recurrence, backfillPast,
+          });
+        }
+        onSaved?.();
+      } catch (e) { setErr(e.message); setBusy(false); }
+      return;
+    }
+
     if (!f.amount || Number(f.amount) < 0) return setErr('금액을 입력하세요.');
 
     // 멤버 가계부(지출) 필드
@@ -1233,6 +1301,15 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
           )}
         </div>
 
+        <div style={rowStyle}>
+          <span style={rowLabelStyle}>원천</span>
+          {isOwner ? (
+            <SourceSelect sources={sources.tree} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }} />
+          ) : (
+            <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }} />
+          )}
+        </div>
+
         {isOwner && (multiSettle ? (
           <div style={{ padding: '6px 0' }}>
             <div style={{ fontSize: 12, color: '#8b8798', marginBottom: 4 }}>정산 대상 <span style={{ opacity: .7 }}>(여러 건을 한 번에 입금 처리할 수 있어요)</span></div>
@@ -1283,16 +1360,45 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
           </div>
         ))}
 
-        <div style={rowStyle}>
-          <span style={rowLabelStyle}>원천</span>
-          {isOwner ? (
-            <SourceSelect sources={sources.tree} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }} />
-          ) : (
-            <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }} />
-          )}
-        </div>
-
-        {!multiSettle && (
+        {multiSub ? (
+          <div style={{ padding: '6px 0' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, padding: '8px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'center' }}>회차</span>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
+              <span />
+            </div>
+            {subRows.map((r, idx) => (
+              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: '5px 0' }}>
+                <input
+                  type="text" placeholder="항목 기입" value={r.name} onChange={(e) => updateSubRow(idx, { name: e.target.value })}
+                  style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
+                />
+                <input
+                  type="text" inputMode="numeric" placeholder="1" value={r.periods} onChange={(e) => updateSubRow(idx, { periods: e.target.value.replace(/[^0-9]/g, '') })}
+                  style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', textAlign: 'center', minWidth: 0 }}
+                />
+                <input
+                  type="text" inputMode="numeric" placeholder="0" value={r.amount ? Number(r.amount).toLocaleString('ko-KR') : ''}
+                  onChange={(e) => onSubRowAmountChange(idx, e.target.value)}
+                  style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', minWidth: 0 }}
+                />
+                {subRows.length > 1 ? (
+                  <button type="button" aria-label="행 삭제" onClick={() => removeSubRow(idx)} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+                  </button>
+                ) : <span />}
+              </div>
+            ))}
+            <button type="button" onClick={addSubRow} className="rcpt-add-row">+ 행 추가</button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed #cfccd4' }}>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
+              <span />
+              <span style={{ fontSize: 13.75, fontWeight: 800, color: '#2CDDB9', textAlign: 'right' }}>{fmtNum(subTotal)}</span>
+              <span />
+            </div>
+          </div>
+        ) : !multiSettle && (
           <>
             <div style={rowStyle}>
               <span style={rowLabelStyle}>금액</span>
