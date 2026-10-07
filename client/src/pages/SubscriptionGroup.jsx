@@ -1272,6 +1272,17 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
         )}
 
         <div style={rowStyle}>
+          <span style={rowLabelStyle}>멤버</span>
+          <select
+            value={f.memberId} onChange={(e) => setF({ ...f, memberId: e.target.value })} disabled={editing || members.length <= 1}
+            style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}
+          >
+            {members.map((m) => <option key={m.id} value={m.id}>{m.nickname}</option>)}
+            {editing && !members.some((m) => String(m.id) === String(f.memberId)) && <option value={f.memberId}>{initial.member?.nickname || '멤버'}</option>}
+          </select>
+        </div>
+
+        <div style={rowStyle}>
           <span style={rowLabelStyle}>날짜</span>
           <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <div style={{ position: 'relative' }}>
@@ -1287,17 +1298,6 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
               </button>
             )}
           </div>
-        </div>
-
-        <div style={rowStyle}>
-          <span style={rowLabelStyle}>멤버</span>
-          <select
-            value={f.memberId} onChange={(e) => setF({ ...f, memberId: e.target.value })} disabled={editing || members.length <= 1}
-            style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}
-          >
-            {members.map((m) => <option key={m.id} value={m.id}>{m.nickname}</option>)}
-            {editing && !members.some((m) => String(m.id) === String(f.memberId)) && <option value={f.memberId}>{initial.member?.nickname || '멤버'}</option>}
-          </select>
         </div>
 
         {showRecurrenceModal && (
@@ -1376,7 +1376,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
               <span />
             </div>
           </div>
-        ) : leaderIsSettle && (
+        ) : (!multiSub && leaderIsSettle) && (
           <div style={rowStyle}>
             <span style={rowLabelStyle}>정산대상</span>
             <select value={f.lSettleId} onChange={(e) => setF({ ...f, lSettleId: e.target.value })} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}>
