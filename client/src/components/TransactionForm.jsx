@@ -80,12 +80,30 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
             <select value={item.fromSourceId} onChange={(e) => onFromSource(e.target.value)} style={sourceSelectStyle}>
               <option value="">출금 수단 선택</option>
-              {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {sources.map((top) => (
+                top.children?.length ? (
+                  <optgroup key={top.id} label={top.name}>
+                    <option value={top.id}>{top.name} (전체)</option>
+                    {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </optgroup>
+                ) : (
+                  <option key={top.id} value={top.id}>{top.name}</option>
+                )
+              ))}
             </select>
             <span style={{ flex: 'none', color: '#c7c3cc', display: 'flex' }}><ArrowRightIcon /></span>
             <select value={item.toSourceId} onChange={(e) => onToSource(e.target.value)} style={sourceSelectStyle}>
               <option value="">입금 수단 선택</option>
-              {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {sources.map((top) => (
+                top.children?.length ? (
+                  <optgroup key={top.id} label={top.name}>
+                    <option value={top.id}>{top.name} (전체)</option>
+                    {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </optgroup>
+                ) : (
+                  <option key={top.id} value={top.id}>{top.name}</option>
+                )
+              ))}
             </select>
           </div>
         ) : (
@@ -664,7 +682,7 @@ const TransactionForm = forwardRef(function TransactionForm({
           <ItemRow
             key={idx} item={it} idx={idx} canRemove={!isTransfer && items.length > 1} qtyLabel={qtyLabel}
             settlementMembers={showMemberSplit ? settlementMembers : null}
-            isTransfer={isTransfer} sources={sourcesFlat}
+            isTransfer={isTransfer} sources={sources}
             onName={(v) => updateItem(idx, { name: v })}
             onQty={(v) => updateItem(idx, { qty: v.replace(/[^0-9]/g, '') })}
             onAmount={(v) => updateItem(idx, { amount: v })}
