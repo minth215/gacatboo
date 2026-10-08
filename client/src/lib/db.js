@@ -475,9 +475,9 @@ export const db = {
       const link = `/groups/${groupId}`;
       this.notifyUser(user_id, 'group_invite', vars, link).catch(() => {});
       this.sendPushBestEffort(user_id, 'group_invite', vars, link);
-      // 공금 그룹: 초대된 멤버의 원천 목록에 공금 통장을 자동으로 추가
+      // 공금 그룹: 초대된 멤버의 원천 목록에 공금 통장을 자동으로 추가(실패해도 초대 자체는 유지)
       if (group?.category === '공금') {
-        await supabase.rpc('add_pooled_fund_source_for_member', { p_group_id: groupId, p_member_user_id: user_id }).catch(() => {});
+        try { await supabase.rpc('add_pooled_fund_source_for_member', { p_group_id: groupId, p_member_user_id: user_id }); } catch {}
       }
     }
     return row;
