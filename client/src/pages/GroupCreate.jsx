@@ -247,8 +247,10 @@ export default function GroupCreate() {
               <input type="text" placeholder="그룹 내에서 사용할 닉네임" value={nickname} onChange={(e) => setNickname(e.target.value)} style={fieldStyle} />
             </label>
 
-            <div style={{ marginTop: 24, fontSize: 13, fontWeight: 700, color: '#191722', marginBottom: 3 }}>입금 수단<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></div>
-            <div style={{ fontSize: 11, color: '#a29ead', marginBottom: 11 }}>다른 멤버가 입금할 때 받을 원천을 선택하세요</div>
+            <div style={{ marginTop: 24, fontSize: 13, fontWeight: 700, color: '#191722', marginBottom: 3 }}>{category === '공금' ? '공금 관리 수단' : '입금 수단'}<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></div>
+            <div style={{ fontSize: 11, color: '#a29ead', marginBottom: 11 }}>
+              {category === '공금' ? '초대되는 멤버의 원천에 자동으로 추가됩니다' : '다른 멤버가 입금할 때 받을 원천을 선택하세요'}
+            </div>
             {sources.flat.length === 0 ? (
               <div className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 등록된 원천이 없습니다. <button type="button" className="edit-link" onClick={() => nav('/settings/sources')}>편집 ›</button>
