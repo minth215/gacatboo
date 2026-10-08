@@ -66,9 +66,9 @@ export default function PooledFundGroup({ gid, group, members, isOwner, leaderNa
       </div>
 
       {tab === 'manage' && (
-        <div style={{ padding: '14px 16px 0' }}>
+        <div style={{ paddingTop: 14 }}>
           <div className="summary-card">
-            <div className="col"><div className="lbl">총 금액</div><div className="val">{fmtNum(totalTransferred)}</div></div>
+            <div className="col"><div className="lbl">총 금액</div><div className="val income">{fmtNum(totalTransferred)}</div></div>
             <div className="divider" />
             <div className="col"><div className="lbl">사용 금액</div><div className="val expense">{fmtNum(totalUsed)}</div></div>
             <div className="divider" />
