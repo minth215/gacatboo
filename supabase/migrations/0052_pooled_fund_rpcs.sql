@@ -12,7 +12,7 @@ create or replace function public.create_pooled_fund_expense(
   p_group_id bigint, p_date date, p_amount bigint, p_content text, p_memo text,
   p_items jsonb, p_splits jsonb -- p_splits: [{"member_id":1,"amount":1000}, ...]
 ) returns bigint
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public as $create_pfe$
 declare
   v_uid uuid := auth.uid();
   v_expense_id bigint;
@@ -43,14 +43,14 @@ begin
 
   return v_expense_id;
 end;
-$$;
+$create_pfe$;
 grant execute on function public.create_pooled_fund_expense(bigint, date, bigint, text, text, jsonb, jsonb) to authenticated;
 
 create or replace function public.update_pooled_fund_expense(
   p_id bigint, p_date date, p_amount bigint, p_content text, p_memo text,
   p_items jsonb, p_splits jsonb
 ) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public as $update_pfe$
 declare
   v_uid uuid := auth.uid();
   v_group_id bigint;
@@ -84,11 +84,11 @@ begin
     values (p_id, (v_split->>'member_id')::bigint, (v_split->>'amount')::bigint, v_tx);
   end loop;
 end;
-$$;
+$update_pfe$;
 grant execute on function public.update_pooled_fund_expense(bigint, date, bigint, text, text, jsonb, jsonb) to authenticated;
 
 create or replace function public.delete_pooled_fund_expense(p_id bigint) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public as $delete_pfe$
 declare v_uid uuid := auth.uid(); v_group_id bigint;
 begin
   select group_id into v_group_id from public.pooled_fund_expenses where id = p_id;
@@ -99,7 +99,7 @@ begin
   );
   delete from public.pooled_fund_expenses where id = p_id; -- 멤버 행은 cascade
 end;
-$$;
+$delete_pfe$;
 grant execute on function public.delete_pooled_fund_expense(bigint) to authenticated;
 
 -- ---------- 이체 내역 ----------
@@ -108,7 +108,7 @@ create or replace function public.create_pooled_fund_transfer(
   p_group_id bigint, p_member_id bigint, p_date date, p_amount bigint,
   p_from_source_name text, p_content text, p_memo text
 ) returns bigint
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public as $create_pft$
 declare
   v_uid uuid := auth.uid();
   v_owner uuid; v_member_uid uuid;
@@ -144,13 +144,13 @@ begin
 
   return v_transfer_id;
 end;
-$$;
+$create_pft$;
 grant execute on function public.create_pooled_fund_transfer(bigint, bigint, date, bigint, text, text, text) to authenticated;
 
 create or replace function public.update_pooled_fund_transfer(
   p_id bigint, p_date date, p_amount bigint, p_from_source_name text, p_content text, p_memo text
 ) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public as $update_pft$
 declare
   v_uid uuid := auth.uid();
   v_group_id bigint; v_member_id bigint; v_member_uid uuid; v_owner uuid;
@@ -179,11 +179,11 @@ begin
     content = coalesce(p_content,''), memo = coalesce(p_memo,'')
     where id = p_id;
 end;
-$$;
+$update_pft$;
 grant execute on function public.update_pooled_fund_transfer(bigint, date, bigint, text, text, text) to authenticated;
 
 create or replace function public.delete_pooled_fund_transfer(p_id bigint) returns void
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public as $delete_pft$
 declare
   v_uid uuid := auth.uid();
   v_group_id bigint; v_member_id bigint; v_member_uid uuid; v_owner uuid; v_tx bigint;
@@ -198,5 +198,5 @@ begin
   if v_tx is not null then delete from public.transactions where id = v_tx; end if;
   delete from public.pooled_fund_transfers where id = p_id;
 end;
-$$;
+$delete_pft$;
 grant execute on function public.delete_pooled_fund_transfer(bigint) to authenticated;
