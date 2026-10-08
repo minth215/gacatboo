@@ -122,7 +122,7 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
                 background={isGroup ? 'linear-gradient(135deg, #FFF1F3 0%, #FFF6EA 100%)' : '#fff'}
               >
                   <span className="tx-tile" style={{ background: t.category_emoji ? (t.category_color || depositIncomeColor || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}>
-                    {t.category_emoji || (t.type === 'income' ? '💰' : t.type === 'transfer' ? '🔄' : '💸')}
+                    {t.category_emoji || (t.type === 'income' ? '💰' : '💸')}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="tx-row-title" onMouseEnter={marqueeOn} onMouseLeave={marqueeOff}>
