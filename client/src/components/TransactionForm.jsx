@@ -99,12 +99,15 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, onName, on
         <div style={{ padding: '2px 0 6px 14px' }}>
           {memberRowsFor(item, settlementMembers, itemTotalOf(item)).map((m) => (
             <div key={m.id} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '2px 0' }}>
-              <span style={{ gridColumn: '1 / span 3', fontSize: 11.5, color: '#6c6779' }}>{m.name}{m.isOwner ? ' (총무)' : ''}</span>
+              <span style={{ gridColumn: '1 / span 3', display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, fontSize: 11.5, color: '#6c6779' }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
+                {m.isOwner && <span style={{ flex: 'none', fontSize: 8, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '1px 6px' }}>총무</span>}
+              </span>
               <input
                 type="text" inputMode="numeric" disabled={!m.checked}
                 value={m.checked ? Number(m.amount).toLocaleString('ko-KR') : ''}
                 onChange={(e) => onMemberAmount(m.id, e.target.value.replace(/[^0-9]/g, ''))}
-                style={{ gridColumn: 4, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, color: '#8b8798', textAlign: 'right', outline: 'none', minWidth: 0, opacity: m.checked ? 1 : 0.4 }}
+                style={{ gridColumn: 4, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, color: '#8b8798', textAlign: 'right', outline: 'none', minWidth: 0, padding: 0, opacity: m.checked ? 1 : 0.4 }}
               />
               <input
                 type="checkbox" checked={m.checked} onChange={() => onToggleMember(m.id)}
