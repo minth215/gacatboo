@@ -123,8 +123,8 @@ export default function TransactionEdit() {
   // 그룹 결제/입금 내역 상단 배지: 그룹 이모지 배경색과 동일(무색이면 회색)
   const groupBadge = group ? { name: group.name, color: group.color || '#e4e2e6' } : undefined;
 
-  // 영수증으로 채우기: 일반 개인/그룹 항목 신규 작성일 때만(결제·입금 내역 제외)
-  const showReceiptBtn = !editing && !isPayment && !isDeposit;
+  // 영수증으로 채우기: 일반 개인/그룹 항목(신규 작성·수정 모두, 결제·입금 내역 제외)
+  const showReceiptBtn = !isPayment && !isDeposit;
 
   return (
     <div style={{ padding: '56px 0 32px' }}>

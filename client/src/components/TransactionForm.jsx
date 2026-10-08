@@ -270,15 +270,17 @@ const TransactionForm = forwardRef(function TransactionForm({
       const result = await db.parseReceipt(base64, mimeType, expenseCategoryNames);
       if (!fixedType) setType('expense');
       if (result.date) onDateChange(result.date);
-      if (result.amount) updateItem(0, { amount: String(result.amount) });
       if (result.merchant) setContentOverride(result.merchant);
       if (result.category) {
         const c = categories.find((x) => x.type === 'expense' && x.name === result.category);
         if (c) setCategoryId(String(c.id));
       }
-      // 구매 품목이 여러 개면 항목 행에 하나씩 채워줌(수량은 기본 1, 첫 행은 재사용)
-      if (Array.isArray(result.items) && result.items.length > 1) {
+      // 구매 품목을 항목 행에 하나씩 채워줌(수량이 따로 적혀 있지 않으면 1).
+      // 품목을 구분 못 했을 때만 총액 하나로 채운다.
+      if (Array.isArray(result.items) && result.items.length) {
         setItems(result.items.map((it) => ({ ...emptyItem(), name: it.name || '', qty: String(it.qty || 1), amount: String(it.amount || '') })));
+      } else if (result.amount) {
+        updateItem(0, { amount: String(result.amount) });
       }
       if (!result.date && !result.amount && !result.merchant && !result.category) {
         setScanError('영수증에서 정보를 인식하지 못했어요. 직접 입력해 주세요.');
@@ -404,7 +406,7 @@ const TransactionForm = forwardRef(function TransactionForm({
     <form onSubmit={submit}>
       {topNotice}
 
-      {!editing && !fixedType && (
+      {!fixedType && (
         <>
           <input
             ref={receiptInputRef} type="file" accept="image/*"
