@@ -163,7 +163,8 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer
 const TransactionForm = forwardRef(function TransactionForm({
   initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate,
   onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence,
-  settlementMembers, initialSettlementSplit, qtyLabel = '수량', groupBadge, initialLinkedFee,
+  settlementMembers, initialSettlementSplit, qtyLabel = '수량', groupBadge, initialLinkedFee, defaultTransferToName,
+  fixedSourceName,
 }, ref) {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -332,6 +333,27 @@ const TransactionForm = forwardRef(function TransactionForm({
   const transferFromName = sourcesFlat.find((s) => String(s.id) === items[0]?.fromSourceId)?.name || '';
   const transferToName = sourcesFlat.find((s) => String(s.id) === items[0]?.toSourceId)?.name || '';
 
+  // 이체 출금/입금 선택을 이름으로 복원(id 가 아니라 이름만 아는 호출자용, 예: 공금 그룹 이체
+  // 내역 — 출금은 initial.source_name, 입금은 initial.to_source_name 또는 defaultTransferToName
+  // 중 먼저 매칭되는 쪽을 쓴다). 일반 개인 이체(수정)는 이미 id로 채워져 있어 아무 동작 안 함.
+  useEffect(() => {
+    if (!isTransfer || !sourcesFlat.length) return;
+    setItems((prev) => {
+      if (prev.length !== 1) return prev;
+      const cur = prev[0];
+      const patch = {};
+      if (!cur.fromSourceId && initial?.source_name) {
+        const s = sourcesFlat.find((x) => x.name === initial.source_name);
+        if (s) patch.fromSourceId = String(s.id);
+      }
+      if (!cur.toSourceId) {
+        const name = initial?.to_source_name || defaultTransferToName;
+        if (name) { const s = sourcesFlat.find((x) => x.name === name); if (s) patch.toSourceId = String(s.id); }
+      }
+      return Object.keys(patch).length ? [{ ...cur, ...patch }] : prev;
+    });
+  }, [isTransfer, sourcesFlat, initial, defaultTransferToName]);
+
   // 수정 화면: 이체에 연결된 수수료 기록이 이미 있으면 그대로 복원(비동기로 나중에 도착해도 반영)
   useEffect(() => {
     if (feeInitRef.current || !isTransfer) return;
@@ -403,8 +425,11 @@ const TransactionForm = forwardRef(function TransactionForm({
     }
 
     // 원천 결정 (source_name 은 명시 전달 → db 가 그대로 사용). 이체는 항목 행의 출금/입금 선택이 곧 원천.
+    // fixedSourceName 지정 시(예: 공금 그룹 사용 내역) 원천 선택 자체를 숨기고 그 값으로 고정.
     let source_id = null, source_name = '', to_source_id = null, to_source_name = '';
-    if (isTransfer) {
+    if (fixedSourceName) {
+      source_name = fixedSourceName;
+    } else if (isTransfer) {
       source_id = Number(items[0].fromSourceId);
       source_name = sourcesFlat.find((x) => x.id === source_id)?.name || '';
       to_source_id = Number(items[0].toSourceId);
@@ -564,7 +589,13 @@ const TransactionForm = forwardRef(function TransactionForm({
           </div>
         )}
 
-        {!isTransfer && (
+        {!isTransfer && fixedSourceName && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
+            <span style={rowLabelStyle}>원천</span>
+            <span style={{ flex: 1, textAlign: 'right', fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{fixedSourceName}</span>
+          </div>
+        )}
+        {!isTransfer && !fixedSourceName && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={rowLabelStyle}>원천</span>
             <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}>
@@ -626,7 +657,7 @@ const TransactionForm = forwardRef(function TransactionForm({
 
         {!isTransfer && <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>}
 
-        {isTransfer && feeEnabled && (
+        {isTransfer && !onSubmit && feeEnabled && (
           <div style={{ display: 'grid', gridTemplateColumns: tableCols, gap: 8, alignItems: 'center', padding: '5px 0' }}>
             <input
               type="text" placeholder="수수료" value={feeName} onChange={(e) => setFeeName(e.target.value)}
@@ -642,7 +673,7 @@ const TransactionForm = forwardRef(function TransactionForm({
             </button>
           </div>
         )}
-        {isTransfer && !feeEnabled && (
+        {isTransfer && !onSubmit && !feeEnabled && (
           <button type="button" onClick={() => setFeeEnabled(true)} className="rcpt-add-row">+ 수수료 추가</button>
         )}
 

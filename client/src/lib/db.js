@@ -717,18 +717,18 @@ export const db = {
     if (!expenseIds?.length) return [];
     return unwrap(await supabase.from('pooled_fund_expense_members').select('*').in('expense_id', expenseIds));
   },
-  async createPooledFundExpense({ group_id, date, amount, content, memo, items, splits }) {
+  async createPooledFundExpense({ group_id, date, amount, content, memo, items, splits, source_name }) {
     const { data, error } = await supabase.rpc('create_pooled_fund_expense', {
       p_group_id: group_id, p_date: date, p_amount: amount, p_content: content || '', p_memo: memo || '',
-      p_items: items || null, p_splits: splits || [],
+      p_items: items || null, p_splits: splits || [], p_source_name: source_name || '',
     });
     if (error) throw new Error(error.message);
     return data;
   },
-  async updatePooledFundExpense(id, { date, amount, content, memo, items, splits }) {
+  async updatePooledFundExpense(id, { date, amount, content, memo, items, splits, source_name }) {
     const { error } = await supabase.rpc('update_pooled_fund_expense', {
       p_id: id, p_date: date, p_amount: amount, p_content: content || '', p_memo: memo || '',
-      p_items: items || null, p_splits: splits || [],
+      p_items: items || null, p_splits: splits || [], p_source_name: source_name || '',
     });
     if (error) throw new Error(error.message);
   },

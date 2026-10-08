@@ -5,7 +5,6 @@ import { useAuth } from '../lib/auth.jsx';
 import { isSubscription, isSettlement } from '../lib/format.js';
 import TransactionForm from '../components/TransactionForm.jsx';
 import { DepositForm, isLeftoverName } from './SubscriptionGroup.jsx';
-import { PooledTransferForm } from './PooledFundGroup.jsx';
 import Spinner from '../components/Spinner.jsx';
 
 // 항목 작성/수정 전용 화면 (하단 시트가 아닌 별도 화면).
@@ -106,7 +105,11 @@ export default function TransactionEdit() {
       : isPooledTransfer ? db.getPooledFundTransfer(id)
       : db.getTransaction(id);
     fetch
-      .then((tx) => setInitial((isPayment || isPooledExpense) ? { ...tx, type: 'expense' } : tx))
+      .then((tx) => setInitial(
+        (isPayment || isPooledExpense) ? { ...tx, type: 'expense' }
+        : isPooledTransfer ? { ...tx, type: 'transfer', source_name: tx.from_source_name }
+        : tx
+      ))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [editing, id, isPayment, isDeposit, isPooledExpense, isPooledTransfer]);
@@ -145,10 +148,19 @@ export default function TransactionEdit() {
     const p = {
       group_id: groupId, date: payload.date, amount: payload.amount,
       content: payload.content, memo: payload.memo, items: payload.items,
-      splits: payload.aggregateSplit || [],
+      splits: payload.aggregateSplit || [], source_name: payload.source_name,
     };
     if (editing) await db.updatePooledFundExpense(id, p);
     else await db.createPooledFundExpense(p);
+  };
+
+  // 공금 그룹 이체 내역 저장은 pooled_fund_transfers 테이블을 사용. 멤버는 항상 입력하는
+  // 본인(계정 보유자)으로 고정 — 다른 멤버 대신 입력하는 기능은 없음.
+  const myGroupMember = members.find((m) => m.user_id === user.id);
+  const savePooledTransfer = async (payload) => {
+    const p = { date: payload.date, amount: payload.amount, from_source_name: payload.source_name, content: payload.content, memo: payload.memo };
+    if (editing) await db.updatePooledFundTransfer(id, p);
+    else await db.createPooledFundTransfer({ group_id: groupId, member_id: myGroupMember.id, ...p });
   };
 
   const isOwner = isGroupKind && group ? group.owner_id === user.id : false;
@@ -208,21 +220,18 @@ export default function TransactionEdit() {
             groupName={group?.name || ''}
             groupBadge={groupBadge}
           />
-        ) : isPooledTransfer ? (
-          <PooledTransferForm
-            initial={initial} group={group} members={members} sub={sub} isOwner={isOwner}
-            onSaved={done} groupBadge={groupBadge}
-          />
         ) : (
           <TransactionForm
             ref={formRef} onScanBusyChange={setScanBusy}
-            initial={initial} groupId={(isPayment || isPooledExpense) ? null : groupId} onSaved={done} onClose={() => nav(-1)}
-            fixedType={(isPayment || isPooledExpense) ? 'expense' : undefined}
+            initial={initial} groupId={(isPayment || isPooledExpense || isPooledTransfer) ? null : groupId} onSaved={done} onClose={() => nav(-1)}
+            fixedType={(isPayment || isPooledExpense) ? 'expense' : isPooledTransfer ? 'transfer' : undefined}
             initialPendingRecurrence={pendingRecurrence}
             defaultCategoryName={isPayment ? (isSettlement(group?.category) ? '정산' : '구독') : undefined}
             defaultAmount={isPayment ? sub?.billing_amount : undefined}
-            defaultContentTemplate={isPayment ? sub?.payment_content_template : undefined}
-            onSubmit={isPooledExpense ? savePooledExpense : (isPayment ? savePayment : undefined)}
+            defaultContentTemplate={isPayment ? sub?.payment_content_template : isPooledTransfer ? `${group?.name || ''} 입금` : undefined}
+            defaultTransferToName={isPooledTransfer ? sub?.deposit_source_name : undefined}
+            fixedSourceName={isPooledExpense ? sub?.deposit_source_name : undefined}
+            onSubmit={isPooledExpense ? savePooledExpense : isPooledTransfer ? savePooledTransfer : (isPayment ? savePayment : undefined)}
             showPeriods={isPayment && isSubscription(group?.category)}
             qtyLabel={isPayment && isSubscription(group?.category) ? '회차' : '수량'}
             settlementMembers={settlementSplitMembers}
