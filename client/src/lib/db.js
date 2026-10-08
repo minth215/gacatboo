@@ -470,11 +470,15 @@ export const db = {
       unwrap(await supabase.from('group_member_notes').insert({ member_id: row.id, group_id: groupId, memo: memo.trim() }));
     }
     if (user_id) {
-      const group = unwrap(await supabase.from('groups').select('name').eq('id', groupId).maybeSingle());
+      const group = unwrap(await supabase.from('groups').select('name, category').eq('id', groupId).maybeSingle());
       const vars = { group_name: group?.name || '', group_id: groupId };
       const link = `/groups/${groupId}`;
       this.notifyUser(user_id, 'group_invite', vars, link).catch(() => {});
       this.sendPushBestEffort(user_id, 'group_invite', vars, link);
+      // 공금 그룹: 초대된 멤버의 원천 목록에 공금 통장을 자동으로 추가
+      if (group?.category === '공금') {
+        await supabase.rpc('add_pooled_fund_source_for_member', { p_group_id: groupId, p_member_user_id: user_id }).catch(() => {});
+      }
     }
     return row;
   },
@@ -698,6 +702,66 @@ export const db = {
   },
   async deleteDeposit(id) {
     const { error } = await supabase.rpc('delete_subscription_deposit', { p_id: id });
+    if (error) throw new Error(error.message);
+  },
+
+  // ---------- 공금 그룹: 사용 내역(지출, 참여 멤버별 미러링) ----------
+  async listPooledFundExpenses(groupId) {
+    return unwrap(await supabase.from('pooled_fund_expenses').select('*').eq('group_id', groupId)
+      .order('date', { ascending: false }).order('id', { ascending: false }));
+  },
+  async getPooledFundExpense(id) {
+    return unwrap(await supabase.from('pooled_fund_expenses').select('*').eq('id', id).single());
+  },
+  async listPooledFundExpenseMembers(expenseIds) {
+    if (!expenseIds?.length) return [];
+    return unwrap(await supabase.from('pooled_fund_expense_members').select('*').in('expense_id', expenseIds));
+  },
+  async createPooledFundExpense({ group_id, date, amount, content, memo, items, splits }) {
+    const { data, error } = await supabase.rpc('create_pooled_fund_expense', {
+      p_group_id: group_id, p_date: date, p_amount: amount, p_content: content || '', p_memo: memo || '',
+      p_items: items || null, p_splits: splits || [],
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+  async updatePooledFundExpense(id, { date, amount, content, memo, items, splits }) {
+    const { error } = await supabase.rpc('update_pooled_fund_expense', {
+      p_id: id, p_date: date, p_amount: amount, p_content: content || '', p_memo: memo || '',
+      p_items: items || null, p_splits: splits || [],
+    });
+    if (error) throw new Error(error.message);
+  },
+  async deletePooledFundExpense(id) {
+    const { error } = await supabase.rpc('delete_pooled_fund_expense', { p_id: id });
+    if (error) throw new Error(error.message);
+  },
+
+  // ---------- 공금 그룹: 이체 내역(멤버 본인 가계부에만 미러링) ----------
+  async listPooledFundTransfers(groupId) {
+    return unwrap(await supabase.from('pooled_fund_transfers')
+      .select('*, member:group_members(nickname)').eq('group_id', groupId)
+      .order('date', { ascending: false }).order('id', { ascending: false }));
+  },
+  async getPooledFundTransfer(id) {
+    return unwrap(await supabase.from('pooled_fund_transfers').select('*, member:group_members(nickname)').eq('id', id).single());
+  },
+  async createPooledFundTransfer({ group_id, member_id, date, amount, from_source_name, content, memo }) {
+    const { data, error } = await supabase.rpc('create_pooled_fund_transfer', {
+      p_group_id: group_id, p_member_id: member_id, p_date: date, p_amount: amount,
+      p_from_source_name: from_source_name || '', p_content: content || '', p_memo: memo || '',
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+  async updatePooledFundTransfer(id, { date, amount, from_source_name, content, memo }) {
+    const { error } = await supabase.rpc('update_pooled_fund_transfer', {
+      p_id: id, p_date: date, p_amount: amount, p_from_source_name: from_source_name || '', p_content: content || '', p_memo: memo || '',
+    });
+    if (error) throw new Error(error.message);
+  },
+  async deletePooledFundTransfer(id) {
+    const { error } = await supabase.rpc('delete_pooled_fund_transfer', { p_id: id });
     if (error) throw new Error(error.message);
   },
 

@@ -446,6 +446,7 @@ const TransactionForm = forwardRef(function TransactionForm({
       settlement_target_id: (isSettlement && settlementTargetId) ? Number(settlementTargetId) : null,
       group_id: groupId || null,
       ...(showPeriods ? { periods: Math.max(Number(periods) || 1, 1) } : {}),
+      ...(aggregateSplit ? { aggregateSplit } : {}),
     };
     try {
       if (onSubmit) await onSubmit(payload);

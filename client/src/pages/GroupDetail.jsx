@@ -4,12 +4,13 @@ import { Bar } from 'react-chartjs-2';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { PALETTE } from '../lib/chartSetup.js';
-import { currentMonth, shiftMonth, monthLabel, fmtWon, isSubscription, isSettlement, leaderLabel } from '../lib/format.js';
+import { currentMonth, shiftMonth, monthLabel, fmtWon, isSubscription, isSettlement, isPooledFund, leaderLabel } from '../lib/format.js';
 import TransactionList from '../components/TransactionList.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 import SubscriptionGroup, { DepositsTab, SettlementTab } from './SubscriptionGroup.jsx';
+import PooledFundGroup from './PooledFundGroup.jsx';
 
 export default function GroupDetail() {
   const { id } = useParams();
@@ -46,6 +47,15 @@ export default function GroupDetail() {
       <SubscriptionGroup
         gid={gid} group={group} members={members} isOwner={isOwner} leaderName={leaderName}
         header={header} reloadMembers={loadGroup}
+      />
+    );
+  }
+
+  if (isPooledFund(group.category)) {
+    return (
+      <PooledFundGroup
+        gid={gid} group={group} members={members} isOwner={isOwner} leaderName={leaderName}
+        header={header} reloadMembers={loadGroup} userId={user.id}
       />
     );
   }
