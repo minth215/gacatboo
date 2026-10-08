@@ -164,7 +164,7 @@ const TransactionForm = forwardRef(function TransactionForm({
   initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate,
   onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence,
   settlementMembers, initialSettlementSplit, qtyLabel = '수량', groupBadge, initialLinkedFee, defaultTransferToName,
-  fixedSourceName,
+  fixedSourceName, transferMembers, defaultTransferMemberId,
 }, ref) {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -189,6 +189,15 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [memo, setMemo] = useState(initial?.memo || '');
   const memoRef = useRef(null);
   const [settlementTargetId, setSettlementTargetId] = useState(initial?.settlement_target_id ? String(initial.settlement_target_id) : '');
+  // 이체 멤버 선택(transferMembers 지정 시, 예: 공금 그룹 이체 내역). 기본값은 본인이지만
+  // "선택 안 함" 없이 항상 누군가로 채워지고, 다른 멤버로 바꿀 수 있다(총무만 전체 멤버 선택 가능).
+  const [transferMemberId, setTransferMemberId] = useState(
+    initial?.member_id ? String(initial.member_id) : (defaultTransferMemberId ? String(defaultTransferMemberId) : '')
+  );
+  useEffect(() => {
+    if (transferMemberId || !defaultTransferMemberId) return;
+    setTransferMemberId(String(defaultTransferMemberId));
+  }, [defaultTransferMemberId, transferMemberId]);
   // 이체 수수료(연결된 지출 기록, 한 번만 추가 가능)
   const [feeEnabled, setFeeEnabled] = useState(false);
   const [feeName, setFeeName] = useState('수수료');
@@ -398,6 +407,7 @@ const TransactionForm = forwardRef(function TransactionForm({
     if (!total) return setError('금액을 입력하세요.');
     if (isTransfer && (!items[0]?.fromSourceId || !items[0]?.toSourceId)) return setError('출금/입금 원천을 선택하세요.');
     if (isTransfer && items[0].fromSourceId === items[0].toSourceId) return setError('출금/입금 원천이 같을 수 없습니다.');
+    if (transferMembers && !transferMemberId) return setError('멤버를 선택하세요.');
     if (isTransfer && feeEnabled && !(Number(feeAmount) > 0)) return setError('수수료 금액을 입력하세요.');
     const aggregateSplit = showMemberSplit ? (() => {
       const totals = {};
@@ -472,6 +482,7 @@ const TransactionForm = forwardRef(function TransactionForm({
       group_id: groupId || null,
       ...(showPeriods ? { periods: Math.max(Number(periods) || 1, 1) } : {}),
       ...(aggregateSplit ? { aggregateSplit } : {}),
+      ...(transferMembers ? { transferMemberId } : {}),
     };
     try {
       if (onSubmit) await onSubmit(payload);
@@ -551,6 +562,18 @@ const TransactionForm = forwardRef(function TransactionForm({
           <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
             {groupBadge.name}
           </span>
+        )}
+
+        {transferMembers && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
+            <span style={rowLabelStyle}>멤버</span>
+            <select
+              value={transferMemberId} onChange={(e) => setTransferMemberId(e.target.value)}
+              disabled={editing || transferMembers.length <= 1} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}
+            >
+              {transferMembers.map((m) => <option key={m.id} value={m.id}>{m.nickname}</option>)}
+            </select>
+          </div>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>

@@ -154,13 +154,13 @@ export default function TransactionEdit() {
     else await db.createPooledFundExpense(p);
   };
 
-  // 공금 그룹 이체 내역 저장은 pooled_fund_transfers 테이블을 사용. 멤버는 항상 입력하는
-  // 본인(계정 보유자)으로 고정 — 다른 멤버 대신 입력하는 기능은 없음.
+  // 공금 그룹 이체 내역 저장은 pooled_fund_transfers 테이블을 사용. 기본값은 입력하는 본인이지만
+  // 총무는 다른 멤버로 바꿔서 대신 입력할 수 있음(TransactionForm 의 멤버 선택 참고).
   const myGroupMember = members.find((m) => m.user_id === user.id);
   const savePooledTransfer = async (payload) => {
     const p = { date: payload.date, amount: payload.amount, from_source_name: payload.source_name, content: payload.content, memo: payload.memo };
     if (editing) await db.updatePooledFundTransfer(id, p);
-    else await db.createPooledFundTransfer({ group_id: groupId, member_id: myGroupMember.id, ...p });
+    else await db.createPooledFundTransfer({ group_id: groupId, member_id: Number(payload.transferMemberId), ...p });
   };
 
   const isOwner = isGroupKind && group ? group.owner_id === user.id : false;
@@ -175,6 +175,11 @@ export default function TransactionEdit() {
       : undefined;
   // 그룹 결제/입금/공금 내역 상단 배지: 그룹 이모지 배경색과 동일(무색이면 회색)
   const groupBadge = group ? { name: group.name, color: group.color || '#e4e2e6' } : undefined;
+
+  // 공금 그룹 이체 내역: 멤버 선택지(총무는 전체 멤버 중 대신 입력 가능, 일반 멤버는 본인만).
+  // 기본값은 수정 중이면 기존 멤버, 신규면 입력하는 본인.
+  const transferMembers = isPooledTransfer ? (isOwner ? members : (myGroupMember ? [myGroupMember] : [])) : undefined;
+  const defaultTransferMemberId = isPooledTransfer ? (initial?.member_id || myGroupMember?.id) : undefined;
 
   // 영수증으로 채우기: 일반 개인/그룹 항목 + 공금 사용 내역(신규 작성·수정 모두, 결제·입금·이체 내역 제외)
   const showReceiptBtn = !isPayment && !isDeposit && !isPooledTransfer;
@@ -231,6 +236,8 @@ export default function TransactionEdit() {
             defaultContentTemplate={isPayment ? sub?.payment_content_template : isPooledTransfer ? `${group?.name || ''} 입금` : undefined}
             defaultTransferToName={isPooledTransfer ? sub?.deposit_source_name : undefined}
             fixedSourceName={isPooledExpense ? sub?.deposit_source_name : undefined}
+            transferMembers={transferMembers}
+            defaultTransferMemberId={defaultTransferMemberId}
             onSubmit={isPooledExpense ? savePooledExpense : isPooledTransfer ? savePooledTransfer : (isPayment ? savePayment : undefined)}
             showPeriods={isPayment && isSubscription(group?.category)}
             qtyLabel={isPayment && isSubscription(group?.category) ? '회차' : '수량'}
