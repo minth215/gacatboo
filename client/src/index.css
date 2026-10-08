@@ -71,6 +71,8 @@ a { color: inherit; text-decoration: none; }
 /* ---------- Layout ---------- */
 .app { min-height: 100%; padding-bottom: calc(104px + var(--safe-bottom)); }
 .app.no-bottomnav { padding-bottom: var(--safe-bottom); }
+/* 하단 탭이 없는 페이지는 원형 + 버튼도 하단 탭 자리를 비워두지 않고 화면 끝에 더 가깝게 */
+.no-bottomnav .fab { bottom: calc(30px + var(--safe-bottom)); }
 .container { max-width: 720px; margin: 0 auto; padding: 16px; }
 
 .topbar {

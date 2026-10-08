@@ -68,13 +68,13 @@ export default function RecurringManage() {
       {rules.length === 0 ? (
         <div className="empty empty-center">등록된 반복 항목이 없습니다.</div>
       ) : (
-        <div className="tx-daycard" style={{ marginTop: 14 }}>
-          {rules.map((r, i) => {
-            const { dispType, dispName, dispEmoji } = viewOf(r, user.id);
-            return (
+        rules.map((r, i) => {
+          const { dispType, dispName, dispEmoji } = viewOf(r, user.id);
+          return (
+            <div key={r.id} className="tx-daycard" style={{ marginTop: i === 0 ? 14 : 10 }}>
               <div
-                key={r.id} onClick={() => openDetail(r)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 16px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5', cursor: 'pointer' }}
+                onClick={() => openDetail(r)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 16px', cursor: 'pointer' }}
               >
                 <span style={{
                   width: 38, height: 38, borderRadius: 12, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -99,9 +99,9 @@ export default function RecurringManage() {
                   <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
                 </button>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })
       )}
 
       <button className="fab" onClick={() => setPicking(true)} aria-label="반복 추가">

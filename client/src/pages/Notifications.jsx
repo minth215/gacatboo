@@ -66,16 +66,16 @@ export default function Notifications() {
       ) : rows.length === 0 ? (
         <div className="empty empty-center">알림이 없습니다.</div>
       ) : (
-        <div className="tx-daycard" style={{ marginTop: 14 }}>
-          {rows.map((r, i) => (
+        rows.map((r, i) => (
+          <div key={r.id} className="tx-daycard" style={{ marginTop: i === 0 ? 14 : 10 }}>
             <SwipeRow
-              key={r.id} isOpen={openId === r.id} onOpenChange={(open) => setOpenId(open ? r.id : null)}
+              isOpen={openId === r.id} onOpenChange={(open) => setOpenId(open ? r.id : null)}
               onTap={() => openRow(r)} deletable onDelete={() => removeRow(r)}
             >
               <div
                 style={{
                   display: 'flex', alignItems: 'flex-start', gap: 10, padding: '13px 16px', cursor: 'pointer',
-                  borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5', background: r.read_at ? 'transparent' : '#fff8f3',
+                  background: r.read_at ? 'transparent' : '#fff8f3',
                 }}
               >
                 <span style={{
@@ -96,8 +96,8 @@ export default function Notifications() {
                 </div>
               </div>
             </SwipeRow>
-          ))}
-        </div>
+          </div>
+        ))
       )}
     </div>
   );
