@@ -243,19 +243,6 @@ const TransactionForm = forwardRef(function TransactionForm({
     if (s) setSourceId(String(s.id));
   }, [editing, type, sourcesFlat]);
 
-  // 이체 신규 작성 시 출금/입금 기본값: 출금은 주결제수단, 입금은 주입금수단
-  useEffect(() => {
-    if (editing || type !== 'transfer') return;
-    setItems((prev) => {
-      if (prev.length !== 1) return prev;
-      const cur = prev[0];
-      const patch = {};
-      if (!cur.fromSourceId) { const s = sourcesFlat.find((x) => x.is_primary_payment); if (s) patch.fromSourceId = String(s.id); }
-      if (!cur.toSourceId) { const s = sourcesFlat.find((x) => x.is_primary_deposit); if (s) patch.toSourceId = String(s.id); }
-      return Object.keys(patch).length ? [{ ...cur, ...patch }] : prev;
-    });
-  }, [editing, type, sourcesFlat]);
-
   // 메모가 바뀌면(사용자 입력/영수증 인식 등) 높이를 내용에 맞게 늘림
   useEffect(() => {
     const el = memoRef.current;
@@ -578,7 +565,7 @@ const TransactionForm = forwardRef(function TransactionForm({
         )}
 
         <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: tableCols, gap: 8, padding: '8px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
-          <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>{isTransfer ? '출금 → 입금' : '내용'}</span>
+          <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
           {showMemberSplit && <span />}
           {!isTransfer && <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'center' }}>{qtyLabel}</span>}
           <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
