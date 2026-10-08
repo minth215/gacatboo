@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
   try {
     const body = JSON.stringify({
       contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: image } }] }],
-      generationConfig: { responseMimeType: 'application/json' },
+      generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 1024 },
     });
 
     let { res, result } = await callGemini(primaryModel, body, 2);

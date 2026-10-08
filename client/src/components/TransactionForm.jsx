@@ -44,7 +44,7 @@ const itemTotalOf = (it) => (Number(it.amount) || 0) * (Number(it.qty) || 1);
 const emptyItem = () => ({ name: '', qty: '1', amount: '', currencyMeta: null, expanded: false, memberChecked: {}, memberAmountOverride: {} });
 
 // 사진 파일을 리사이즈 후 base64(순수 데이터, data: 접두어 제외)로 변환(전송 용량 절감용)
-async function fileToResizedBase64(file, maxSize = 1600, quality = 0.85) {
+async function fileToResizedBase64(file, maxSize = 1280, quality = 0.75) {
   const img = await new Promise((resolve, reject) => {
     const el = new Image();
     el.onload = () => resolve(el);
