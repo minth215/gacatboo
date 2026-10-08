@@ -66,8 +66,7 @@ export default function Settings() {
       label: '가계부',
       items: [
         { label: '반복 관리', desc: '정기적으로 반복되는 내역 관리', bg: '#eef1fb', icon: <RepeatIcon />, to: '/settings/recurring' },
-        { label: '그룹 카테고리 관리', desc: '구독·여행·정산 등 그룹 카테고리 관리', bg: '#fff1e6', icon: '🗂️', to: '/settings/group-categories' },
-        { label: '친구 관리', desc: '자주 정산하는 친구 등록 및 분류 관리', bg: '#e8f6ee', icon: '🧑‍🤝‍🧑', to: '/settings/friends' },
+        { label: '친구 관리', desc: '자주 정산하는 친구 등록 및 분류 관리', bg: '#fff1e6', icon: '🗂️', to: '/settings/friends' },
       ],
     },
     {
