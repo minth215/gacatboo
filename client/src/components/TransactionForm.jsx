@@ -313,7 +313,10 @@ const TransactionForm = forwardRef(function TransactionForm({
   const total = items.reduce((s, it) => s + itemTotalOf(it), 0);
   const autoContent = items.length > 1 ? `${items[0].name || ''} 외 ${items.length - 1}` : (items[0].name || '');
   const contentValue = contentOverride ?? autoContent;
-  const onContentChange = (e) => setContentOverride(e.target.value === '' ? null : e.target.value);
+  // 입력 중에는 지워도 그대로 빈 칸으로 둬서 자유롭게 다시 쓸 수 있게 하고, 포커스를 벗어났을 때
+  // 비어 있으면 그제서야 자동 모드(항목명 기반)로 복귀한다.
+  const onContentChange = (e) => setContentOverride(e.target.value);
+  const onContentBlur = () => { if (contentOverride === '') setContentOverride(null); };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -431,7 +434,7 @@ const TransactionForm = forwardRef(function TransactionForm({
 
       <div className="rcpt-card">
         <input
-          type="text" list="tx-content-list" placeholder="내용" value={contentValue} onChange={onContentChange} autoComplete="off"
+          type="text" list="tx-content-list" placeholder="내용" value={contentValue} onChange={onContentChange} onBlur={onContentBlur} autoComplete="off"
           style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: groupBadge ? '0 0 6px' : '0 0 14px' }}
         />
         <datalist id="tx-content-list">
