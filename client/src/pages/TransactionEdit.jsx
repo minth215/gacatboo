@@ -38,6 +38,7 @@ export default function TransactionEdit() {
   // 정산 그룹의 일반 결제 내역(생성 시 URL의 group, 수정 시 기존 항목의 group_id)
   const effectiveGroupId = groupId || initial?.group_id || null;
   const [initialSplit, setInitialSplit] = useState(undefined); // undefined=아직 조회 전, []=저장된 분담 없음(레거시)
+  const [initialLinkedFee, setInitialLinkedFee] = useState(undefined); // undefined=아직 조회 전, null=연결된 수수료 없음
 
   // 입금 내역 전용 부가 데이터
   const [sub, setSub] = useState(null);
@@ -90,6 +91,12 @@ export default function TransactionEdit() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [editing, id, isPayment, isDeposit]);
+
+  // 수정 화면: 이체 기록에 연결된 수수료 지출 기록(있으면)
+  useEffect(() => {
+    if (isPayment || isDeposit || !editing || !initial || initial.type !== 'transfer') return;
+    db.getLinkedFee(initial.id).then((f) => setInitialLinkedFee(f || null)).catch(() => setInitialLinkedFee(null));
+  }, [isPayment, isDeposit, editing, initial]);
 
   // 저장 후 이동: 원래 보던 페이지로 돌아감.
   const done = () => nav(-1);
@@ -181,6 +188,7 @@ export default function TransactionEdit() {
             qtyLabel={isPayment && isSubscription(group?.category) ? '회차' : '수량'}
             settlementMembers={settlementSplitMembers}
             initialSettlementSplit={editing ? initialSplit : undefined}
+            initialLinkedFee={editing ? initialLinkedFee : undefined}
             groupBadge={(isPayment || effectiveGroupId) ? groupBadge : undefined}
           />
         )}

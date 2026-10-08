@@ -79,12 +79,12 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer
         {isTransfer ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
             <select value={item.fromSourceId} onChange={(e) => onFromSource(e.target.value)} style={sourceSelectStyle}>
-              <option value="">출금</option>
+              <option value="">출금 수단 선택</option>
               {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             <span style={{ flex: 'none', color: '#c7c3cc', display: 'flex' }}><ArrowRightIcon /></span>
             <select value={item.toSourceId} onChange={(e) => onToSource(e.target.value)} style={sourceSelectStyle}>
-              <option value="">입금</option>
+              <option value="">입금 수단 선택</option>
               {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
@@ -158,10 +158,12 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer
 // initialSettlementSplit 은 기존 저장된 분담 내역([{member_id, amount}])으로, 수정 화면에서 비동기로
 // 나중에 도착해도(아직 undefined 인 동안은 초기화를 기다림) 첫 번째 항목 행에 반영된다.
 // groupBadge 지정 시({name, color}) 내용 입력 아래에 그룹 배지가 뜬다.
+// initialLinkedFee 는 이체 기록에 연결된 수수료 지출 기록(수정 화면에서 비동기로 나중에 도착해도
+// 반영됨, undefined=아직 조회 전·null=없음).
 const TransactionForm = forwardRef(function TransactionForm({
   initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate,
   onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence,
-  settlementMembers, initialSettlementSplit, qtyLabel = '수량', groupBadge,
+  settlementMembers, initialSettlementSplit, qtyLabel = '수량', groupBadge, initialLinkedFee,
 }, ref) {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -186,6 +188,11 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [memo, setMemo] = useState(initial?.memo || '');
   const memoRef = useRef(null);
   const [settlementTargetId, setSettlementTargetId] = useState(initial?.settlement_target_id ? String(initial.settlement_target_id) : '');
+  // 이체 수수료(연결된 지출 기록, 한 번만 추가 가능)
+  const [feeEnabled, setFeeEnabled] = useState(false);
+  const [feeName, setFeeName] = useState('수수료');
+  const [feeAmount, setFeeAmount] = useState('');
+  const feeInitRef = useRef(false);
   // 반복 설정: 이미 저장된 반복(recurringId)이거나, 아직 저장 전인 선택값(pendingRecurrence) 중 하나만 있을 수 있음
   const [recurringId, setRecurringId] = useState(initial?.recurring?.id || null);
   const [recurringLabel, setRecurringLabel] = useState(initial?.recurring?.label || '');
@@ -325,6 +332,18 @@ const TransactionForm = forwardRef(function TransactionForm({
   const transferFromName = sourcesFlat.find((s) => String(s.id) === items[0]?.fromSourceId)?.name || '';
   const transferToName = sourcesFlat.find((s) => String(s.id) === items[0]?.toSourceId)?.name || '';
 
+  // 수정 화면: 이체에 연결된 수수료 기록이 이미 있으면 그대로 복원(비동기로 나중에 도착해도 반영)
+  useEffect(() => {
+    if (feeInitRef.current || !isTransfer) return;
+    if (editing && initialLinkedFee === undefined) return; // 아직 조회 전
+    feeInitRef.current = true;
+    if (initialLinkedFee) {
+      setFeeEnabled(true);
+      setFeeName(initialLinkedFee.content || '수수료');
+      setFeeAmount(initialLinkedFee.amount ? String(initialLinkedFee.amount) : '');
+    }
+  }, [isTransfer, editing, initialLinkedFee]);
+
   // 정산 그룹 결제 내역: 항목 행마다 참여 멤버 펼치기 + 멤버별 분담액(균등분배가 기본, 직접 수정 가능)
   const showMemberSplit = !!settlementMembers?.length && type === 'expense';
   const splitInitRef = useRef(false);
@@ -357,6 +376,7 @@ const TransactionForm = forwardRef(function TransactionForm({
     if (!total) return setError('금액을 입력하세요.');
     if (isTransfer && (!items[0]?.fromSourceId || !items[0]?.toSourceId)) return setError('출금/입금 원천을 선택하세요.');
     if (isTransfer && items[0].fromSourceId === items[0].toSourceId) return setError('출금/입금 원천이 같을 수 없습니다.');
+    if (isTransfer && feeEnabled && !(Number(feeAmount) > 0)) return setError('수수료 금액을 입력하세요.');
     const aggregateSplit = showMemberSplit ? (() => {
       const totals = {};
       for (const it of items) {
@@ -432,6 +452,19 @@ const TransactionForm = forwardRef(function TransactionForm({
       else {
         const saved = await db.saveTransaction({ id: initial?.id, userId: user.id, payload, sourcesFlat });
         if (aggregateSplit) await db.saveSettlementSplit(saved.id, aggregateSplit);
+        // 이체 수수료: 켜져 있으면 연결된 지출 기록을 생성/수정(분류=수수료, 원천=출금 원천과 동일),
+        // 꺼져 있는데 기존에 연결된 기록이 있었으면 삭제
+        if (isTransfer) {
+          if (feeEnabled) {
+            await db.saveLinkedFee({
+              id: initialLinkedFee?.id, userId: user.id, transferId: saved.id, date,
+              content: feeName.trim() || '수수료', amount: Math.round(Number(feeAmount)),
+              source_id, source_name,
+            });
+          } else if (initialLinkedFee?.id) {
+            await db.deleteLinkedFee(initialLinkedFee.id);
+          }
+        }
       }
       onSaved?.();
     } catch (err) {
@@ -591,6 +624,26 @@ const TransactionForm = forwardRef(function TransactionForm({
         ))}
 
         {!isTransfer && <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>}
+
+        {isTransfer && feeEnabled && (
+          <div style={{ display: 'grid', gridTemplateColumns: tableCols, gap: 8, alignItems: 'center', padding: '5px 0' }}>
+            <input
+              type="text" placeholder="수수료" value={feeName} onChange={(e) => setFeeName(e.target.value)}
+              style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
+            />
+            <CalcAmountInput compact value={feeAmount} onChange={setFeeAmount} />
+            <button
+              type="button" aria-label="수수료 삭제"
+              onClick={() => { setFeeEnabled(false); setFeeName('수수료'); setFeeAmount(''); }}
+              style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <RemoveIcon />
+            </button>
+          </div>
+        )}
+        {isTransfer && !feeEnabled && (
+          <button type="button" onClick={() => setFeeEnabled(true)} className="rcpt-add-row">+ 수수료 추가</button>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: tableCols, gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed #cfccd4' }}>
           <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>

@@ -346,6 +346,27 @@ export const db = {
     if (recurring_id && payload.backfillPast) await this.backfillRecurringRule(recurring_id);
     return saved;
   },
+  // ---------- 이체 수수료(연결된 지출 기록) ----------
+  // 이체 기록에 수수료를 추가하면, 별도의 지출 기록(분류=수수료, 원천=출금 원천과 동일)이
+  // 함께 생기고 linked_transaction_id 로 이체 기록과 연결된다(이체 기록 삭제 시 함께 삭제됨).
+  async getLinkedFee(transferId) {
+    return unwrap(await supabase.from('transactions').select(TX_SELECT).eq('linked_transaction_id', transferId).maybeSingle());
+  },
+  async saveLinkedFee({ id, userId, transferId, date, content, amount, source_id, source_name }) {
+    const base = {
+      type: 'expense', date, amount,
+      category_id: null, category_name: '수수료', category_emoji: '', category_color: '',
+      source_id: source_id || null, source_name: source_name || '',
+      content: (content || '').trim(), memo: '',
+      linked_transaction_id: transferId,
+    };
+    if (id) return unwrap(await supabase.from('transactions').update(base).eq('id', id).select(TX_SELECT).single());
+    return unwrap(await supabase.from('transactions').insert({ ...base, user_id: userId, created_by: userId }).select(TX_SELECT).single());
+  },
+  async deleteLinkedFee(id) {
+    return unwrap(await supabase.from('transactions').delete().eq('id', id));
+  },
+
   async deleteTransaction(id) {
     return unwrap(await supabase.from('transactions').delete().eq('id', id));
   },
