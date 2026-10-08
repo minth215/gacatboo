@@ -308,6 +308,7 @@ export const db = {
       category_color: payload.category_color ?? '',
       source_id: payload.source_id || null,
       source_name,
+      ...(payload.type === 'transfer' ? { to_source_id: payload.to_source_id || null, to_source_name: payload.to_source_name || '' } : {}),
       content: (payload.content || '').trim(),
       memo: (payload.memo || '').trim(),
       items: payload.items ?? null,

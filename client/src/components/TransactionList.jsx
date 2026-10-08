@@ -94,7 +94,8 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
 
   const renderDateGroup = (date) => {
     const items = groups[date];
-    const net = items.reduce((s, t) => s + (t.type === 'income' ? Number(t.amount) : -Number(t.amount)), 0);
+    // 이체는 수입/지출이 아니라 통계(일별 합계)에 잡히지 않음
+    const net = items.reduce((s, t) => s + (t.type === 'transfer' ? 0 : t.type === 'income' ? Number(t.amount) : -Number(t.amount)), 0);
     return (
       <div key={date}>
         <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
@@ -109,7 +110,9 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
             const isGroup = groupTint && !!(t.group_name || t.origin_type); // 그룹에서 입력/반영된 항목(그룹 자체 화면에서는 강조 생략)
             // 그룹 정산 입금의 총무 수입 미러 항목: 색 스냅샷이 없어도 이 계정의 정산 분류 색을 따른다.
             const depositIncomeColor = (t.type === 'income' && t.origin_type === 'deposit') ? incomeCatColors[t.category_name] : '';
-            const sub = [t.category_name, t.source_name].filter(Boolean).join(' · ') || '—';
+            const sub = t.type === 'transfer'
+              ? [t.category_name || '이체', (t.source_name && t.to_source_name) ? `${t.source_name} → ${t.to_source_name}` : ''].filter(Boolean).join(' · ') || '—'
+              : [t.category_name, t.source_name].filter(Boolean).join(' · ') || '—';
             return (
               <DayCardRow
                 key={t.id} index={i} count={items.length}
@@ -119,12 +122,12 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
                 background={isGroup ? 'linear-gradient(135deg, #FFF1F3 0%, #FFF6EA 100%)' : '#fff'}
               >
                   <span className="tx-tile" style={{ background: t.category_emoji ? (t.category_color || depositIncomeColor || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}>
-                    {t.category_emoji || (t.type === 'income' ? '💰' : '💸')}
+                    {t.category_emoji || (t.type === 'income' ? '💰' : t.type === 'transfer' ? '🔄' : '💸')}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="tx-row-title" onMouseEnter={marqueeOn} onMouseLeave={marqueeOff}>
                       <span className="ttext">
-                        {t.content || t.category_name || (t.type === 'income' ? '수입' : '지출')}
+                        {t.content || t.category_name || (t.type === 'income' ? '수입' : t.type === 'transfer' ? '이체' : '지출')}
                         {/* 구독 그룹 결제/입금이 반영된 항목: 몇 회분인지 배지(그룹 화면과 동일) */}
                         {t.periods != null && (
                           <>{' '}<span className="tag-periods" style={isGroup ? { background: '#fff' } : undefined}>{t.periods} 회분</span></>
@@ -134,8 +137,8 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
                     <div className="tx-row-sub">{sub}</div>
                   </div>
                   <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flex: 'none' }}>
-                    <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : '#FF4358' }}>
-                      {t.type === 'income' ? '+' : '-'}{t.input_currency ? fmtForeign(t.input_amount, t.input_currency) : fmtNum(t.amount)}
+                    <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : t.type === 'transfer' ? '#4b4752' : '#FF4358' }}>
+                      {t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{t.input_currency ? fmtForeign(t.input_amount, t.input_currency) : fmtNum(t.amount)}
                     </span>
                     {t.input_currency && <span style={{ fontSize: 10.5, color: '#a29ead', marginTop: 1 }}>₩{fmtNum(t.amount)}</span>}
                   </span>

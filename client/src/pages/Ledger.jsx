@@ -161,6 +161,7 @@ export default function Ledger() {
   const perDay = useMemo(() => {
     const map = {};
     for (const t of filtered) {
+      if (t.type === 'transfer') continue; // 이체는 수입/지출 통계에 안 잡힘
       const d = Number(t.date.slice(8, 10));
       (map[d] ||= { income: 0, expense: 0 });
       map[d][t.type === 'income' ? 'income' : 'expense'] += Number(t.amount);

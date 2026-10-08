@@ -41,7 +41,13 @@ function memberRowsFor(item, members, total) {
   });
 }
 const itemTotalOf = (it) => (Number(it.amount) || 0) * (Number(it.qty) || 1);
-const emptyItem = () => ({ name: '', qty: '1', amount: '', currencyMeta: null, expanded: false, memberChecked: {}, memberAmountOverride: {} });
+const emptyItem = () => ({
+  name: '', qty: '1', amount: '', currencyMeta: null, expanded: false, memberChecked: {}, memberAmountOverride: {},
+  fromSourceId: '', toSourceId: '', // 이체일 때만 사용(항목명 칸 대신 출금/입금 원천 선택)
+});
+const ArrowRightIcon = () => (
+  <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="12" x2="20" y2="12" /><polyline points="13 5 20 12 13 19" /></svg>
+);
 
 // 사진 파일을 리사이즈 후 base64(순수 데이터, data: 접두어 제외)로 변환(전송 용량 절감용)
 async function fileToResizedBase64(file, maxSize = 1280, quality = 0.75) {
@@ -62,16 +68,32 @@ async function fileToResizedBase64(file, maxSize = 1280, quality = 0.75) {
 }
 
 // 영수증형 항목 입력 행 한 줄(내용/수량(또는 회차)/금액 [+정산 그룹이면 참여 멤버 펼치기]).
-function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount }) {
+// 이체(isTransfer)일 때는 항목명 칸 대신 출금/입금 원천 셀렉트 두 개 + 화살표를 두고, 수량 칸은 없다.
+function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource }) {
   const hasSplit = !!settlementMembers?.length;
-  const cols = hasSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
+  const cols = isTransfer ? '1fr 84px 18px' : hasSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
+  const sourceSelectStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 12.5, color: '#191722', outline: 'none', appearance: 'none' };
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '5px 0' }}>
-        <input
-          type="text" placeholder="항목 기입" value={item.name} onChange={(e) => onName(e.target.value)}
-          style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
-        />
+        {isTransfer ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+            <select value={item.fromSourceId} onChange={(e) => onFromSource(e.target.value)} style={sourceSelectStyle}>
+              <option value="">출금</option>
+              {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <span style={{ flex: 'none', color: '#c7c3cc', display: 'flex' }}><ArrowRightIcon /></span>
+            <select value={item.toSourceId} onChange={(e) => onToSource(e.target.value)} style={sourceSelectStyle}>
+              <option value="">입금</option>
+              {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        ) : (
+          <input
+            type="text" placeholder="항목 기입" value={item.name} onChange={(e) => onName(e.target.value)}
+            style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
+          />
+        )}
         {hasSplit && (
           <button
             type="button" aria-label="참여 멤버 펼치기" onClick={onToggleExpand}
@@ -80,10 +102,12 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, onName, on
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
           </button>
         )}
-        <input
-          type="text" inputMode="numeric" placeholder="1" value={item.qty} onChange={(e) => onQty(e.target.value)}
-          style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', textAlign: 'center', minWidth: 0 }}
-        />
+        {!isTransfer && (
+          <input
+            type="text" inputMode="numeric" placeholder="1" value={item.qty} onChange={(e) => onQty(e.target.value)}
+            style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', textAlign: 'center', minWidth: 0 }}
+          />
+        )}
         <CalcAmountInput
           compact value={item.amount} onChange={onAmount}
           initialCurrency={item.currencyMeta?.input_currency} initialForeignAmount={item.currencyMeta?.input_amount}
@@ -152,9 +176,11 @@ const TransactionForm = forwardRef(function TransactionForm({
     initial?.source_id ? String(initial.source_id) : (initial?.source_name ? SNAP : '')
   );
   const [items, setItems] = useState(() => (
-    Array.isArray(initial?.items) && initial.items.length
-      ? initial.items.map((it) => ({ ...emptyItem(), name: it.name || '', qty: String(it.qty || 1), amount: it.amount ? String(it.amount) : '' }))
-      : [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : '') }]
+    (fixedType || initial?.type) === 'transfer'
+      ? [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : '', fromSourceId: initial?.source_id ? String(initial.source_id) : '', toSourceId: initial?.to_source_id ? String(initial.to_source_id) : '' }]
+      : Array.isArray(initial?.items) && initial.items.length
+        ? initial.items.map((it) => ({ ...emptyItem(), name: it.name || '', qty: String(it.qty || 1), amount: it.amount ? String(it.amount) : '' }))
+        : [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : '') }]
   ));
   const [contentOverride, setContentOverride] = useState(initial?.content ?? null);
   const [memo, setMemo] = useState(initial?.memo || '');
@@ -211,10 +237,23 @@ const TransactionForm = forwardRef(function TransactionForm({
 
   // 신규 작성 시 원천 기본값: 지출은 주결제수단, 수입은 주입금수단(원천 관리에서 지정한 것)
   useEffect(() => {
-    if (editing || sourceId) return;
+    if (editing || sourceId || type === 'transfer') return;
     const key = type === 'expense' ? 'is_primary_payment' : 'is_primary_deposit';
     const s = sourcesFlat.find((x) => x[key]);
     if (s) setSourceId(String(s.id));
+  }, [editing, type, sourcesFlat]);
+
+  // 이체 신규 작성 시 출금/입금 기본값: 출금은 주결제수단, 입금은 주입금수단
+  useEffect(() => {
+    if (editing || type !== 'transfer') return;
+    setItems((prev) => {
+      if (prev.length !== 1) return prev;
+      const cur = prev[0];
+      const patch = {};
+      if (!cur.fromSourceId) { const s = sourcesFlat.find((x) => x.is_primary_payment); if (s) patch.fromSourceId = String(s.id); }
+      if (!cur.toSourceId) { const s = sourcesFlat.find((x) => x.is_primary_deposit); if (s) patch.toSourceId = String(s.id); }
+      return Object.keys(patch).length ? [{ ...cur, ...patch }] : prev;
+    });
   }, [editing, type, sourcesFlat]);
 
   // 메모가 바뀌면(사용자 입력/영수증 인식 등) 높이를 내용에 맞게 늘림
@@ -295,6 +334,9 @@ const TransactionForm = forwardRef(function TransactionForm({
   const catOptions = useMemo(() => categories.filter((c) => c.type === type), [categories, type]);
   const selCategory = categories.find((c) => String(c.id) === String(categoryId));
   const isSettlement = type === 'income' && selCategory?.name === '정산';
+  const isTransfer = type === 'transfer';
+  const transferFromName = sourcesFlat.find((s) => String(s.id) === items[0]?.fromSourceId)?.name || '';
+  const transferToName = sourcesFlat.find((s) => String(s.id) === items[0]?.toSourceId)?.name || '';
 
   // 정산 그룹 결제 내역: 항목 행마다 참여 멤버 펼치기 + 멤버별 분담액(균등분배가 기본, 직접 수정 가능)
   const showMemberSplit = !!settlementMembers?.length && type === 'expense';
@@ -313,7 +355,9 @@ const TransactionForm = forwardRef(function TransactionForm({
   }, [showMemberSplit, initialSettlementSplit, editing]);
 
   const total = items.reduce((s, it) => s + itemTotalOf(it), 0);
-  const autoContent = items.length > 1 ? `${items[0].name || ''} 외 ${items.length - 1}` : (items[0].name || '');
+  const autoContent = isTransfer
+    ? (transferFromName && transferToName ? `${transferFromName} → ${transferToName}` : '')
+    : items.length > 1 ? `${items[0].name || ''} 외 ${items.length - 1}` : (items[0].name || '');
   const contentValue = contentOverride ?? autoContent;
   // 입력 중에는 지워도 그대로 빈 칸으로 둬서 자유롭게 다시 쓸 수 있게 하고, 포커스를 벗어났을 때
   // 비어 있으면 그제서야 자동 모드(항목명 기반)로 복귀한다.
@@ -324,6 +368,8 @@ const TransactionForm = forwardRef(function TransactionForm({
     e.preventDefault();
     setError('');
     if (!total) return setError('금액을 입력하세요.');
+    if (isTransfer && (!items[0]?.fromSourceId || !items[0]?.toSourceId)) return setError('출금/입금 원천을 선택하세요.');
+    if (isTransfer && items[0].fromSourceId === items[0].toSourceId) return setError('출금/입금 원천이 같을 수 없습니다.');
     const aggregateSplit = showMemberSplit ? (() => {
       const totals = {};
       for (const it of items) {
@@ -336,9 +382,11 @@ const TransactionForm = forwardRef(function TransactionForm({
     if (showMemberSplit && !aggregateSplit.length) return setError('정산에 참여할 멤버를 1명 이상 선택하세요.');
     setBusy(true);
 
-    // 분류 결정 (SNAP=기존 스냅샷 유지 / 실제 선택 / 선택 안 함)
+    // 분류 결정 (SNAP=기존 스냅샷 유지 / 실제 선택 / 선택 안 함). 이체는 분류 선택이 없고 항상 "이체"로 고정.
     let category_id = null, category_name = '', category_emoji = '', category_color = '';
-    if (categoryId === SNAP) {
+    if (isTransfer) {
+      category_name = '이체';
+    } else if (categoryId === SNAP) {
       category_name = initial?.category_name || '';
       category_emoji = initial?.category_emoji || '';
       category_color = initial?.category_color || '';
@@ -347,9 +395,14 @@ const TransactionForm = forwardRef(function TransactionForm({
       if (c) { category_id = Number(c.id); category_name = c.name; category_emoji = c.emoji || ''; category_color = c.color || ''; }
     }
 
-    // 원천 결정 (source_name 은 명시 전달 → db 가 그대로 사용)
-    let source_id = null, source_name = '';
-    if (sourceId === SNAP) {
+    // 원천 결정 (source_name 은 명시 전달 → db 가 그대로 사용). 이체는 항목 행의 출금/입금 선택이 곧 원천.
+    let source_id = null, source_name = '', to_source_id = null, to_source_name = '';
+    if (isTransfer) {
+      source_id = Number(items[0].fromSourceId);
+      source_name = sourcesFlat.find((x) => x.id === source_id)?.name || '';
+      to_source_id = Number(items[0].toSourceId);
+      to_source_name = sourcesFlat.find((x) => x.id === to_source_id)?.name || '';
+    } else if (sourceId === SNAP) {
       source_name = initial?.source_name || '';
     } else if (sourceId) {
       source_id = Number(sourceId);
@@ -357,7 +410,7 @@ const TransactionForm = forwardRef(function TransactionForm({
       if (s) source_name = s.name; // 세부 항목명만
     }
 
-    const recurrence = (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, date) : null;
+    const recurrence = (!isTransfer && !recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, date) : null;
     // 과거 날짜로 반복을 새로 걸면, 그동안 밀린 회차를 한 번에 생성할지 물어봄
     let backfillPast = false;
     if (recurrence && date < today()) {
@@ -367,16 +420,18 @@ const TransactionForm = forwardRef(function TransactionForm({
 
     // 외화 입력 스냅샷: 여러 항목 중 외화로 입력한 첫 항목 기준(보통 항목 1개 또는 전부 원화라 충분함)
     const currencyItem = items.find((it) => it.currencyMeta);
-    // 항목별 행(내용/수량/금액)을 그대로 저장해 수정 화면에서도 다시 보이도록 함
-    const savedItems = items
+    // 항목별 행(내용/수량/금액)을 그대로 저장해 수정 화면에서도 다시 보이도록 함(이체는 출금/입금
+    // 원천이 위에서 이미 source_id/to_source_id 로 저장되므로 items 는 따로 저장하지 않음)
+    const savedItems = isTransfer ? null : items
       .filter((it) => it.name.trim() || Number(it.amount) > 0)
       .map((it) => ({ name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0 }));
     const payload = {
       type, date, amount: Math.round(total),
       category_id, category_name, category_emoji, category_color,
       source_id, source_name,
+      ...(isTransfer ? { to_source_id, to_source_name } : {}),
       content: (contentValue || '').trim(), memo,
-      items: savedItems.length ? savedItems : null,
+      items: isTransfer ? null : (savedItems.length ? savedItems : null),
       input_currency: currencyItem?.currencyMeta?.input_currency || null,
       input_amount: currencyItem?.currencyMeta?.input_amount ?? null,
       fx_rate: currencyItem?.currencyMeta?.fx_rate ?? null,
@@ -401,6 +456,7 @@ const TransactionForm = forwardRef(function TransactionForm({
 
   const rowLabelStyle = { width: 46, flex: 'none', fontSize: 13.5, fontWeight: 400, color: '#8b8798' };
   const rowInputStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', padding: 0 };
+  const tableCols = isTransfer ? '1fr 84px 18px' : showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
 
   return (
     <form onSubmit={submit}>
@@ -420,6 +476,9 @@ const TransactionForm = forwardRef(function TransactionForm({
         <div className="type-pill">
           <button type="button" className={`income ${type === 'income' ? 'active' : ''}`} onClick={() => { setType('income'); setCategoryId(''); setSourceId(''); }}>수입</button>
           <button type="button" className={`expense ${type === 'expense' ? 'active' : ''}`} onClick={() => { setType('expense'); setCategoryId(''); setSourceId(''); }}>지출</button>
+          {!groupId && (
+            <button type="button" className={`transfer ${type === 'transfer' ? 'active' : ''}`} onClick={() => { setType('transfer'); setCategoryId(''); setSourceId(''); }}>이체</button>
+          )}
         </div>
       )}
 
@@ -457,46 +516,52 @@ const TransactionForm = forwardRef(function TransactionForm({
                 type="date" value={date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택"
               />
             </div>
-            <button
-              type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
-              style={{
-                border: 'none', background: 'transparent', padding: 0, flex: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0,
-              }}
-            >
-              <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : (type === 'income' ? '#2CDDB9' : '#FF6F91')} />
-            </button>
+            {!isTransfer && (
+              <button
+                type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
+                style={{
+                  border: 'none', background: 'transparent', padding: 0, flex: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0,
+                }}
+              >
+                <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : (type === 'income' ? '#2CDDB9' : '#FF6F91')} />
+              </button>
+            )}
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
-          <span style={rowLabelStyle}>분류</span>
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}>
-            <option value="">선택 안 함</option>
-            {categoryId === SNAP && (
-              <option value={SNAP}>{initial?.category_emoji ? `${initial.category_emoji} ` : ''}{initial?.category_name} (기존)</option>
-            )}
-            {catOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
-          </select>
-        </div>
+        {!isTransfer && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
+            <span style={rowLabelStyle}>분류</span>
+            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}>
+              <option value="">선택 안 함</option>
+              {categoryId === SNAP && (
+                <option value={SNAP}>{initial?.category_emoji ? `${initial.category_emoji} ` : ''}{initial?.category_name} (기존)</option>
+              )}
+              {catOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
+            </select>
+          </div>
+        )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
-          <span style={rowLabelStyle}>원천</span>
-          <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}>
-            <option value="">선택 안 함</option>
-            {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
-            {sources.map((top) => (
-              top.children?.length ? (
-                <optgroup key={top.id} label={top.name}>
-                  <option value={top.id}>{top.name} (전체)</option>
-                  {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </optgroup>
-              ) : (
-                <option key={top.id} value={top.id}>{top.name}</option>
-              )
-            ))}
-          </select>
-        </div>
+        {!isTransfer && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
+            <span style={rowLabelStyle}>원천</span>
+            <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}>
+              <option value="">선택 안 함</option>
+              {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
+              {sources.map((top) => (
+                top.children?.length ? (
+                  <optgroup key={top.id} label={top.name}>
+                    <option value={top.id}>{top.name} (전체)</option>
+                    {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </optgroup>
+                ) : (
+                  <option key={top.id} value={top.id}>{top.name}</option>
+                )
+              ))}
+            </select>
+          </div>
+        )}
 
         {isSettlement && (
           <div style={{ padding: '6px 0' }}>
@@ -512,18 +577,19 @@ const TransactionForm = forwardRef(function TransactionForm({
           </div>
         )}
 
-        <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px', gap: 8, padding: '8px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
-          <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
+        <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: tableCols, gap: 8, padding: '8px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
+          <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>{isTransfer ? '출금 → 입금' : '내용'}</span>
           {showMemberSplit && <span />}
-          <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'center' }}>{qtyLabel}</span>
+          {!isTransfer && <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'center' }}>{qtyLabel}</span>}
           <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
           <span />
         </div>
 
         {items.map((it, idx) => (
           <ItemRow
-            key={idx} item={it} idx={idx} canRemove={items.length > 1} qtyLabel={qtyLabel}
+            key={idx} item={it} idx={idx} canRemove={!isTransfer && items.length > 1} qtyLabel={qtyLabel}
             settlementMembers={showMemberSplit ? settlementMembers : null}
+            isTransfer={isTransfer} sources={sourcesFlat}
             onName={(v) => updateItem(idx, { name: v })}
             onQty={(v) => updateItem(idx, { qty: v.replace(/[^0-9]/g, '') })}
             onAmount={(v) => updateItem(idx, { amount: v })}
@@ -532,16 +598,18 @@ const TransactionForm = forwardRef(function TransactionForm({
             onToggleExpand={() => toggleItemExpand(idx)}
             onToggleMember={(mid) => toggleItemMember(idx, mid)}
             onMemberAmount={(mid, v) => setItemMemberAmount(idx, mid, v)}
+            onFromSource={(v) => updateItem(idx, { fromSourceId: v })}
+            onToSource={(v) => updateItem(idx, { toSourceId: v })}
           />
         ))}
 
-        <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>
+        {!isTransfer && <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>}
 
-        <div style={{ display: 'grid', gridTemplateColumns: showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed #cfccd4' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: tableCols, gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed #cfccd4' }}>
           <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
           {showMemberSplit && <span />}
-          <span />
-          <span style={{ fontSize: 15.5, fontWeight: 800, color: type === 'expense' ? '#FF4358' : '#2CDDB9', textAlign: 'right' }}>{fmtNum(total)}</span>
+          {!isTransfer && <span />}
+          <span style={{ fontSize: 15.5, fontWeight: 800, color: isTransfer ? '#4b4752' : (type === 'expense' ? '#FF4358' : '#2CDDB9'), textAlign: 'right' }}>{fmtNum(total)}</span>
           <span />
         </div>
 
