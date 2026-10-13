@@ -456,7 +456,7 @@ export const db = {
   async getGroup(id) {
     const group = unwrap(await supabase.from('groups').select('*, owner:profiles!groups_owner_id_fkey(display_name)').eq('id', id).single());
     const rows = unwrap(await supabase.from('group_members')
-      .select('id, user_id, role, nickname, start_date, end_date, contact, next_due_override, settlement_override, profiles(username, display_name)')
+      .select('id, user_id, role, nickname, start_date, end_date, contact, next_due_override, settlement_override, status, profiles(username, display_name)')
       .eq('group_id', id));
     // 메모는 총무/총대만 조회 가능(RLS). 아니면 빈 결과.
     const notes = {};
@@ -467,6 +467,7 @@ export const db = {
       nickname: m.nickname || m.profiles?.display_name || '멤버',
       username: m.profiles?.username || null,
       is_account: !!m.user_id,
+      pending: m.status === 'pending', // 아이디를 연결해 초대했지만 아직 수락 전
       start_date: m.start_date, end_date: m.end_date, contact: m.contact,
       next_due_override: m.next_due_override, settlement_override: m.settlement_override,
       memo: notes[m.id] || '',
@@ -488,6 +489,8 @@ export const db = {
       nickname: (nickname || '').trim(),
       start_date: start_date || null, end_date: end_date || null,
       contact: (contact || '').trim() || null,
+      // 아이디를 연결한 초대는 받은 사람이 수락해야 실제 멤버가 됨(알림에서 수락/거절).
+      status: user_id ? 'pending' : 'active',
     }).select('id').single());
     if (memo && memo.trim()) {
       unwrap(await supabase.from('group_member_notes').insert({ member_id: row.id, group_id: groupId, memo: memo.trim() }));
@@ -496,12 +499,9 @@ export const db = {
       const group = unwrap(await supabase.from('groups').select('name, category').eq('id', groupId).maybeSingle());
       const vars = { group_name: group?.name || '', group_id: groupId };
       const link = `/groups/${groupId}`;
-      this.notifyUser(user_id, 'group_invite', vars, link).catch(() => {});
+      this.notifyUser(user_id, 'group_invite', vars, link, { member_id: row.id }).catch(() => {});
       this.sendPushBestEffort(user_id, 'group_invite', vars, link);
-      // 공금 그룹: 초대된 멤버의 원천 목록에 공금 통장을 자동으로 추가(실패해도 초대 자체는 유지)
-      if (group?.category === '공금') {
-        try { await supabase.rpc('add_pooled_fund_source_for_member', { p_group_id: groupId, p_member_user_id: user_id }); } catch {}
-      }
+      // 공금 통장 자동 추가는 수락 시점(respondToGroupInvite)으로 옮겨졌음
     }
     return row;
   },
@@ -1002,10 +1002,24 @@ export const db = {
   // 알림 생성(RPC, SECURITY DEFINER — 다른 사용자에게도 알림을 만들 수 있음).
   // group_id 를 vars 에 넣으면 서버에서 호출자·수신자가 같은 그룹 멤버인지 확인함.
   // 실패해도(예: 권한 없음, 템플릿 비활성) 호출부의 본 작업을 막지 않도록 항상 조용히 넘어가게 쓸 것.
-  async notifyUser(userId, eventKey, vars = {}, link = null) {
-    const { data, error } = await supabase.rpc('notify_user', { p_user_id: userId, p_event_key: eventKey, p_vars: vars, p_link: link });
+  async notifyUser(userId, eventKey, vars = {}, link = null, data = null) {
+    const { data: newId, error } = await supabase.rpc('notify_user', { p_user_id: userId, p_event_key: eventKey, p_vars: vars, p_link: link, p_data: data });
     if (error) throw new Error(error.message);
-    return data;
+    return newId;
+  },
+
+  // 그룹 초대 알림 카드의 수락/거절. 수락해야 실제로 그룹 멤버(status='active')가 되고,
+  // 거절하면 멤버 행은 남긴 채 user_id만 비워 외부 멤버로 표기된다.
+  async respondToGroupInvite(memberId, accept) {
+    const { error } = await supabase.rpc('respond_to_group_invite', { p_member_id: memberId, p_accept: accept });
+    if (error) throw new Error(error.message);
+  },
+  // 받은 사람은 수락 전까지 is_group_member가 false라 group_members 를 직접 조회할 수 없어
+  // 상태(대기/수락/거절)만 SECURITY DEFINER RPC로 받아온다.
+  async getGroupInviteStatus(memberId) {
+    const { data, error } = await supabase.rpc('get_group_invite_status', { p_member_id: memberId });
+    if (error) throw new Error(error.message);
+    return data?.[0] || null;
   },
 
   // 구독 그룹에 반복 항목이 등록됐을 때, 등록한 사람이 아닌 "상대방"(총대 ↔ 멤버)에게 알림.

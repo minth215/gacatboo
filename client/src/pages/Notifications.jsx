@@ -21,6 +21,10 @@ export default function Notifications() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState(null); // 한 번에 하나의 카드만 스와이프로 열려 있도록
+  // 그룹 초대 알림의 현재 상태(memberId -> {status, linked_to_me}). 받은 사람은 수락 전까지
+  // group_members 를 직접 조회할 수 없어 전용 RPC로 받아온다.
+  const [inviteStatus, setInviteStatus] = useState({});
+  const [inviteBusy, setInviteBusy] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -28,13 +32,43 @@ export default function Notifications() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    const ids = [...new Set(rows.filter((r) => r.event_key === 'group_invite' && r.data?.member_id).map((r) => r.data.member_id))];
+    if (!ids.length) return;
+    Promise.all(ids.map((id) => db.getGroupInviteStatus(id).then((s) => [id, s]).catch(() => [id, null])))
+      .then((pairs) => setInviteStatus((prev) => {
+        const next = { ...prev };
+        pairs.forEach(([id, s]) => { if (s) next[id] = s; });
+        return next;
+      }));
+  }, [rows]);
+
   const hasUnread = rows.some((r) => !r.read_at);
 
   const markAllRead = async () => {
     try { await db.markAllNotificationsRead(); load(); } catch (e) { alert(e.message); }
   };
 
+  const respondInvite = async (r, accept) => {
+    const memberId = r.data?.member_id;
+    if (!memberId || inviteBusy) return;
+    setInviteBusy(memberId);
+    try {
+      await db.respondToGroupInvite(memberId, accept);
+      setInviteStatus((prev) => ({ ...prev, [memberId]: { status: 'active', linked_to_me: accept } }));
+      if (!r.read_at) {
+        setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, read_at: new Date().toISOString() } : x)));
+        db.markNotificationRead(r.id).catch(() => {});
+      }
+    } catch (e) { alert(e.message); }
+    finally { setInviteBusy(null); }
+  };
+
   const openRow = async (r) => {
+    if (r.event_key === 'group_invite') {
+      const st = r.data?.member_id ? inviteStatus[r.data.member_id] : null;
+      if (!(st?.status === 'active' && st?.linked_to_me)) return; // 수락 전/거절 상태는 버튼으로만 응답
+    }
     if (!r.read_at) {
       setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, read_at: new Date().toISOString() } : x)));
       db.markNotificationRead(r.id).catch(() => {});
@@ -93,6 +127,23 @@ export default function Notifications() {
                     <span style={{ fontSize: 10.5, color: '#a29ead', flex: 'none', whiteSpace: 'nowrap' }}>{timeAgo(r.created_at)}</span>
                   </div>
                   <div style={{ marginTop: 2, fontSize: 12, color: '#6c6779', lineHeight: 1.4 }}>{r.body}</div>
+                  {r.event_key === 'group_invite' && r.data?.member_id && (() => {
+                    const st = inviteStatus[r.data.member_id];
+                    if (!st || st.status === 'pending') {
+                      const busy = inviteBusy === r.data.member_id;
+                      return (
+                        <div style={{ display: 'flex', gap: 8, marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
+                          <button type="button" className="btn-ink-pill" style={{ height: 34, flex: 1, fontSize: 12.5 }} disabled={busy} onClick={() => respondInvite(r, true)}>수락</button>
+                          <button type="button" className="btn-ink-pill" style={{ height: 34, flex: 1, fontSize: 12.5, background: '#f4f2f0', color: '#6c6779' }} disabled={busy} onClick={() => respondInvite(r, false)}>거절</button>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: st.linked_to_me ? 'var(--income)' : '#a29ead' }}>
+                        {st.linked_to_me ? '수락했어요' : '거절했어요'}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </SwipeRow>

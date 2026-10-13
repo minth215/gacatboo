@@ -168,13 +168,14 @@ export default function TransactionEdit() {
 
   const isOwner = isGroupKind && group ? group.owner_id === user.id : false;
   const myMember = members.find((m) => m.user_id === user.id && m.role !== 'owner');
-  const memberList = members.filter((m) => m.role !== 'owner');
+  // 초대를 아직 수락하지 않은 멤버는 입력/분담 대상에서 제외
+  const memberList = members.filter((m) => m.role !== 'owner' && !m.pending);
   // 정산 그룹의 일반 결제 내역: 참여 멤버 체크리스트용(자투리 보관용 가상 멤버 '짤짤이'는 제외)
   // 공금 그룹의 사용 내역: 전체 멤버가 참여 대상(제외 없음)
   const settlementSplitMembers = isPooledExpense
-    ? members
+    ? members.filter((m) => !m.pending)
     : (!isGroupKind && isSettlement(group?.category))
-      ? members.filter((m) => !isLeftoverName(m.nickname))
+      ? members.filter((m) => !isLeftoverName(m.nickname) && !m.pending)
       : undefined;
   // 그룹 결제/입금/공금 내역 상단 배지: 그룹 이모지 배경색과 동일(무색이면 회색)
   const groupBadge = group ? { name: group.name, color: group.color || '#e4e2e6' } : undefined;

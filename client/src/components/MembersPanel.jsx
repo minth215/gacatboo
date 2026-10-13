@@ -48,7 +48,8 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
                 {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 6px' }}>{leaderName}</span>}
-                {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
+                {m.role !== 'owner' && m.pending && <span style={{ fontSize: 9, fontWeight: 700, color: '#B8860B', background: '#FBF1D3', borderRadius: 999, padding: '2px 6px' }}>초대중</span>}
+                {m.role !== 'owner' && !m.pending && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
               </div>
               <div style={{ marginTop: 3, fontSize: 10.5, color: '#a29ead' }}>
                 {m.is_account && m.username ? `@${m.username} · ` : ''}
