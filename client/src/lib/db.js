@@ -76,6 +76,10 @@ export const db = {
   async listCategoryBudgetsForCategoryYear(categoryId, year) {
     return unwrap(await supabase.from('category_budgets').select('*').eq('category_id', categoryId).eq('year', year));
   },
+  // 내보내기: 연도 구분 없이 전체 예산 재정의 행
+  async listAllCategoryBudgets() {
+    return unwrap(await supabase.from('category_budgets').select('*'));
+  },
   async upsertCategoryBudget(userId, categoryId, year, month, amount) {
     return unwrap(await supabase.from('category_budgets')
       .upsert({ user_id: userId, category_id: categoryId, year, month, amount, updated_at: new Date().toISOString() }, { onConflict: 'user_id,category_id,year,month' })
@@ -132,6 +136,10 @@ export const db = {
     const rows = unwrap(await supabase.from('recurring_rules').select('*, group:groups(name, owner_id)').eq('active', true).order('created_at', { ascending: false }));
     return rows.map((r) => ({ ...r, group_name: r.group?.name || null }));
   },
+  // 내보내기: 비활성(해제된) 규칙도 포함한 전체 목록
+  async listAllRecurringRules() {
+    return unwrap(await supabase.from('recurring_rules').select('*').order('created_at', { ascending: false }));
+  },
   // 규칙을 삭제하면 연결된 과거 거래의 recurring_id 는 자동으로 null 이 됨(on delete set null) — 과거 내역은 유지.
   async deleteRecurringRule(id) {
     return unwrap(await supabase.from('recurring_rules').delete().eq('id', id));
@@ -161,6 +169,13 @@ export const db = {
     // (반복 설정을 건 그룹 거래 자체 포함) 그룹 카드 스타일로 개인 가계부에도 함께 노출
     else q = q.or('group_id.is.null,recurring_id.not.is.null');
     return flattenTx(unwrap(await q));
+  },
+  // 내보내기: 개인 가계부(그룹에 속하지 않은 내 항목) 전체. 반복 설정이 걸려 개인 화면에도
+  // 함께 노출되는 그룹 거래는 가계부 내보내기 범위가 아니라 "그룹" 범위에서 다루므로 제외.
+  async listAllPersonalTransactions(userId) {
+    return flattenTx(unwrap(await supabase.from('transactions').select(TX_SELECT)
+      .is('group_id', null).eq('user_id', userId)
+      .order('date', { ascending: false }).order('id', { ascending: false }).limit(20000)));
   },
   // 그룹 내역 탭(정산형 등): 월 이동 없이 전체 기간을 한 번에 불러와 월별로 묶어 보여줄 때 사용
   async listGroupTransactionsAll(groupId) {
@@ -381,6 +396,14 @@ export const db = {
       owner_name: g.owner?.display_name || '',
       member_count: g.group_members?.[0]?.count ?? 0,
     }));
+  },
+  // 내보내기: 내가 속한 그룹(소유/멤버)의 메타데이터와 멤버 목록만(결제·입금·공금 등 다른
+  // 멤버와 공유되는 활동 내역은 한 사람 소유로 보기 어려워 내보내기 범위에서 제외).
+  async listMyGroupsExport() {
+    const groups = unwrap(await supabase.from('groups').select('*').order('created_at', { ascending: false }));
+    const ids = groups.map((g) => g.id);
+    const group_members = ids.length ? unwrap(await supabase.from('group_members').select('*').in('group_id', ids)) : [];
+    return { groups, group_members };
   },
   async createGroup(userId, { name, description, category, category_emoji, color, start_date, end_date, nickname }) {
     const g = unwrap(await supabase.from('groups').insert({
