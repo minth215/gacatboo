@@ -33,6 +33,9 @@ export default function TransactionEdit() {
   const { user } = useAuth();
   const editing = !!id;
   const pendingRecurrence = location.state?.pendingRecurrence || null;
+  // 정산 탭에서 "입금 완료" 처리 시 넘어오는 사전 입력값(멤버 고정 + 결제 건별 정산 행)
+  const presetMemberId = location.state?.presetMemberId ?? null;
+  const presetSettleRows = location.state?.presetSettleRows || null;
 
   const [initial, setInitial] = useState(null);
   const [group, setGroup] = useState(null);
@@ -224,6 +227,8 @@ export default function TransactionEdit() {
             showPeriods={!isSettlement(group?.category)}
             groupName={group?.name || ''}
             groupBadge={groupBadge}
+            presetMemberId={presetMemberId}
+            presetSettleRows={presetSettleRows}
           />
         ) : (
           <TransactionForm

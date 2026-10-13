@@ -87,6 +87,7 @@ const matchSourceId = (flat, name) => { const s = flat.find((x) => x.name === na
 // 정산 탭: 결제 총액을 멤버 수로 나눈 기본 정산액 기준으로 멤버별 입금 현황을 관리
 // (정산 카테고리 그룹의 그룹 상세 페이지에서도 재사용)
 export function SettlementTab({ gid, group, members, isOwner, userId, payments, deposits, reloadMembers, loadDep, sub }) {
+  const nav = useNavigate();
   const [incomeCats, setIncomeCats] = useState([]);
   useEffect(() => { db.listCategories('income').then(setIncomeCats).catch(() => {}); }, []);
   const [editingId, setEditingId] = useState(null);
@@ -322,10 +323,26 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     content: settleContentDefault,
   });
 
-  const markPaid = async (m) => {
+  // 결제 내역(정산 대상)이 2건 이상이면, 멤버가 남은 금액을 입력받을 때도 건별로 행을 나눠
+  // "입금 내역" 탭과 동일한 내용/금액 표 폼에서 입력하게 한다(각 건에 대한 분담액 - 이미 그 건으로
+  // 들어온 입금을 뺀 값). 수동으로 금액을 수정해 합계가 어긋난 경우엔 마지막 행에서 보정한다.
+  const buildSettleRows = (m) => {
+    let settleRows = sortedPayments.map((p) => {
+      const split = splitByTx[p.id];
+      const owed = split ? (split[m.id] || 0) : Math.floor(Number(p.amount) / memberCount);
+      const paidForThis = deposits.filter((d) => d.member_id === m.id && d.leader_settlement_target_id === p.id)
+        .reduce((s, d) => s + Number(d.amount), 0);
+      return { targetId: p.id, amount: Math.max(owed - paidForThis, 0) };
+    }).filter((r) => r.amount > 0);
+    if (!settleRows.length) settleRows = [{ targetId: settleTargetPayment?.id || null, amount: m.remaining }];
+    const sum = settleRows.reduce((s, r) => s + r.amount, 0);
+    if (sum !== m.remaining) settleRows[settleRows.length - 1].amount += (m.remaining - sum);
+    return settleRows;
+  };
+
+  const markPaid = (m) => {
     if (m.remaining <= 0) return;
-    if (!confirm(`${m.nickname}님의 입금(${fmtWon(m.remaining)})을 완료 처리할까요?`)) return;
-    try { await createSettleDeposit(m); loadDep(); } catch (e) { alert(e.message); }
+    nav(`/new?group=${gid}&kind=deposit`, { state: { presetMemberId: m.id, presetSettleRows: buildSettleRows(m) } });
   };
 
   // 짤짤이(자투리) 입금 완료: 실제 group_members 행이 아직 없으면 이 시점에 만든다.
@@ -358,6 +375,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
 
   // 정산 미완료 본인이 자기 카드를 눌러 송금 모달에서 "입금 완료"를 누른 경우.
   // 모달을 여는 것 자체가 이미 한 번의 확인 절차이므로 별도 confirm 은 두지 않는다.
+  // (총대 전용 영역인 정산 대상 선택 UI가 없는 멤버 본인 화면이라 입금 내역 탭 폼으로는 보내지 않는다.)
   const confirmSelfPaid = async (m) => {
     try { await createSettleDeposit(m); setPayOpen(null); loadDep(); } catch (e) { alert(e.message); }
   };
@@ -903,13 +921,13 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
       {header}
 
       <div className="underline-tabs">
+        {settlementMode ? (
+          <button className={tab === 'settlement' ? 'active' : ''} onClick={() => setTab('settlement')}>정산 현황</button>
+        ) : (
+          <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>구독 현황</button>
+        )}
         <button className={tab === 'payments' ? 'active' : ''} onClick={() => setTab('payments')}>결제 내역</button>
         <button className={tab === 'deposits' ? 'active' : ''} onClick={() => setTab('deposits')}>입금 내역</button>
-        {settlementMode ? (
-          <button className={tab === 'settlement' ? 'active' : ''} onClick={() => setTab('settlement')}>정산</button>
-        ) : (
-          <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>통계</button>
-        )}
         <button className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>멤버</button>
       </div>
 
@@ -1008,17 +1026,20 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   );
 }
 
-export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '', groupBadge }) {
+export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '', groupBadge, presetMemberId = null, presetSettleRows = null }) {
   const editing = !!initial;
   const isSettleMode = defaultCategoryName === '정산';
   const settleContentDefault = groupName ? `${groupName} 정산` : '정산';
-  // 총무가 정산 그룹 입금 내역을 새로 등록할 때만: 정산 대상을 여러 개 골라 한 번에 입금 처리.
+  // 총무가 정산 그룹 입금 내역을 새로 등록할 때만: 정산 대상을 여러 개 골라 한 번에 입금 처리
+  // (정산 탭에서 "입금 완료"로 건너오면 presetSettleRows 로 결제 건별 행이 미리 채워진다).
   // (수정 화면은 이미 저장된 입금 1건 = 정산 대상 1건이므로 기존 단일 선택 UI를 그대로 쓴다.)
   const multiSettle = isOwner && isSettleMode && !editing;
   const settleTargetLabel = (x) => x?.content || x?.category_name || '지출';
   // 행의 "내용" 칸: targetId 가 선택된 행이면 정산 대상, 아니면 name 에 적은 자유 텍스트(분류가 정산이
   // 아닐 때 사용 — isLeaderSettlement 참고)
-  const [settleRows, setSettleRows] = useState([{ targetId: '', name: '', amount: '' }]);
+  const [settleRows, setSettleRows] = useState(() => (presetSettleRows?.length
+    ? presetSettleRows.map((r) => ({ targetId: r.targetId != null ? String(r.targetId) : '', name: '', amount: String(r.amount) }))
+    : [{ targetId: '', name: '', amount: '' }]));
   useEffect(() => {
     if (!multiSettle || settleRows.length !== 1 || settleRows[0].targetId || recentExpenses.length !== 1) return;
     setSettleRows([{ targetId: String(recentExpenses[0].id), name: '', amount: String(recentExpenses[0].amount) }]);
@@ -1071,7 +1092,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     lSourceId: matchSourceId(sources.flat, initial.deposit_source_name) || (initial.deposit_source_name ? KEEP : ''),
     content: initial.content || '', memo: initial.memo || '',
   } : {
-    memberId: '', date: today(),
+    memberId: presetMemberId ? String(presetMemberId) : '', date: today(),
     amount: '', periods: '1',
     mCatId: '', mSourceId: '',
     lCatId: '', lSettleId: '',
