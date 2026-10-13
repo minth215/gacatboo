@@ -345,6 +345,24 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     nav(`/new?group=${gid}&kind=deposit`, { state: { presetMemberId: m.id, presetSettleRows: buildSettleRows(m) } });
   };
 
+  // "정산 일괄 완료": 여러 멤버를 한 번에 처리하므로 폼으로 보낼 수 없어, 입금 내역 탭에서
+  // 건별로 여러 행을 입력했을 때와 동일하게 결제 건별로 입금 내역을 각각 만든다.
+  const createSettleDepositsAll = async (m, date) => {
+    const settleRows = buildSettleRows(m);
+    const multi = settleRows.length > 1;
+    for (const r of settleRows) {
+      const target = r.targetId ? sortedPayments.find((p) => p.id === r.targetId) : null;
+      await db.createDeposit({
+        group_id: gid, member_id: m.id, date, amount: r.amount, periods: 1,
+        category_name: target?.category_name || '정산', category_emoji: target?.category_emoji || '',
+        leader_category_name: '정산', leader_category_emoji: settleIncomeCat?.emoji || '',
+        leader_settlement_target_id: r.targetId || null,
+        deposit_source_name: sub?.deposit_source_name || '',
+        content: multi ? settleContentDefault : (target ? `${itemLabelOf(target)} 정산` : settleContentDefault),
+      });
+    }
+  };
+
   // 짤짤이(자투리) 입금 완료: 실제 group_members 행이 아직 없으면 이 시점에 만든다.
   const markLeftoverPaid = async () => {
     if (!leftoverRow || leftoverRow.remaining <= 0) return;
@@ -399,7 +417,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     setSettleDateOpen(false);
     setBulkBusy(true);
     try {
-      for (const m of targets) await createSettleDeposit(m, date);
+      for (const m of targets) await createSettleDepositsAll(m, date);
       // 짤짤이도 함께 완료 처리한다. 실제 group_members 행이 아직 없으면 이 시점에 만든다.
       if (includeLeftover) {
         let member = leftoverMember;
