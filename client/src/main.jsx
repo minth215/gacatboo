@@ -3,7 +3,11 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './lib/auth.jsx';
 import App from './App.jsx';
+import { loadStyle, applyStyle } from './lib/style.js';
 import './index.css';
+
+// 첫 렌더 전에 저장된 테마/폰트 설정을 body 에 반영(깜빡임 방지)
+applyStyle(loadStyle());
 
 // base('/gacatboo/')를 라우터 basename 으로 사용 (GitHub Pages 프로젝트 페이지 대응)
 const basename = import.meta.env.BASE_URL.replace(/\/$/, '');

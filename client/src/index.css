@@ -39,7 +39,15 @@
   --radius: 14px;
   --shadow: 0 1px 3px rgba(20, 24, 40, 0.06), 0 6px 20px rgba(20, 24, 40, 0.05);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --font-family-paperlogy: 'Paperlogy', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic',
+    'Segoe UI', Roboto, sans-serif;
+  --font-family-system: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic',
+    'Segoe UI', Roboto, sans-serif;
+  --font-family: var(--font-family-paperlogy);
 }
+
+/* 설정 > 스타일에서 "시스템 폰트"를 고르면 body 에 붙는 클래스(client/src/lib/style.js) */
+body.font-system { --font-family: var(--font-family-system); }
 
 * { box-sizing: border-box; }
 
@@ -47,8 +55,7 @@ html, body, #root { height: 100%; }
 
 body {
   margin: 0;
-  font-family: 'Paperlogy', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic',
-    'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-family);
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;

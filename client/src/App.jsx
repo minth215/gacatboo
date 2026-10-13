@@ -22,6 +22,7 @@ import GroupCategoryManage from './pages/GroupCategoryManage.jsx';
 import CurrencySettings from './pages/CurrencySettings.jsx';
 import RecurringManage from './pages/RecurringManage.jsx';
 import SettingsNotifications from './pages/SettingsNotifications.jsx';
+import SettingsStyle from './pages/SettingsStyle.jsx';
 import Notifications from './pages/Notifications.jsx';
 import Groups from './pages/Groups.jsx';
 import GroupCreate from './pages/GroupCreate.jsx';
@@ -74,6 +75,7 @@ export default function App() {
         <Route path="/settings/currency" element={<CurrencySettings />} />
         <Route path="/settings/recurring" element={<RecurringManage />} />
         <Route path="/settings/notifications" element={<SettingsNotifications />} />
+        <Route path="/settings/style" element={<SettingsStyle />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
         <Route path="/admin/users/:id" element={<Protected adminOnly><AdminUserDetail /></Protected>} />
