@@ -144,9 +144,17 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     const owed = split ? (split[m.id] || 0) : Math.floor(Number(selectedPayment.amount) / memberCount);
     const paid = deposits.filter((d) => d.member_id === m.id && d.leader_settlement_target_id === selectedPayment.id)
       .reduce((s, d) => s + Number(d.amount), 0);
-    const remaining = Math.max(owed - paid, 0);
+    // 총무는 자신에게 입금하지 않으므로 각 건에서도 항상 정산 완료 상태로 둔다.
+    const remaining = m.role === 'owner' ? 0 : Math.max(owed - paid, 0);
     return { ...m, owed, paid, remaining, settled: remaining <= 0 };
   }) : null;
+  // 총무는 항상 맨 위, 나머지는 정산 완료 먼저·미완료 나중(구분선으로 구분) — 전체 보기와 동일한 정렬.
+  const itemOwnerRow = itemRows?.find((r) => r.role === 'owner');
+  const itemRest = itemRows ? itemRows.filter((r) => r.role !== 'owner') : [];
+  const itemSettledRest = itemRest.filter((r) => r.settled);
+  const itemUnsettledRest = itemRest.filter((r) => !r.settled);
+  const itemSortedRows = itemRows ? [itemOwnerRow, ...itemSettledRest, ...itemUnsettledRest].filter(Boolean) : null;
+  const itemDividerIdx = itemSortedRows ? itemSortedRows.findIndex((r) => r.role !== 'owner' && !r.settled) : -1;
   // 1인당 몫은 내림으로 나누고, 남는 1원 단위 자투리는 짤짤이로 모은다(항상 0 이상).
   const flatShare = Math.floor(totalPaid / memberCount);
   const defaultShareOf = (m) => {
@@ -441,16 +449,8 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
 
   return (
     <>
-      <div className="summary-card" style={{ marginTop: 14 }}>
-        <div className="col"><div className="lbl">총 결제 금액</div><div className="val expense">{fmtNum(summaryTotalPaid)}</div></div>
-        <div className="divider" />
-        <div className="col"><div className="lbl">정산 완료 금액</div><div className="val income">{fmtNum(summaryTotalSettled)}</div></div>
-        <div className="divider" />
-        <div className="col"><div className="lbl">남은 정산 금액</div><div className="val">{fmtNum(summaryTotalRemaining)}</div></div>
-      </div>
-
       {sortedPayments.length > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 14 }}>
           <button
             type="button" aria-label="이전" disabled={selectedPaymentIdx === null}
             onClick={() => setSelectedPaymentIdx((i) => (i === null ? null : i === 0 ? null : i - 1))}
@@ -459,7 +459,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
             <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
           </button>
           <span style={{ fontSize: 12.5, fontWeight: 700, color: '#191722', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {selectedPayment ? `${itemLabelOf(selectedPayment)} (${fmtWon(selectedPayment.amount)})` : '전체'}
+            {selectedPayment ? itemLabelOf(selectedPayment) : '전체'}
           </span>
           <button
             type="button" aria-label="다음" disabled={selectedPaymentIdx === sortedPayments.length - 1}
@@ -471,27 +471,44 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
         </div>
       )}
 
+      <div className="summary-card" style={{ marginTop: sortedPayments.length > 1 ? 10 : 14 }}>
+        <div className="col"><div className="lbl">총 결제 금액</div><div className="val expense">{fmtNum(summaryTotalPaid)}</div></div>
+        <div className="divider" />
+        <div className="col"><div className="lbl">정산 완료 금액</div><div className="val income">{fmtNum(summaryTotalSettled)}</div></div>
+        <div className="divider" />
+        <div className="col"><div className="lbl">남은 정산 금액</div><div className="val">{fmtNum(summaryTotalRemaining)}</div></div>
+      </div>
+
       {selectedPayment ? (
-        itemRows.map((m) => (
-          <div key={m.id} className="settle-card" style={{ marginTop: 10 }}>
-            <div style={{ padding: '14px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
-                  {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>총무</span>}
-                  {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
-                </div>
-                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
+        itemSortedRows.map((m, idx) => (
+          <Fragment key={m.id}>
+            {idx === itemDividerIdx && (
+              <div className="settle-divider">
+                <span className="settle-divider-line" />
+                <span className="settle-divider-pill">정산 미완료</span>
+                <span className="settle-divider-line" />
               </div>
-              <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
-                {m.settled ? (
-                  <>{fmtNum(m.paid)} 원 입금 · 정산 완료</>
-                ) : (
-                  <>{fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span></>
-                )}
+            )}
+            <div className="settle-card" style={{ marginTop: 10 }}>
+              <div style={{ padding: '14px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
+                    {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>총무</span>}
+                    {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
+                  </div>
+                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
+                </div>
+                <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
+                  {m.settled ? (
+                    <>{fmtNum(m.paid)} 원 입금 · 정산 완료</>
+                  ) : (
+                    <>{fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span></>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          </Fragment>
         ))
       ) : sortedRows.length === 0 ? <div className="empty">멤버가 없습니다.</div> : sortedRows.map((m, idx) => {
         if (m.isLeftover) {
