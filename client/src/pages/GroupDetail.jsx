@@ -67,7 +67,7 @@ export default function GroupDetail() {
 function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, user, reloadMembers }) {
   const settlementMode = isSettlement(group.category);
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') || 'ledger';
+  const tab = params.get('tab') || (settlementMode ? 'settlement' : 'ledger');
   const setTab = useCallback((t) => {
     const next = new URLSearchParams(params);
     next.set('tab', t);
