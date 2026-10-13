@@ -500,7 +500,12 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                   <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
                 </div>
                 <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
-                  {m.settled ? (
+                  {m.role === 'owner' ? (() => {
+                    const itemOwnerRemaining = Math.max(Number(selectedPayment.amount) - m.owed - summaryTotalSettled, 0);
+                    return itemOwnerRemaining <= 0
+                      ? <>{fmtNum(selectedPayment.amount)} 원 결제 · <span style={{ color: 'var(--income)' }}>정산 완료</span></>
+                      : <>{fmtNum(selectedPayment.amount)} 원 결제 · 남은 금액 {fmtNum(itemOwnerRemaining)} 원</>;
+                  })() : m.settled ? (
                     <>{fmtNum(m.paid)} 원 입금 · 정산 완료</>
                   ) : (
                     <>{fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span></>
