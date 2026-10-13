@@ -1059,16 +1059,24 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
   const editing = !!initial;
   const isSettleMode = defaultCategoryName === '정산';
   const settleContentDefault = groupName ? `${groupName} 정산` : '정산';
-  // 총무가 정산 그룹 입금 내역을 새로 등록할 때만: 정산 대상을 여러 개 골라 한 번에 입금 처리
-  // (정산 탭에서 "입금 완료"로 건너오면 presetSettleRows 로 결제 건별 행이 미리 채워진다).
-  // (수정 화면은 이미 저장된 입금 1건 = 정산 대상 1건이므로 기존 단일 선택 UI를 그대로 쓴다.)
-  const multiSettle = isOwner && isSettleMode && !editing;
+  // 수정 화면인데 정산 대상 여러 건이 items 로 저장돼 있으면(정산 일괄/건별 완료로 합쳐 생성된 입금
+  // 내역) 그 건들도 내용/금액 표로 보여주고 수정할 수 있게 한다.
+  const editingHasItems = editing && Array.isArray(initial?.items) && initial.items.length > 1;
+  // 총무가 정산 그룹 입금 내역을 새로 등록할 때, 또는 위처럼 건별 내역이 있는 입금을 수정할 때:
+  // 정산 대상을 여러 개 골라 한 번에 입금 처리(정산 탭에서 "입금 완료"로 건너오면 presetSettleRows 로
+  // 결제 건별 행이 미리 채워진다). 그 외 수정 화면은 기존 단일 선택 UI를 그대로 쓴다.
+  const multiSettle = isOwner && isSettleMode && (!editing || editingHasItems);
   const settleTargetLabel = (x) => x?.content || x?.category_name || '지출';
   // 행의 "내용" 칸: targetId 가 선택된 행이면 정산 대상, 아니면 name 에 적은 자유 텍스트(분류가 정산이
   // 아닐 때 사용 — isLeaderSettlement 참고)
-  const [settleRows, setSettleRows] = useState(() => (presetSettleRows?.length
-    ? presetSettleRows.map((r) => ({ targetId: r.targetId != null ? String(r.targetId) : '', name: '', amount: String(r.amount) }))
-    : [{ targetId: '', name: '', amount: '' }]));
+  const [settleRows, setSettleRows] = useState(() => {
+    if (editingHasItems) {
+      return initial.items.map((it) => ({ targetId: it.targetId != null ? String(it.targetId) : '', name: it.label || '', amount: String(it.amount) }));
+    }
+    return presetSettleRows?.length
+      ? presetSettleRows.map((r) => ({ targetId: r.targetId != null ? String(r.targetId) : '', name: '', amount: String(r.amount) }))
+      : [{ targetId: '', name: '', amount: '' }];
+  });
   useEffect(() => {
     if (!multiSettle || settleRows.length !== 1 || settleRows[0].targetId || recentExpenses.length !== 1) return;
     setSettleRows([{ targetId: String(recentExpenses[0].id), name: '', amount: String(recentExpenses[0].amount) }]);
