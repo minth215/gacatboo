@@ -73,10 +73,6 @@ export default function SettingsExport() {
     <div style={{ padding: '44px 0 32px' }}>
       <PageHeader title="내보내기" flat />
 
-      <p style={{ marginTop: 14, fontSize: 12, color: '#a29ead', lineHeight: 1.5 }}>
-        선택한 범위의 데이터를 JSON 파일로 내보냅니다. 다른 계정으로 옮길 때 가져오기 기능에서 사용할 수 있습니다.
-      </p>
-
       <div className="tx-daycard" style={{ marginTop: 14 }}>
         {SCOPES.map((s, i) => (
           <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5' }}>

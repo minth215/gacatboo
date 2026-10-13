@@ -1094,4 +1094,113 @@ export const db = {
   async deleteHoliday(dateStr) {
     return unwrap(await supabase.from('kr_holidays').delete().eq('date', dateStr));
   },
+
+  // ---------- 백업 가져오기(설정 > 내보내기로 만든 JSON 복원) ----------
+  // 그룹은 소유권/멤버 구성이 다른 계정으로 그대로 옮겨지지 않아 가져오기 대상에서 제외한다
+  // (export 쪽 listMyGroupsExport 주석 참고). 그 외 범위는 새 id 로 다시 만들고, 서로 참조하는
+  // id(분류/원천/반복규칙)는 옛id→새id 매핑표로 바꿔 끼워 넣는다.
+  async importBackup(userId, payload) {
+    if (payload?.app !== 'gacatboo' || !payload?.data) throw new Error('유효하지 않은 백업 파일입니다.');
+    const data = payload.data;
+    const summary = {};
+
+    // 1) 원천: 최상위 먼저 만들어 옛id→새id 매핑을 얻은 뒤, 자식의 parent_id 를 그 매핑으로 바꿔 넣는다.
+    const sourceIdMap = {};
+    if (Array.isArray(data.sources) && data.sources.length) {
+      const tops = data.sources.filter((s) => s.parent_id == null);
+      const children = data.sources.filter((s) => s.parent_id != null);
+      for (const s of tops) {
+        const row = unwrap(await supabase.from('sources').insert({ user_id: userId, name: s.name, parent_id: null, sort_order: s.sort_order ?? 0 }).select().single());
+        sourceIdMap[s.id] = row.id;
+      }
+      for (const s of children) {
+        const row = unwrap(await supabase.from('sources').insert({ user_id: userId, name: s.name, parent_id: sourceIdMap[s.parent_id] ?? null, sort_order: s.sort_order ?? 0 }).select().single());
+        sourceIdMap[s.id] = row.id;
+      }
+      summary.sources = tops.length + children.length;
+    }
+
+    // 2) 수입/지출 분류
+    const categoryIdMap = {};
+    const catRows = [...(data.income_categories || []), ...(data.expense_categories || [])];
+    for (const c of catRows) {
+      const row = unwrap(await supabase.from('categories').insert({ user_id: userId, type: c.type, name: c.name, emoji: c.emoji || '', color: c.color || '', sort_order: c.sort_order ?? 0 }).select().single());
+      categoryIdMap[c.id] = row.id;
+    }
+    if (catRows.length) summary.categories = catRows.length;
+
+    // 3) 분류별 예산(매핑에 없는 분류를 참조하던 행은 건너뜀)
+    if (Array.isArray(data.category_budgets) && data.category_budgets.length) {
+      const rows = data.category_budgets.filter((b) => categoryIdMap[b.category_id])
+        .map((b) => ({ user_id: userId, category_id: categoryIdMap[b.category_id], year: b.year, month: b.month, amount: b.amount }));
+      if (rows.length) unwrap(await supabase.from('category_budgets').insert(rows));
+      summary.category_budgets = rows.length;
+    }
+
+    // 4) 카드 실적 구간(원천 매핑이 없으면 건너뜀)
+    if (Array.isArray(data.card_benefit_tiers) && data.card_benefit_tiers.length) {
+      const rows = data.card_benefit_tiers.filter((t) => sourceIdMap[t.source_id])
+        .map((t) => ({ user_id: userId, source_id: sourceIdMap[t.source_id], threshold: t.threshold, benefit: t.benefit, sort_order: t.sort_order ?? 0 }));
+      if (rows.length) unwrap(await supabase.from('card_benefit_tiers').insert(rows));
+      summary.card_benefit_tiers = rows.length;
+    }
+
+    // 5) 친구 분류 + 친구(friend_user_id 는 전역 프로필 id라 매핑 없이 그대로 유지)
+    const friendGroupIdMap = {};
+    if (Array.isArray(data.friend_groups) && data.friend_groups.length) {
+      for (const g of data.friend_groups) {
+        const row = unwrap(await supabase.from('friend_groups').insert({ user_id: userId, name: g.name, sort_order: g.sort_order ?? 0 }).select().single());
+        friendGroupIdMap[g.id] = row.id;
+      }
+      summary.friend_groups = data.friend_groups.length;
+    }
+    if (Array.isArray(data.friends) && data.friends.length) {
+      const rows = data.friends.map((f) => ({
+        user_id: userId, friend_user_id: f.friend_user_id || null, nickname: f.nickname || '',
+        group_id: f.group_id != null ? (friendGroupIdMap[f.group_id] ?? null) : null, sort_order: f.sort_order ?? 0,
+      }));
+      unwrap(await supabase.from('friends').insert(rows));
+      summary.friends = rows.length;
+    }
+
+    // 6) 반복 규칙(그룹에 연결된 규칙은 그룹 자체를 가져오지 않으므로 제외하고 개인 규칙만 복원)
+    const recurringIdMap = {};
+    const personalRules = (data.recurring_rules || []).filter((r) => !r.group_id);
+    for (const r of personalRules) {
+      const row = unwrap(await supabase.from('recurring_rules').insert({
+        user_id: userId, type: r.type, amount: r.amount, target: 'transaction',
+        category_id: r.category_id != null ? (categoryIdMap[r.category_id] ?? null) : null,
+        category_name: r.category_name || '', category_emoji: r.category_emoji || '', category_color: r.category_color || '',
+        source_id: r.source_id != null ? (sourceIdMap[r.source_id] ?? null) : null, source_name: r.source_name || '',
+        content: r.content || '', memo: r.memo || '', start_date: r.start_date, end_date: r.end_date || null,
+        freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [],
+        label: r.label || '', active: r.active, business_day_rule: r.business_day_rule || 'none',
+      }).select().single());
+      recurringIdMap[r.id] = row.id;
+    }
+    if (personalRules.length) summary.recurring_rules = personalRules.length;
+
+    // 7) 개인 가계부(묶어서 저장 — 한 번에 너무 많이 보내면 실패할 수 있음)
+    if (Array.isArray(data.transactions) && data.transactions.length) {
+      const rows = data.transactions.map((t) => ({
+        user_id: userId, created_by: userId, group_id: null, type: t.type, date: t.date, amount: t.amount,
+        category_id: t.category_id != null ? (categoryIdMap[t.category_id] ?? null) : null,
+        category_name: t.category_name || '', category_emoji: t.category_emoji || '', category_color: t.category_color || '',
+        source_id: t.source_id != null ? (sourceIdMap[t.source_id] ?? null) : null, source_name: t.source_name || '',
+        to_source_id: t.to_source_id != null ? (sourceIdMap[t.to_source_id] ?? null) : null, to_source_name: t.to_source_name || '',
+        content: t.content || '', memo: t.memo || '',
+        input_currency: t.input_currency || null, input_amount: t.input_amount ?? null, fx_rate: t.fx_rate ?? null,
+        items: t.items || null,
+        recurring_id: t.recurring_id != null ? (recurringIdMap[t.recurring_id] ?? null) : null,
+      }));
+      const CHUNK = 500;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        unwrap(await supabase.from('transactions').insert(rows.slice(i, i + CHUNK)));
+      }
+      summary.transactions = rows.length;
+    }
+
+    if (Array.isArray(data.groups) && data.groups.length) summary.groups_skipped = data.groups.length;
+    return summary;
+  },
 };
