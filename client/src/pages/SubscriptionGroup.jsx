@@ -95,6 +95,13 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  // 정산 대상 결제 내역이 2건 이상이면 컨트롤바로 "전체"(기본)와 개별 결제 건을 넘겨볼 수 있다.
+  // null=전체, 숫자면 sortedPayments 의 인덱스(날짜 오래된 순 → 1번째/2번째...).
+  const [selectedPaymentIdx, setSelectedPaymentIdx] = useState(null);
+  // 결제 내역이 삭제되는 등으로 인덱스가 범위를 벗어나면 "전체"로 되돌린다.
+  useEffect(() => {
+    if (selectedPaymentIdx != null && selectedPaymentIdx >= payments.length) setSelectedPaymentIdx(null);
+  }, [payments.length, selectedPaymentIdx]);
   const [payOpen, setPayOpen] = useState(null); // 정산 미완료 본인이 자기 카드를 눌렀을 때 뜨는 송금 안내 모달 대상
   const [settleDateOpen, setSettleDateOpen] = useState(false); // "정산 일괄 완료" 입금 날짜 선택 모달
   // 짤짤이를 미정산 상태(입금 내역 없음)에서 삭제하면 DB 에는 지울 게 없어 화면에서만
@@ -125,6 +132,21 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     }).catch(() => setSplitByTx({}));
   }, [payments]);
   const hasAnySplit = payments.some((p) => splitByTx[p.id]);
+  // 정산 대상 결제 내역이 2건 이상일 때만 "전체"/개별 건 넘겨보기 컨트롤바를 보여준다.
+  // 순서는 날짜가 오래된 순(날짜 같으면 id 순)으로 고정해 "1번째/2번째"가 항상 같은 건을 가리키게 한다.
+  const sortedPayments = [...payments].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id));
+  const selectedPayment = selectedPaymentIdx != null ? sortedPayments[selectedPaymentIdx] : null;
+  const itemLabelOf = (p) => p?.content || p?.category_name || '지출';
+  // 선택한 건 하나만 보는 뷰: 그 건의 참여 멤버/분담액(없으면 전체 균등분배로 대체)과,
+  // 그 건을 정산 대상으로 명시한 입금만 반영한다(정산 대상을 지정하지 않은 입금은 집계되지 않음).
+  const itemRows = selectedPayment ? realMembers.map((m) => {
+    const split = splitByTx[selectedPayment.id];
+    const owed = split ? (split[m.id] || 0) : Math.floor(Number(selectedPayment.amount) / memberCount);
+    const paid = deposits.filter((d) => d.member_id === m.id && d.leader_settlement_target_id === selectedPayment.id)
+      .reduce((s, d) => s + Number(d.amount), 0);
+    const remaining = Math.max(owed - paid, 0);
+    return { ...m, owed, paid, remaining, settled: remaining <= 0 };
+  }) : null;
   // 1인당 몫은 내림으로 나누고, 남는 1원 단위 자투리는 짤짤이로 모은다(항상 0 이상).
   const flatShare = Math.floor(totalPaid / memberCount);
   const defaultShareOf = (m) => {
@@ -412,17 +434,66 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const withScheme = (v) => (v && !/^https?:\/\//i.test(v) ? `https://${v}` : v);
   const kakaopayHref = withScheme((group?.owner_kakaopay_link || '').trim());
 
+  const summaryTotalPaid = selectedPayment ? Number(selectedPayment.amount) : totalPaid;
+  const itemNonOwnerRows = itemRows ? itemRows.filter((r) => r.role !== 'owner') : null;
+  const summaryTotalSettled = selectedPayment ? itemNonOwnerRows.reduce((s, r) => s + r.paid, 0) : totalSettled;
+  const summaryTotalRemaining = selectedPayment ? itemNonOwnerRows.reduce((s, r) => s + r.remaining, 0) : totalRemaining;
+
   return (
     <>
       <div className="summary-card" style={{ marginTop: 14 }}>
-        <div className="col"><div className="lbl">총 결제 금액</div><div className="val expense">{fmtNum(totalPaid)}</div></div>
+        <div className="col"><div className="lbl">총 결제 금액</div><div className="val expense">{fmtNum(summaryTotalPaid)}</div></div>
         <div className="divider" />
-        <div className="col"><div className="lbl">정산 완료 금액</div><div className="val income">{fmtNum(totalSettled)}</div></div>
+        <div className="col"><div className="lbl">정산 완료 금액</div><div className="val income">{fmtNum(summaryTotalSettled)}</div></div>
         <div className="divider" />
-        <div className="col"><div className="lbl">남은 정산 금액</div><div className="val">{fmtNum(totalRemaining)}</div></div>
+        <div className="col"><div className="lbl">남은 정산 금액</div><div className="val">{fmtNum(summaryTotalRemaining)}</div></div>
       </div>
 
-      {sortedRows.length === 0 ? <div className="empty">멤버가 없습니다.</div> : sortedRows.map((m, idx) => {
+      {sortedPayments.length > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 12 }}>
+          <button
+            type="button" aria-label="이전" disabled={selectedPaymentIdx === null}
+            onClick={() => setSelectedPaymentIdx((i) => (i === null ? null : i === 0 ? null : i - 1))}
+            className="settle-pencil-btn" style={{ opacity: selectedPaymentIdx === null ? 0.3 : 1 }}
+          >
+            <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+          </button>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: '#191722', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {selectedPayment ? `${itemLabelOf(selectedPayment)} (${fmtWon(selectedPayment.amount)})` : '전체'}
+          </span>
+          <button
+            type="button" aria-label="다음" disabled={selectedPaymentIdx === sortedPayments.length - 1}
+            onClick={() => setSelectedPaymentIdx((i) => (i === null ? 0 : Math.min(i + 1, sortedPayments.length - 1)))}
+            className="settle-pencil-btn" style={{ opacity: selectedPaymentIdx === sortedPayments.length - 1 ? 0.3 : 1 }}
+          >
+            <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+          </button>
+        </div>
+      )}
+
+      {selectedPayment ? (
+        itemRows.map((m) => (
+          <div key={m.id} className="settle-card" style={{ marginTop: 10 }}>
+            <div style={{ padding: '14px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
+                  {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>총무</span>}
+                  {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
+                </div>
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
+              </div>
+              <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
+                {m.settled ? (
+                  <>{fmtNum(m.paid)} 원 입금 · 정산 완료</>
+                ) : (
+                  <>{fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span></>
+                )}
+              </div>
+            </div>
+          </div>
+        ))
+      ) : sortedRows.length === 0 ? <div className="empty">멤버가 없습니다.</div> : sortedRows.map((m, idx) => {
         if (m.isLeftover) {
           // 짤짤이 카드는 정산 완료 여부와 무관하게 항상 같은 모습(금액 + 삭제 아이콘)을
           // 유지한다. 완료/미완료는 구분선 기준 위/아래 위치로만 나타낸다.
@@ -599,11 +670,11 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
         );
       })}
 
-      {isOwner && underCollected ? (
+      {!selectedPayment && isOwner && underCollected ? (
         <p style={{ textAlign: 'center', color: 'var(--expense)', fontSize: 12.5, fontWeight: 700, marginTop: 14 }}>
           정산 금액이 총 결제 금액보다 적습니다.
         </p>
-      ) : isOwner && anyUnsettled && (
+      ) : !selectedPayment && isOwner && anyUnsettled && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <button type="button" className="btn-settle-all" style={{ flex: 1, height: 48, marginTop: 0 }} disabled={bulkBusy} onClick={openSettleAll}>
             {bulkBusy ? '처리 중…' : '정산 일괄 완료'}
