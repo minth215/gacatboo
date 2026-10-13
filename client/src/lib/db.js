@@ -1096,8 +1096,11 @@ export const db = {
   },
 
   // ---------- 백업 가져오기(설정 > 내보내기로 만든 JSON 복원) ----------
-  // 그룹은 소유권/멤버 구성이 다른 계정으로 그대로 옮겨지지 않아 가져오기 대상에서 제외한다
-  // (export 쪽 listMyGroupsExport 주석 참고). 그 외 범위는 새 id 로 다시 만들고, 서로 참조하는
+  // 본인이 총무/총대였던 그룹(owner_id = 내보낸 계정)만 가져온다. 다른 사람이 총무인 그룹은
+  // 소유권을 옮길 수 없어 제외한다. 가져온 그룹의 멤버 중 아이디(user_id)가 연결돼 있던 멤버는
+  // 그 아이디가 이 계정과 무관한 다른 사람의 것이라 user_id 를 비워 "외부" 멤버로 바꿔 넣는다
+  // (본인이었던 총무 멤버 행만 새 계정 id로 연결). 결제/입금/공금 등 활동 내역은 여러 멤버가
+  // 공유하는 데이터라 함께 가져오지 않는다. 그 외 범위는 새 id 로 다시 만들고, 서로 참조하는
   // id(분류/원천/반복규칙)는 옛id→새id 매핑표로 바꿔 끼워 넣는다.
   async importBackup(userId, payload) {
     if (payload?.app !== 'gacatboo' || !payload?.data) throw new Error('유효하지 않은 백업 파일입니다.');
@@ -1200,7 +1203,34 @@ export const db = {
       summary.transactions = rows.length;
     }
 
-    if (Array.isArray(data.groups) && data.groups.length) summary.groups_skipped = data.groups.length;
+    // 8) 내가 총무/총대였던 그룹 + 멤버(연결된 아이디는 비워서 외부 멤버로)
+    if (Array.isArray(data.groups) && data.groups.length) {
+      const exportedBy = payload.exported_by;
+      const ownedGroups = exportedBy ? data.groups.filter((g) => g.owner_id === exportedBy) : [];
+      const groupIdMap = {};
+      for (const g of ownedGroups) {
+        const ownerMember = (data.group_members || []).find((m) => m.group_id === g.id && m.role === 'owner');
+        const newGroup = await db.createGroup(userId, {
+          name: g.name, description: g.description, category: g.category, category_emoji: g.category_emoji,
+          color: g.color, start_date: g.start_date, end_date: g.end_date, nickname: ownerMember?.nickname || '',
+        });
+        groupIdMap[g.id] = newGroup.id;
+      }
+      if (ownedGroups.length) {
+        const otherMembers = (data.group_members || []).filter((m) => groupIdMap[m.group_id] && m.role !== 'owner');
+        if (otherMembers.length) {
+          const rows = otherMembers.map((m) => ({
+            group_id: groupIdMap[m.group_id], user_id: null, role: 'member', // 연결된 아이디였어도 비움(외부 멤버로 표기)
+            nickname: m.nickname || '', start_date: m.start_date, end_date: m.end_date || null, contact: m.contact || '',
+          }));
+          unwrap(await supabase.from('group_members').insert(rows));
+        }
+        summary.groups = ownedGroups.length;
+        summary.group_members = otherMembers.length + ownedGroups.length;
+      }
+      const skipped = data.groups.length - ownedGroups.length;
+      if (skipped > 0) summary.groups_skipped = skipped;
+    }
     return summary;
   },
 };

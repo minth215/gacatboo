@@ -55,7 +55,7 @@ export default function SettingsExport() {
       if (scopes.sources) data.sources = (await db.listSources()).flat;
       if (scopes.cardBenefits) data.card_benefit_tiers = await db.listCardBenefits();
 
-      const payload = { app: 'gacatboo', version: 1, exported_at: new Date().toISOString(), scopes: selected, data };
+      const payload = { app: 'gacatboo', version: 1, exported_at: new Date().toISOString(), exported_by: user.id, scopes: selected, data };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

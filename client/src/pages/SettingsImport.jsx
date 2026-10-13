@@ -7,6 +7,7 @@ import Spinner from '../components/Spinner.jsx';
 const SUMMARY_LABELS = {
   sources: '원천', categories: '수입/지출 분류', category_budgets: '예산', card_benefit_tiers: '카드 실적 구간',
   friend_groups: '친구 분류', friends: '친구', recurring_rules: '반복 규칙', transactions: '가계부 항목',
+  groups: '그룹', group_members: '그룹 멤버',
 };
 
 export default function SettingsImport() {
@@ -65,7 +66,7 @@ export default function SettingsImport() {
           ))}
           {result.groups_skipped > 0 && (
             <div style={{ padding: '12px 14px', borderTop: '1.5px solid #f2f1f5', fontSize: 11.5, color: '#a29ead' }}>
-              그룹 데이터 {result.groups_skipped}건은 다른 멤버와 공유되는 정보라 가져오기에서 제외됐습니다. 필요하면 직접 다시 만들어 주세요.
+              내가 총무/총대가 아니었던 그룹 {result.groups_skipped}건은 소유권을 옮길 수 없어 제외됐습니다. 필요하면 직접 다시 만들어 주세요.
             </div>
           )}
         </div>
