@@ -109,12 +109,17 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
       {header}
 
       <div className="underline-tabs">
-        <button className={tab === 'ledger' ? 'active' : ''} onClick={() => setTab('ledger')}>{settlementMode ? '결제 내역' : '내역'}</button>
-        {settlementMode && <button className={tab === 'deposits' ? 'active' : ''} onClick={() => setTab('deposits')}>입금 내역</button>}
         {settlementMode ? (
-          <button className={tab === 'settlement' ? 'active' : ''} onClick={() => setTab('settlement')}>정산</button>
+          <>
+            <button className={tab === 'settlement' ? 'active' : ''} onClick={() => setTab('settlement')}>정산 현황</button>
+            <button className={tab === 'ledger' ? 'active' : ''} onClick={() => setTab('ledger')}>결제 내역</button>
+            <button className={tab === 'deposits' ? 'active' : ''} onClick={() => setTab('deposits')}>입금 내역</button>
+          </>
         ) : (
-          <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>통계</button>
+          <>
+            <button className={tab === 'ledger' ? 'active' : ''} onClick={() => setTab('ledger')}>내역</button>
+            <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>통계</button>
+          </>
         )}
         <button className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>멤버</button>
       </div>
