@@ -138,13 +138,21 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const sortedPayments = [...payments].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id));
   const selectedPayment = selectedPaymentIdx != null ? sortedPayments[selectedPaymentIdx] : null;
   const itemLabelOf = (p) => p?.content || p?.category_name || '지출';
+  // 한 입금 내역이 여러 정산 대상을 한 번에 처리한 경우(items) 특정 건에 해당하는 금액만 뽑아낸다.
+  // items 가 없는(단일 대상) 입금은 기존처럼 leader_settlement_target_id 가 그 건과 일치할 때 전액으로 본다.
+  const amountForTarget = (d, paymentId) => {
+    if (Array.isArray(d.items) && d.items.length) {
+      return d.items.filter((it) => it.targetId === paymentId).reduce((s, it) => s + Number(it.amount || 0), 0);
+    }
+    return d.leader_settlement_target_id === paymentId ? Number(d.amount) : 0;
+  };
   // 선택한 건 하나만 보는 뷰: 그 건의 참여 멤버/분담액(없으면 전체 균등분배로 대체)과,
   // 그 건을 정산 대상으로 명시한 입금만 반영한다(정산 대상을 지정하지 않은 입금은 집계되지 않음).
   const itemRows = selectedPayment ? realMembers.map((m) => {
     const split = splitByTx[selectedPayment.id];
     const owed = split ? (split[m.id] || 0) : Math.floor(Number(selectedPayment.amount) / memberCount);
-    const paid = deposits.filter((d) => d.member_id === m.id && d.leader_settlement_target_id === selectedPayment.id)
-      .reduce((s, d) => s + Number(d.amount), 0);
+    const paid = deposits.filter((d) => d.member_id === m.id)
+      .reduce((s, d) => s + amountForTarget(d, selectedPayment.id), 0);
     // 총무는 자신에게 입금하지 않으므로 각 건에서도 항상 정산 완료 상태로 둔다.
     const remaining = m.role === 'owner' ? 0 : Math.max(owed - paid, 0);
     return { ...m, owed, paid, remaining, settled: remaining <= 0 };
@@ -330,8 +338,8 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     let settleRows = sortedPayments.map((p) => {
       const split = splitByTx[p.id];
       const owed = split ? (split[m.id] || 0) : Math.floor(Number(p.amount) / memberCount);
-      const paidForThis = deposits.filter((d) => d.member_id === m.id && d.leader_settlement_target_id === p.id)
-        .reduce((s, d) => s + Number(d.amount), 0);
+      const paidForThis = deposits.filter((d) => d.member_id === m.id)
+        .reduce((s, d) => s + amountForTarget(d, p.id), 0);
       return { targetId: p.id, amount: Math.max(owed - paidForThis, 0) };
     }).filter((r) => r.amount > 0);
     if (!settleRows.length) settleRows = [{ targetId: settleTargetPayment?.id || null, amount: m.remaining }];
@@ -345,22 +353,25 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     nav(`/new?group=${gid}&kind=deposit`, { state: { presetMemberId: m.id, presetSettleRows: buildSettleRows(m) } });
   };
 
-  // "정산 일괄 완료": 여러 멤버를 한 번에 처리하므로 폼으로 보낼 수 없어, 입금 내역 탭에서
-  // 건별로 여러 행을 입력했을 때와 동일하게 결제 건별로 입금 내역을 각각 만든다.
+  // "정산 일괄 완료": 멤버별로 입금 내역을 하나만 만들고, 정산 대상이 2건 이상이면 그 안에
+  // 건별 내역(내용/금액)을 items 로 함께 저장한다(입금 내역 탭의 내용/금액 표에 행으로 보임).
   const createSettleDepositsAll = async (m, date) => {
     const settleRows = buildSettleRows(m);
     const multi = settleRows.length > 1;
-    for (const r of settleRows) {
-      const target = r.targetId ? sortedPayments.find((p) => p.id === r.targetId) : null;
-      await db.createDeposit({
-        group_id: gid, member_id: m.id, date, amount: r.amount, periods: 1,
-        category_name: target?.category_name || '정산', category_emoji: target?.category_emoji || '',
-        leader_category_name: '정산', leader_category_emoji: settleIncomeCat?.emoji || '',
-        leader_settlement_target_id: r.targetId || null,
-        deposit_source_name: sub?.deposit_source_name || '',
-        content: multi ? settleContentDefault : (target ? `${itemLabelOf(target)} 정산` : settleContentDefault),
-      });
-    }
+    const target = !multi && settleRows[0]?.targetId ? sortedPayments.find((p) => p.id === settleRows[0].targetId) : null;
+    const amount = settleRows.reduce((s, r) => s + r.amount, 0);
+    await db.createDeposit({
+      group_id: gid, member_id: m.id, date, amount, periods: 1,
+      category_name: target?.category_name || '정산', category_emoji: target?.category_emoji || '',
+      leader_category_name: '정산', leader_category_emoji: settleIncomeCat?.emoji || '',
+      leader_settlement_target_id: multi ? null : (settleRows[0]?.targetId || null),
+      deposit_source_name: sub?.deposit_source_name || '',
+      content: multi ? settleContentDefault : (target ? `${itemLabelOf(target)} 정산` : settleContentDefault),
+      items: multi ? settleRows.map((r) => {
+        const t = r.targetId ? sortedPayments.find((p) => p.id === r.targetId) : null;
+        return { targetId: r.targetId || null, label: t ? itemLabelOf(t) : '정산', amount: r.amount };
+      }) : null,
+    });
   };
 
   // 짤짤이(자투리) 입금 완료: 실제 group_members 행이 아직 없으면 이 시점에 만든다.
@@ -1260,18 +1271,39 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
       const lCat = f.lCatId === KEEP ? { name: initial?.leader_category_name, emoji: initial?.leader_category_emoji } : incomeCats.find((c) => String(c.id) === f.lCatId);
       const sharedContent = f.content.trim() || multiAutoContent;
       try {
-        for (const r of rows) {
-          const target = r.targetId ? recentExpenses.find((x) => String(x.id) === r.targetId) : null;
+        if (isLeaderSettlement) {
+          // 정산 대상별 행 → 입금 내역 1건으로 합치고, 2건 이상이면 건별 세부 내용을
+          // items 로 함께 저장한다(멤버별 입금 내역이 결제 건 수만큼 따로 생기지 않게 함).
+          const target = rows.length === 1 ? recentExpenses.find((x) => String(x.id) === rows[0].targetId) : null;
           await onSave({
-            member_id: Number(f.memberId), date: f.date, amount: Math.round(Number(r.amount)), periods: 1,
+            member_id: Number(f.memberId), date: f.date,
+            amount: rows.reduce((s, r) => s + Math.round(Number(r.amount)), 0), periods: 1,
             category_name: target?.category_name || defaultCategoryName, category_emoji: target?.category_emoji || '',
             source_id: null, source_name: '',
             deposit_source_name: l_source,
             leader_category_name: lCat?.name || '', leader_category_emoji: lCat?.emoji || '',
-            leader_settlement_target_id: target ? Number(r.targetId) : null,
+            leader_settlement_target_id: rows.length === 1 ? Number(rows[0].targetId) : null,
             content: sharedContent, memo: f.memo,
+            items: rows.length > 1 ? rows.map((r) => ({
+              targetId: Number(r.targetId),
+              label: settleTargetLabel(recentExpenses.find((x) => String(x.id) === r.targetId)),
+              amount: Math.round(Number(r.amount)),
+            })) : null,
             recurrence: null, backfillPast: false,
           });
+        } else {
+          for (const r of rows) {
+            await onSave({
+              member_id: Number(f.memberId), date: f.date, amount: Math.round(Number(r.amount)), periods: 1,
+              category_name: defaultCategoryName, category_emoji: '',
+              source_id: null, source_name: '',
+              deposit_source_name: l_source,
+              leader_category_name: lCat?.name || '', leader_category_emoji: lCat?.emoji || '',
+              leader_settlement_target_id: null,
+              content: sharedContent, memo: f.memo,
+              recurrence: null, backfillPast: false,
+            });
+          }
         }
         onSaved?.();
       } catch (e) { setErr(e.message); setBusy(false); }

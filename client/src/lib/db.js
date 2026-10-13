@@ -638,6 +638,7 @@ export const db = {
       p_deposit_source_name: p.deposit_source_name || '', p_content: p.content || '', p_memo: p.memo || '',
       p_leader_category_name: p.leader_category_name || '', p_leader_category_emoji: p.leader_category_emoji || '',
       p_leader_settlement_target_id: p.leader_settlement_target_id || null,
+      p_items: p.items || null,
     });
     if (error) throw new Error(error.message);
 
@@ -694,6 +695,7 @@ export const db = {
       content: (p.content || '').trim(), memo: (p.memo || '').trim(),
       leader_category_name: p.leader_category_name || '', leader_category_emoji: p.leader_category_emoji || '',
       leader_settlement_target_id: p.leader_settlement_target_id || null,
+      ...(p.items !== undefined ? { items: p.items } : {}),
       ...(recurring_id ? { recurring_id } : {}),
     };
     const saved = unwrap(await supabase.from('subscription_deposits').update(patch).eq('id', id).select().single());
