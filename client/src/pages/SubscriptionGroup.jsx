@@ -354,6 +354,23 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     nav(`/new?group=${gid}&kind=deposit`, { state: { presetMemberId: m.id, presetSettleRows: buildSettleRows(m) } });
   };
 
+  // 개별 결제 건 보기에서 "입금 완료": 그 건 하나만 정산 대상으로 담아 폼으로 보낸다
+  // (내용/금액 표에 정산 대상이 하나만 들어감).
+  const markPaidForItem = (m) => {
+    if (m.remaining <= 0 || !selectedPayment) return;
+    nav(`/new?group=${gid}&kind=deposit`, { state: { presetMemberId: m.id, presetSettleRows: [{ targetId: selectedPayment.id, amount: m.remaining }] } });
+  };
+
+  // 개별 결제 건 보기에서 쓰는 단일 정산 대상 입금 생성(정산 일괄 완료/본인 입금 완료 공용).
+  const createItemSettleDeposit = (m, date = today()) => db.createDeposit({
+    group_id: gid, member_id: m.id, date, amount: m.remaining, periods: 1,
+    category_name: selectedPayment?.category_name || '정산', category_emoji: selectedPayment?.category_emoji || '',
+    leader_category_name: '정산', leader_category_emoji: settleIncomeCat?.emoji || '',
+    leader_settlement_target_id: selectedPayment?.id || null,
+    deposit_source_name: sub?.deposit_source_name || '',
+    content: selectedPayment ? `${itemLabelOf(selectedPayment)} 정산` : settleContentDefault,
+  });
+
   // "정산 일괄 완료": 멤버별로 입금 내역을 하나만 만들고, 정산 대상이 2건 이상이면 그 안에
   // 건별 내역(내용/금액)을 items 로 함께 저장한다(입금 내역 탭의 내용/금액 표에 행으로 보임).
   const createSettleDepositsAll = async (m, date) => {
@@ -407,11 +424,15 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   // 모달을 여는 것 자체가 이미 한 번의 확인 절차이므로 별도 confirm 은 두지 않는다.
   // (총대 전용 영역인 정산 대상 선택 UI가 없는 멤버 본인 화면이라 입금 내역 탭 폼으로는 보내지 않는다.)
   const confirmSelfPaid = async (m) => {
-    try { await createSettleDeposit(m); setPayOpen(null); loadDep(); } catch (e) { alert(e.message); }
+    try {
+      if (selectedPayment) await createItemSettleDeposit(m);
+      else await createSettleDeposit(m);
+      setPayOpen(null); loadDep();
+    } catch (e) { alert(e.message); }
   };
 
   const requestSettlement = async () => {
-    const targets = rows.filter((r) => r.role !== 'owner' && r.is_account && !r.settled);
+    const targets = (selectedPayment ? itemNonOwnerRows : nonOwnerRows).filter((r) => r.is_account && !r.settled);
     if (!targets.length) return alert('알림을 보낼 대상이 없습니다.');
     const link = `/groups/${gid}?tab=settlement`;
     await Promise.all(targets.map((t) => {
@@ -442,9 +463,35 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     finally { setBulkBusy(false); }
   };
 
+  // 개별 결제 건 보기의 "정산 일괄 완료": 그 건의 미완료 멤버들만, 그 건 하나만 정산 대상으로
+  // 각각 입금 내역을 만든다(짤짤이는 전체 결제 건을 아우르는 개념이라 여기선 다루지 않음).
+  const settleAllItem = async (date) => {
+    const targets = itemNonOwnerRows.filter((r) => !r.settled);
+    if (!targets.length) return;
+    setSettleDateOpen(false);
+    setBulkBusy(true);
+    try {
+      for (const m of targets) await createItemSettleDeposit(m, date);
+      loadDep();
+    } catch (e) { alert(e.message); }
+    finally { setBulkBusy(false); }
+  };
+
   // "정산 일괄 완료" 버튼: 바로 실행하지 않고 입금 날짜(오늘/결제일자)를 고르는 모달을 띄운다.
   // 단, 오늘 날짜와 결제일자가 같으면 두 선택지가 같은 결과이므로 모달 없이 바로 처리한다.
+  // 개별 결제 건 보기(selectedPayment)일 때는 그 건의 범위로만 좁혀서 처리한다.
   const openSettleAll = () => {
+    if (selectedPayment) {
+      const targets = itemNonOwnerRows.filter((r) => !r.settled);
+      if (!targets.length) return;
+      if (selectedPayment.date === today()) {
+        if (!confirm(`${targets.length} 명의 정산 내역을 일괄로 등록합니다.`)) return;
+        settleAllItem(today());
+        return;
+      }
+      setSettleDateOpen(true);
+      return;
+    }
     const targets = nonOwnerRows.filter((r) => !r.settled);
     const includeLeftover = !!(leftoverRow && !leftoverRow.settled && leftoverRow.remaining > 0);
     if (!targets.length && !includeLeftover) return;
@@ -494,6 +541,10 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const itemNonOwnerRows = itemRows ? itemRows.filter((r) => r.role !== 'owner') : null;
   const summaryTotalSettled = selectedPayment ? itemNonOwnerRows.reduce((s, r) => s + r.paid, 0) : totalSettled;
   const summaryTotalRemaining = selectedPayment ? itemNonOwnerRows.reduce((s, r) => s + r.remaining, 0) : totalRemaining;
+  // 개별 결제 건 보기에서도 "정산 일괄 완료"/"정산 요청하기" 버튼을 쓸 수 있어야 해서
+  // 전체 보기와 같은 조건을 그 건 범위로 좁혀서 따로 계산한다.
+  const itemAnyUnsettled = itemNonOwnerRows ? itemNonOwnerRows.some((r) => !r.settled) : false;
+  const itemHasAccountMember = itemNonOwnerRows ? itemNonOwnerRows.some((r) => r.is_account) : false;
 
   return (
     <>
@@ -528,41 +579,76 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
       </div>
 
       {selectedPayment ? (
-        itemSortedRows.map((m, idx) => (
-          <Fragment key={m.id}>
-            {idx === itemDividerIdx && (
-              <div className="settle-divider">
-                <span className="settle-divider-line" />
-                <span className="settle-divider-pill">정산 미완료</span>
-                <span className="settle-divider-line" />
+        itemSortedRows.map((m, idx) => {
+          const isMe = userId === m.user_id;
+          const itemSwipeForOwner = isOwner && m.role !== 'owner' && !m.settled;
+          const itemTapForSelf = !isOwner && isMe && m.role !== 'owner' && !m.settled;
+          const cardInner = (
+            <div style={{ padding: '14px 16px', background: '#fff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
+                  {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>총무</span>}
+                  {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
+                </div>
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
               </div>
-            )}
-            <div className="settle-card" style={{ marginTop: 10 }}>
-              <div style={{ padding: '14px 16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
-                    {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>총무</span>}
-                    {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
-                  </div>
-                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
-                </div>
-                <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
-                  {m.role === 'owner' ? (() => {
-                    const itemOwnerRemaining = Math.max(Number(selectedPayment.amount) - m.owed - summaryTotalSettled, 0);
-                    return itemOwnerRemaining <= 0
-                      ? <>{fmtNum(selectedPayment.amount)} 원 결제 · <span style={{ color: 'var(--income)' }}>정산 완료</span></>
-                      : <>{fmtNum(selectedPayment.amount)} 원 결제 · 남은 금액 {fmtNum(itemOwnerRemaining)} 원</>;
-                  })() : m.settled ? (
-                    <>{fmtNum(m.paid)} 원 입금 · 정산 완료</>
-                  ) : (
-                    <>{fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span></>
-                  )}
-                </div>
+              <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
+                {m.role === 'owner' ? (() => {
+                  const itemOwnerRemaining = Math.max(Number(selectedPayment.amount) - m.owed - summaryTotalSettled, 0);
+                  return itemOwnerRemaining <= 0
+                    ? <>{fmtNum(selectedPayment.amount)} 원 결제 · <span style={{ color: 'var(--income)' }}>정산 완료</span></>
+                    : <>{fmtNum(selectedPayment.amount)} 원 결제 · 남은 금액 {fmtNum(itemOwnerRemaining)} 원</>;
+                })() : m.settled ? (
+                  <>{fmtNum(m.paid)} 원 입금 · 정산 완료</>
+                ) : (
+                  <>{fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span></>
+                )}
               </div>
             </div>
-          </Fragment>
-        ))
+          );
+          const cardBox = <div className="settle-card">{cardInner}</div>;
+          return (
+            <Fragment key={m.id}>
+              {idx === itemDividerIdx && (
+                <div className="settle-divider">
+                  <span className="settle-divider-line" />
+                  <span className="settle-divider-pill">정산 미완료</span>
+                  <span className="settle-divider-line" />
+                </div>
+              )}
+              <div className="settle-swipe-wrap" style={{ marginTop: 10 }}>
+                {itemSwipeForOwner ? (
+                  <SwipeRow
+                    actionsWidth={104}
+                    actions={(progress) => (
+                      <div className="settle-swipe-actions" style={{ opacity: progress }}>
+                        <button type="button" className={`settle-icon-btn${m.is_account ? '' : ' is-disabled'}`} onClick={() => poke(m)} aria-label="콕 찌르기">
+                          <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 14a8 8 0 0 1-8 8" />
+                            <path d="M18 11v-1a2 2 0 0 0-2-2 2 2 0 0 0-2 2" />
+                            <path d="M14 10V9a2 2 0 0 0-2-2 2 2 0 0 0-2 2v1" />
+                            <path d="M10 9.5V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v10" />
+                            <path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+                          </svg>
+                        </button>
+                        <button type="button" className="settle-icon-btn mint" onClick={() => markPaidForItem(m)} aria-label="입금 완료">
+                          <svg width="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 13l4 4L19 7" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  >
+                    {cardBox}
+                  </SwipeRow>
+                ) : itemTapForSelf ? (
+                  <div onClick={() => setPayOpen(m)} style={{ cursor: 'pointer' }}>{cardBox}</div>
+                ) : cardBox}
+              </div>
+            </Fragment>
+          );
+        })
       ) : sortedRows.length === 0 ? <div className="empty">멤버가 없습니다.</div> : sortedRows.map((m, idx) => {
         if (m.isLeftover) {
           // 짤짤이 카드는 정산 완료 여부와 무관하게 항상 같은 모습(금액 + 삭제 아이콘)을
@@ -744,12 +830,12 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
         <p style={{ textAlign: 'center', color: 'var(--expense)', fontSize: 12.5, fontWeight: 700, marginTop: 14 }}>
           정산 금액이 총 결제 금액보다 적습니다.
         </p>
-      ) : !selectedPayment && isOwner && anyUnsettled && (
+      ) : isOwner && (selectedPayment ? itemAnyUnsettled : anyUnsettled) && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <button type="button" className="btn-settle-all" style={{ flex: 1, height: 48, marginTop: 0 }} disabled={bulkBusy} onClick={openSettleAll}>
             {bulkBusy ? '처리 중…' : '정산 일괄 완료'}
           </button>
-          {hasAccountMember && (
+          {(selectedPayment ? itemHasAccountMember : hasAccountMember) && (
             <button type="button" className="btn-ink-pill" style={{ flex: 1, height: 48, marginTop: 0 }} onClick={requestSettlement}>정산 요청하기</button>
           )}
         </div>
@@ -804,12 +890,15 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
             </div>
             <p className="small muted" style={{ margin: '-12px 0 0' }}>입금 내역에 기록할 날짜를 선택하세요.</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button type="button" className="btn-settle-all" style={{ marginTop: 0 }} onClick={() => settleAll(today())}>오늘 날짜로</button>
+              <button type="button" className="btn-settle-all" style={{ marginTop: 0 }} onClick={() => (selectedPayment ? settleAllItem(today()) : settleAll(today()))}>오늘 날짜로</button>
               <button
-                type="button" className="btn-ink-pill" style={{ marginTop: 0 }} disabled={!settleTargetPayment}
-                onClick={() => settleTargetPayment && settleAll(settleTargetPayment.date)}
+                type="button" className="btn-ink-pill" style={{ marginTop: 0 }} disabled={!(selectedPayment || settleTargetPayment)}
+                onClick={() => {
+                  if (selectedPayment) settleAllItem(selectedPayment.date);
+                  else if (settleTargetPayment) settleAll(settleTargetPayment.date);
+                }}
               >
-                결제일자와 동일하게{settleTargetPayment ? ` (${dotDate(settleTargetPayment.date)})` : ''}
+                결제일자와 동일하게{(selectedPayment || settleTargetPayment) ? ` (${dotDate((selectedPayment || settleTargetPayment).date)})` : ''}
               </button>
             </div>
           </div>
