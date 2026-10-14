@@ -116,9 +116,9 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
 
   const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
   const leftoverMember = members.find((m) => isLeftoverName(m.nickname));
-  // 정산 인원 수·1인당 몫은 짤짤이(자투리 가상 멤버)를 빼고 계산한다.
-  // 초대를 아직 수락하지 않은 멤버는 정산/분배 계산에서 제외(수락 전까지는 그룹에 "참여"한 게 아님)
-  const realMembers = members.filter((m) => !isLeftoverName(m.nickname) && !m.pending);
+  // 정산 인원 수·1인당 몫은 짤짤이(자투리 가상 멤버)를 빼고 계산한다. 초대를 아직 수락하지
+  // 않은 멤버도 정산 대상에는 포함한다(그룹 데이터를 보는 것과 별개로, 몫은 이미 나눠져 있어야 함).
+  const realMembers = members.filter((m) => !isLeftoverName(m.nickname));
   const memberCount = realMembers.length || 1;
   // 결제 건별로 참여 멤버/금액이 따로 저장돼 있으면(기록 화면에서 멤버를 체크/해제해 등록한 경우)
   // 그 값을 그대로 쓰고, 없는 결제 건(이 기능 이전에 등록됨)은 기존처럼 그 결제 금액을 전체
