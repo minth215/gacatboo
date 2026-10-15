@@ -108,7 +108,7 @@ export default function Settings() {
         </div>
       )} />
 
-      <div className="settings-profile-card" style={{ marginTop: 14 }} onClick={() => nav('/settings/profile')}>
+      <div className="settings-profile-card" onClick={() => nav('/settings/profile')}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 15, fontWeight: 800, color: '#191722', lineHeight: 1 }}>{user.display_name}</span>
