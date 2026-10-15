@@ -41,7 +41,7 @@ export default function SettingsStyle() {
   const choose = (patch) => setStyleState(setStyle(patch));
 
   return (
-    <div style={{ padding: '40px 0 12px' }}>
+    <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="스타일" flat />
 
       <div className="settings-group-label" style={{ marginTop: 18 }}>테마</div>

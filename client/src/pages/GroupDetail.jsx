@@ -105,7 +105,7 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
   const paidTxs = allTxs.filter((t) => t.type === 'expense');
 
   return (
-    <div style={{ padding: '84px 0 12px' }}>
+    <div style={{ padding: '88px 0 12px' }}>
       {header}
 
       <div className="underline-tabs">

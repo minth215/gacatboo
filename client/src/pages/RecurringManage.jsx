@@ -62,7 +62,7 @@ export default function RecurringManage() {
   };
 
   return (
-    <div style={{ padding: '40px 0 12px' }}>
+    <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="반복 관리" flat />
 
       {rules.length === 0 ? (

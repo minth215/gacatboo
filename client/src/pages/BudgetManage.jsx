@@ -49,7 +49,7 @@ export default function BudgetManage() {
   };
 
   return (
-    <div style={{ padding: '40px 0 12px' }}>
+    <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="예산 관리" flat />
 
       <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>

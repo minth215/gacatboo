@@ -70,7 +70,7 @@ export default function MemberDetail() {
   };
 
   return (
-    <div style={{ padding: '40px 0 12px' }}>
+    <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title={member.nickname} flat right={isOwner && (
         <button className="tb-icon-btn" onClick={openEdit} aria-label="멤버 정보 수정">
           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -137,7 +137,7 @@ export default function FriendManage() {
   );
 
   return (
-    <div style={{ padding: '40px 0 12px' }}>
+    <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="친구 관리" flat right={
         <button className="tb-icon-btn" onClick={openAdd} aria-label="친구 추가">
           <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>

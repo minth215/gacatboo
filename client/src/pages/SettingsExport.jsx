@@ -70,7 +70,7 @@ export default function SettingsExport() {
   };
 
   return (
-    <div style={{ padding: '40px 0 32px' }}>
+    <div style={{ padding: '44px 0 32px' }}>
       <PageHeader title="내보내기" flat />
 
       <div className="tx-daycard" style={{ marginTop: 14 }}>
