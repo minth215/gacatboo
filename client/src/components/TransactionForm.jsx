@@ -401,7 +401,23 @@ const TransactionForm = forwardRef(function TransactionForm({
     if (!showMemberSplit) return;
     if (editing && initialSettlementSplit === undefined) return; // 수정 화면: 기존 분담 내역 도착 대기
     splitInitRef.current = true;
+    // 항목별로 체크된 멤버가 저장돼 있으면(initial.items[i].members) 그 항목의 체크 상태를 그대로
+    // 복원한다. items 는 로드 시 그대로 state 로 들어가 있어 순서/개수가 initial.items 와 같다.
+    const hasPerItemSplit = editing && Array.isArray(initial?.items) && initial.items.some((it) => Array.isArray(it.members));
+    if (hasPerItemSplit) {
+      setItems((prev) => prev.map((it, i) => {
+        const saved = initial.items[i];
+        if (!saved || !Array.isArray(saved.members)) return it;
+        const memberChecked = {}; const memberAmountOverride = {};
+        const checkedIds = new Set(saved.members.map((r) => r.member_id));
+        for (const m of settlementMembers) memberChecked[m.id] = checkedIds.has(m.id);
+        for (const r of saved.members) memberAmountOverride[r.member_id] = Number(r.amount);
+        return { ...it, memberChecked, memberAmountOverride };
+      }));
+      return;
+    }
     if (!initialSettlementSplit?.length) return; // 신규이거나 저장된 분담이 없으면 기본값(전원 체크) 유지
+    // 이 기능 이전에 저장된 기록(항목별 체크 정보가 없음): 기존처럼 첫 행에만 전체 분담을 복원
     const memberChecked = {}; const memberAmountOverride = {};
     const checkedIds = new Set(initialSettlementSplit.map((r) => r.member_id));
     for (const m of settlementMembers) memberChecked[m.id] = checkedIds.has(m.id);
@@ -481,10 +497,19 @@ const TransactionForm = forwardRef(function TransactionForm({
     // 외화 입력 스냅샷: 여러 항목 중 외화로 입력한 첫 항목 기준(보통 항목 1개 또는 전부 원화라 충분함)
     const currencyItem = items.find((it) => it.currencyMeta);
     // 항목별 행(내용/수량/금액)을 그대로 저장해 수정 화면에서도 다시 보이도록 함(이체는 출금/입금
-    // 원천이 위에서 이미 source_id/to_source_id 로 저장되므로 items 는 따로 저장하지 않음)
+    // 원천이 위에서 이미 source_id/to_source_id 로 저장되므로 items 는 따로 저장하지 않음).
+    // 정산 분담이 있으면 항목마다 체크된 멤버/금액도 함께 저장해(items.members) 수정 화면에서
+    // 항목별로 다시 체크 상태를 복원할 수 있게 한다(전체 합계는 여전히 aggregateSplit 로 처리).
     const savedItems = isTransfer ? null : items
       .filter((it) => it.name.trim() || Number(it.amount) > 0)
-      .map((it) => ({ name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0 }));
+      .map((it) => {
+        const base = { name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0 };
+        if (!showMemberSplit) return base;
+        const members = memberRowsFor(it, settlementMembers, itemTotalOf(it))
+          .filter((r) => r.checked)
+          .map((r) => ({ member_id: r.id, amount: r.amount }));
+        return { ...base, members };
+      });
     const payload = {
       type, date, amount: Math.round(total),
       category_id, category_name, category_emoji, category_color,
