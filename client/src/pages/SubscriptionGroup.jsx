@@ -362,6 +362,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   };
 
   // 개별 결제 건 보기에서 쓰는 단일 정산 대상 입금 생성(정산 일괄 완료/본인 입금 완료 공용).
+  // 대상이 하나뿐이어도 items 로 저장해, 수정 화면에서 항상 내용/금액 표 형태로 보이게 한다.
   const createItemSettleDeposit = (m, date = today()) => db.createDeposit({
     group_id: gid, member_id: m.id, date, amount: m.remaining, periods: 1,
     category_name: selectedPayment?.category_name || '정산', category_emoji: selectedPayment?.category_emoji || '',
@@ -369,10 +370,11 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     leader_settlement_target_id: selectedPayment?.id || null,
     deposit_source_name: sub?.deposit_source_name || '',
     content: selectedPayment ? `${itemLabelOf(selectedPayment)} 정산` : settleContentDefault,
+    items: selectedPayment ? [{ targetId: selectedPayment.id, label: itemLabelOf(selectedPayment), amount: m.remaining }] : null,
   });
 
-  // "정산 일괄 완료": 멤버별로 입금 내역을 하나만 만들고, 정산 대상이 2건 이상이면 그 안에
-  // 건별 내역(내용/금액)을 items 로 함께 저장한다(입금 내역 탭의 내용/금액 표에 행으로 보임).
+  // "정산 일괄 완료": 멤버별로 입금 내역을 하나만 만들고, 건별 내역(내용/금액)을 items 로 함께
+  // 저장한다(건이 하나뿐이어도 저장해, 입금 내역 탭/수정 화면에서 항상 내용/금액 표로 보이게 함).
   const createSettleDepositsAll = async (m, date) => {
     const settleRows = buildSettleRows(m);
     const multi = settleRows.length > 1;
@@ -385,10 +387,10 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
       leader_settlement_target_id: multi ? null : (settleRows[0]?.targetId || null),
       deposit_source_name: sub?.deposit_source_name || '',
       content: multi ? settleContentDefault : (target ? `${itemLabelOf(target)} 정산` : settleContentDefault),
-      items: multi ? settleRows.map((r) => {
+      items: settleRows.map((r) => {
         const t = r.targetId ? sortedPayments.find((p) => p.id === r.targetId) : null;
         return { targetId: r.targetId || null, label: t ? itemLabelOf(t) : '정산', amount: r.amount };
-      }) : null,
+      }),
     });
   };
 
@@ -1149,9 +1151,9 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
   const editing = !!initial;
   const isSettleMode = defaultCategoryName === '정산';
   const settleContentDefault = groupName ? `${groupName} 정산` : '정산';
-  // 수정 화면인데 정산 대상 여러 건이 items 로 저장돼 있으면(정산 일괄/건별 완료로 합쳐 생성된 입금
-  // 내역) 그 건들도 내용/금액 표로 보여주고 수정할 수 있게 한다.
-  const editingHasItems = editing && Array.isArray(initial?.items) && initial.items.length > 1;
+  // 수정 화면인데 정산 대상이 items 로 저장돼 있으면(정산 일괄/건별/개별 완료로 생성된 입금 내역)
+  // 건이 하나뿐이어도 내용/금액 표로 보여주고 수정할 수 있게 한다(생성 시 폼과 동일한 모양 유지).
+  const editingHasItems = editing && Array.isArray(initial?.items) && initial.items.length > 0;
   // 총무가 정산 그룹 입금 내역을 새로 등록할 때, 또는 위처럼 건별 내역이 있는 입금을 수정할 때:
   // 정산 대상을 여러 개 골라 한 번에 입금 처리(정산 탭에서 "입금 완료"로 건너오면 presetSettleRows 로
   // 결제 건별 행이 미리 채워진다). 그 외 수정 화면은 기존 단일 선택 UI를 그대로 쓴다.
@@ -1370,8 +1372,9 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
       const sharedContent = f.content.trim() || multiAutoContent;
       try {
         if (isLeaderSettlement) {
-          // 정산 대상별 행 → 입금 내역 1건으로 합치고, 2건 이상이면 건별 세부 내용을
-          // items 로 함께 저장한다(멤버별 입금 내역이 결제 건 수만큼 따로 생기지 않게 함).
+          // 정산 대상별 행 → 입금 내역 1건으로 합치고, 건별 세부 내용을 items 로 함께 저장한다
+          // (멤버별 입금 내역이 결제 건 수만큼 따로 생기지 않게 함. 건이 하나뿐이어도 items 를
+          // 저장해 수정 화면에서 항상 내용/금액 표로 보이게 함).
           const target = rows.length === 1 ? recentExpenses.find((x) => String(x.id) === rows[0].targetId) : null;
           await onSave({
             member_id: Number(f.memberId), date: f.date,
@@ -1382,11 +1385,11 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
             leader_category_name: lCat?.name || '', leader_category_emoji: lCat?.emoji || '',
             leader_settlement_target_id: rows.length === 1 ? Number(rows[0].targetId) : null,
             content: sharedContent, memo: f.memo,
-            items: rows.length > 1 ? rows.map((r) => ({
+            items: rows.map((r) => ({
               targetId: Number(r.targetId),
               label: settleTargetLabel(recentExpenses.find((x) => String(x.id) === r.targetId)),
               amount: Math.round(Number(r.amount)),
-            })) : null,
+            })),
             recurrence: null, backfillPast: false,
           });
         } else {
