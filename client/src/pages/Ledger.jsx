@@ -174,7 +174,7 @@ export default function Ledger() {
   const label = `${yy} 년 ${Number(mm)} 월`;
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '40px 0 12px' }}>
       {/* 상단바 (가계부 · 검색 · 필터) — 스크롤 무관 고정 */}
       <div className="ledger-topbar">
         <div className="lt-title" style={{ opacity: searchOpen ? 0 : 1, transition: 'opacity 0.26s ease', pointerEvents: searchOpen ? 'none' : 'auto' }}>가계부</div>

@@ -462,7 +462,7 @@ export default function Stats() {
 
   if (detail) {
     return (
-      <div style={{ padding: '44px 0 12px' }}>
+      <div style={{ padding: '40px 0 12px' }}>
         <PageHeader title={detail.name} flat onBack={closeDetail} right={periodModeControl} />
         {periodBar}
 
@@ -489,7 +489,7 @@ export default function Stats() {
   }
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '40px 0 12px' }}>
       <PageHeader title="통계" showBack={false} right={(
         <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
           {[['category', '분류별'], ['source', '원천별'], ['item', '항목별']].map(([v, label]) => (

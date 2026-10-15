@@ -24,7 +24,7 @@ export default function Withdraw() {
   };
 
   return (
-    <div style={{ padding: '44px 0 12px', minHeight: 'calc(100vh - 44px)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: '40px 0 12px', minHeight: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column' }}>
       <PageHeader title="회원 탈퇴" flat />
 
       <div style={{ flex: 1, marginTop: 18 }}>

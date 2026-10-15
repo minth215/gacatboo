@@ -69,7 +69,7 @@ export default function PasswordChange() {
   };
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '40px 0 12px' }}>
       <PageHeader title="비밀번호 변경" flat />
 
       <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>

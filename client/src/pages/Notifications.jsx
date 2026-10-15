@@ -82,7 +82,7 @@ export default function Notifications() {
   };
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '40px 0 12px' }}>
       <PageHeader title="알림" showBack={false} right={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {hasUnread && <button type="button" className="edit-link" onClick={markAllRead}>모두 읽음</button>}

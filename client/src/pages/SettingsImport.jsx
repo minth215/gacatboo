@@ -39,7 +39,7 @@ export default function SettingsImport() {
   };
 
   return (
-    <div style={{ padding: '44px 0 32px' }}>
+    <div style={{ padding: '40px 0 32px' }}>
       <PageHeader title="가져오기" flat />
 
       <div className="tx-daycard" style={{ marginTop: 14, padding: '18px 16px', textAlign: 'center' }}>

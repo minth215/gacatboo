@@ -50,7 +50,7 @@ export default function CardBenefits() {
   };
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '40px 0 12px' }}>
       <PageHeader title="카드 실적 관리" flat />
 
       {cards.length === 0 ? (

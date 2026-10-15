@@ -91,7 +91,7 @@ export default function Settings() {
     },
   ];
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '40px 0 12px' }}>
       <PageHeader title="설정" showBack={false} right={canSwitch && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button className="tb-icon-btn" style={{ color: '#6c6779' }} onClick={() => setSwitcherOpen(true)} aria-label="계정 전환">

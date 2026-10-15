@@ -124,7 +124,7 @@ export default function GroupCreate() {
   ];
 
   return (
-    <div style={{ padding: '44px 0 12px', minHeight: 'calc(100vh - 44px)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: '40px 0 12px', minHeight: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column' }}>
       <PageHeader title="그룹 만들기" flat onBack={onBack} />
 
       {/* 스텝 표시 */}

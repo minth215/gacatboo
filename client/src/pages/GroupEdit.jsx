@@ -61,7 +61,7 @@ export default function GroupEdit() {
   };
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '40px 0 12px' }}>
       <PageHeader title="그룹 정보" flat />
 
       <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', padding: '24px 20px 22px', marginTop: 14, marginBottom: 18 }}>
