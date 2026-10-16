@@ -45,6 +45,7 @@ const itemTotalOf = (it) => (Number(it.amount) || 0) * (Number(it.qty) || 1);
 const emptyItem = () => ({
   name: '', qty: '1', amount: '', currencyMeta: null, expanded: false, memberChecked: {}, memberAmountOverride: {},
   fromSourceId: '', toSourceId: '', // 이체일 때만 사용(항목명 칸 대신 출금/입금 원천 선택)
+  targetId: '', // 분류=정산일 때만 사용(항목명 칸 대신 정산 대상 선택)
 });
 const ArrowRightIcon = () => (
   <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="12" x2="20" y2="12" /><polyline points="13 5 20 12 13 19" /></svg>
@@ -156,7 +157,7 @@ function ClearButton({ onClear }) {
 // 이체(isTransfer)일 때는 항목명 칸 대신 출금/입금 원천 셀렉트 두 개 + 화살표를 두고, 수량 칸은 없다.
 function ItemRow({
   item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, itemNameSuggestions, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource,
-  isSettlement, recentExpenses, settlementTargetId, onSettlementTargetChange,
+  isSettlement, recentExpenses, onTarget,
 }) {
   const [nameFocused, setNameFocused] = useState(false);
   const [nameSuggestOpen, setNameSuggestOpen] = useState(false);
@@ -198,18 +199,18 @@ function ItemRow({
             </select>
           </div>
         ) : isSettlement ? (
-          <div style={{ position: 'relative', minWidth: 0 }}>
+          <div style={{ position: 'relative', minWidth: 0, height: 19 }}>
             {(() => {
-              const picked = recentExpenses.find((x) => String(x.id) === settlementTargetId);
+              const picked = recentExpenses.find((x) => String(x.id) === item.targetId);
               const label = picked ? `${picked.category_emoji ? `${picked.category_emoji} ` : ''}${picked.content || picked.category_name || '지출'}` : '';
               return (
-                <span style={{ display: 'block', fontSize: 13.5, color: label ? '#191722' : '#a29ead', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', pointerEvents: 'none' }}>
+                <span style={{ display: 'block', fontSize: 13.5, lineHeight: '19px', color: label ? '#191722' : '#a29ead', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', pointerEvents: 'none' }}>
                   {label || '정산 대상 선택'}
                 </span>
               );
             })()}
             <select
-              value={settlementTargetId} onChange={(e) => onSettlementTargetChange(e.target.value)}
+              value={item.targetId} onChange={(e) => onTarget(e.target.value)}
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
             >
               <option value="">정산 대상 선택</option>
@@ -226,7 +227,7 @@ function ItemRow({
               onFocus={() => { setNameFocused(true); setNameSuggestOpen(true); }}
               onBlur={() => { setNameFocused(false); setNameSuggestOpen(false); }}
               autoComplete="off"
-              style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, padding: nameFocused && item.name ? '0 22px 0 0' : 0 }}
+              style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, lineHeight: '19px', color: '#191722', outline: 'none', minWidth: 0, padding: nameFocused && item.name ? '0 22px 0 0' : 0 }}
             />
             {nameFocused && item.name && <ClearButton onClear={() => onName('')} />}
             <SuggestList items={rankedNameSuggestions} query={item.name} onPick={(s) => { onName(s); setNameSuggestOpen(false); }} />
@@ -323,13 +324,12 @@ const TransactionForm = forwardRef(function TransactionForm({
       ? [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : '', fromSourceId: initial?.source_id ? String(initial.source_id) : '', toSourceId: initial?.to_source_id ? String(initial.to_source_id) : '' }]
       : Array.isArray(initial?.items) && initial.items.length
         ? initial.items.map((it) => ({ ...emptyItem(), name: it.name || '', qty: String(it.qty || 1), amount: it.amount ? String(it.amount) : '' }))
-        : [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : '') }]
+        : [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : ''), targetId: initial?.settlement_target_id ? String(initial.settlement_target_id) : '' }]
   ));
   const [contentOverride, setContentOverride] = useState(initial?.content ?? null);
   const [contentFocused, setContentFocused] = useState(false);
   const [memo, setMemo] = useState(initial?.memo || '');
   const memoRef = useRef(null);
-  const [settlementTargetId, setSettlementTargetId] = useState(initial?.settlement_target_id ? String(initial.settlement_target_id) : '');
   // 이체 멤버 선택(transferMembers 지정 시, 예: 공금 그룹 이체 내역). 기본값은 본인이지만
   // "선택 안 함" 없이 항상 누군가로 채워지고, 다른 멤버로 바꿀 수 있다(총무만 전체 멤버 선택 가능).
   const [transferMemberId, setTransferMemberId] = useState(
@@ -548,11 +548,11 @@ const TransactionForm = forwardRef(function TransactionForm({
   const catOptions = useMemo(() => categories.filter((c) => c.type === type), [categories, type]);
   const selCategory = categories.find((c) => String(c.id) === String(categoryId));
   const isSettlement = type === 'income' && selCategory?.name === '정산';
-  // 정산 대상을 고르면 그 지출 금액을 기본값으로 채워 주되(바로 수정 가능), 선택을 지우면 건드리지 않음
-  const onSettlementTargetChange = (value) => {
-    setSettlementTargetId(value);
+  // 정산 대상을 고르면 그 지출 금액을 기본값으로 채워 주되(바로 수정 가능), 선택을 지우면 건드리지 않음.
+  // 행마다 각자의 정산 대상을 고를 수 있어(여러 건을 한 번에 입력), idx 로 해당 항목만 갱신한다.
+  const onItemTargetChange = (idx, value) => {
     const x = recentExpenses.find((e) => String(e.id) === value);
-    if (x) updateItem(0, { amount: String(x.amount) });
+    updateItem(idx, { targetId: value, ...(x ? { amount: String(x.amount) } : {}) });
   };
   const isTransfer = type === 'transfer';
   const transferFromName = sourcesFlat.find((s) => String(s.id) === items[0]?.fromSourceId)?.name || '';
@@ -705,6 +705,39 @@ const TransactionForm = forwardRef(function TransactionForm({
       if (s) source_name = s.name; // 세부 항목명만
     }
 
+    // 정산 대상을 2개 이상 고른 경우: 한 행에는 정산 대상을 하나만 담을 수 있어(기존 settlement_target_id
+    // 컬럼이 단일 값), 첫 행은 지금 수정 중인(또는 새로) 기록 하나로, 나머지 행들은 각각 별도의 수입
+    // 기록으로 나눠 저장한다(공통 분류/원천/내용/메모는 그대로 복사).
+    if (isSettlement && !onSubmit) {
+      const rows = items.map((it) => ({ targetId: it.targetId, amount: Number(it.amount) || 0 })).filter((r) => r.targetId || r.amount > 0);
+      if (rows.length > 1) {
+        const basePayload = {
+          type, date, category_id, category_name, category_emoji, category_color,
+          source_id, source_name, content: (contentValue || '').trim(), memo, items: null,
+          input_currency: null, input_amount: null, fx_rate: null, recurrence: null, backfillPast: false,
+          group_id: groupId || null,
+        };
+        try {
+          await db.saveTransaction({
+            id: initial?.id, userId: user.id, sourcesFlat,
+            payload: { ...basePayload, amount: rows[0].amount, settlement_target_id: rows[0].targetId ? Number(rows[0].targetId) : null },
+          });
+          for (const r of rows.slice(1)) {
+            await db.saveTransaction({
+              id: undefined, userId: user.id, sourcesFlat,
+              payload: { ...basePayload, amount: r.amount, settlement_target_id: r.targetId ? Number(r.targetId) : null },
+            });
+          }
+          onSaved?.();
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setBusy(false);
+        }
+        return;
+      }
+    }
+
     const recurrence = (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, date) : null;
     // 과거 날짜로 반복을 새로 걸면, 그동안 밀린 회차를 한 번에 생성할지 물어봄
     let backfillPast = false;
@@ -740,7 +773,7 @@ const TransactionForm = forwardRef(function TransactionForm({
       input_amount: currencyItem?.currencyMeta?.input_amount ?? null,
       fx_rate: currencyItem?.currencyMeta?.fx_rate ?? null,
       recurrence, backfillPast,
-      settlement_target_id: (isSettlement && settlementTargetId) ? Number(settlementTargetId) : null,
+      settlement_target_id: (isSettlement && items[0]?.targetId) ? Number(items[0].targetId) : null,
       group_id: groupId || null,
       ...(showPeriods ? { periods: Math.max(Number(periods) || 1, 1) } : {}),
       ...(aggregateSplit ? { aggregateSplit } : {}),
@@ -930,11 +963,11 @@ const TransactionForm = forwardRef(function TransactionForm({
 
         {items.map((it, idx) => (
           <ItemRow
-            key={idx} item={it} idx={idx} canRemove={!isTransfer && !isSettlement && items.length > 1} qtyLabel={qtyLabel}
+            key={idx} item={it} idx={idx} canRemove={!isTransfer && items.length > 1} qtyLabel={qtyLabel}
             settlementMembers={showMemberSplit ? settlementMembers : null}
             isTransfer={isTransfer} sources={sources}
             isSettlement={isSettlement} recentExpenses={recentExpenses}
-            settlementTargetId={settlementTargetId} onSettlementTargetChange={onSettlementTargetChange}
+            onTarget={(v) => onItemTargetChange(idx, v)}
             onName={(v) => onItemNameChange(idx, v)}
             itemNameSuggestions={itemNameSuggestions}
             onQty={(v) => updateItem(idx, { qty: v.replace(/[^0-9]/g, '') })}
@@ -949,7 +982,7 @@ const TransactionForm = forwardRef(function TransactionForm({
           />
         ))}
 
-        {!isTransfer && !isSettlement && <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>}
+        {!isTransfer && <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>}
 
         {isTransfer && !onSubmit && feeEnabled && (
           <div style={{ display: 'grid', gridTemplateColumns: tableCols, gap: 8, alignItems: 'center', padding: '5px 0' }}>
