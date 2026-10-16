@@ -338,6 +338,7 @@ const TransactionForm = forwardRef(function TransactionForm({
   const toastTimer = useRef(null);
   const categorySelectRef = useRef(null);
   const sourceSelectRef = useRef(null);
+  const contentInputRef = useRef(null);
   const showToast = (msg) => {
     setToast(msg);
     setToastKey((k) => k + 1);
@@ -592,7 +593,11 @@ const TransactionForm = forwardRef(function TransactionForm({
   const submit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!total) return setError('금액을 입력하세요.');
+    if (!contentValue.trim()) {
+      showToast('내용을 입력해 주세요');
+      contentInputRef.current?.focus();
+      return;
+    }
     if (!isTransfer && !categoryId) return promptRequiredSelect(categorySelectRef, '분류를 선택해 주세요');
     if (!isTransfer && !fixedSourceName && !sourceId) return promptRequiredSelect(sourceSelectRef, '원천을 선택해 주세요');
     if (isTransfer && (!items[0]?.fromSourceId || !items[0]?.toSourceId)) return setError('출금/입금 원천을 선택하세요.');
@@ -753,6 +758,7 @@ const TransactionForm = forwardRef(function TransactionForm({
         <div style={{ paddingBottom: groupBadge ? 6 : 14 }}>
           <div style={{ position: 'relative' }}>
             <input
+              ref={contentInputRef}
               type="text" placeholder="내용" value={contentValue} onChange={onContentChange}
               onFocus={() => { setContentFocused(true); setContentSuggestOpen(true); }}
               onBlur={() => { setContentFocused(false); onContentBlur(); }} autoComplete="off"
