@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef, Fragment } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate, dotDate, monthPillLabel, isSettlement } from '../lib/format.js';
+import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate, dotDate, dotDateWithWeekday, monthPillLabel, isSettlement } from '../lib/format.js';
 import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
 import Modal from '../components/Modal.jsx';
 import MembersPanel from '../components/MembersPanel.jsx';
@@ -1592,7 +1592,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
           <span style={rowLabelStyle}>날짜</span>
           <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <div style={{ position: 'relative' }}>
-              <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{dotDate(f.date)}</span>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{dotDateWithWeekday(f.date)}</span>
               <input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택" />
             </div>
             {!multiSettle && (
