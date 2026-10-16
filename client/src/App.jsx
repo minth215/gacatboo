@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './lib/auth.jsx';
 import Layout from './components/Layout.jsx';
 import Login from './pages/Login.jsx';
@@ -46,6 +46,7 @@ function Protected({ children, adminOnly }) {
 
 export default function App() {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   return (
     <Routes>
@@ -55,8 +56,10 @@ export default function App() {
       <Route element={<Protected><Layout /></Protected>}>
         <Route path="/" element={<Ledger />} />
         <Route path="/search" element={<Search />} />
-        <Route path="/new" element={<TransactionEdit />} />
-        <Route path="/tx/:id" element={<TransactionEdit />} />
+        {/* key=pathname: "/new"↔"/tx/:id" 전환(및 다른 거래로의 수정 화면 전환)마다 React가
+            같은 컴포넌트로 보고 상태(초기값 등)를 재사용하지 않도록 매번 새로 마운트시킴 */}
+        <Route path="/new" element={<TransactionEdit key={location.pathname} />} />
+        <Route path="/tx/:id" element={<TransactionEdit key={location.pathname} />} />
         <Route path="/favorites" element={<Favorites />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/groups" element={<Groups />} />
