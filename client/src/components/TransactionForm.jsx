@@ -333,6 +333,23 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [contentSuggestOpen, setContentSuggestOpen] = useState(false);
   const [itemNameSuggestions, setItemNameSuggestions] = useState([]);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState('');
+  const [toastKey, setToastKey] = useState(0);
+  const toastTimer = useRef(null);
+  const categorySelectRef = useRef(null);
+  const sourceSelectRef = useRef(null);
+  const showToast = (msg) => {
+    setToast(msg);
+    setToastKey((k) => k + 1);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(''), 2200);
+  };
+  // 필수 선택 칸(분류/원천)을 비워 둔 채 저장하려 할 때: 토스트로 안내하고 해당 셀렉트박스를 바로 열어줌
+  const promptRequiredSelect = (ref, msg) => {
+    showToast(msg);
+    ref.current?.focus();
+    try { ref.current?.showPicker?.(); } catch {}
+  };
   const [busy, setBusy] = useState(false);
   const [scanBusy, setScanBusy] = useState(false);
   const [scanError, setScanError] = useState('');
@@ -576,6 +593,8 @@ const TransactionForm = forwardRef(function TransactionForm({
     e.preventDefault();
     setError('');
     if (!total) return setError('금액을 입력하세요.');
+    if (!isTransfer && !categoryId) return promptRequiredSelect(categorySelectRef, '분류를 선택해 주세요');
+    if (!isTransfer && !fixedSourceName && !sourceId) return promptRequiredSelect(sourceSelectRef, '원천을 선택해 주세요');
     if (isTransfer && (!items[0]?.fromSourceId || !items[0]?.toSourceId)) return setError('출금/입금 원천을 선택하세요.');
     if (isTransfer && items[0].fromSourceId === items[0].toSourceId) return setError('출금/입금 원천이 같을 수 없습니다.');
     if (transferMembers && !transferMemberId) return setError('멤버를 선택하세요.');
@@ -787,7 +806,7 @@ const TransactionForm = forwardRef(function TransactionForm({
         {!isTransfer && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={rowLabelStyle}>분류</span>
-            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: categoryId ? 600 : 400, color: categoryId ? '#191722' : '#a29ead' }}>
+            <select ref={categorySelectRef} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: categoryId ? 600 : 400, color: categoryId ? '#191722' : '#a29ead' }}>
               <option value="">분류 선택</option>
               {categoryId === SNAP && (
                 <option value={SNAP}>{initial?.category_emoji ? `${initial.category_emoji} ` : ''}{initial?.category_name} (기존)</option>
@@ -806,7 +825,7 @@ const TransactionForm = forwardRef(function TransactionForm({
         {!isTransfer && !fixedSourceName && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={rowLabelStyle}>원천</span>
-            <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: sourceId ? 600 : 400, color: sourceId ? '#191722' : '#a29ead' }}>
+            <select ref={sourceSelectRef} value={sourceId} onChange={(e) => setSourceId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: sourceId ? 600 : 400, color: sourceId ? '#191722' : '#a29ead' }}>
               <option value="">원천 선택</option>
               {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
               {sources.map((top) => (
@@ -906,6 +925,7 @@ const TransactionForm = forwardRef(function TransactionForm({
       </div>
 
       {error && <p className="error" style={{ marginTop: 14 }}>{error}</p>}
+      {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
       <button className="btn-ink-pill" style={{ marginTop: 26 }} disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
     </form>
   );
