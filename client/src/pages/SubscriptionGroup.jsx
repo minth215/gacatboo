@@ -1021,7 +1021,8 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   const nav = useNavigate();
   const settlementMode = isSettlement(group?.category);
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') || 'payments';
+  // 그룹 상세 진입 시 첫 탭: 구독 그룹은 구독 현황, 정산 그룹은 정산 현황
+  const tab = params.get('tab') || (settlementMode ? 'settlement' : 'stats');
   const setTab = useCallback((t) => {
     const next = new URLSearchParams(params);
     next.set('tab', t);

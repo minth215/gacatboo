@@ -28,7 +28,7 @@ export default function TransactionEdit() {
   const isPooledTransfer = kind === 'pooled-transfer';
   // 정산 그룹의 "결제 내역" 탭처럼, 그룹 일반 항목이지만 항상 지출로만 작성돼야 하는 경우
   // (일반 거래 저장 경로는 그대로 쓰고 수입/지출/이체 탭만 숨김 — isGroupKind 에는 포함하지 않음)
-  const isGroupExpense = kind === 'expense';
+  const isGroupExpenseKind = kind === 'expense';
   // 그룹 컨텍스트가 있는 특수 kind 전체(그룹/멤버 정보를 먼저 불러와야 함)
   const isGroupKind = isPayment || isDeposit || isPooledExpense || isPooledTransfer;
   const nav = useNavigate();
@@ -62,6 +62,11 @@ export default function TransactionEdit() {
   const [scanBusy, setScanBusy] = useState(false);
   // 정산 그룹의 일반 결제 내역(생성 시 URL의 group, 수정 시 기존 항목의 group_id)
   const effectiveGroupId = groupId || initial?.group_id || null;
+  // 수정 화면(URL에 kind 없음)도 정산 그룹 결제 내역(그룹 지출)이면 지출 고정 — 탭 숨김
+  const isGroupExpense = isGroupExpenseKind
+    || (editing && !isGroupKind && !!initial?.group_id && initial?.type === 'expense' && isSettlement(group?.category));
+  // 그룹 항목 수정 시 그룹 정보가 오기 전에 탭이 잠깐 보였다 사라지지 않도록 그룹 로딩까지 대기
+  const waitingGroup = editing && !isGroupKind && !!initial?.group_id && group === null;
   const [initialSplit, setInitialSplit] = useState(undefined); // undefined=아직 조회 전, []=저장된 분담 없음(레거시)
   const [initialLinkedFee, setInitialLinkedFee] = useState(undefined); // undefined=아직 조회 전, null=연결된 수수료 없음
 
@@ -81,7 +86,7 @@ export default function TransactionEdit() {
   // 신규는 URL의 group, 수정은 기존 항목이 로드된 뒤 그 group_id 로 가져온다.
   useEffect(() => {
     if (isGroupKind || !effectiveGroupId) return;
-    db.getGroup(effectiveGroupId).then(({ group, members }) => { setGroup(group); setMembers(members); }).catch(() => {});
+    db.getGroup(effectiveGroupId).then(({ group, members }) => { setGroup(group); setMembers(members); }).catch(() => setGroup(false));
   }, [isGroupKind, effectiveGroupId]);
 
   // 수정 화면: 이 결제 건에 이미 저장된 참여 멤버/분담액(없으면 이 기능 이전에 등록된 결제)
@@ -245,7 +250,7 @@ export default function TransactionEdit() {
     // 같은 종류의 신규 작성 화면: 그룹 특수 kind 는 URL 그대로, 그룹 일반 항목은 그 그룹으로
     // (정산 그룹 결제 내역은 지출 고정), 개인 기록은 /new
     let path = '/new';
-    if (isGroupKind || isGroupExpense) path = `/new${location.search}`;
+    if (isGroupKind || isGroupExpenseKind) path = `/new${location.search}`;
     else if (initial.group_id) path = `/new?group=${initial.group_id}${isSettlement(group?.category) ? '&kind=expense' : ''}`;
     nav(path, { state: { favorite: snapshot, toast: '복사되었습니다', closeTo: -2 } });
   };
@@ -294,7 +299,7 @@ export default function TransactionEdit() {
       </div>
 
       <div style={{ padding: '6px 0 0' }}>
-        {loading ? (
+        {(loading || waitingGroup) ? (
           <Spinner />
         ) : error ? (
           <div className="empty">{error}</div>
