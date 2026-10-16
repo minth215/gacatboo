@@ -1544,6 +1544,15 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
       // targetId 없이 금액만 있어도 유효함
       const rows = settleRows.filter((r) => (!isLeaderSettlement || r.targetId) && Number(r.amount) > 0);
       if (!rows.length) return setErr(isLeaderSettlement ? '정산 대상과 금액을 입력하세요.' : '금액을 입력하세요.');
+      // 반복 설정: 저장 결과가 입금 내역 한 건일 때만 적용(정산 대상 묶음은 항상 한 건, 자유 입력은 행이 하나일 때)
+      let recurrence = null, backfillPast = false;
+      if ((isLeaderSettlement || rows.length === 1) && !recurringId && pendingRecurrence) {
+        recurrence = resolveRecurrence(pendingRecurrence, f.date);
+        if (recurrence && f.date < today()) {
+          const n = countDueDates(recurrence, f.date, today());
+          if (n > 0) backfillPast = await askBackfill(n);
+        }
+      }
       setBusy(true); setErr('');
       const l_source = f.lSourceId === KEEP ? (initial?.deposit_source_name || '') : sourceNameOf(sources.flat, f.lSourceId);
       const lCat = f.lCatId === KEEP ? { name: initial?.leader_category_name, emoji: initial?.leader_category_emoji } : incomeCats.find((c) => String(c.id) === f.lCatId);
@@ -1568,7 +1577,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
               label: settleTargetLabel(recentExpenses.find((x) => String(x.id) === r.targetId)),
               amount: Math.round(Number(r.amount)),
             })),
-            recurrence: null, backfillPast: false,
+            recurrence, backfillPast,
           });
         } else {
           for (const r of rows) {
@@ -1580,7 +1589,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
               leader_category_name: lCat?.name || '', leader_category_emoji: lCat?.emoji || '',
               leader_settlement_target_id: null,
               content: sharedContent, memo: f.memo,
-              recurrence: null, backfillPast: false,
+              recurrence, backfillPast,
             });
           }
         }
@@ -1724,14 +1733,12 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
             >
               <StarIcon filled={favorited} />
             </button>
-            {!multiSettle && (
-              <button
-                type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
-                style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-              >
-                <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : '#191722'} />
-              </button>
-            )}
+            <button
+              type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
+              style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            >
+              <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : '#191722'} />
+            </button>
           </div>
         </div>
         {groupBadge && (
