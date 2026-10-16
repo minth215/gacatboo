@@ -313,7 +313,7 @@ const TransactionForm = forwardRef(function TransactionForm({
   initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate,
   onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence,
   settlementMembers, initialSettlementSplit, qtyLabel = '수량', groupBadge, initialLinkedFee, defaultTransferToName,
-  fixedSourceName, transferMembers, defaultTransferMemberId, autoReceiptBase64, autoReceiptMime, autoToast,
+  fixedSourceName, transferMembers, defaultTransferMemberId, autoReceiptBase64, autoReceiptMime, autoToast, onDelete,
 }, ref) {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -429,6 +429,18 @@ const TransactionForm = forwardRef(function TransactionForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [busy, setBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const handleDelete = async () => {
+    if (deleteBusy || !onDelete) return;
+    if (!confirm('이 기록을 삭제할까요?')) return;
+    setDeleteBusy(true);
+    try {
+      await onDelete();
+    } catch (err) {
+      setError(err.message);
+      setDeleteBusy(false);
+    }
+  };
   const [scanBusy, setScanBusy] = useState(false);
   const [scanError, setScanError] = useState('');
   const receiptInputRef = useRef(null);
@@ -1168,6 +1180,17 @@ const TransactionForm = forwardRef(function TransactionForm({
       {error && <p className="error" style={{ marginTop: 14 }}>{error}</p>}
       {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
       <button className="btn-ink-pill" style={{ marginTop: 26 }} disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
+      {editing && onDelete && (
+        <button
+          type="button" onClick={handleDelete} disabled={deleteBusy}
+          style={{
+            display: 'block', width: '100%', marginTop: 12, border: 'none', background: 'transparent',
+            padding: '4px 0', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, color: '#FF6F91', cursor: 'pointer',
+          }}
+        >
+          {deleteBusy ? '삭제 중…' : '삭제'}
+        </button>
+      )}
     </form>
   );
 });

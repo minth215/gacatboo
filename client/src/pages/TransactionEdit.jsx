@@ -138,6 +138,13 @@ export default function TransactionEdit() {
   // 저장 후 이동: 원래 보던 페이지로 돌아감.
   const done = () => nav(location.state?.closeTo ?? -1);
 
+  // 순수 개인 기록(그룹과 무관) 삭제 — 이체면 연결된 수수료 지출도 함께 지움.
+  const deleteTx = async () => {
+    if (initial?.type === 'transfer' && initialLinkedFee?.id) await db.deleteLinkedFee(initialLinkedFee.id);
+    await db.deleteTransaction(initial.id);
+    nav(location.state?.closeTo ?? -1);
+  };
+
   // 결제 내역 저장은 subscription_payments 테이블을 사용(일반 거래와 별도)
   const savePayment = async (payload) => {
     const p = {
@@ -304,6 +311,7 @@ export default function TransactionEdit() {
             autoReceiptBase64={autoReceiptBase64}
             autoReceiptMime={autoReceiptMime}
             autoToast={location.state?.toast}
+            onDelete={(!groupId && editing) ? deleteTx : undefined}
           />
         )}
       </div>
