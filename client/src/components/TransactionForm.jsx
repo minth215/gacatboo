@@ -68,6 +68,48 @@ export async function fileToResizedBase64(file, maxSize = 1280, quality = 0.75) 
   return { base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' };
 }
 
+// 자동완성 후보를 입력한 글자로 시작하는 것 우선 → 중간에 포함된 것 다음 순으로 정렬해
+// 최대 max 개까지만 추려낸다("내용"/"항목명" 입력창 공용).
+function rankSuggestions(list, query, max = 4) {
+  const q = query.trim().toLowerCase();
+  if (!q) return list.slice(0, max);
+  const starts = []; const contains = [];
+  for (const s of list) {
+    const low = s.toLowerCase();
+    if (low === q) continue; // 이미 입력한 그대로인 건 제안할 필요 없음
+    if (low.startsWith(q)) starts.push(s);
+    else if (low.includes(q)) contains.push(s);
+  }
+  return [...starts, ...contains].slice(0, max);
+}
+
+// 입력창 바로 아래에 뜨는 자체 자동완성 드롭다운(네이티브 datalist 대신 — 모양/동작을
+// 직접 제어하기 위함). mousedown 에서 preventDefault 해, 항목을 눌러도 입력창의 포커스가
+// 먼저 끊기지 않게 한다(끊기면 onBlur 가 먼저 실행돼 클릭이 무시될 수 있음).
+function SuggestList({ items, onPick }) {
+  if (!items.length) return null;
+  return (
+    <div style={{
+      position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, zIndex: 40,
+      background: '#fff', borderRadius: 12, boxShadow: '0 8px 20px rgba(25,23,34,.14)',
+      border: '1px solid #f2f1f5', overflow: 'hidden',
+    }}>
+      {items.map((s, i) => (
+        <button
+          key={s} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onPick(s)}
+          style={{
+            display: 'block', width: '100%', textAlign: 'left', padding: '10px 12px', border: 'none',
+            borderTop: i === 0 ? 'none' : '1px solid #f6f5f3',
+            background: 'transparent', fontFamily: 'inherit', fontSize: 13, color: '#191722', cursor: 'pointer',
+          }}
+        >
+          {s}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // 입력창이 포커스돼 있을 때만 우측 끝에 보이는 작은 원형 X(지우기) 버튼. mousedown 에서
 // preventDefault 해 버튼을 눌러도 입력창의 포커스(blur)가 먼저 끊기지 않게 한다.
 function ClearButton({ onClear }) {
@@ -89,6 +131,8 @@ function ClearButton({ onClear }) {
 // 이체(isTransfer)일 때는 항목명 칸 대신 출금/입금 원천 셀렉트 두 개 + 화살표를 두고, 수량 칸은 없다.
 function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, itemNameSuggestions, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource }) {
   const [nameFocused, setNameFocused] = useState(false);
+  const [nameSuggestOpen, setNameSuggestOpen] = useState(false);
+  const rankedNameSuggestions = nameSuggestOpen ? rankSuggestions(itemNameSuggestions || [], item.name) : [];
   const hasSplit = !!settlementMembers?.length;
   const cols = isTransfer ? '1fr 84px 18px' : hasSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
   const sourceSelectStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 12.5, color: '#191722', outline: 'none', appearance: 'none' };
@@ -128,16 +172,15 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer
         ) : (
           <div style={{ position: 'relative', minWidth: 0 }}>
             <input
-              type="text" list={`tx-itemname-list-${idx}`} placeholder="항목 기입" value={item.name} onChange={(e) => onName(e.target.value)}
-              onFocus={() => setNameFocused(true)} onBlur={() => setNameFocused(false)} autoComplete="off"
+              type="text" placeholder="항목 기입" value={item.name}
+              onChange={(e) => { onName(e.target.value); setNameSuggestOpen(true); }}
+              onFocus={() => { setNameFocused(true); setNameSuggestOpen(true); }}
+              onBlur={() => { setNameFocused(false); setNameSuggestOpen(false); }}
+              autoComplete="off"
               style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, padding: nameFocused && item.name ? '0 22px 0 0' : 0 }}
             />
-            <datalist id={`tx-itemname-list-${idx}`}>
-              {(itemNameSuggestions || [])
-                .filter((s) => !item.name.trim() || s.toLowerCase().includes(item.name.trim().toLowerCase()))
-                .map((s) => <option key={s} value={s} />)}
-            </datalist>
             {nameFocused && item.name && <ClearButton onClear={() => onName('')} />}
+            <SuggestList items={rankedNameSuggestions} onPick={(s) => { onName(s); setNameSuggestOpen(false); }} />
           </div>
         )}
         {hasSplit && (
@@ -262,6 +305,8 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [sources, setSources] = useState([]);
   const [sourcesFlat, setSourcesFlat] = useState([]);
   const [recentExpenses, setRecentExpenses] = useState([]);
+  const [contentSuggestions, setContentSuggestions] = useState([]);
+  const [contentSuggestOpen, setContentSuggestOpen] = useState(false);
   const [itemNameSuggestions, setItemNameSuggestions] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -285,6 +330,7 @@ const TransactionForm = forwardRef(function TransactionForm({
     db.listSources().then(({ tree, flat }) => { setSources(tree); setSourcesFlat(flat); }).catch(() => {});
     db.listRecentExpenses(user.id, { includeId: initial?.settlement_target_id || null }).then(setRecentExpenses).catch(() => {});
     db.listItemNameSuggestions(user.id).then(setItemNameSuggestions).catch(() => {});
+    db.listContentSuggestions(user.id).then(setContentSuggestions).catch(() => {});
   }, []);
 
   // 신규 작성 시 "내용" 기본값 템플릿 적용(비동기로 나중에 도착해도 반영)
@@ -488,12 +534,19 @@ const TransactionForm = forwardRef(function TransactionForm({
   const onContentChange = (e) => {
     const v = e.target.value;
     setContentOverride(v);
+    setContentSuggestOpen(true);
     // 항목명을 아직 한 번도 직접 건드리지 않았고 항목이 하나뿐이면, 내용에 입력한 값을 그대로
     // 첫 번째 항목명에도 채워준다(둘 다 비어 있는 상태에서 내용을 먼저 쓰는 경우를 위한 편의 기능).
     if (!itemNameTouchedRef.current && items.length === 1) updateItem(0, { name: v });
   };
-  const onContentBlur = () => { if (contentOverride === '') setContentOverride(null); };
+  const onContentBlur = () => { setContentSuggestOpen(false); if (contentOverride === '') setContentOverride(null); };
   const clearContent = () => { setContentOverride(''); if (!itemNameTouchedRef.current && items.length === 1) updateItem(0, { name: '' }); };
+  const pickContentSuggestion = (s) => {
+    setContentOverride(s);
+    setContentSuggestOpen(false);
+    if (!itemNameTouchedRef.current && items.length === 1) updateItem(0, { name: s });
+  };
+  const rankedContentSuggestions = contentSuggestOpen ? rankSuggestions(contentSuggestions, contentValue) : [];
 
   const submit = async (e) => {
     e.preventDefault();
@@ -657,10 +710,12 @@ const TransactionForm = forwardRef(function TransactionForm({
         <div style={{ position: 'relative' }}>
           <input
             type="text" placeholder="내용" value={contentValue} onChange={onContentChange}
-            onFocus={() => setContentFocused(true)} onBlur={() => { setContentFocused(false); onContentBlur(); }} autoComplete="off"
+            onFocus={() => { setContentFocused(true); setContentSuggestOpen(true); }}
+            onBlur={() => { setContentFocused(false); onContentBlur(); }} autoComplete="off"
             style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: `0 ${contentFocused && contentValue ? '26px' : '0'} ${groupBadge ? '6px' : '14px'} 0` }}
           />
           {contentFocused && contentValue && <ClearButton onClear={clearContent} />}
+          <SuggestList items={rankedContentSuggestions} onPick={pickContentSuggestion} />
         </div>
         {groupBadge && (
           <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
