@@ -26,6 +26,35 @@ const LEFTOVER_NAME = '짤짤이';
 // 이전 명칭('짤랑이')으로 이미 만들어진 행도 같은 가상 멤버로 인식한다(0018 마이그레이션 전 대비).
 export const isLeftoverName = (name) => name === LEFTOVER_NAME || name === '짤랑이';
 
+// 정산 대상 선택 칸: 닫혀 있을 때는 "{이모지} {내용}"만 보이게(개인 기록 폼과 동일), 펼치면
+// 날짜/금액이 포함된 전체 옵션 목록이 그대로 보이게 한다. 실제 select 는 평범한 흐름에 그대로
+// 두어(항목명 input 과 같은 네이티브 폼 컨트롤이라 높이가 자연스럽게 일치) 글자만 투명하게
+// 지우고 그 위에 라벨을 겹쳐 그린다(옵션 자체는 각각 색을 직접 줘서 select 의 투명 글자색을
+// 상속받지 않게 함).
+function SettleTargetSelect({ value, onChange, options, label, style }) {
+  const picked = options.find((x) => String(x.id) === String(value));
+  const text = picked ? `${picked.category_emoji ? `${picked.category_emoji} ` : ''}${label(picked)}` : '';
+  return (
+    <div style={{ position: 'relative', minWidth: 0, flex: 1 }}>
+      <select
+        value={value} onChange={onChange}
+        style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', color: 'transparent', outline: 'none', minWidth: 0, appearance: 'none', ...style }}
+      >
+        <option value="" style={{ color: '#191722' }}>정산 대상 선택</option>
+        {options.map((x) => (
+          <option key={x.id} value={x.id} style={{ color: '#191722' }}>{x.date.slice(5).replace('-', '.')} {x.category_emoji || ''} {label(x)} ({fmtWon(x.amount)})</option>
+        ))}
+      </select>
+      <span style={{
+        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', pointerEvents: 'none',
+        color: text ? '#191722' : '#a29ead', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...style,
+      }}>
+        {text || '정산 대상 선택'}
+      </span>
+    </div>
+  );
+}
+
 // 날짜(dateStr)가 속한 달의 정기결제일(billingDay)로 날짜를 맞춰줌.
 // 예: dateStr=2026-08-22, billingDay=19 → 2026-08-19 (그 달의 마지막 날짜를 넘지 않도록 보정)
 function billingAlignedDate(dateStr, billingDay) {
@@ -1604,15 +1633,10 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
             {settleRows.map((r, idx) => (
               <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '5px 0' }}>
                 {isLeaderSettlement ? (
-                  <select
+                  <SettleTargetSelect
                     value={r.targetId} onChange={(e) => onSettleTargetChange(idx, e.target.value)}
-                    style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, appearance: 'none' }}
-                  >
-                    <option value="">정산 대상 선택</option>
-                    {recentExpenses.map((x) => (
-                      <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {settleTargetLabel(x)} ({fmtWon(x.amount)})</option>
-                    ))}
-                  </select>
+                    options={recentExpenses} label={settleTargetLabel} style={{ fontSize: 13.5 }}
+                  />
                 ) : (
                   <input
                     type="text" placeholder="항목 기입" value={r.name} onChange={(e) => updateSettleRow(idx, { name: e.target.value })}
@@ -1661,15 +1685,10 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
             {subRows.map((r, idx) => (
               <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: '5px 0' }}>
                 {isLeaderSettlement ? (
-                  <select
+                  <SettleTargetSelect
                     value={r.targetId} onChange={(e) => onSubTargetChange(idx, e.target.value)}
-                    style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, appearance: 'none' }}
-                  >
-                    <option value="">정산 대상 선택</option>
-                    {recentExpenses.map((x) => (
-                      <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {settleTargetLabel(x)} ({fmtWon(x.amount)})</option>
-                    ))}
-                  </select>
+                    options={recentExpenses} label={settleTargetLabel} style={{ fontSize: 13.5 }}
+                  />
                 ) : (
                   <input
                     type="text" placeholder="항목 기입" value={r.name} onChange={(e) => updateSubRow(idx, { name: e.target.value })}
