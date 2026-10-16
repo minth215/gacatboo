@@ -731,15 +731,17 @@ const TransactionForm = forwardRef(function TransactionForm({
       )}
 
       <div className="rcpt-card">
-        <div style={{ position: 'relative' }}>
-          <input
-            type="text" placeholder="내용" value={contentValue} onChange={onContentChange}
-            onFocus={() => { setContentFocused(true); setContentSuggestOpen(true); }}
-            onBlur={() => { setContentFocused(false); onContentBlur(); }} autoComplete="off"
-            style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: `0 ${contentFocused && contentValue ? '26px' : '0'} ${groupBadge ? '6px' : '14px'} 0` }}
-          />
-          {contentFocused && contentValue && <ClearButton onClear={clearContent} />}
-          <SuggestList items={rankedContentSuggestions} query={contentValue} onPick={pickContentSuggestion} />
+        <div style={{ paddingBottom: groupBadge ? 6 : 14 }}>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text" placeholder="내용" value={contentValue} onChange={onContentChange}
+              onFocus={() => { setContentFocused(true); setContentSuggestOpen(true); }}
+              onBlur={() => { setContentFocused(false); onContentBlur(); }} autoComplete="off"
+              style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: `0 ${contentFocused && contentValue ? '26px' : '0'} 0 0` }}
+            />
+            {contentFocused && contentValue && <ClearButton onClear={clearContent} />}
+            <SuggestList items={rankedContentSuggestions} query={contentValue} onPick={pickContentSuggestion} />
+          </div>
         </div>
         {groupBadge && (
           <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
@@ -785,8 +787,8 @@ const TransactionForm = forwardRef(function TransactionForm({
         {!isTransfer && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={rowLabelStyle}>분류</span>
-            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}>
-              <option value="">선택 안 함</option>
+            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: categoryId ? 600 : 400, color: categoryId ? '#191722' : '#a29ead' }}>
+              <option value="">분류 선택</option>
               {categoryId === SNAP && (
                 <option value={SNAP}>{initial?.category_emoji ? `${initial.category_emoji} ` : ''}{initial?.category_name} (기존)</option>
               )}
@@ -804,8 +806,8 @@ const TransactionForm = forwardRef(function TransactionForm({
         {!isTransfer && !fixedSourceName && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={rowLabelStyle}>원천</span>
-            <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}>
-              <option value="">선택 안 함</option>
+            <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: sourceId ? 600 : 400, color: sourceId ? '#191722' : '#a29ead' }}>
+              <option value="">원천 선택</option>
               {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
               {sources.map((top) => (
                 top.children?.length ? (
