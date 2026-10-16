@@ -157,7 +157,7 @@ function ClearButton({ onClear }) {
 // 이체(isTransfer)일 때는 항목명 칸 대신 출금/입금 원천 셀렉트 두 개 + 화살표를 두고, 수량 칸은 없다.
 function ItemRow({
   item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, itemNameSuggestions, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource,
-  isSettlement, recentExpenses, onTarget,
+  isSettlement, recentExpenses, onTarget, usedTargetIds,
 }) {
   const [nameFocused, setNameFocused] = useState(false);
   const [nameSuggestOpen, setNameSuggestOpen] = useState(false);
@@ -209,7 +209,7 @@ function ItemRow({
               style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'transparent', outline: 'none', minWidth: 0, appearance: 'none' }}
             >
               <option value="" style={{ color: '#191722' }}>정산 대상 선택</option>
-              {recentExpenses.map((x) => (
+              {recentExpenses.filter((x) => !usedTargetIds?.has(String(x.id)) || String(x.id) === item.targetId).map((x) => (
                 <option key={x.id} value={x.id} style={{ color: '#191722' }}>{x.date.slice(5).replace('-', '.')} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})</option>
               ))}
             </select>
@@ -554,6 +554,12 @@ const TransactionForm = forwardRef(function TransactionForm({
   const catOptions = useMemo(() => categories.filter((c) => c.type === type), [categories, type]);
   const selCategory = categories.find((c) => String(c.id) === String(categoryId));
   const isSettlement = type === 'income' && selCategory?.name === '정산';
+  // 이미 다른 행에서 고른 정산 대상은 중복 선택되지 않게 각 행의 선택지에서 뺀다(그 행 자신의
+  // 현재 선택값은 예외 — ItemRow 쪽에서 처리).
+  const usedSettlementTargetIds = useMemo(
+    () => new Set(items.filter((it) => it.targetId).map((it) => String(it.targetId))),
+    [items]
+  );
   // 정산 대상을 고르면 그 지출 금액을 기본값으로 채워 주되(바로 수정 가능), 선택을 지우면 건드리지 않음.
   // 행마다 각자의 정산 대상을 고를 수 있어(여러 건을 한 번에 입력), idx 로 해당 항목만 갱신한다.
   const onItemTargetChange = (idx, value) => {
@@ -979,7 +985,7 @@ const TransactionForm = forwardRef(function TransactionForm({
             key={idx} item={it} idx={idx} canRemove={!isTransfer && items.length > 1} qtyLabel={qtyLabel}
             settlementMembers={showMemberSplit ? settlementMembers : null}
             isTransfer={isTransfer} sources={sources}
-            isSettlement={isSettlement} recentExpenses={recentExpenses}
+            isSettlement={isSettlement} recentExpenses={recentExpenses} usedTargetIds={usedSettlementTargetIds}
             onTarget={(v) => onItemTargetChange(idx, v)}
             onName={(v) => onItemNameChange(idx, v)}
             itemNameSuggestions={itemNameSuggestions}
