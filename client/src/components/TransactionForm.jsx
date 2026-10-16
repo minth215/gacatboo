@@ -974,7 +974,7 @@ const TransactionForm = forwardRef(function TransactionForm({
         <div style={{ display: 'grid', gridTemplateColumns: tableCols, gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed #cfccd4' }}>
           <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
           {showMemberSplit && <span />}
-          {!isTransfer && <span />}
+          {!isTransfer && !isSettlement && <span />}
           <span style={{ fontSize: 15.5, fontWeight: 800, color: isTransfer ? '#4b4752' : (type === 'expense' ? '#FF4358' : '#2CDDB9'), textAlign: 'right' }}>{fmtNum(total)}</span>
           <span />
         </div>
