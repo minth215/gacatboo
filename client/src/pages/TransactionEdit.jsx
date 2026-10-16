@@ -283,6 +283,7 @@ export default function TransactionEdit() {
             initial={initial} sub={sub} cats={cats} incomeCats={incomeCats} sources={sources}
             members={isOwner ? memberList : (myMember ? [myMember] : [])} recentExpenses={recentExpenses}
             isOwner={isOwner} onSave={saveDeposit} onSaved={done}
+            onDelete={editing ? (async () => { await db.deleteDeposit(initial.id); done(); }) : undefined}
             defaultCategoryName={isSettlement(group?.category) ? '정산' : '구독'}
             showPeriods={!isSettlement(group?.category)}
             groupName={group?.name || ''}

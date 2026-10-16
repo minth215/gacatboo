@@ -1176,7 +1176,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   );
 }
 
-export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '', groupBadge, presetMemberId = null, presetSettleRows = null }) {
+export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, onDelete, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '', groupBadge, presetMemberId = null, presetSettleRows = null }) {
   const editing = !!initial;
   const isSettleMode = defaultCategoryName === '정산';
   const settleContentDefault = groupName ? `${groupName} 정산` : '정산';
@@ -1259,6 +1259,18 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     memo: '',
   });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const handleDelete = async () => {
+    if (deleteBusy || !onDelete) return;
+    if (!confirm('이 입금 내역을 삭제할까요?')) return;
+    setDeleteBusy(true);
+    try {
+      await onDelete();
+    } catch (e) {
+      setErr(e.message);
+      setDeleteBusy(false);
+    }
+  };
   const memoRef = useRef(null);
   useEffect(() => {
     const el = memoRef.current;
@@ -1752,6 +1764,17 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
 
       {err && <p className="error" style={{ marginTop: 14 }}>{err}</p>}
       <button className="btn-ink-pill" style={{ marginTop: 26 }} disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
+      {editing && onDelete && (
+        <button
+          type="button" onClick={handleDelete} disabled={deleteBusy}
+          style={{
+            display: 'block', width: '100%', marginTop: 12, border: 'none', background: 'transparent',
+            padding: '4px 0', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, color: '#FF6F91', cursor: 'pointer',
+          }}
+        >
+          {deleteBusy ? '삭제 중…' : '삭제'}
+        </button>
+      )}
     </form>
   );
 }
