@@ -630,9 +630,16 @@ const TransactionForm = forwardRef(function TransactionForm({
   }, [showMemberSplit, initialSettlementSplit, editing]);
 
   const total = items.reduce((s, it) => s + itemTotalOf(it), 0);
+  // 정산 대상을 고른 항목의 "내용"(지출 쪽 내용/분류명) — 내용 필드 자동 채움에 사용
+  const settlementTargetLabel = (it) => {
+    const x = recentExpenses.find((e) => String(e.id) === it.targetId);
+    return x ? (x.content || x.category_name || '지출') : '';
+  };
   const autoContent = isTransfer
     ? (transferFromName && transferToName ? `${transferFromName} → ${transferToName}` : '')
-    : items.length > 1 ? `${items[0].name || ''} 외 ${items.length - 1}` : (items[0].name || '');
+    : isSettlement
+      ? (items.length > 1 ? `${settlementTargetLabel(items[0])} 외 ${items.length - 1}` : settlementTargetLabel(items[0]))
+      : items.length > 1 ? `${items[0].name || ''} 외 ${items.length - 1}` : (items[0].name || '');
   const contentValue = contentOverride ?? autoContent;
   // 입력 중에는 지워도 그대로 빈 칸으로 둬서 자유롭게 다시 쓸 수 있게 하고, 포커스를 벗어났을 때
   // 비어 있으면 그제서야 자동 모드(항목명 기반)로 복귀한다.
