@@ -136,10 +136,17 @@ function ClearButton({ onClear }) {
       style={{
         position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)',
         width: 18, height: 18, borderRadius: '50%', border: 'none', background: '#e4e2e6', color: '#8b8798',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none', cursor: 'pointer', lineHeight: 0,
+        padding: 0, margin: 0, flex: 'none', cursor: 'pointer', lineHeight: 0,
       }}
     >
-      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" style={{ display: 'block' }}><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+      {/* flex 정렬 대신 버튼 기준 절대 중앙 배치(translate -50%/-50%)로 고정해, 브라우저별
+          flex+svg 정렬 오차 없이 원 한가운데 정확히 오게 한다. */}
+      <svg
+        width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"
+        style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'block' }}
+      >
+        <line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" />
+      </svg>
     </button>
   );
 }
