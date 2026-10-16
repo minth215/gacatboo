@@ -12,6 +12,14 @@ export const fmtForeign = (n, code) => {
 // YYYY-MM-DD → YYYY.MM.DD
 export const dotDate = (d) => (d ? d.replace(/-/g, '.') : '');
 
+// YYYY-MM-DD → "YYYY.MM.DD 월요일"
+export const dotDateWithWeekday = (d) => {
+  if (!d) return '';
+  const [y, m, day] = d.split('-').map(Number);
+  const weekday = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'][new Date(y, m - 1, day).getDay()];
+  return `${dotDate(d)} ${weekday}`;
+};
+
 // 현재 월(YYYY-MM)
 export function currentMonth() {
   const d = new Date();

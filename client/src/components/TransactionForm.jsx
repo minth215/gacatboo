@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { today, dotDate, fmtWon, fmtNum, renderTemplate } from '../lib/format.js';
+import { today, dotDate, dotDateWithWeekday, fmtWon, fmtNum, renderTemplate } from '../lib/format.js';
 import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
 import CalcAmountInput from './CalcAmountInput.jsx';
 import RecurrenceModal from './RecurrenceModal.jsx';
@@ -763,7 +763,7 @@ const TransactionForm = forwardRef(function TransactionForm({
           <span style={rowLabelStyle}>날짜</span>
           <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <div style={{ position: 'relative' }}>
-              <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{dotDate(date)}</span>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{dotDateWithWeekday(date)}</span>
               <input
                 type="date" value={date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택"
               />
