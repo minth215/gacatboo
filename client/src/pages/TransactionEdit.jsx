@@ -136,7 +136,7 @@ export default function TransactionEdit() {
   }, [isGroupKind, editing, initial]);
 
   // 저장 후 이동: 원래 보던 페이지로 돌아감.
-  const done = () => nav(-1);
+  const done = () => nav(location.state?.closeTo ?? -1);
 
   // 결제 내역 저장은 subscription_payments 테이블을 사용(일반 거래와 별도)
   const savePayment = async (payload) => {
@@ -216,7 +216,7 @@ export default function TransactionEdit() {
       to_source_id: initial.to_source_id, to_source_name: initial.to_source_name,
       content: initial.content, memo: initial.memo, items: initial.items || null,
     };
-    nav('/new', { state: { favorite: snapshot, toast: '복사되었습니다' } });
+    nav('/new', { state: { favorite: snapshot, toast: '복사되었습니다', closeTo: '/' } });
   };
 
   return (
