@@ -29,23 +29,33 @@ const marqueeOff = (e) => {
 // 같은 날짜 묶음(.tx-daygroup) 안의 한 행. 묶음은 하나의 흰 박스처럼 보이지만(첫 행 위·마지막 행 아래만
 // 둥글고 가운데는 각짐) 각 행이 흰 배경·그림자를 가진 독립 카드라서 개별로 밀린다. 묶음 자체엔 배경이 없어
 // 밀린 자리엔 페이지 배경 위에 삭제 버튼만 보이고, 밀린 카드는 왼쪽 화면 끝까지 이어진다.
-export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete, onLongPress, clickable, background = '#fff', children }) {
+export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete, onCopy, onLongPress, clickable, background = '#fff', children }) {
   const first = index === 0;
   const last = index === count - 1;
   return (
     <SwipeRow
-      onTap={onTap} onLongPress={onLongPress} isOpen={isOpen} onOpenChange={onOpenChange} actionsWidth={52}
-      actions={onDelete ? (progress) => (
+      onTap={onTap} onLongPress={onLongPress} isOpen={isOpen} onOpenChange={onOpenChange} actionsWidth={onCopy ? 104 : 52}
+      actions={(onDelete || onCopy) ? (progress) => (
         <div className="tx-swipe-actions" style={{ opacity: progress }}>
-          <button type="button" className="settle-icon-btn danger" onClick={onDelete} aria-label="삭제">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h18" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              <line x1="10" y1="11" x2="10" y2="17" />
-              <line x1="14" y1="11" x2="14" y2="17" />
-            </svg>
-          </button>
+          {onCopy && (
+            <button type="button" className="settle-icon-btn" onClick={onCopy} aria-label="복사">
+              <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+            </button>
+          )}
+          {onDelete && (
+            <button type="button" className="settle-icon-btn danger" onClick={onDelete} aria-label="삭제">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+            </button>
+          )}
         </div>
       ) : undefined}
     >
@@ -68,7 +78,7 @@ export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete
 }
 
 export default function TransactionList({
-  transactions, onEdit, onDelete, canEdit, dateFormat, emptyText, groupByMonth, groupTint = true, emptyCenter = false,
+  transactions, onEdit, onDelete, onCopy, canEdit, dateFormat, emptyText, groupByMonth, groupTint = true, emptyCenter = false,
   selectionMode = false, selectedIds, onToggleSelect, onLongPress,
 }) {
   // 한 번에 하나의 행만 스와이프로 열려 있도록: 새로 열리는 행의 id 를 기록하고,
@@ -124,6 +134,7 @@ export default function TransactionList({
                 clickable={editable}
                 onTap={() => { if (!editable) return; selectionMode ? onToggleSelect?.(t.id) : onEdit(t); }}
                 onDelete={!selectionMode && editable && onDelete ? () => onDelete(t) : undefined}
+                onCopy={!selectionMode && onCopy ? () => onCopy(t) : undefined}
                 onLongPress={!selectionMode && editable && onLongPress ? () => onLongPress(t.id) : undefined}
                 background={isGroup ? 'linear-gradient(135deg, #FFF1F3 0%, #FFF6EA 100%)' : '#fff'}
               >

@@ -205,6 +205,20 @@ export default function Ledger() {
       if (searchOpen) loadSearch();
     } catch (e) { alert(e.message); }
   };
+  // 카드를 왼쪽으로 밀어 복사: 그 기록과 똑같은 내용(분류/원천/내용/항목/금액)으로 오늘 날짜의
+  // 새 기록 화면을 띄운다(기록 수정 화면의 복사 버튼과 동일한 경로 재사용). 저장 전까지는
+  // 실제로 생성되지 않고, 저장/닫기 시 가계부로 바로 돌아오도록 closeTo 를 함께 보낸다.
+  const copyTx = (t) => {
+    const snapshot = {
+      type: t.type, amount: t.amount,
+      category_id: t.category_id, category_name: t.category_name,
+      category_emoji: t.category_emoji, category_color: t.category_color,
+      source_id: t.source_id, source_name: t.source_name,
+      to_source_id: t.to_source_id, to_source_name: t.to_source_name,
+      content: t.content, memo: t.memo, items: t.items || null,
+    };
+    nav('/new', { state: { favorite: snapshot, toast: '복사되었습니다', closeTo: '/' } });
+  };
 
   // ----- 캘린더 뷰 데이터 -----
   const [y, m] = month.split('-').map(Number);
@@ -354,7 +368,7 @@ export default function Ledger() {
             <Spinner />
           ) : (
             <TransactionList
-              transactions={sFiltered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} dateFormat="full"
+              transactions={sFiltered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} onCopy={copyTx} dateFormat="full"
               emptyText="데이터가 없습니다." emptyCenter="notabs"
             />
           )}
@@ -465,14 +479,14 @@ export default function Ledger() {
                 </div>
                 <div style={{ marginTop: 6 }}>
                   <TransactionList
-                    transactions={selDay ? dayTxs : filtered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} emptyText="기록이 없습니다."
+                    transactions={selDay ? dayTxs : filtered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} onCopy={copyTx} emptyText="기록이 없습니다."
                     selectionMode={selectionMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} onLongPress={enterSelection}
                   />
                 </div>
               </>
             ) : (
               <TransactionList
-                transactions={filtered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} emptyText="기록이 없습니다."
+                transactions={filtered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} onCopy={copyTx} emptyText="기록이 없습니다."
                 selectionMode={selectionMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} onLongPress={enterSelection}
               />
             )}
