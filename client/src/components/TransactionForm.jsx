@@ -162,7 +162,7 @@ function ItemRow({
   const [nameSuggestOpen, setNameSuggestOpen] = useState(false);
   const rankedNameSuggestions = nameSuggestOpen ? rankSuggestions(itemNameSuggestions || [], item.name) : [];
   const hasSplit = !!settlementMembers?.length;
-  const cols = isTransfer ? '1fr 84px 18px' : hasSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
+  const cols = (isTransfer || isSettlement) ? '1fr 84px 18px' : hasSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
   const sourceSelectStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 12.5, color: '#191722', outline: 'none', appearance: 'none' };
   return (
     <div>
@@ -198,15 +198,26 @@ function ItemRow({
             </select>
           </div>
         ) : isSettlement ? (
-          <select
-            value={settlementTargetId} onChange={(e) => onSettlementTargetChange(e.target.value)}
-            style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, appearance: 'none' }}
-          >
-            <option value="">정산 대상 선택</option>
-            {recentExpenses.map((x) => (
-              <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})</option>
-            ))}
-          </select>
+          <div style={{ position: 'relative', minWidth: 0 }}>
+            {(() => {
+              const picked = recentExpenses.find((x) => String(x.id) === settlementTargetId);
+              const label = picked ? `${picked.category_emoji ? `${picked.category_emoji} ` : ''}${picked.content || picked.category_name || '지출'}` : '';
+              return (
+                <span style={{ display: 'block', fontSize: 13.5, color: label ? '#191722' : '#a29ead', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', pointerEvents: 'none' }}>
+                  {label || '정산 대상 선택'}
+                </span>
+              );
+            })()}
+            <select
+              value={settlementTargetId} onChange={(e) => onSettlementTargetChange(e.target.value)}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
+            >
+              <option value="">정산 대상 선택</option>
+              {recentExpenses.map((x) => (
+                <option key={x.id} value={x.id}>{x.date.slice(5).replace('-', '.')} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})</option>
+              ))}
+            </select>
+          </div>
         ) : (
           <div style={{ position: 'relative', minWidth: 0 }}>
             <input
@@ -229,7 +240,7 @@ function ItemRow({
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
           </button>
         )}
-        {!isTransfer && (
+        {!isTransfer && !isSettlement && (
           <input
             type="text" inputMode="numeric" placeholder="1" value={item.qty} onChange={(e) => onQty(e.target.value)}
             style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', textAlign: 'center', minWidth: 0 }}
@@ -537,6 +548,12 @@ const TransactionForm = forwardRef(function TransactionForm({
   const catOptions = useMemo(() => categories.filter((c) => c.type === type), [categories, type]);
   const selCategory = categories.find((c) => String(c.id) === String(categoryId));
   const isSettlement = type === 'income' && selCategory?.name === '정산';
+  // 정산 대상을 고르면 그 지출 금액을 기본값으로 채워 주되(바로 수정 가능), 선택을 지우면 건드리지 않음
+  const onSettlementTargetChange = (value) => {
+    setSettlementTargetId(value);
+    const x = recentExpenses.find((e) => String(e.id) === value);
+    if (x) updateItem(0, { amount: String(x.amount) });
+  };
   const isTransfer = type === 'transfer';
   const transferFromName = sourcesFlat.find((s) => String(s.id) === items[0]?.fromSourceId)?.name || '';
   const transferToName = sourcesFlat.find((s) => String(s.id) === items[0]?.toSourceId)?.name || '';
@@ -758,7 +775,7 @@ const TransactionForm = forwardRef(function TransactionForm({
 
   const rowLabelStyle = { width: 46, flex: 'none', fontSize: 13.5, fontWeight: 400, color: '#8b8798' };
   const rowInputStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', padding: 0 };
-  const tableCols = isTransfer ? '1fr 84px 18px' : showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
+  const tableCols = (isTransfer || isSettlement) ? '1fr 84px 18px' : showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
 
   return (
     <form onSubmit={submit}>
@@ -906,7 +923,7 @@ const TransactionForm = forwardRef(function TransactionForm({
         <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: tableCols, gap: 8, padding: '8px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
           <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
           {showMemberSplit && <span />}
-          {!isTransfer && <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'center' }}>{qtyLabel}</span>}
+          {!isTransfer && !isSettlement && <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'center' }}>{qtyLabel}</span>}
           <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
           <span />
         </div>
@@ -917,7 +934,7 @@ const TransactionForm = forwardRef(function TransactionForm({
             settlementMembers={showMemberSplit ? settlementMembers : null}
             isTransfer={isTransfer} sources={sources}
             isSettlement={isSettlement} recentExpenses={recentExpenses}
-            settlementTargetId={settlementTargetId} onSettlementTargetChange={setSettlementTargetId}
+            settlementTargetId={settlementTargetId} onSettlementTargetChange={onSettlementTargetChange}
             onName={(v) => onItemNameChange(idx, v)}
             itemNameSuggestions={itemNameSuggestions}
             onQty={(v) => updateItem(idx, { qty: v.replace(/[^0-9]/g, '') })}
