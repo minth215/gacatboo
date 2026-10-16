@@ -127,17 +127,21 @@ export default function TransactionList({
                 onLongPress={!selectionMode && editable && onLongPress ? () => onLongPress(t.id) : undefined}
                 background={isGroup ? 'linear-gradient(135deg, #FFF1F3 0%, #FFF6EA 100%)' : '#fff'}
               >
-                  {selectionMode && (
-                    <span style={{
-                      width: 19, height: 19, borderRadius: '50%', flex: 'none', marginRight: 2,
-                      border: selected ? 'none' : '2px solid #d8d5de', background: selected ? '#FF8A00' : 'transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
-                    }}>
-                      {selected && <svg width="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
+                  <span style={{ position: 'relative', flex: 'none' }}>
+                    <span
+                      className="tx-tile"
+                      style={{
+                        background: t.category_emoji ? (t.category_color || depositIncomeColor || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5'),
+                        opacity: selected ? 0.25 : 1, transition: 'opacity 0.15s ease',
+                      }}
+                    >
+                      {t.category_emoji || (t.type === 'income' ? '💰' : '💸')}
                     </span>
-                  )}
-                  <span className="tx-tile" style={{ background: t.category_emoji ? (t.category_color || depositIncomeColor || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}>
-                    {t.category_emoji || (t.type === 'income' ? '💰' : '💸')}
+                    {selected && (
+                      <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#191722' }}>
+                        <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                      </span>
+                    )}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="tx-row-title" onMouseEnter={marqueeOn} onMouseLeave={marqueeOff}>

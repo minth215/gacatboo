@@ -237,7 +237,7 @@ export default function Ledger() {
     <div style={{ padding: '44px 0 12px' }}>
       {/* 상단바 (가계부 · 검색 · 필터, 선택 모드일 때는 완전히 다른 구성) — 스크롤 무관 고정 */}
       {selectionMode ? (
-        <div className="simple-topbar">
+        <div className="simple-topbar flat">
           <button aria-label="선택 모드 종료" className="tb-icon-btn" onClick={exitSelection}>
             <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
           </button>
@@ -362,23 +362,29 @@ export default function Ledger() {
       ) : (
         /* ===== 가계부 모드 (당월) ===== */
         <>
-          {/* 월 이동 */}
-          <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button aria-label="이전 달" onClick={() => { setMonth(shiftMonth(month, -1)); setSelDay(null); }} style={roundBtn(32)}>
-              <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
-            </button>
-            {/* 가운데 연월 텍스트를 누르면 네이티브 월 선택기가 떠서 직접 고를 수 있음(텍스트는 숨긴 input 아래 그대로 보임) */}
-            <div style={{ position: 'relative', minWidth: 88, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px' }}>{label}</span>
-              <input
-                type="month" value={month} aria-label="연월 선택" className="catmodal-date-input"
-                onChange={(e) => { if (e.target.value) { setMonth(e.target.value); setSelDay(null); } }}
-              />
+          {/* 월 이동 — 선택 모드에서는 지금 보는 달 대신 선택 개수 안내로 바뀜 */}
+          {selectionMode ? (
+            <div style={{ marginTop: 3, padding: '7px 2px', fontSize: 12, fontWeight: 400, color: '#a29ead' }}>
+              {selectedIds.size} 건 선택되었습니다
             </div>
-            <button aria-label="다음 달" onClick={() => { setMonth(shiftMonth(month, 1)); setSelDay(null); }} style={roundBtn(32)}>
-              <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
-            </button>
-          </div>
+          ) : (
+            <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button aria-label="이전 달" onClick={() => { setMonth(shiftMonth(month, -1)); setSelDay(null); }} style={roundBtn(32)}>
+                <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
+              </button>
+              {/* 가운데 연월 텍스트를 누르면 네이티브 월 선택기가 떠서 직접 고를 수 있음(텍스트는 숨긴 input 아래 그대로 보임) */}
+              <div style={{ position: 'relative', minWidth: 88, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px' }}>{label}</span>
+                <input
+                  type="month" value={month} aria-label="연월 선택" className="catmodal-date-input"
+                  onChange={(e) => { if (e.target.value) { setMonth(e.target.value); setSelDay(null); } }}
+                />
+              </div>
+              <button aria-label="다음 달" onClick={() => { setMonth(shiftMonth(month, 1)); setSelDay(null); }} style={roundBtn(32)}>
+                <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
+              </button>
+            </div>
+          )}
 
           {/* 이 달 필터 패널 */}
           {showFilter && (
