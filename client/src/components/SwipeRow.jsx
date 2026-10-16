@@ -46,7 +46,7 @@ if (typeof document !== 'undefined' && !window.__swipeGlobalTouchBound) {
 // isOpen/onOpenChange 를 주면(선택) 목록 쪽에서 "한 번에 하나만 열림"을 제어할 수 있다.
 // 이 행이 스스로 열리면 onOpenChange(true) 로 알리고, 부모가 isOpen 을 false 로 바꾸면
 // (다른 행이 열려서) 자동으로 닫힌다.
-export default function SwipeRow({ children, deletable, onDelete, onTap, actions, actionsWidth = DEFAULT_OPEN, fullSwipe = false, isOpen, onOpenChange }) {
+export default function SwipeRow({ children, deletable, onDelete, onTap, onLongPress, actions, actionsWidth = DEFAULT_OPEN, fullSwipe = false, isOpen, onOpenChange }) {
   const revealWidth = actions ? actionsWidth : DEFAULT_OPEN;
   const swipeEnabled = deletable || !!actions;
   const wrapRef = useRef(null);
@@ -57,6 +57,17 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
   const st = useRef(null);
   const moved = useRef(false);
   const openRef = useRef(false);
+  // 길게 누르기(선택 모드 진입용): 눌린 채 일정 시간이 지나면 onLongPress 를 한 번만 호출하고,
+  // 그 눌림이 이어서 만드는 click 은 무시해(longFired) 탭으로 겹쳐 처리되지 않게 한다.
+  const longPressTimer = useRef(null);
+  const longFired = useRef(false);
+  const startLongPress = () => {
+    if (!onLongPress) return;
+    longFired.current = false;
+    clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => { longFired.current = true; onLongPress(); }, 480);
+  };
+  const cancelLongPress = () => clearTimeout(longPressTimer.current);
 
   // 컨트롤드 모드: 부모가 isOpen=false 로 바꾸면(다른 행이 열렸을 때) 이 행은 자동으로 닫힘
   useEffect(() => {
@@ -80,6 +91,7 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
     if (fullSwipe && wrapRef.current) openDistRef.current = wrapRef.current.getBoundingClientRect().width;
     st.current = { x: e.clientX, y: e.clientY, base: openRef.current ? -openDistRef.current : 0 };
     moved.current = false;
+    startLongPress();
   };
   const move = (e) => {
     if (!st.current) return;
@@ -90,6 +102,7 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
       // 손가락이 닿는 순간의 미세한 흔들림(실제 터치는 마우스보다 훨씬 들쭉날쭉함)을
       // 섣불리 세로 스크롤로 오판하지 않도록, 둘 다 충분히 움직이기 전까지는 더 지켜본다.
       if (absX < 10 && absY < 10) return;
+      cancelLongPress(); // 조금이라도 움직이기 시작했으면 길게 누르기는 더 이상 유효하지 않음
       // 세로 쪽이 가로의 1.3배 넘게 더 커야 스크롤로 보고 포기한다. 살짝만 비스듬해도
       // 바로 포기하던 예전 기준이 실제 터치에서 스와이프가 들쭉날쭉 먹히던 원인이었다.
       if (absY > absX * 1.3) {
@@ -114,14 +127,20 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
   };
   const up = () => {
     debugLog(`UP moved=${moved.current} dx=${dx}`);
+    cancelLongPress();
     if (!st.current) return;
     st.current = null;
     setDragging(false);
     setOpen(-dx > revealWidth / 2);
   };
   const tap = () => {
+    if (longFired.current) { longFired.current = false; return; }
     if (moved.current) return;
     if (openRef.current) { setOpen(false); return; }
+    onTap?.();
+  };
+  const simpleTap = () => {
+    if (longFired.current) { longFired.current = false; return; }
     onTap?.();
   };
 
@@ -129,7 +148,12 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, actions
   if (!swipeEnabled) {
     return (
       <div className="swipe-wrap">
-        <div className="swipe-fg" onClick={onTap} style={onTap ? { cursor: 'pointer' } : undefined}>{children}</div>
+        <div
+          className="swipe-fg" onClick={simpleTap} style={onTap ? { cursor: 'pointer' } : undefined}
+          onPointerDown={startLongPress} onPointerUp={cancelLongPress} onPointerMove={cancelLongPress} onPointerCancel={cancelLongPress}
+        >
+          {children}
+        </div>
       </div>
     );
   }

@@ -6,6 +6,7 @@ import { currentMonth, shiftMonth, fmtNum } from '../lib/format.js';
 import TransactionList from '../components/TransactionList.jsx';
 import CatMascot from '../components/CatMascot.jsx';
 import Spinner from '../components/Spinner.jsx';
+import BulkEditModal from '../components/BulkEditModal.jsx';
 import { fileToResizedBase64 } from '../components/TransactionForm.jsx';
 
 const roundBtn = (size = 36) => ({
@@ -69,6 +70,46 @@ export default function Ledger() {
   const [catFilter, setCatFilter] = useState('');
   const [srcFilter, setSrcFilter] = useState('');
   const [showFilter, setShowFilter] = useState(false);
+
+  // 카드 길게 누르기 → 선택(수정) 모드: 여러 항목을 한 번에 삭제/일괄 수정
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkMenuOpen, setBulkMenuOpen] = useState(false);
+  const [bulkEditField, setBulkEditField] = useState(null); // 'content' | 'date' | 'category' | 'source' | null
+  const enterSelection = (id) => { setSelectionMode(true); setSelectedIds(new Set([id])); setBulkMenuOpen(false); };
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.size === 0) setSelectionMode(false);
+      return next;
+    });
+  };
+  const exitSelection = () => { setSelectionMode(false); setSelectedIds(new Set()); setBulkMenuOpen(false); };
+  // 달을 바꾸거나 검색을 열면 지금 보이는 목록 자체가 바뀌므로 선택 모드는 해제
+  useEffect(() => { exitSelection(); }, [month, searchOpen]);
+  const bulkDelete = async () => {
+    if (!selectedIds.size) return;
+    setBulkMenuOpen(false);
+    if (!confirm(`선택한 ${selectedIds.size}건을 삭제할까요?`)) return;
+    try {
+      for (const id of selectedIds) {
+        const t = txs.find((x) => x.id === id);
+        if (!t) continue;
+        if (t.origin_type === 'payment') await db.deletePayment(t.origin_id);
+        else if (t.origin_type === 'deposit') await db.deleteDeposit(t.origin_id);
+        else await db.deleteTransaction(t.id);
+      }
+      exitSelection();
+      load();
+    } catch (e) { alert(e.message); }
+  };
+  const applyBulkEdit = async (patch) => {
+    await db.bulkUpdateTransactions([...selectedIds], patch);
+    setBulkEditField(null);
+    exitSelection();
+    load();
+  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -194,28 +235,85 @@ export default function Ledger() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      {/* 상단바 (가계부 · 검색 · 필터) — 스크롤 무관 고정 */}
-      <div className="ledger-topbar">
-        <div className="lt-title" style={{ opacity: searchOpen ? 0 : 1, transition: 'opacity 0.26s ease', pointerEvents: searchOpen ? 'none' : 'auto' }}>가계부</div>
-        <button aria-label="필터" className={`lt-filter${filterActive ? ' on' : ''}`} onClick={onFilterClick}>
-          <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 4 21 4 14 13 14 20 10 22 10 13 3 4" /></svg>
-        </button>
-        <div className={`lt-search${searchOpen ? ' open' : ''}`}>
-          <button aria-label="검색" className="lt-search-icon" onClick={onSearchIcon}>
-            <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="16.2" y1="16.2" x2="21" y2="21" /></svg>
+      {/* 상단바 (가계부 · 검색 · 필터, 선택 모드일 때는 완전히 다른 구성) — 스크롤 무관 고정 */}
+      {selectionMode ? (
+        <div className="simple-topbar">
+          <button aria-label="선택 모드 종료" className="tb-icon-btn" onClick={exitSelection}>
+            <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
           </button>
-          <input
-            ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Escape') closeSearch(); }}
-            placeholder="검색어 입력" tabIndex={searchOpen ? 0 : -1}
-          />
-          {searchOpen && (
-            <button aria-label="닫기" className="lt-search-close" onClick={closeSearch}>
-              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 6 L18 18 M18 6 L6 18" /></svg>
+          <div className="title">수정</div>
+          <div className="topbar-right" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button aria-label="선택 항목 삭제" className="tb-icon-btn" onClick={bulkDelete}>
+              <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
             </button>
-          )}
+            <div style={{ position: 'relative' }}>
+              <button aria-label="선택 항목 일괄 수정" className="tb-icon-btn" onClick={() => setBulkMenuOpen((v) => !v)}>
+                <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+              </button>
+              {bulkMenuOpen && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 39 }} onClick={() => setBulkMenuOpen(false)} />
+                  <div style={{
+                    position: 'absolute', right: 0, top: '100%', marginTop: 6, zIndex: 40, minWidth: 148,
+                    background: '#fff', borderRadius: 14, boxShadow: '0 10px 28px rgba(25,23,34,.16)', overflow: 'hidden',
+                  }}>
+                    {[
+                      ['content', '내용 일괄 수정'], ['date', '날짜 일괄 수정'],
+                      ['category', '분류 일괄 수정'], ['source', '원천 일괄 수정'],
+                    ].map(([key, label], i) => (
+                      <button
+                        key={key} type="button"
+                        onClick={() => { setBulkMenuOpen(false); setBulkEditField(key); }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left', padding: '11px 14px', border: 'none',
+                          borderTop: i === 0 ? 'none' : '1px solid #f6f5f3', background: 'transparent',
+                          fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', cursor: 'pointer',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="ledger-topbar">
+          <div className="lt-title" style={{ opacity: searchOpen ? 0 : 1, transition: 'opacity 0.26s ease', pointerEvents: searchOpen ? 'none' : 'auto' }}>가계부</div>
+          <button aria-label="필터" className={`lt-filter${filterActive ? ' on' : ''}`} onClick={onFilterClick}>
+            <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 4 21 4 14 13 14 20 10 22 10 13 3 4" /></svg>
+          </button>
+          <div className={`lt-search${searchOpen ? ' open' : ''}`}>
+            <button aria-label="검색" className="lt-search-icon" onClick={onSearchIcon}>
+              <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="16.2" y1="16.2" x2="21" y2="21" /></svg>
+            </button>
+            <input
+              ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') closeSearch(); }}
+              placeholder="검색어 입력" tabIndex={searchOpen ? 0 : -1}
+            />
+            {searchOpen && (
+              <button aria-label="닫기" className="lt-search-close" onClick={closeSearch}>
+                <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 6 L18 18 M18 6 L6 18" /></svg>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {bulkEditField && (
+        <BulkEditModal
+          field={bulkEditField} count={selectedIds.size}
+          onClose={() => setBulkEditField(null)} onApply={applyBulkEdit}
+        />
+      )}
 
       {searchOpen ? (
         /* ===== 검색 모드 (전체 기간, 모든 카드) ===== */
@@ -360,34 +458,44 @@ export default function Ledger() {
                   </div>
                 </div>
                 <div style={{ marginTop: 6 }}>
-                  <TransactionList transactions={selDay ? dayTxs : filtered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} emptyText="기록이 없습니다." />
+                  <TransactionList
+                    transactions={selDay ? dayTxs : filtered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} emptyText="기록이 없습니다."
+                    selectionMode={selectionMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} onLongPress={enterSelection}
+                  />
                 </div>
               </>
             ) : (
-              <TransactionList transactions={filtered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} emptyText="기록이 없습니다." />
+              <TransactionList
+                transactions={filtered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} emptyText="기록이 없습니다."
+                selectionMode={selectionMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} onLongPress={enterSelection}
+              />
             )}
           </div>
 
-          <input
-            ref={receiptInputRef} type="file" accept="image/*"
-            style={{ display: 'none' }} onChange={onReceiptPick}
-          />
-          <button
-            type="button" className="fab-camera" onClick={() => receiptInputRef.current?.click()}
-            disabled={receiptPicking} aria-label="영수증으로 기록"
-          >
-            {receiptPicking ? (
-              <span style={{ width: 15, height: 15, border: '2px solid #e4e2e6', borderTopColor: '#6c6779', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-            ) : (
-              <svg width="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                <circle cx="12" cy="13" r="4" />
-              </svg>
-            )}
-          </button>
-          <button className="fab" onClick={() => nav('/new')} aria-label="추가">
-            <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-          </button>
+          {!selectionMode && (
+            <>
+              <input
+                ref={receiptInputRef} type="file" accept="image/*"
+                style={{ display: 'none' }} onChange={onReceiptPick}
+              />
+              <button
+                type="button" className="fab-camera" onClick={() => receiptInputRef.current?.click()}
+                disabled={receiptPicking} aria-label="영수증으로 기록"
+              >
+                {receiptPicking ? (
+                  <span style={{ width: 15, height: 15, border: '2px solid #e4e2e6', borderTopColor: '#6c6779', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                ) : (
+                  <svg width="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                )}
+              </button>
+              <button className="fab" onClick={() => nav('/new')} aria-label="추가">
+                <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              </button>
+            </>
+          )}
         </>
       )}
     </div>

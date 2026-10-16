@@ -29,12 +29,12 @@ const marqueeOff = (e) => {
 // 같은 날짜 묶음(.tx-daygroup) 안의 한 행. 묶음은 하나의 흰 박스처럼 보이지만(첫 행 위·마지막 행 아래만
 // 둥글고 가운데는 각짐) 각 행이 흰 배경·그림자를 가진 독립 카드라서 개별로 밀린다. 묶음 자체엔 배경이 없어
 // 밀린 자리엔 페이지 배경 위에 삭제 버튼만 보이고, 밀린 카드는 왼쪽 화면 끝까지 이어진다.
-export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete, clickable, background = '#fff', children }) {
+export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete, onLongPress, clickable, background = '#fff', children }) {
   const first = index === 0;
   const last = index === count - 1;
   return (
     <SwipeRow
-      onTap={onTap} isOpen={isOpen} onOpenChange={onOpenChange} actionsWidth={52}
+      onTap={onTap} onLongPress={onLongPress} isOpen={isOpen} onOpenChange={onOpenChange} actionsWidth={52}
       actions={onDelete ? (progress) => (
         <div className="tx-swipe-actions" style={{ opacity: progress }}>
           <button type="button" className="settle-icon-btn danger" onClick={onDelete} aria-label="삭제">
@@ -67,7 +67,10 @@ export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete
   );
 }
 
-export default function TransactionList({ transactions, onEdit, onDelete, canEdit, dateFormat, emptyText, groupByMonth, groupTint = true, emptyCenter = false }) {
+export default function TransactionList({
+  transactions, onEdit, onDelete, canEdit, dateFormat, emptyText, groupByMonth, groupTint = true, emptyCenter = false,
+  selectionMode = false, selectedIds, onToggleSelect, onLongPress,
+}) {
   // 한 번에 하나의 행만 스와이프로 열려 있도록: 새로 열리는 행의 id 를 기록하고,
   // 나머지 행은 SwipeRow 의 isOpen 이 false 가 되면서 자동으로 닫힌다.
   const [openId, setOpenId] = useState(null);
@@ -113,14 +116,26 @@ export default function TransactionList({ transactions, onEdit, onDelete, canEdi
             const sub = t.type === 'transfer'
               ? [t.category_name || '이체', (t.source_name && t.to_source_name) ? `${t.source_name} → ${t.to_source_name}` : ''].filter(Boolean).join(' · ') || '—'
               : [t.category_name, t.source_name].filter(Boolean).join(' · ') || '—';
+            const selected = selectionMode && selectedIds?.has(t.id);
             return (
               <DayCardRow
                 key={t.id} index={i} count={items.length}
                 isOpen={openId === t.id} onOpenChange={(open) => setOpenId(open ? t.id : null)}
-                clickable={editable} onTap={() => editable && onEdit(t)}
-                onDelete={editable && onDelete ? () => onDelete(t) : undefined}
+                clickable={editable}
+                onTap={() => { if (!editable) return; selectionMode ? onToggleSelect?.(t.id) : onEdit(t); }}
+                onDelete={!selectionMode && editable && onDelete ? () => onDelete(t) : undefined}
+                onLongPress={!selectionMode && editable && onLongPress ? () => onLongPress(t.id) : undefined}
                 background={isGroup ? 'linear-gradient(135deg, #FFF1F3 0%, #FFF6EA 100%)' : '#fff'}
               >
+                  {selectionMode && (
+                    <span style={{
+                      width: 19, height: 19, borderRadius: '50%', flex: 'none', marginRight: 2,
+                      border: selected ? 'none' : '2px solid #d8d5de', background: selected ? '#FF8A00' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                    }}>
+                      {selected && <svg width="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
+                    </span>
+                  )}
                   <span className="tx-tile" style={{ background: t.category_emoji ? (t.category_color || depositIncomeColor || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}>
                     {t.category_emoji || (t.type === 'income' ? '💰' : '💸')}
                   </span>

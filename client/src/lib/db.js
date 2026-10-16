@@ -402,6 +402,12 @@ export const db = {
   async deleteTransaction(id) {
     return unwrap(await supabase.from('transactions').delete().eq('id', id));
   },
+  // 가계부 선택 모드의 일괄 수정(내용/날짜/분류/원천): 그룹 결제·입금 미러 항목 여부와 무관하게
+  // transactions 테이블 자체만 직접 갱신한다(일괄 수정은 단순 표시값 변경이라 원본 구독/정산 데이터와
+  // 동기화할 필요가 없음 — 다만 삭제는 원본까지 지워야 해서 deletePayment/deleteDeposit 를 그대로 씀).
+  async bulkUpdateTransactions(ids, patch) {
+    return unwrap(await supabase.from('transactions').update(patch).in('id', ids));
+  },
 
   // ---------- 그룹 ----------
   async listGroups(userId) {
