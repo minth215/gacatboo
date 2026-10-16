@@ -3,9 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtNum } from '../lib/format.js';
-import { tileBg } from '../components/TransactionList.jsx';
+import { tileBg, DayCardRow } from '../components/TransactionList.jsx';
 import PageHeader from '../components/PageHeader.jsx';
-import SwipeRow from '../components/SwipeRow.jsx';
 import Spinner from '../components/Spinner.jsx';
 
 // 기록 폼에서 별 아이콘으로 등록해 둔 즐겨찾기 템플릿 목록. 카드를 고르면 그 내용(분류/원천/
@@ -46,37 +45,23 @@ export default function Favorites() {
               ? [f.category_name || '이체', (f.source_name && f.to_source_name) ? `${f.source_name} → ${f.to_source_name}` : ''].filter(Boolean).join(' · ') || '—'
               : [f.category_name, f.source_name].filter(Boolean).join(' · ') || '—';
             return (
-              <div key={f.id} className="tx-daycard" style={{ marginBottom: 8, borderRadius: 20 }}>
-                <SwipeRow
+              <div key={f.id} className="tx-daygroup" style={{ marginBottom: 8 }}>
+                <DayCardRow
+                  index={0} count={1} clickable
                   isOpen={openId === f.id} onOpenChange={(open) => setOpenId(open ? f.id : null)}
-                  onTap={() => pick(f)} actionsWidth={52}
-                  actions={(progress) => (
-                    <div className="tx-swipe-actions" style={{ opacity: progress }}>
-                      <button type="button" className="settle-icon-btn danger" onClick={() => remove(f)} aria-label="삭제">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 6h18" />
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          <line x1="10" y1="11" x2="10" y2="17" />
-                          <line x1="14" y1="11" x2="14" y2="17" />
-                        </svg>
-                      </button>
-                    </div>
-                  )}
+                  onTap={() => pick(f)} onDelete={() => remove(f)}
                 >
-                  <div className="tx-row" style={{ cursor: 'pointer' }}>
-                    <span className="tx-tile" style={{ background: f.category_emoji ? (f.category_color || tileBg(f.category_name)) : '#f2f1f5' }}>
-                      {f.category_emoji || (f.type === 'income' ? '💰' : f.type === 'transfer' ? '🔁' : '💸')}
-                    </span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="tx-row-title"><span className="ttext">{f.content || f.category_name || '기록'}</span></div>
-                      <div className="tx-row-sub">{sub}</div>
-                    </div>
-                    <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: f.type === 'income' ? '#2CDDB9' : f.type === 'transfer' ? '#4b4752' : '#FF4358' }}>
-                      {f.type === 'transfer' ? '' : (f.type === 'income' ? '+' : '-')}{fmtNum(f.amount)}
-                    </span>
+                  <span className="tx-tile" style={{ background: f.category_emoji ? (f.category_color || tileBg(f.category_name)) : '#f2f1f5' }}>
+                    {f.category_emoji || (f.type === 'income' ? '💰' : f.type === 'transfer' ? '🔁' : '💸')}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="tx-row-title"><span className="ttext">{f.content || f.category_name || '기록'}</span></div>
+                    <div className="tx-row-sub">{sub}</div>
                   </div>
-                </SwipeRow>
+                  <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: f.type === 'income' ? '#2CDDB9' : f.type === 'transfer' ? '#4b4752' : '#FF4358' }}>
+                    {f.type === 'transfer' ? '' : (f.type === 'income' ? '+' : '-')}{fmtNum(f.amount)}
+                  </span>
+                </DayCardRow>
               </div>
             );
           })}
