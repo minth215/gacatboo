@@ -26,6 +26,9 @@ export default function TransactionEdit() {
   const isDeposit = kind === 'deposit';
   const isPooledExpense = kind === 'pooled-expense';
   const isPooledTransfer = kind === 'pooled-transfer';
+  // 정산 그룹의 "결제 내역" 탭처럼, 그룹 일반 항목이지만 항상 지출로만 작성돼야 하는 경우
+  // (일반 거래 저장 경로는 그대로 쓰고 수입/지출/이체 탭만 숨김 — isGroupKind 에는 포함하지 않음)
+  const isGroupExpense = kind === 'expense';
   // 그룹 컨텍스트가 있는 특수 kind 전체(그룹/멤버 정보를 먼저 불러와야 함)
   const isGroupKind = isPayment || isDeposit || isPooledExpense || isPooledTransfer;
   const nav = useNavigate();
@@ -292,7 +295,7 @@ export default function TransactionEdit() {
             key={location.key}
             ref={formRef} onScanBusyChange={setScanBusy}
             initial={initial} groupId={(isPayment || isPooledExpense || isPooledTransfer) ? null : groupId} onSaved={done} onClose={() => nav(-1)}
-            fixedType={(isPayment || isPooledExpense) ? 'expense' : isPooledTransfer ? 'transfer' : undefined}
+            fixedType={(isPayment || isPooledExpense || isGroupExpense) ? 'expense' : isPooledTransfer ? 'transfer' : undefined}
             initialPendingRecurrence={pendingRecurrence}
             defaultCategoryName={isPayment ? (isSettlement(group?.category) ? '정산' : '구독') : undefined}
             defaultAmount={isPayment ? sub?.billing_amount : undefined}
