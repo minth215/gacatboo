@@ -45,14 +45,17 @@ export default function TransactionEdit() {
   // 즐겨찾기 목록에서 고른 템플릿(신규 작성일 때만) — initial 과 동일한 모양이라 그대로 꽂아주면
   // TransactionForm 의 기존 초기화 로직이 그대로 채워준다(날짜는 담겨 있지 않아 오늘 날짜로 들어감).
   // 입금 내역(DepositForm)은 initial 이 있으면 수정 모드로 보므로 initial 대신 favoritePreset 으로 따로 넘긴다.
-  const favoritePreset = (!editing && location.state?.favorite) || null;
+  // 즐겨찾기 행의 id/user_id/created_at 은 기록의 것이 아니므로 떼어 낸다(남아 있으면 폼이 수정 모드로
+  // 오인해 같은 id 의 기록을 덮어쓸 수 있음).
+  const stripFavMeta = (fav) => { if (!fav) return null; const { id: _id, user_id: _u, created_at: _c, ...rest } = fav; return rest; };
+  const favoritePreset = (!editing && stripFavMeta(location.state?.favorite)) || null;
 
   const [initial, setInitial] = useState(isDeposit ? null : favoritePreset);
   // 즐겨찾기 선택/복사로 새 내비게이션이 생길 때마다(location.key 가 매번 새로 발급됨) initial 을
   // 명시적으로 다시 맞춰 준다 — 같은 컴포넌트 인스턴스가 재사용되는 경우에도 이전 화면(수정 중이던
   // 기존 기록)의 값이 남아있지 않고 항상 새로 받은 템플릿으로 덮어써지도록 하기 위함.
   useEffect(() => {
-    if (!editing && !isDeposit && location.state?.favorite) setInitial(location.state.favorite);
+    if (!editing && !isDeposit && location.state?.favorite) setInitial(stripFavMeta(location.state.favorite));
   }, [location.key]);
   const [group, setGroup] = useState(null);
   const [members, setMembers] = useState([]);

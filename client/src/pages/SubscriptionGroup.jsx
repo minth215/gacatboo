@@ -1728,12 +1728,14 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
               {contentFocused && f.content && <ClearButton onClear={() => setF((prev) => ({ ...prev, content: '' }))} />}
               <SuggestList items={rankedContentSuggestions} query={f.content} onPick={(v) => { setF((prev) => ({ ...prev, content: v })); setContentSuggestOpen(false); }} />
             </div>
-            <button
-              type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 등록'}
-              style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <StarIcon filled={favorited} />
-            </button>
+            {editing && (
+              <button
+                type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 등록'}
+                style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <StarIcon filled={favorited} />
+              </button>
+            )}
             <button
               type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
               style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
