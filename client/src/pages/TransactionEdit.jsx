@@ -44,6 +44,12 @@ export default function TransactionEdit() {
   const favoritePreset = (!editing && location.state?.favorite) || null;
 
   const [initial, setInitial] = useState(favoritePreset);
+  // 즐겨찾기 선택/복사로 새 내비게이션이 생길 때마다(location.key 가 매번 새로 발급됨) initial 을
+  // 명시적으로 다시 맞춰 준다 — 같은 컴포넌트 인스턴스가 재사용되는 경우에도 이전 화면(수정 중이던
+  // 기존 기록)의 값이 남아있지 않고 항상 새로 받은 템플릿으로 덮어써지도록 하기 위함.
+  useEffect(() => {
+    if (!editing && location.state?.favorite) setInitial(location.state.favorite);
+  }, [location.key]);
   const [group, setGroup] = useState(null);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(editing);
@@ -263,6 +269,7 @@ export default function TransactionEdit() {
           <div className="empty">{error}</div>
         ) : isDeposit ? (
           <DepositForm
+            key={location.key}
             initial={initial} sub={sub} cats={cats} incomeCats={incomeCats} sources={sources}
             members={isOwner ? memberList : (myMember ? [myMember] : [])} recentExpenses={recentExpenses}
             isOwner={isOwner} onSave={saveDeposit} onSaved={done}
@@ -275,6 +282,7 @@ export default function TransactionEdit() {
           />
         ) : (
           <TransactionForm
+            key={location.key}
             ref={formRef} onScanBusyChange={setScanBusy}
             initial={initial} groupId={(isPayment || isPooledExpense || isPooledTransfer) ? null : groupId} onSaved={done} onClose={() => nav(-1)}
             fixedType={(isPayment || isPooledExpense) ? 'expense' : isPooledTransfer ? 'transfer' : undefined}
