@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useRef, Fragment } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState, useCallback, useRef, Fragment, forwardRef, useImperativeHandle } from 'react';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate, dotDate, dotDateWithWeekday, monthPillLabel, isSettlement } from '../lib/format.js';
@@ -10,6 +10,9 @@ import SwipeRow from '../components/SwipeRow.jsx';
 import RecurrenceModal from '../components/RecurrenceModal.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import { tileBg, formatDate, DayCardRow } from '../components/TransactionList.jsx';
+import { ClearButton, SuggestList, rankSuggestions, StarIcon, fileToResizedBase64 } from '../components/TransactionForm.jsx';
+import { saveTxDraft, takeTxDraft } from '../lib/txDraft.js';
+import { useFavoriteToggle } from '../lib/useFavoriteToggle.js';
 
 // "반복 관리" 메뉴와 동일한 반복 아이콘(채워진 순환 화살표)
 const RepeatIcon = ({ color }) => (
@@ -80,10 +83,11 @@ export function groupByMonthThenDate(list) {
   return Object.keys(byMonth).sort((a, b) => (a < b ? 1 : -1)).map((mo) => [mo, groupByDate(byMonth[mo])]);
 }
 
-function SourceSelect({ sources, value, onChange, keepLabel, style }) {
+const EDIT_OPTION = '__edit__';
+function SourceSelect({ sources, value, onChange, keepLabel, style, placeholder = '선택 안 함', onEdit, selectRef }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} style={style}>
-      <option value="">선택 안 함</option>
+    <select ref={selectRef} value={value} onChange={(e) => (e.target.value === EDIT_OPTION ? onEdit?.() : onChange(e.target.value))} style={style}>
+      <option value="">{placeholder}</option>
       {value === KEEP && <option value={KEEP}>{keepLabel} (기존)</option>}
       {sources.map((top) => (
         top.children?.length ? (
@@ -93,15 +97,17 @@ function SourceSelect({ sources, value, onChange, keepLabel, style }) {
           </optgroup>
         ) : <option key={top.id} value={top.id}>{top.name}</option>
       ))}
+      {onEdit && <option value={EDIT_OPTION}>편집</option>}
     </select>
   );
 }
-function CategorySelect({ cats, value, onChange, keepLabel, style }) {
+function CategorySelect({ cats, value, onChange, keepLabel, style, placeholder = '선택 안 함', onEdit, selectRef }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} style={style}>
-      <option value="">선택 안 함</option>
+    <select ref={selectRef} value={value} onChange={(e) => (e.target.value === EDIT_OPTION ? onEdit?.() : onChange(e.target.value))} style={style}>
+      <option value="">{placeholder}</option>
       {value === KEEP && <option value={KEEP}>{keepLabel} (기존)</option>}
       {cats.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
+      {onEdit && <option value={EDIT_OPTION}>편집</option>}
     </select>
   );
 }
@@ -1176,8 +1182,19 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   );
 }
 
-export function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, onDelete, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '', groupBadge, presetMemberId = null, presetSettleRows = null }) {
+// 그룹 입금 내역 작성/수정 폼. 화면(내용 줄의 ×·자동완성·즐겨찾기·반복, 분류/원천 선택·편집,
+// 상단바 영수증/즐겨찾기/복사, 삭제 버튼 등)은 개인 기록 폼(TransactionForm)과 같은 조각을 쓰고,
+// 저장 방식(총대 수입 + 멤버 지출 동시 기록, 멤버 선택, 회차, 정산 대상 여러 건)만 입금 전용이다.
+export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, onDelete, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '', groupBadge, presetMemberId = null, presetSettleRows = null, favoritePreset = null, autoToast, onScanBusyChange }, ref) {
   const editing = !!initial;
+  const { user } = useAuth();
+  const nav = useNavigate();
+  const location = useLocation();
+  // 분류/원천 "편집"으로 설정 페이지에 다녀올 때 작성 중이던 내용 복원(개인 기록 폼과 동일한 방식)
+  const draftSlot = `dep:${location.pathname}${location.search}`;
+  const [draft] = useState(() => takeTxDraft(draftSlot));
+  // 즐겨찾기/복사로 넘어온 템플릿(신규 작성일 때만, 편집 다녀온 임시저장이 있으면 그쪽 우선)
+  const preset = (!editing && !draft) ? favoritePreset : null;
   const isSettleMode = defaultCategoryName === '정산';
   const settleContentDefault = groupName ? `${groupName} 정산` : '정산';
   // 수정 화면인데 정산 대상이 items 로 저장돼 있으면(정산 일괄/건별/개별 완료로 생성된 입금 내역)
@@ -1191,6 +1208,8 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
   // 행의 "내용" 칸: targetId 가 선택된 행이면 정산 대상, 아니면 name 에 적은 자유 텍스트(분류가 정산이
   // 아닐 때 사용 — isLeaderSettlement 참고)
   const [settleRows, setSettleRows] = useState(() => {
+    if (draft?.settleRows) return draft.settleRows;
+    if (preset) return [{ targetId: '', name: '', amount: preset.amount ? String(preset.amount) : '' }];
     if (editingHasItems) {
       return initial.items.map((it) => ({ targetId: it.targetId != null ? String(it.targetId) : '', name: it.label || '', amount: String(it.amount) }));
     }
@@ -1217,7 +1236,9 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
   const multiSub = !isSettleMode && !editing;
   // 행의 "내용" 칸: targetId 가 선택된 행이면 정산 대상, 아니면 name 에 적은 자유 텍스트(분류가 정산일
   // 때만 정산 대상 셀렉트박스로 바뀜 — isLeaderSettlement 참고). "회차"는 구독 그룹이라 항상 표시.
-  const [subRows, setSubRows] = useState([{ name: '', targetId: '', periods: '1', amount: '' }]);
+  const [subRows, setSubRows] = useState(() => draft?.subRows || [{
+    name: '', targetId: '', periods: preset?.periods ? String(preset.periods) : '1', amount: preset?.amount ? String(preset.amount) : '',
+  }]);
   useEffect(() => {
     if (!multiSub || subRows.length !== 1 || subRows[0].amount || !sub?.deposit_amount) return;
     setSubRows([{ ...subRows[0], amount: String(sub.deposit_amount) }]);
@@ -1239,7 +1260,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
   // 총대 수입 기본 = 입금분류(구독 설정에서 지정, 없으면 '정산' — 그룹 종류와 무관하게 총대 입장에선
   // 늘 정산 수입이므로 멤버 지출 기본값(defaultCategoryName)과는 다르게 항상 '정산'으로 떨어진다)
   const defLeaderCat = incomeCats.find((c) => c.name === (sub?.deposit_category || '정산'));
-  const [f, setF] = useState(() => editing ? {
+  const [f, setF] = useState(() => draft?.f ? draft.f : editing ? {
     memberId: String(initial.member_id), date: initial.date, amount: String(initial.amount), periods: String(initial.periods || 1),
     // 멤버 영역
     mCatId: matchCatId(cats, initial.category_name) || (initial.category_name ? KEEP : ''),
@@ -1250,13 +1271,13 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     lSourceId: matchSourceId(sources.flat, initial.deposit_source_name) || (initial.deposit_source_name ? KEEP : ''),
     content: initial.content || '', memo: initial.memo || '',
   } : {
-    memberId: presetMemberId ? String(presetMemberId) : '', date: today(),
-    amount: '', periods: '1',
+    memberId: presetMemberId ? String(presetMemberId) : (isOwner && preset?.member_id && members.some((m) => String(m.id) === String(preset.member_id)) ? String(preset.member_id) : ''), date: today(),
+    amount: preset?.amount ? String(preset.amount) : '', periods: preset?.periods ? String(preset.periods) : '1',
     mCatId: '', mSourceId: '',
     lCatId: '', lSettleId: '',
     lSourceId: '',
-    content: '',
-    memo: '',
+    content: preset?.content || '',
+    memo: preset?.memo || '',
   });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -1281,10 +1302,43 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
   // 반복 설정: 이미 저장된 반복(recurringId)이거나, 아직 저장 전인 선택값(pendingRecurrence) 중 하나만 있을 수 있음
   const [recurringId, setRecurringId] = useState(initial?.recurring?.id || null);
   const [recurringLabel, setRecurringLabel] = useState(initial?.recurring?.label || '');
-  const [pendingRecurrence, setPendingRecurrence] = useState(null);
+  const [pendingRecurrence, setPendingRecurrence] = useState(draft?.pendingRecurrence || null);
   const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
   const [backfillPrompt, setBackfillPrompt] = useState(null); // { n, resolve } | null
   const askBackfill = (n) => new Promise((resolve) => setBackfillPrompt({ n, resolve }));
+
+  // 토스트(필수 항목 안내·즐겨찾기·복사 등) — 개인 기록 폼과 동일한 하단 토스트
+  const [toast, setToast] = useState('');
+  const [toastKey, setToastKey] = useState(0);
+  const toastTimer = useRef(null);
+  const showToast = (msg) => {
+    setToast(msg);
+    setToastKey((k) => k + 1);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(''), 2200);
+  };
+  useEffect(() => {
+    if (autoToast) showToast(autoToast);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const contentInputRef = useRef(null);
+  const categorySelectRef = useRef(null);
+  const sourceSelectRef = useRef(null);
+  const promptRequiredSelect = (selRef, msg) => {
+    showToast(msg);
+    selRef.current?.focus();
+    try { selRef.current?.showPicker?.(); } catch {}
+  };
+  // 내용 자동완성(이전에 쓴 내용) + × 지우기
+  const [contentFocused, setContentFocused] = useState(false);
+  const [contentSuggestOpen, setContentSuggestOpen] = useState(false);
+  const [contentSuggestions, setContentSuggestions] = useState([]);
+  useEffect(() => { db.listContentSuggestions(user.id).then(setContentSuggestions).catch(() => {}); }, [user.id]);
+  // 분류/원천 "편집": 작성 중인 내용을 임시저장하고 설정의 관리 페이지로 이동("<"로 돌아오면 복원)
+  const goEditSettings = (path) => {
+    saveTxDraft(draftSlot, { f, settleRows, subRows, pendingRecurrence });
+    nav(path);
+  };
 
   const onRecurrenceIconClick = async () => {
     if (recurringId) {
@@ -1355,6 +1409,53 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     if (editing || f.content || !sub?.deposit_content_template) return;
     setF((prev) => ({ ...prev, content: renderTemplate(sub.deposit_content_template, prev.date) }));
   }, [editing, sub]);
+  // 즐겨찾기/복사 템플릿의 분류·원천(이름 기준)을 목록이 도착하는 대로 한 번씩 반영 — 위 기본값보다 우선.
+  // 보는 사람 입장에 맞춰 총무는 입금(수입) 분류/원천, 멤버는 본인 지출 분류/원천 칸에 들어간다.
+  const presetAppliedRef = useRef({ cat: false, source: false });
+  useEffect(() => {
+    if (!preset || presetAppliedRef.current.cat || !preset.category_name) return;
+    const list = isOwner ? incomeCats : cats;
+    const id = matchCatId(list, preset.category_name);
+    if (!id) return;
+    presetAppliedRef.current.cat = true;
+    setF((prev) => ({ ...prev, [isOwner ? 'lCatId' : 'mCatId']: id }));
+  }, [cats, incomeCats, isOwner]);
+  useEffect(() => {
+    if (!preset || presetAppliedRef.current.source || !preset.source_name) return;
+    const id = matchSourceId(sources.flat, preset.source_name);
+    if (!id) return;
+    presetAppliedRef.current.source = true;
+    setF((prev) => ({ ...prev, [isOwner ? 'lSourceId' : 'mSourceId']: id }));
+  }, [sources, isOwner]);
+
+  // 영수증 사진 → 날짜/상호명(내용)/금액 자동 채움(상단바 영수증 버튼 → openReceiptPicker)
+  const receiptInputRef = useRef(null);
+  const [scanBusy, setScanBusy] = useState(false);
+  useImperativeHandle(ref, () => ({ openReceiptPicker: () => receiptInputRef.current?.click() }), []);
+  useEffect(() => { onScanBusyChange?.(scanBusy); }, [scanBusy]);
+  const onReceiptFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setScanBusy(true);
+    try {
+      const { base64, mimeType } = await fileToResizedBase64(file);
+      const result = await db.parseReceipt(base64, mimeType, []);
+      if (result.date) setF((prev) => ({ ...prev, date: result.date }));
+      if (result.merchant) setF((prev) => ({ ...prev, content: result.merchant }));
+      const amt = result.amount || (Array.isArray(result.items) ? result.items.reduce((t, it) => t + (Number(it.amount) || 0), 0) : 0);
+      if (amt) {
+        if (multiSettle) updateSettleRow(0, { amount: String(amt) });
+        else if (multiSub) onSubRowAmountChange(0, String(amt));
+        else onAmountChange(String(amt));
+      }
+      if (!result.date && !amt && !result.merchant) showToast('영수증에서 정보를 인식하지 못했어요');
+    } catch (err) {
+      showToast(err.message || '영수증 인식에 실패했습니다');
+    } finally {
+      setScanBusy(false);
+    }
+  };
   // 금액 입력 시 기본 입금액 대비 회차 자동 계산
   const defaultAmount = Number(sub?.deposit_amount) || 0;
   const onAmountChange = (v) => {
@@ -1399,8 +1500,44 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
     lastAutoContentRef.current = multiAutoContent;
   }, [isLeaderSettlement, multiSettle, multiSub, multiAutoContent]);
 
+  // 지금 화면에 보이는 분류/원천(총무=입금 분류·원천, 멤버=본인 지출 분류·원천)
+  const visCatId = isOwner ? f.lCatId : f.mCatId;
+  const visSourceId = isOwner ? f.lSourceId : f.mSourceId;
+  const visCat = visCatId === KEEP
+    ? { name: isOwner ? initial?.leader_category_name : initial?.category_name, emoji: isOwner ? initial?.leader_category_emoji : initial?.category_emoji }
+    : (isOwner ? incomeCats : cats).find((c) => String(c.id) === visCatId);
+  const visSourceName = visSourceId === KEEP
+    ? ((isOwner ? initial?.deposit_source_name : initial?.source_name) || '')
+    : sourceNameOf(sources.flat, visSourceId);
+  const visSource = visSourceId && visSourceId !== KEEP ? sources.flat.find((x) => String(x.id) === visSourceId) : null;
+  const effectiveContent = f.content.trim()
+    || ((multiSettle || multiSub) && isLeaderSettlement ? multiAutoContent : '')
+    || (isSettleMode ? settleContentDefault : '');
+
+  // 즐겨찾기(개인별 목록 하나 — 개인 기록 폼과 공용). 보는 사람 입장의 수입/지출로 저장된다.
+  const { favorited, toggle: toggleFavorite, busy: favoriteBusy } = useFavoriteToggle({
+    type: isOwner ? 'income' : 'expense',
+    amount: Math.round(multiSettle ? settleTotal : multiSub ? subTotal : (Number(f.amount) || 0)),
+    category_id: visCat?.id ? Number(visCat.id) : null, category_name: visCat?.name || '', category_emoji: visCat?.emoji || '', category_color: visCat?.color || '',
+    source_id: visSource ? Number(visSource.id) : null, source_name: visSourceName,
+    to_source_id: null, to_source_name: '',
+    content: f.content.trim(), memo: f.memo, items: null,
+  }, {
+    showToast,
+    onEmptyContent: () => { showToast('내용을 입력해 주세요'); contentInputRef.current?.focus(); },
+  });
+  const rankedContentSuggestions = contentSuggestOpen ? rankSuggestions(contentSuggestions, f.content) : [];
+
   const submit = async () => {
     if (!f.memberId) return setErr('멤버를 선택하세요.');
+    // 필수 항목 확인(개인 기록 폼과 동일한 순서: 내용 → 분류 → 원천)
+    if (!effectiveContent) {
+      showToast('내용을 입력해 주세요');
+      contentInputRef.current?.focus();
+      return;
+    }
+    if (!visCatId) return promptRequiredSelect(categorySelectRef, '분류를 선택해 주세요');
+    if (!visSourceId) return promptRequiredSelect(sourceSelectRef, '원천을 선택해 주세요');
 
     if (multiSettle) {
       // 분류가 "정산"일 때만(isLeaderSettlement) 각 행이 정산 대상 선택이고, 아니면 자유 입력 항목이므로
@@ -1507,7 +1644,7 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
       return;
     }
 
-    if (!f.amount || Number(f.amount) < 0) return setErr('금액을 입력하세요.');
+    if (Number(f.amount) < 0) return setErr('금액을 올바르게 입력하세요.');
 
     // 멤버 가계부(지출) 필드
     let m_name = '', m_emoji = '', m_source = '';
@@ -1564,13 +1701,39 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
   return (
     <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
       {topNotice}
+      <input ref={receiptInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onReceiptFile} />
 
       <div className="rcpt-card">
-        <input
-          type="text" value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })}
-          placeholder={isSettleMode ? settleContentDefault : '예: 넷플릭스 회비'}
-          style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: groupBadge ? '0 0 6px' : '0 0 14px' }}
-        />
+        <div style={{ paddingBottom: groupBadge ? 6 : 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+              <input
+                ref={contentInputRef}
+                type="text" value={f.content} onChange={(e) => { setF({ ...f, content: e.target.value }); setContentSuggestOpen(true); }}
+                onFocus={() => { setContentFocused(true); setContentSuggestOpen(true); }}
+                onBlur={() => { setContentFocused(false); setTimeout(() => setContentSuggestOpen(false), 150); }} autoComplete="off"
+                placeholder={isSettleMode ? settleContentDefault : '내용'}
+                style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: `0 ${contentFocused && f.content ? '26px' : '0'} 0 0` }}
+              />
+              {contentFocused && f.content && <ClearButton onClear={() => setF((prev) => ({ ...prev, content: '' }))} />}
+              <SuggestList items={rankedContentSuggestions} query={f.content} onPick={(v) => { setF((prev) => ({ ...prev, content: v })); setContentSuggestOpen(false); }} />
+            </div>
+            <button
+              type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 등록'}
+              style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            >
+              <StarIcon filled={favorited} />
+            </button>
+            {!multiSettle && (
+              <button
+                type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
+                style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : '#191722'} />
+              </button>
+            )}
+          </div>
+        </div>
         {groupBadge && (
           <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
             {groupBadge.name}
@@ -1595,14 +1758,6 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
               <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{dotDateWithWeekday(f.date)}</span>
               <input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택" />
             </div>
-            {!multiSettle && (
-              <button
-                type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
-                style={{ border: 'none', background: 'transparent', padding: 0, flex: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0 }}
-              >
-                <RepeatIcon color={(recurringId || pendingRecurrence) ? '#2CDDB9' : '#c7c3cc'} />
-              </button>
-            )}
           </div>
         </div>
 
@@ -1620,18 +1775,18 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
         <div style={rowStyle}>
           <span style={rowLabelStyle}>분류</span>
           {isOwner ? (
-            <CategorySelect cats={incomeCats} value={f.lCatId} onChange={(v) => setF({ ...f, lCatId: v })} keepLabel={initial?.leader_category_name} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }} />
+            <CategorySelect cats={incomeCats} value={f.lCatId} onChange={(v) => setF({ ...f, lCatId: v })} keepLabel={initial?.leader_category_name} placeholder="분류 선택" selectRef={categorySelectRef} onEdit={() => goEditSettings('/settings/categories/income')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lCatId ? 600 : 400, color: f.lCatId ? '#191722' : '#a29ead' }} />
           ) : (
-            <CategorySelect cats={cats} value={f.mCatId} onChange={(v) => setF({ ...f, mCatId: v })} keepLabel={initial?.category_name} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }} />
+            <CategorySelect cats={cats} value={f.mCatId} onChange={(v) => setF({ ...f, mCatId: v })} keepLabel={initial?.category_name} placeholder="분류 선택" selectRef={categorySelectRef} onEdit={() => goEditSettings('/settings/categories/expense')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.mCatId ? 600 : 400, color: f.mCatId ? '#191722' : '#a29ead' }} />
           )}
         </div>
 
         <div style={rowStyle}>
           <span style={rowLabelStyle}>원천</span>
           {isOwner ? (
-            <SourceSelect sources={sources.tree} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }} />
+            <SourceSelect sources={sources.tree} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lSourceId ? 600 : 400, color: f.lSourceId ? '#191722' : '#a29ead' }} />
           ) : (
-            <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }} />
+            <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.mSourceId ? 600 : 400, color: f.mSourceId ? '#191722' : '#a29ead' }} />
           )}
         </div>
 
@@ -1775,9 +1930,10 @@ export function DepositForm({ initial, sub, cats, incomeCats = [], sources, memb
           {deleteBusy ? '삭제 중…' : '삭제'}
         </button>
       )}
+      {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
     </form>
   );
-}
+});
 
 export function SettingsForm({ sub, incomeCats, onClose, onSave }) {
   const [f, setF] = useState({

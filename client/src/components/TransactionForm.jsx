@@ -5,12 +5,13 @@ import { useAuth } from '../lib/auth.jsx';
 import { today, dotDate, dotDateWithWeekday, fmtWon, fmtNum, renderTemplate } from '../lib/format.js';
 import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
 import { saveTxDraft, takeTxDraft } from '../lib/txDraft.js';
+import { useFavoriteToggle } from '../lib/useFavoriteToggle.js';
 import CalcAmountInput from './CalcAmountInput.jsx';
 import RecurrenceModal from './RecurrenceModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
 
 // "반복 관리" 메뉴와 동일한 반복 아이콘(채워진 순환 화살표)
-const RepeatIcon = ({ color }) => (
+export const RepeatIcon = ({ color }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill={color}>
     <path d="M12,4V1L8,5l4,4V6c3.31,0,6,2.69,6,6c0,1.01-0.25,1.97-0.7,2.8l1.46,1.46C19.54,15.03,20,13.57,20,12C20,7.58,16.42,4,12,4z M6,12c0-1.01,0.25-1.97,0.7-2.8L5.24,7.74C4.46,8.97,4,10.43,4,12c0,4.42,3.58,8,8,8v3l4-4l-4-4v3c-3.31,0-6-2.69-6-6z" />
   </svg>
@@ -19,7 +20,7 @@ const RemoveIcon = () => (
   <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
 );
 // 즐겨찾기 등록 별 아이콘 — 미등록이면 속이 빈 옅은 회색 테두리, 등록되면 노란색으로 채워짐
-const StarIcon = ({ filled }) => (
+export const StarIcon = ({ filled }) => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill={filled ? '#FFC53D' : 'none'} stroke={filled ? '#FFC53D' : '#c7c3cc'} strokeWidth="1.6" strokeLinejoin="round">
     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
   </svg>
@@ -79,7 +80,7 @@ export async function fileToResizedBase64(file, maxSize = 1280, quality = 0.75) 
 // 자동완성 후보를 입력한 글자로 시작하는 것 우선 → 중간에 포함된 것 다음 순으로 정렬해
 // 최대 max 개까지만 추려낸다("내용"/"항목명" 입력창 공용). 아무것도 입력하지 않았으면
 // 아무 것도 추천하지 않는다.
-function rankSuggestions(list, query, max = 4) {
+export function rankSuggestions(list, query, max = 4) {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   const starts = []; const contains = [];
@@ -111,7 +112,7 @@ function HighlightedText({ text, query }) {
 // 입력창 바로 아래에 뜨는 자체 자동완성 드롭다운(네이티브 datalist 대신 — 모양/동작을
 // 직접 제어하기 위함). mousedown 에서 preventDefault 해, 항목을 눌러도 입력창의 포커스가
 // 먼저 끊기지 않게 한다(끊기면 onBlur 가 먼저 실행돼 클릭이 무시될 수 있음).
-function SuggestList({ items, query, onPick }) {
+export function SuggestList({ items, query, onPick }) {
   if (!items.length) return null;
   return (
     <div style={{
@@ -137,7 +138,7 @@ function SuggestList({ items, query, onPick }) {
 
 // 입력창이 포커스돼 있을 때만 우측 끝에 보이는 작은 원형 X(지우기) 버튼. mousedown 에서
 // preventDefault 해 버튼을 눌러도 입력창의 포커스(blur)가 먼저 끊기지 않게 한다.
-function ClearButton({ onClear }) {
+export function ClearButton({ onClear }) {
   return (
     <button
       type="button" aria-label="지우기" onMouseDown={(e) => e.preventDefault()} onClick={onClear}
@@ -372,15 +373,6 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [contentSuggestOpen, setContentSuggestOpen] = useState(false);
   const [itemNameSuggestions, setItemNameSuggestions] = useState([]);
   const [error, setError] = useState('');
-  const [favorites, setFavorites] = useState([]);
-  const [favoriteBusy, setFavoriteBusy] = useState(false);
-  // 즐겨찾기 목록을 미리 받아 두고, 지금 폼 내용과 똑같은(분류/원천/내용/항목/금액) 즐겨찾기가
-  // 있는지로 별 아이콘 상태를 매번 다시 계산한다 — 특정 거래에 묶인 게 아니라 "내용이 완전히
-  // 같으면" 다른 거래를 열어도 그대로 노란색으로 보이게 하기 위함.
-  useEffect(() => {
-    if (groupId || onSubmit) return;
-    db.listFavoriteTransactions(user.id).then(setFavorites).catch(() => {});
-  }, []);
   const [toast, setToast] = useState('');
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -733,66 +725,16 @@ const TransactionForm = forwardRef(function TransactionForm({
       .map((it) => ({ name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0 }))
   ), [isTransfer, items]);
 
-  const itemsMatch = (a, b) => {
-    const an = a?.length ? a : null, bn = b?.length ? b : null;
-    if (!an && !bn) return true;
-    if (!an || !bn || an.length !== bn.length) return false;
-    return an.every((x, i) => x.name === bn[i].name && Number(x.qty) === Number(bn[i].qty) && Number(x.amount) === Number(bn[i].amount));
-  };
-  // 특정 거래에 묶는 게 아니라 "지금 폼 내용과 완전히 같은 즐겨찾기가 있는가"로 판단 — 날짜만 다르고
-  // 나머지(분류/원천/내용/항목/금액)가 같은 다른 기록을 열어도 그대로 노란 별로 보이게 하기 위함.
-  const matchedFavorites = useMemo(() => favorites.filter((f) => (
-    f.type === type &&
-    Number(f.amount) === Math.round(total) &&
-    (f.content || '').trim() === contentValue.trim() &&
-    (f.category_id || null) === (resolvedCategorySource.category_id || null) &&
-    (f.category_name || '') === (resolvedCategorySource.category_name || '') &&
-    (f.source_id || null) === (resolvedCategorySource.source_id || null) &&
-    (f.source_name || '') === (resolvedCategorySource.source_name || '') &&
-    (f.to_source_id || null) === (resolvedCategorySource.to_source_id || null) &&
-    (f.to_source_name || '') === (resolvedCategorySource.to_source_name || '') &&
-    itemsMatch(f.items, favItemsSnapshot)
-  )), [favorites, type, total, contentValue, resolvedCategorySource, favItemsSnapshot]);
-  const favorited = matchedFavorites.length > 0;
-
-  // 즐겨찾기 등록/해제 토글: 등록돼 있으면(= 지금 내용과 완전히 같은 즐겨찾기가 있으면) 그걸
-  // 지우고, 아니면 지금 폼에 작성 중인 내용(분류/원천/내용/항목/금액)을 그대로 템플릿으로 저장.
-  const toggleFavorite = async () => {
-    if (favoriteBusy) return;
-    if (favorited) {
-      setFavoriteBusy(true);
-      try {
-        await Promise.all(matchedFavorites.map((f) => db.deleteFavoriteTransaction(f.id)));
-        setFavorites((prev) => prev.filter((f) => !matchedFavorites.some((m) => m.id === f.id)));
-        showToast('즐겨찾기 해제되었습니다');
-      } catch (err) {
-        showToast(err.message || '즐겨찾기 해제에 실패했습니다');
-      } finally {
-        setFavoriteBusy(false);
-      }
-      return;
-    }
-    if (!contentValue.trim()) {
-      showToast('내용을 입력해 주세요');
-      contentInputRef.current?.focus();
-      return;
-    }
-    setFavoriteBusy(true);
-    try {
-      const row = await db.addFavoriteTransaction(user.id, {
-        type, amount: Math.round(total),
-        ...resolvedCategorySource,
-        content: contentValue.trim(), memo,
-        items: favItemsSnapshot?.length ? favItemsSnapshot : null,
-      });
-      setFavorites((prev) => [row, ...prev]);
-      showToast('즐겨찾기에 등록되었습니다');
-    } catch (err) {
-      showToast(err.message || '즐겨찾기 등록에 실패했습니다');
-    } finally {
-      setFavoriteBusy(false);
-    }
-  };
+  // 즐겨찾기(개인별 목록 하나 — 개인/그룹 기록 폼 공용): 지금 폼 내용 그대로를 템플릿으로 등록/해제
+  const { favorited, toggle: toggleFavorite, busy: favoriteBusy } = useFavoriteToggle({
+    type, amount: Math.round(total),
+    ...resolvedCategorySource,
+    content: contentValue.trim(), memo,
+    items: favItemsSnapshot?.length ? favItemsSnapshot : null,
+  }, {
+    showToast,
+    onEmptyContent: () => { showToast('내용을 입력해 주세요'); contentInputRef.current?.focus(); },
+  });
 
   const submit = async (e) => {
     e.preventDefault();
@@ -961,15 +903,11 @@ const TransactionForm = forwardRef(function TransactionForm({
     <form onSubmit={submit}>
       {topNotice}
 
-      {!fixedType && (
-        <>
-          <input
-            ref={receiptInputRef} type="file" accept="image/*"
-            style={{ display: 'none' }} onChange={onReceiptFile}
-          />
-          {scanError && <p className="small muted" style={{ margin: '0 2px 12px', color: '#FF4358' }}>{scanError}</p>}
-        </>
-      )}
+      <input
+        ref={receiptInputRef} type="file" accept="image/*"
+        style={{ display: 'none' }} onChange={onReceiptFile}
+      />
+      {scanError && <p className="small muted" style={{ margin: '0 2px 12px', color: '#FF4358' }}>{scanError}</p>}
 
       {!fixedType && (
         <div className="type-pill">
@@ -1006,14 +944,12 @@ const TransactionForm = forwardRef(function TransactionForm({
               {contentFocused && contentValue && <ClearButton onClear={clearContent} />}
               <SuggestList items={rankedContentSuggestions} query={contentValue} onPick={pickContentSuggestion} />
             </div>
-            {!groupId && !onSubmit && (
-              <button
-                type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 등록'}
-                style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-              >
-                <StarIcon filled={favorited} />
-              </button>
-            )}
+            <button
+              type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 등록'}
+              style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            >
+              <StarIcon filled={favorited} />
+            </button>
             <button
               type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
               style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}

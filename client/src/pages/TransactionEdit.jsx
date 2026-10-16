@@ -44,14 +44,15 @@ export default function TransactionEdit() {
   const autoReceiptMime = location.state?.autoReceiptMime || null;
   // 즐겨찾기 목록에서 고른 템플릿(신규 작성일 때만) — initial 과 동일한 모양이라 그대로 꽂아주면
   // TransactionForm 의 기존 초기화 로직이 그대로 채워준다(날짜는 담겨 있지 않아 오늘 날짜로 들어감).
+  // 입금 내역(DepositForm)은 initial 이 있으면 수정 모드로 보므로 initial 대신 favoritePreset 으로 따로 넘긴다.
   const favoritePreset = (!editing && location.state?.favorite) || null;
 
-  const [initial, setInitial] = useState(favoritePreset);
+  const [initial, setInitial] = useState(isDeposit ? null : favoritePreset);
   // 즐겨찾기 선택/복사로 새 내비게이션이 생길 때마다(location.key 가 매번 새로 발급됨) initial 을
   // 명시적으로 다시 맞춰 준다 — 같은 컴포넌트 인스턴스가 재사용되는 경우에도 이전 화면(수정 중이던
   // 기존 기록)의 값이 남아있지 않고 항상 새로 받은 템플릿으로 덮어써지도록 하기 위함.
   useEffect(() => {
-    if (!editing && location.state?.favorite) setInitial(location.state.favorite);
+    if (!editing && !isDeposit && location.state?.favorite) setInitial(location.state.favorite);
   }, [location.key]);
   const [group, setGroup] = useState(null);
   const [members, setMembers] = useState([]);
@@ -207,26 +208,46 @@ export default function TransactionEdit() {
   const transferMembers = isPooledTransfer ? (isOwner ? members : (myGroupMember ? [myGroupMember] : [])) : undefined;
   const defaultTransferMemberId = isPooledTransfer ? (initial?.member_id || myGroupMember?.id) : undefined;
 
-  // 영수증으로 채우기: 일반 개인/그룹 항목 + 공금 사용 내역(신규 작성·수정 모두, 결제·입금·이체 내역 제외)
-  const showReceiptBtn = !isPayment && !isDeposit && !isPooledTransfer;
-  // 즐겨찾기/복사: 그룹/구독/공금과 무관한 순수 개인 기록에만 노출. 신규 작성이면 즐겨찾기
-  // 바로가기, 수정 중이면(이미 저장된 기록) 대신 복사 버튼을 보여준다.
-  const showFavoriteBtn = !groupId && !editing;
-  const showCopyBtn = !groupId && editing && !!initial;
-  // 복사: 지금 보고 있는 기록과 같은 내용(분류/원천/내용/항목/금액)으로 새 기록 화면을 오늘
-  // 날짜로 띄운다(즐겨찾기 선택 때와 같은 location.state.favorite 경로를 재사용 — 날짜가
-  // 안 담겨 있어 자동으로 오늘 날짜가 됨). 저장 버튼을 누르기 전까진 실제로 생성되지 않는다.
+  // 상단바 버튼은 개인/그룹 기록 화면 모두 동일: 영수증으로 채우기 + (신규) 즐겨찾기 / (수정) 복사
+  const showReceiptBtn = true;
+  const showFavoriteBtn = !editing;
+  const showCopyBtn = editing && !!initial;
+  // 즐겨찾기 목록에서 항목을 고르면 지금 보고 있는 이 기록 화면(그룹 결제/입금 등 URL 그대로)으로
+  // 돌아와 채워지도록 현재 경로를 함께 넘긴다.
+  const openFavorites = () => nav('/favorites', { state: { returnTo: location.pathname + location.search } });
+  // 복사: 지금 보고 있는 기록과 같은 내용으로 같은 종류의 새 기록 화면을 오늘 날짜로 띄운다(즐겨찾기
+  // 선택 때와 같은 location.state.favorite 경로 재사용 — 날짜가 안 담겨 있어 자동으로 오늘 날짜가 됨).
+  // 저장 전까진 실제로 생성되지 않고, 저장/닫기 시 수정 화면을 건너뛰고 그 전 화면으로 돌아간다(-2).
   const copyToNew = () => {
     if (!initial) return;
-    const snapshot = {
-      type: initial.type, amount: initial.amount,
-      category_id: initial.category_id, category_name: initial.category_name,
-      category_emoji: initial.category_emoji, category_color: initial.category_color,
-      source_id: initial.source_id, source_name: initial.source_name,
-      to_source_id: initial.to_source_id, to_source_name: initial.to_source_name,
-      content: initial.content, memo: initial.memo, items: initial.items || null,
-    };
-    nav('/new', { state: { favorite: snapshot, toast: '복사되었습니다', closeTo: '/' } });
+    let snapshot;
+    if (isDeposit) {
+      // 입금 내역은 보는 사람 입장(총대=수입, 멤버=지출)의 분류/원천으로 옮기고, 멤버·회차도 함께 복사
+      snapshot = isOwner ? {
+        type: 'income', category_name: initial.leader_category_name, category_emoji: initial.leader_category_emoji,
+        source_name: initial.deposit_source_name,
+      } : {
+        type: 'expense', category_name: initial.category_name, category_emoji: initial.category_emoji,
+        source_name: initial.source_name,
+      };
+      snapshot = { ...snapshot, amount: initial.amount, content: initial.content, memo: initial.memo, member_id: initial.member_id, periods: initial.periods };
+    } else {
+      snapshot = {
+        type: initial.type, amount: initial.amount,
+        category_id: initial.category_id, category_name: initial.category_name,
+        category_emoji: initial.category_emoji, category_color: initial.category_color,
+        source_id: initial.source_id, source_name: initial.source_name,
+        to_source_id: initial.to_source_id, to_source_name: initial.to_source_name,
+        content: initial.content, memo: initial.memo, items: initial.items || null,
+        periods: initial.periods, member_id: initial.member_id,
+      };
+    }
+    // 같은 종류의 신규 작성 화면: 그룹 특수 kind 는 URL 그대로, 그룹 일반 항목은 그 그룹으로
+    // (정산 그룹 결제 내역은 지출 고정), 개인 기록은 /new
+    let path = '/new';
+    if (isGroupKind || isGroupExpense) path = `/new${location.search}`;
+    else if (initial.group_id) path = `/new?group=${initial.group_id}${isSettlement(group?.category) ? '&kind=expense' : ''}`;
+    nav(path, { state: { favorite: snapshot, toast: '복사되었습니다', closeTo: -2 } });
   };
 
   return (
@@ -239,7 +260,7 @@ export default function TransactionEdit() {
         {(showReceiptBtn || showFavoriteBtn || showCopyBtn) && (
           <div className="topbar-right" style={{ display: 'flex', gap: 8 }}>
             {showFavoriteBtn && (
-              <button type="button" className="tb-icon-btn" onClick={() => nav('/favorites')} aria-label="즐겨찾기">
+              <button type="button" className="tb-icon-btn" onClick={openFavorites} aria-label="즐겨찾기">
                 <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>
@@ -280,6 +301,8 @@ export default function TransactionEdit() {
         ) : isDeposit ? (
           <DepositForm
             key={location.key}
+            ref={formRef} onScanBusyChange={setScanBusy}
+            favoritePreset={favoritePreset} autoToast={location.state?.toast}
             initial={initial} sub={sub} cats={cats} incomeCats={incomeCats} sources={sources}
             members={isOwner ? memberList : (myMember ? [myMember] : [])} recentExpenses={recentExpenses}
             isOwner={isOwner} onSave={saveDeposit} onSaved={done}

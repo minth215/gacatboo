@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtNum } from '../lib/format.js';
@@ -13,6 +13,7 @@ import Spinner from '../components/Spinner.jsx';
 export default function Favorites() {
   const { user } = useAuth();
   const nav = useNavigate();
+  const location = useLocation();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState(null);
@@ -20,11 +21,11 @@ export default function Favorites() {
   const load = () => db.listFavoriteTransactions(user.id).then(setRows).catch(() => setRows([])).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
 
-  // closeTo: 즐겨찾기 페이지의 "<" 버튼은 평범하게 뒤로가기(원래 보던 기록 페이지로)가 되도록
-  // 이 화면 자체는 그냥 push 로 쌓고, 대신 다음 기록 페이지의 X(닫기) 버튼이 "즐겨찾기를 거쳐
-  // 왔으니 가계부로 바로 돌아가라"는 걸 알도록 location.state 에 실어 보낸다(TransactionEdit
-  // 의 X 버튼이 location.state.closeTo 가 있으면 그 경로로, 없으면 평범히 한 단계 뒤로 간다).
-  const pick = (fav) => nav('/new', { state: { favorite: fav, closeTo: '/' } });
+  // 이 화면은 기록 화면(개인/그룹 공용) 위에 쌓여 있으므로 "<"는 평범한 뒤로가기로 그 기록 화면에
+  // 돌아가고, 항목을 고르면 이 화면을 같은 종류의 새 기록 화면(returnTo)으로 바꿔치기(replace)해
+  // 채워 넣는다. 그 화면에서 저장/닫기하면 원래 기록 화면까지 건너뛰고 그 전 화면으로(-2) 돌아간다.
+  const returnTo = location.state?.returnTo || '/new';
+  const pick = (fav) => nav(returnTo, { replace: true, state: { favorite: fav, closeTo: -2 } });
   const remove = async (fav) => {
     if (!confirm('이 즐겨찾기를 삭제할까요?')) return;
     try { await db.deleteFavoriteTransaction(fav.id); load(); } catch (e) { alert(e.message); }
