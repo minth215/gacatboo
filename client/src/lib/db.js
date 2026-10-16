@@ -242,18 +242,6 @@ export const db = {
     return this.attachSubscriptionPeriods(flattenTx(hideOthersSettlementPayments(unwrap(await query), userId)));
   },
 
-  // 내용 자동완성용: 과거에 쓴 내용(중복 제거, 최신순)
-  async listContentSuggestions(userId) {
-    const rows = unwrap(await supabase.from('transactions').select('content')
-      .eq('user_id', userId).neq('content', '')
-      .order('date', { ascending: false }).order('id', { ascending: false }).limit(500));
-    const seen = new Set(); const out = [];
-    for (const r of rows || []) {
-      const c = (r.content || '').trim();
-      if (c && !seen.has(c)) { seen.add(c); out.push(c); if (out.length >= 100) break; }
-    }
-    return out;
-  },
   // 항목(영수증형 표) "항목명" 입력창의 자동완성 후보: 최근 기록들의 items[].name 을 모아
   // 중복 없이 최신순으로. content 와 달리 items 는 jsonb 배열이라 클라이언트에서 펼쳐서 모은다.
   async listItemNameSuggestions(userId) {

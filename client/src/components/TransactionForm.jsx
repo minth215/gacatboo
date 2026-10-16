@@ -262,7 +262,6 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [sources, setSources] = useState([]);
   const [sourcesFlat, setSourcesFlat] = useState([]);
   const [recentExpenses, setRecentExpenses] = useState([]);
-  const [contentSuggestions, setContentSuggestions] = useState([]);
   const [itemNameSuggestions, setItemNameSuggestions] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -285,7 +284,6 @@ const TransactionForm = forwardRef(function TransactionForm({
     }).catch(() => {}).finally(() => setCategoriesLoaded(true));
     db.listSources().then(({ tree, flat }) => { setSources(tree); setSourcesFlat(flat); }).catch(() => {});
     db.listRecentExpenses(user.id, { includeId: initial?.settlement_target_id || null }).then(setRecentExpenses).catch(() => {});
-    db.listContentSuggestions(user.id).then(setContentSuggestions).catch(() => {});
     db.listItemNameSuggestions(user.id).then(setItemNameSuggestions).catch(() => {});
   }, []);
 
@@ -658,17 +656,12 @@ const TransactionForm = forwardRef(function TransactionForm({
       <div className="rcpt-card">
         <div style={{ position: 'relative' }}>
           <input
-            type="text" list="tx-content-list" placeholder="내용" value={contentValue} onChange={onContentChange}
+            type="text" placeholder="내용" value={contentValue} onChange={onContentChange}
             onFocus={() => setContentFocused(true)} onBlur={() => { setContentFocused(false); onContentBlur(); }} autoComplete="off"
             style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: `0 ${contentFocused && contentValue ? '26px' : '0'} ${groupBadge ? '6px' : '14px'} 0` }}
           />
           {contentFocused && contentValue && <ClearButton onClear={clearContent} />}
         </div>
-        <datalist id="tx-content-list">
-          {contentSuggestions
-            .filter((s) => !contentValue.trim() || s.toLowerCase().includes(contentValue.trim().toLowerCase()))
-            .map((s) => <option key={s} value={s} />)}
-        </datalist>
         {groupBadge && (
           <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
             {groupBadge.name}
