@@ -18,6 +18,12 @@ const RepeatIcon = ({ color }) => (
 const RemoveIcon = () => (
   <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
 );
+// 즐겨찾기 등록 별 아이콘 — 미등록이면 속이 빈 옅은 회색 테두리, 등록되면 노란색으로 채워짐
+const StarIcon = ({ filled }) => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill={filled ? '#FFC53D' : 'none'} stroke={filled ? '#FFC53D' : '#c7c3cc'} strokeWidth="1.6" strokeLinejoin="round">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+);
 
 // 분류/원천에 id 는 없고 이름(스냅샷)만 있는 항목(그룹 자동기입 등)을 표시하기 위한 센티넬
 const SNAP = '__snap__';
@@ -366,6 +372,8 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [contentSuggestOpen, setContentSuggestOpen] = useState(false);
   const [itemNameSuggestions, setItemNameSuggestions] = useState([]);
   const [error, setError] = useState('');
+  const [favorited, setFavorited] = useState(false);
+  const [favoriteBusy, setFavoriteBusy] = useState(false);
   const [toast, setToast] = useState('');
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -666,6 +674,60 @@ const TransactionForm = forwardRef(function TransactionForm({
   };
   const rankedContentSuggestions = contentSuggestOpen ? rankSuggestions(contentSuggestions, contentValue) : [];
 
+  // 즐겨찾기 등록: 지금 폼에 작성 중인 내용(분류/원천/내용/항목/금액)을 그대로 템플릿으로 저장.
+  // 분류/원천 해석은 submit() 의 계산과 동일한 방식을 그대로 다시 쓴다(아직 제출 전이라 결과가 없음).
+  const addFavorite = async () => {
+    if (favorited || favoriteBusy) return;
+    if (!contentValue.trim()) {
+      showToast('내용을 입력해 주세요');
+      contentInputRef.current?.focus();
+      return;
+    }
+    setFavoriteBusy(true);
+    try {
+      let category_id = null, category_name = '', category_emoji = '', category_color = '';
+      if (isTransfer) {
+        category_name = '이체';
+      } else if (categoryId === SNAP) {
+        category_name = initial?.category_name || '';
+        category_emoji = initial?.category_emoji || '';
+        category_color = initial?.category_color || '';
+      } else if (categoryId) {
+        const c = categories.find((x) => String(x.id) === String(categoryId));
+        if (c) { category_id = Number(c.id); category_name = c.name; category_emoji = c.emoji || ''; category_color = c.color || ''; }
+      }
+      let source_id = null, source_name = '', to_source_id = null, to_source_name = '';
+      if (isTransfer) {
+        source_id = items[0]?.fromSourceId ? Number(items[0].fromSourceId) : null;
+        source_name = sourcesFlat.find((x) => x.id === source_id)?.name || '';
+        to_source_id = items[0]?.toSourceId ? Number(items[0].toSourceId) : null;
+        to_source_name = sourcesFlat.find((x) => x.id === to_source_id)?.name || '';
+      } else if (sourceId === SNAP) {
+        source_name = initial?.source_name || '';
+      } else if (sourceId) {
+        source_id = Number(sourceId);
+        const s = sourcesFlat.find((x) => x.id === source_id);
+        if (s) source_name = s.name;
+      }
+      const favItems = isTransfer ? null : items
+        .filter((it) => it.name.trim() || Number(it.amount) > 0)
+        .map((it) => ({ name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0 }));
+      await db.addFavoriteTransaction(user.id, {
+        type, amount: Math.round(total),
+        category_id, category_name, category_emoji, category_color,
+        source_id, source_name, to_source_id, to_source_name,
+        content: contentValue.trim(), memo,
+        items: favItems?.length ? favItems : null,
+      });
+      setFavorited(true);
+      showToast('즐겨찾기에 등록되었습니다');
+    } catch (err) {
+      showToast(err.message || '즐겨찾기 등록에 실패했습니다');
+    } finally {
+      setFavoriteBusy(false);
+    }
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setError('');
@@ -866,16 +928,26 @@ const TransactionForm = forwardRef(function TransactionForm({
 
       <div className="rcpt-card">
         <div style={{ paddingBottom: groupBadge ? 6 : 14 }}>
-          <div style={{ position: 'relative' }}>
-            <input
-              ref={contentInputRef}
-              type="text" placeholder="내용" value={contentValue} onChange={onContentChange}
-              onFocus={() => { setContentFocused(true); setContentSuggestOpen(true); }}
-              onBlur={() => { setContentFocused(false); onContentBlur(); }} autoComplete="off"
-              style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: `0 ${contentFocused && contentValue ? '26px' : '0'} 0 0` }}
-            />
-            {contentFocused && contentValue && <ClearButton onClear={clearContent} />}
-            <SuggestList items={rankedContentSuggestions} query={contentValue} onPick={pickContentSuggestion} />
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+              <input
+                ref={contentInputRef}
+                type="text" placeholder="내용" value={contentValue} onChange={onContentChange}
+                onFocus={() => { setContentFocused(true); setContentSuggestOpen(true); }}
+                onBlur={() => { setContentFocused(false); onContentBlur(); }} autoComplete="off"
+                style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: `0 ${contentFocused && contentValue ? '26px' : '0'} 0 0` }}
+              />
+              {contentFocused && contentValue && <ClearButton onClear={clearContent} />}
+              <SuggestList items={rankedContentSuggestions} query={contentValue} onPick={pickContentSuggestion} />
+            </div>
+            {!groupId && !onSubmit && (
+              <button
+                type="button" onClick={addFavorite} disabled={favoriteBusy} aria-label="즐겨찾기 등록"
+                style={{ flex: 'none', marginTop: 5, border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex' }}
+              >
+                <StarIcon filled={favorited} />
+              </button>
+            )}
           </div>
         </div>
         {groupBadge && (

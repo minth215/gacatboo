@@ -39,8 +39,11 @@ export default function TransactionEdit() {
   // 가계부 페이지의 촬영 버튼으로 미리 고른 영수증 사진(이미 리사이즈된 base64) → 이 화면에서 자동 인식
   const autoReceiptBase64 = location.state?.autoReceiptBase64 || null;
   const autoReceiptMime = location.state?.autoReceiptMime || null;
+  // 즐겨찾기 목록에서 고른 템플릿(신규 작성일 때만) — initial 과 동일한 모양이라 그대로 꽂아주면
+  // TransactionForm 의 기존 초기화 로직이 그대로 채워준다(날짜는 담겨 있지 않아 오늘 날짜로 들어감).
+  const favoritePreset = (!editing && location.state?.favorite) || null;
 
-  const [initial, setInitial] = useState(null);
+  const [initial, setInitial] = useState(favoritePreset);
   const [group, setGroup] = useState(null);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(editing);
@@ -190,6 +193,8 @@ export default function TransactionEdit() {
 
   // 영수증으로 채우기: 일반 개인/그룹 항목 + 공금 사용 내역(신규 작성·수정 모두, 결제·입금·이체 내역 제외)
   const showReceiptBtn = !isPayment && !isDeposit && !isPooledTransfer;
+  // 즐겨찾기: 그룹/구독/공금과 무관한 순수 개인 기록에만 노출
+  const showFavoriteBtn = !groupId;
 
   return (
     <div style={{ padding: '44px 0 32px' }}>
@@ -198,21 +203,30 @@ export default function TransactionEdit() {
           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
         </button>
         <div className="title">{editing ? '기록 수정' : '기록'}</div>
-        {showReceiptBtn && (
-          <div className="topbar-right">
-            <button
-              type="button" className="tb-icon-btn" disabled={scanBusy}
-              onClick={() => formRef.current?.openReceiptPicker()} aria-label="영수증으로 채우기"
-            >
-              {scanBusy ? (
-                <span style={{ width: 13, height: 13, border: '2px solid #d8d5d0', borderTopColor: '#191722', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-              ) : (
-                <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                  <circle cx="12" cy="13" r="4" />
+        {(showReceiptBtn || showFavoriteBtn) && (
+          <div className="topbar-right" style={{ display: 'flex', gap: 8 }}>
+            {showFavoriteBtn && (
+              <button type="button" className="tb-icon-btn" onClick={() => nav('/favorites')} aria-label="즐겨찾기">
+                <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>
-              )}
-            </button>
+              </button>
+            )}
+            {showReceiptBtn && (
+              <button
+                type="button" className="tb-icon-btn" disabled={scanBusy}
+                onClick={() => formRef.current?.openReceiptPicker()} aria-label="영수증으로 채우기"
+              >
+                {scanBusy ? (
+                  <span style={{ width: 13, height: 13, border: '2px solid #d8d5d0', borderTopColor: '#191722', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                ) : (
+                  <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                )}
+              </button>
+            )}
           </div>
         )}
       </div>

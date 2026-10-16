@@ -6,6 +6,7 @@ import Register from './pages/Register.jsx';
 import Ledger from './pages/Ledger.jsx';
 import Search from './pages/Search.jsx';
 import TransactionEdit from './pages/TransactionEdit.jsx';
+import Favorites from './pages/Favorites.jsx';
 import Stats from './pages/Stats.jsx';
 import Settings from './pages/Settings.jsx';
 import ProfileEdit from './pages/ProfileEdit.jsx';
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/search" element={<Search />} />
         <Route path="/new" element={<TransactionEdit />} />
         <Route path="/tx/:id" element={<TransactionEdit />} />
+        <Route path="/favorites" element={<Favorites />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/groups" element={<Groups />} />
         <Route path="/groups/new" element={<GroupCreate />} />

@@ -409,6 +409,17 @@ export const db = {
     return unwrap(await supabase.from('transactions').update(patch).in('id', ids));
   },
 
+  // ---------- 즐겨찾기(자주 쓰는 기록 템플릿) ----------
+  async listFavoriteTransactions(userId) {
+    return unwrap(await supabase.from('favorite_transactions').select('*').eq('user_id', userId).order('created_at', { ascending: false }));
+  },
+  async addFavoriteTransaction(userId, payload) {
+    return unwrap(await supabase.from('favorite_transactions').insert({ ...payload, user_id: userId }).select().single());
+  },
+  async deleteFavoriteTransaction(id) {
+    return unwrap(await supabase.from('favorite_transactions').delete().eq('id', id));
+  },
+
   // ---------- 그룹 ----------
   async listGroups(userId) {
     // 내가 멤버인 그룹만 RLS로 노출됨
