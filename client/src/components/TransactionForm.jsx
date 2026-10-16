@@ -154,7 +154,10 @@ function ClearButton({ onClear }) {
 
 // 영수증형 항목 입력 행 한 줄(내용/수량(또는 회차)/금액 [+정산 그룹이면 참여 멤버 펼치기]).
 // 이체(isTransfer)일 때는 항목명 칸 대신 출금/입금 원천 셀렉트 두 개 + 화살표를 두고, 수량 칸은 없다.
-function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, itemNameSuggestions, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource }) {
+function ItemRow({
+  item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, itemNameSuggestions, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource,
+  isSettlement, recentExpenses, settlementTargetId, onSettlementTargetChange,
+}) {
   const [nameFocused, setNameFocused] = useState(false);
   const [nameSuggestOpen, setNameSuggestOpen] = useState(false);
   const rankedNameSuggestions = nameSuggestOpen ? rankSuggestions(itemNameSuggestions || [], item.name) : [];
@@ -194,6 +197,16 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer
               ))}
             </select>
           </div>
+        ) : isSettlement ? (
+          <select
+            value={settlementTargetId} onChange={(e) => onSettlementTargetChange(e.target.value)}
+            style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, appearance: 'none' }}
+          >
+            <option value="">정산 대상 선택</option>
+            {recentExpenses.map((x) => (
+              <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})</option>
+            ))}
+          </select>
         ) : (
           <div style={{ position: 'relative', minWidth: 0 }}>
             <input
@@ -890,20 +903,6 @@ const TransactionForm = forwardRef(function TransactionForm({
           </div>
         )}
 
-        {isSettlement && (
-          <div style={{ padding: '6px 0' }}>
-            <div style={{ fontSize: 12, color: '#8b8798', marginBottom: 4 }}>정산 대상 <span style={{ opacity: .7 }}>(정산할 지출 선택)</span></div>
-            <select value={settlementTargetId} onChange={(e) => setSettlementTargetId(e.target.value)} style={{ width: '100%', border: '1px solid #e4e2e6', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', background: '#fff' }}>
-              <option value="">선택 안 함</option>
-              {recentExpenses.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.date.slice(5)} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
         <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: tableCols, gap: 8, padding: '8px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
           <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
           {showMemberSplit && <span />}
@@ -914,9 +913,11 @@ const TransactionForm = forwardRef(function TransactionForm({
 
         {items.map((it, idx) => (
           <ItemRow
-            key={idx} item={it} idx={idx} canRemove={!isTransfer && items.length > 1} qtyLabel={qtyLabel}
+            key={idx} item={it} idx={idx} canRemove={!isTransfer && !isSettlement && items.length > 1} qtyLabel={qtyLabel}
             settlementMembers={showMemberSplit ? settlementMembers : null}
             isTransfer={isTransfer} sources={sources}
+            isSettlement={isSettlement} recentExpenses={recentExpenses}
+            settlementTargetId={settlementTargetId} onSettlementTargetChange={setSettlementTargetId}
             onName={(v) => onItemNameChange(idx, v)}
             itemNameSuggestions={itemNameSuggestions}
             onQty={(v) => updateItem(idx, { qty: v.replace(/[^0-9]/g, '') })}
@@ -931,7 +932,7 @@ const TransactionForm = forwardRef(function TransactionForm({
           />
         ))}
 
-        {!isTransfer && <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>}
+        {!isTransfer && !isSettlement && <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>}
 
         {isTransfer && !onSubmit && feeEnabled && (
           <div style={{ display: 'grid', gridTemplateColumns: tableCols, gap: 8, alignItems: 'center', padding: '5px 0' }}>
