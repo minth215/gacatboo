@@ -49,8 +49,9 @@ const ArrowRightIcon = () => (
   <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="12" x2="20" y2="12" /><polyline points="13 5 20 12 13 19" /></svg>
 );
 
-// 사진 파일을 리사이즈 후 base64(순수 데이터, data: 접두어 제외)로 변환(전송 용량 절감용)
-async function fileToResizedBase64(file, maxSize = 1280, quality = 0.75) {
+// 사진 파일을 리사이즈 후 base64(순수 데이터, data: 접두어 제외)로 변환(전송 용량 절감용).
+// 가계부 페이지의 "영수증으로 기록" 버튼에서도 재사용하기 위해 export.
+export async function fileToResizedBase64(file, maxSize = 1280, quality = 0.75) {
   const img = await new Promise((resolve, reject) => {
     const el = new Image();
     el.onload = () => resolve(el);
@@ -182,7 +183,7 @@ const TransactionForm = forwardRef(function TransactionForm({
   initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate,
   onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence,
   settlementMembers, initialSettlementSplit, qtyLabel = '수량', groupBadge, initialLinkedFee, defaultTransferToName,
-  fixedSourceName, transferMembers, defaultTransferMemberId,
+  fixedSourceName, transferMembers, defaultTransferMemberId, autoReceiptBase64, autoReceiptMime,
 }, ref) {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -243,6 +244,7 @@ const TransactionForm = forwardRef(function TransactionForm({
   useImperativeHandle(ref, () => ({ openReceiptPicker: () => receiptInputRef.current?.click() }), []);
   useEffect(() => { onScanBusyChange?.(scanBusy); }, [scanBusy]);
 
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   useEffect(() => {
     db.listCategories().then((cs) => {
       setCategories(cs);
@@ -251,7 +253,7 @@ const TransactionForm = forwardRef(function TransactionForm({
         const c = cs.find((x) => x.type === (fixedType || type) && x.name === defaultCategoryName);
         if (c) setCategoryId(String(c.id));
       }
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setCategoriesLoaded(true));
     db.listSources().then(({ tree, flat }) => { setSources(tree); setSourcesFlat(flat); }).catch(() => {});
     db.listRecentExpenses(user.id, { includeId: initial?.settlement_target_id || null }).then(setRecentExpenses).catch(() => {});
     db.listContentSuggestions(user.id).then(setContentSuggestions).catch(() => {});
@@ -318,15 +320,13 @@ const TransactionForm = forwardRef(function TransactionForm({
     memberAmountOverride: { ...items[idx].memberAmountOverride, [memberId]: Math.max(0, Number(v) || 0) },
   });
 
-  // 영수증 사진 선택 → Gemini 로 날짜/금액/상호명/분류 추출 → 폼에 제안값으로 채움(항상 사용자가 확인 후 저장)
-  const onReceiptFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  // 영수증 사진(base64) → Gemini 로 날짜/금액/상호명/분류 추출 → 폼에 제안값으로 채움(항상 사용자가
+  // 확인 후 저장). 폼 안의 "영수증으로 채우기" 버튼과, 가계부 페이지의 촬영 버튼(아래 자동 실행
+  // effect)이 공용으로 쓴다.
+  const runReceiptScan = async (base64, mimeType) => {
     setScanError('');
     setScanBusy(true);
     try {
-      const { base64, mimeType } = await fileToResizedBase64(file);
       const expenseCategoryNames = categories.filter((c) => c.type === 'expense').map((c) => c.name);
       const result = await db.parseReceipt(base64, mimeType, expenseCategoryNames);
       if (!fixedType) setType('expense');
@@ -352,6 +352,23 @@ const TransactionForm = forwardRef(function TransactionForm({
       setScanBusy(false);
     }
   };
+
+  const onReceiptFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const { base64, mimeType } = await fileToResizedBase64(file);
+    await runReceiptScan(base64, mimeType);
+  };
+
+  // 가계부 페이지의 촬영 버튼으로 사진을 먼저 고르고 이 화면으로 넘어온 경우: 분류 목록이
+  // 도착하는 즉시(인식 결과의 분류 매칭에 필요) 한 번만 자동으로 영수증 인식을 실행한다.
+  const autoScanRef = useRef(false);
+  useEffect(() => {
+    if (autoScanRef.current || !autoReceiptBase64 || !categoriesLoaded) return;
+    autoScanRef.current = true;
+    runReceiptScan(autoReceiptBase64, autoReceiptMime || 'image/jpeg');
+  }, [autoReceiptBase64, categoriesLoaded]);
 
   const catOptions = useMemo(() => categories.filter((c) => c.type === type), [categories, type]);
   const selCategory = categories.find((c) => String(c.id) === String(categoryId));

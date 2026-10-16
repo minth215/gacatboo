@@ -479,6 +479,15 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 12px 26px rgba(255, 59, 92, 0.42);
   display: flex; align-items: center; justify-content: center; padding: 0;
 }
+/* 가계부 "+" 버튼 왼쪽의 영수증 촬영 버튼: + 버튼보다 작고, 흰 배경, 아래쪽(bottom) 정렬 동일 */
+.fab-camera {
+  position: fixed; right: max(96px, calc((100vw - 720px) / 2 + 96px));
+  bottom: calc(94px + var(--safe-bottom)); z-index: 25;
+  width: 44px; height: 44px; border-radius: 50%; border: none;
+  background: #fff; color: #6c6779;
+  box-shadow: 0 6px 16px rgba(25, 23, 34, 0.12);
+  display: flex; align-items: center; justify-content: center; padding: 0;
+}
 
 /* ---------- Modal / sheet ---------- */
 .overlay { position: fixed; inset: 0; background: rgba(15, 18, 30, 0.45); z-index: 50; display: flex; align-items: flex-end; justify-content: center; }

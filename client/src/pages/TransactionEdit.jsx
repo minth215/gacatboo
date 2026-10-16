@@ -36,6 +36,9 @@ export default function TransactionEdit() {
   // 정산 탭에서 "입금 완료" 처리 시 넘어오는 사전 입력값(멤버 고정 + 결제 건별 정산 행)
   const presetMemberId = location.state?.presetMemberId ?? null;
   const presetSettleRows = location.state?.presetSettleRows || null;
+  // 가계부 페이지의 촬영 버튼으로 미리 고른 영수증 사진(이미 리사이즈된 base64) → 이 화면에서 자동 인식
+  const autoReceiptBase64 = location.state?.autoReceiptBase64 || null;
+  const autoReceiptMime = location.state?.autoReceiptMime || null;
 
   const [initial, setInitial] = useState(null);
   const [group, setGroup] = useState(null);
@@ -251,6 +254,8 @@ export default function TransactionEdit() {
             initialSettlementSplit={editing ? initialSplit : undefined}
             initialLinkedFee={editing ? initialLinkedFee : undefined}
             groupBadge={(isPayment || effectiveGroupId) ? groupBadge : undefined}
+            autoReceiptBase64={autoReceiptBase64}
+            autoReceiptMime={autoReceiptMime}
           />
         )}
       </div>
