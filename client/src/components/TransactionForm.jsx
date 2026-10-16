@@ -69,10 +69,11 @@ export async function fileToResizedBase64(file, maxSize = 1280, quality = 0.75) 
 }
 
 // 자동완성 후보를 입력한 글자로 시작하는 것 우선 → 중간에 포함된 것 다음 순으로 정렬해
-// 최대 max 개까지만 추려낸다("내용"/"항목명" 입력창 공용).
+// 최대 max 개까지만 추려낸다("내용"/"항목명" 입력창 공용). 아무것도 입력하지 않았으면
+// 아무 것도 추천하지 않는다.
 function rankSuggestions(list, query, max = 4) {
   const q = query.trim().toLowerCase();
-  if (!q) return list.slice(0, max);
+  if (!q) return [];
   const starts = []; const contains = [];
   for (const s of list) {
     const low = s.toLowerCase();
@@ -83,10 +84,26 @@ function rankSuggestions(list, query, max = 4) {
   return [...starts, ...contains].slice(0, max);
 }
 
+// 후보 문자열에서 사용자가 입력한 부분(먹색)과 나머지(회색)를 나눠 표시
+function HighlightedText({ text, query }) {
+  const idx = query ? text.toLowerCase().indexOf(query.toLowerCase()) : -1;
+  if (idx === -1) return <span style={{ color: '#a29ead' }}>{text}</span>;
+  const before = text.slice(0, idx);
+  const match = text.slice(idx, idx + query.length);
+  const after = text.slice(idx + query.length);
+  return (
+    <>
+      {before && <span style={{ color: '#a29ead' }}>{before}</span>}
+      <span style={{ color: '#191722' }}>{match}</span>
+      {after && <span style={{ color: '#a29ead' }}>{after}</span>}
+    </>
+  );
+}
+
 // 입력창 바로 아래에 뜨는 자체 자동완성 드롭다운(네이티브 datalist 대신 — 모양/동작을
 // 직접 제어하기 위함). mousedown 에서 preventDefault 해, 항목을 눌러도 입력창의 포커스가
 // 먼저 끊기지 않게 한다(끊기면 onBlur 가 먼저 실행돼 클릭이 무시될 수 있음).
-function SuggestList({ items, onPick }) {
+function SuggestList({ items, query, onPick }) {
   if (!items.length) return null;
   return (
     <div style={{
@@ -100,10 +117,10 @@ function SuggestList({ items, onPick }) {
           style={{
             display: 'block', width: '100%', textAlign: 'left', padding: '10px 12px', border: 'none',
             borderTop: i === 0 ? 'none' : '1px solid #f6f5f3',
-            background: 'transparent', fontFamily: 'inherit', fontSize: 13, color: '#191722', cursor: 'pointer',
+            background: 'transparent', fontFamily: 'inherit', fontSize: 13, cursor: 'pointer',
           }}
         >
-          {s}
+          <HighlightedText text={s} query={query} />
         </button>
       ))}
     </div>
@@ -180,7 +197,7 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer
               style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, padding: nameFocused && item.name ? '0 22px 0 0' : 0 }}
             />
             {nameFocused && item.name && <ClearButton onClear={() => onName('')} />}
-            <SuggestList items={rankedNameSuggestions} onPick={(s) => { onName(s); setNameSuggestOpen(false); }} />
+            <SuggestList items={rankedNameSuggestions} query={item.name} onPick={(s) => { onName(s); setNameSuggestOpen(false); }} />
           </div>
         )}
         {hasSplit && (
@@ -715,7 +732,7 @@ const TransactionForm = forwardRef(function TransactionForm({
             style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: `0 ${contentFocused && contentValue ? '26px' : '0'} ${groupBadge ? '6px' : '14px'} 0` }}
           />
           {contentFocused && contentValue && <ClearButton onClear={clearContent} />}
-          <SuggestList items={rankedContentSuggestions} onPick={pickContentSuggestion} />
+          <SuggestList items={rankedContentSuggestions} query={contentValue} onPick={pickContentSuggestion} />
         </div>
         {groupBadge && (
           <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
