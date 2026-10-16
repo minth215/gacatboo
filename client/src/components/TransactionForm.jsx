@@ -313,7 +313,7 @@ const TransactionForm = forwardRef(function TransactionForm({
   initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate,
   onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence,
   settlementMembers, initialSettlementSplit, qtyLabel = '수량', groupBadge, initialLinkedFee, defaultTransferToName,
-  fixedSourceName, transferMembers, defaultTransferMemberId, autoReceiptBase64, autoReceiptMime,
+  fixedSourceName, transferMembers, defaultTransferMemberId, autoReceiptBase64, autoReceiptMime, autoToast,
 }, ref) {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -393,6 +393,11 @@ const TransactionForm = forwardRef(function TransactionForm({
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(''), 2200);
   };
+  // 즐겨찾기 선택/복사로 넘어왔을 때(부모가 location.state.toast 로 넘겨줌) 한 번만 토스트 표시
+  useEffect(() => {
+    if (autoToast) showToast(autoToast);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // 필수 선택 칸(분류/원천)을 비워 둔 채 저장하려 할 때: 토스트로 안내하고 해당 셀렉트박스를 바로 열어줌
   const promptRequiredSelect = (refOrId, msg) => {
     showToast(msg);

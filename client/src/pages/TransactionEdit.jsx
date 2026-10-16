@@ -193,8 +193,25 @@ export default function TransactionEdit() {
 
   // 영수증으로 채우기: 일반 개인/그룹 항목 + 공금 사용 내역(신규 작성·수정 모두, 결제·입금·이체 내역 제외)
   const showReceiptBtn = !isPayment && !isDeposit && !isPooledTransfer;
-  // 즐겨찾기: 그룹/구독/공금과 무관한 순수 개인 기록에만 노출
-  const showFavoriteBtn = !groupId;
+  // 즐겨찾기/복사: 그룹/구독/공금과 무관한 순수 개인 기록에만 노출. 신규 작성이면 즐겨찾기
+  // 바로가기, 수정 중이면(이미 저장된 기록) 대신 복사 버튼을 보여준다.
+  const showFavoriteBtn = !groupId && !editing;
+  const showCopyBtn = !groupId && editing && !!initial;
+  // 복사: 지금 보고 있는 기록과 같은 내용(분류/원천/내용/항목/금액)으로 새 기록 화면을 오늘
+  // 날짜로 띄운다(즐겨찾기 선택 때와 같은 location.state.favorite 경로를 재사용 — 날짜가
+  // 안 담겨 있어 자동으로 오늘 날짜가 됨). 저장 버튼을 누르기 전까진 실제로 생성되지 않는다.
+  const copyToNew = () => {
+    if (!initial) return;
+    const snapshot = {
+      type: initial.type, amount: initial.amount,
+      category_id: initial.category_id, category_name: initial.category_name,
+      category_emoji: initial.category_emoji, category_color: initial.category_color,
+      source_id: initial.source_id, source_name: initial.source_name,
+      to_source_id: initial.to_source_id, to_source_name: initial.to_source_name,
+      content: initial.content, memo: initial.memo, items: initial.items || null,
+    };
+    nav('/new', { state: { favorite: snapshot, toast: '복사되었습니다' } });
+  };
 
   return (
     <div style={{ padding: '44px 0 32px' }}>
@@ -203,12 +220,20 @@ export default function TransactionEdit() {
           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
         </button>
         <div className="title">{editing ? '기록 수정' : '기록'}</div>
-        {(showReceiptBtn || showFavoriteBtn) && (
+        {(showReceiptBtn || showFavoriteBtn || showCopyBtn) && (
           <div className="topbar-right" style={{ display: 'flex', gap: 8 }}>
             {showFavoriteBtn && (
               <button type="button" className="tb-icon-btn" onClick={() => nav('/favorites')} aria-label="즐겨찾기">
                 <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+              </button>
+            )}
+            {showCopyBtn && (
+              <button type="button" className="tb-icon-btn" onClick={copyToNew} aria-label="복사">
+                <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                 </svg>
               </button>
             )}
@@ -270,6 +295,7 @@ export default function TransactionEdit() {
             groupBadge={(isPayment || effectiveGroupId) ? groupBadge : undefined}
             autoReceiptBase64={autoReceiptBase64}
             autoReceiptMime={autoReceiptMime}
+            autoToast={location.state?.toast}
           />
         )}
       </div>
