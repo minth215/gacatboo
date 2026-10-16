@@ -77,10 +77,10 @@ function ClearButton({ onClear }) {
       style={{
         position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)',
         width: 18, height: 18, borderRadius: '50%', border: 'none', background: '#e4e2e6', color: '#8b8798',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none', cursor: 'pointer', lineHeight: 0,
       }}
     >
-      <svg width="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" style={{ display: 'block' }}><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
     </button>
   );
 }
@@ -133,7 +133,9 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer
               style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, padding: nameFocused && item.name ? '0 22px 0 0' : 0 }}
             />
             <datalist id={`tx-itemname-list-${idx}`}>
-              {(itemNameSuggestions || []).map((s) => <option key={s} value={s} />)}
+              {(itemNameSuggestions || [])
+                .filter((s) => !item.name.trim() || s.toLowerCase().includes(item.name.trim().toLowerCase()))
+                .map((s) => <option key={s} value={s} />)}
             </datalist>
             {nameFocused && item.name && <ClearButton onClear={() => onName('')} />}
           </div>
@@ -663,7 +665,9 @@ const TransactionForm = forwardRef(function TransactionForm({
           {contentFocused && contentValue && <ClearButton onClear={clearContent} />}
         </div>
         <datalist id="tx-content-list">
-          {contentSuggestions.map((s) => <option key={s} value={s} />)}
+          {contentSuggestions
+            .filter((s) => !contentValue.trim() || s.toLowerCase().includes(contentValue.trim().toLowerCase()))
+            .map((s) => <option key={s} value={s} />)}
         </datalist>
         {groupBadge && (
           <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
