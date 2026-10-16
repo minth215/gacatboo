@@ -348,6 +348,15 @@ a { color: inherit; text-decoration: none; }
 
 .tx-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #fff; }
 .tx-tile { width: 38px; height: 38px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; flex: none; }
+/* 가계부 선택 모드에서 선택된 카드의 타일 테두리: 빙글빙글 도는 코랄핑크→주황 그라데이션 링.
+   타일(.tx-tile)보다 2px 더 큰 사각형을 뒤에 깔고 conic-gradient 를 돌려서, 타일이 가운데를
+   덮어 가장자리 2px 만 띠처럼 보이게 한다(테두리 자체를 그리는 대신 배경을 돌리는 방식). */
+.tile-select-ring {
+  position: absolute; top: -2px; left: -2px; right: -2px; bottom: -2px; border-radius: 14px;
+  background: conic-gradient(from 0deg, #FF6F91, #FF8A00, #FF6F91);
+  animation: tile-select-ring-spin 1.4s linear infinite;
+}
+@keyframes tile-select-ring-spin { to { transform: rotate(360deg); } }
 .tx-row-title { font-size: 13.5px; font-weight: 600; color: #191722; overflow: hidden; }
 .tx-row-title .ttext { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* PC(마우스) 환경: 내용이 잘렸을 때 오버하면 텍스트가 흐르며 전체가 보임 */

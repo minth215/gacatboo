@@ -127,21 +127,18 @@ export default function TransactionList({
                 onLongPress={!selectionMode && editable && onLongPress ? () => onLongPress(t.id) : undefined}
                 background={isGroup ? 'linear-gradient(135deg, #FFF1F3 0%, #FFF6EA 100%)' : '#fff'}
               >
-                  <span style={{
-                    position: 'relative', flex: 'none', display: 'inline-flex', borderRadius: 14,
-                    padding: selected ? 2 : 0, background: selected ? 'linear-gradient(135deg, #FF6F91, #FF8A00)' : 'transparent',
-                    transition: 'padding 0.15s ease',
-                  }}>
+                  <span style={{ position: 'relative', flex: 'none', width: 38, height: 38 }}>
+                    {selected && <span className="tile-select-ring" />}
                     <span
                       className="tx-tile"
-                      style={{ background: t.category_emoji ? (t.category_color || depositIncomeColor || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}
+                      style={{ position: 'relative', zIndex: 1, background: t.category_emoji ? (t.category_color || depositIncomeColor || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}
                     >
                       <span style={{ opacity: selected ? 0.25 : 1, transition: 'opacity 0.15s ease' }}>
                         {t.category_emoji || (t.type === 'income' ? '💰' : '💸')}
                       </span>
                     </span>
                     {selected && (
-                      <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#191722' }}>
+                      <span style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#191722' }}>
                         <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                       </span>
                     )}
