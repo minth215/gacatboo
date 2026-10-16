@@ -199,25 +199,29 @@ function ItemRow({
             </select>
           </div>
         ) : isSettlement ? (
-          <div style={{ position: 'relative', minWidth: 0, height: 19 }}>
+          <div style={{ position: 'relative', minWidth: 0 }}>
+            {/* 실제 select 를 평범한 흐름으로 그대로 두어(항목명 input 과 똑같은 네이티브 폼 컨트롤이라
+                둘의 세로 높이가 자연스럽게 일치함), 글자만 투명하게 지우고 그 위에 원하는 모양의
+                라벨을 겹쳐서 보여준다(열었을 때 보이는 옵션 목록 글자는 각 option 에 색을 직접 줘서
+                select 자체의 color:transparent 를 상속받지 않게 함). */}
+            <select
+              value={item.targetId} onChange={(e) => onTarget(e.target.value)}
+              style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'transparent', outline: 'none', minWidth: 0, appearance: 'none' }}
+            >
+              <option value="" style={{ color: '#191722' }}>정산 대상 선택</option>
+              {recentExpenses.map((x) => (
+                <option key={x.id} value={x.id} style={{ color: '#191722' }}>{x.date.slice(5).replace('-', '.')} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})</option>
+              ))}
+            </select>
             {(() => {
               const picked = recentExpenses.find((x) => String(x.id) === item.targetId);
               const label = picked ? `${picked.category_emoji ? `${picked.category_emoji} ` : ''}${picked.content || picked.category_name || '지출'}` : '';
               return (
-                <span style={{ display: 'block', fontSize: 13.5, lineHeight: '19px', color: label ? '#191722' : '#a29ead', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', pointerEvents: 'none' }}>
+                <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', fontSize: 13.5, color: label ? '#191722' : '#a29ead', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', pointerEvents: 'none' }}>
                   {label || '정산 대상 선택'}
                 </span>
               );
             })()}
-            <select
-              value={item.targetId} onChange={(e) => onTarget(e.target.value)}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
-            >
-              <option value="">정산 대상 선택</option>
-              {recentExpenses.map((x) => (
-                <option key={x.id} value={x.id}>{x.date.slice(5).replace('-', '.')} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})</option>
-              ))}
-            </select>
           </div>
         ) : (
           <div style={{ position: 'relative', minWidth: 0 }}>
@@ -227,7 +231,7 @@ function ItemRow({
               onFocus={() => { setNameFocused(true); setNameSuggestOpen(true); }}
               onBlur={() => { setNameFocused(false); setNameSuggestOpen(false); }}
               autoComplete="off"
-              style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, lineHeight: '19px', color: '#191722', outline: 'none', minWidth: 0, padding: nameFocused && item.name ? '0 22px 0 0' : 0 }}
+              style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, padding: nameFocused && item.name ? '0 22px 0 0' : 0 }}
             />
             {nameFocused && item.name && <ClearButton onClear={() => onName('')} />}
             <SuggestList items={rankedNameSuggestions} query={item.name} onPick={(s) => { onName(s); setNameSuggestOpen(false); }} />
@@ -322,7 +326,9 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [items, setItems] = useState(() => (
     (fixedType || initial?.type) === 'transfer'
       ? [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : '', fromSourceId: initial?.source_id ? String(initial.source_id) : '', toSourceId: initial?.to_source_id ? String(initial.to_source_id) : '' }]
-      : Array.isArray(initial?.items) && initial.items.length
+      // 분류=정산인 기록은 items 가 아니라 settlement_target_id 컬럼이 기준값이라(과거 한때 items 에도
+      // 빈 이름의 항목이 잘못 같이 저장된 적이 있어도) initial.items 를 무시하고 항상 아래 기본값으로 복원한다.
+      : (Array.isArray(initial?.items) && initial.items.length && initial?.category_name !== '정산')
         ? initial.items.map((it) => ({ ...emptyItem(), name: it.name || '', qty: String(it.qty || 1), amount: it.amount ? String(it.amount) : '' }))
         : [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : ''), targetId: initial?.settlement_target_id ? String(initial.settlement_target_id) : '' }]
   ));
@@ -752,7 +758,7 @@ const TransactionForm = forwardRef(function TransactionForm({
     // 원천이 위에서 이미 source_id/to_source_id 로 저장되므로 items 는 따로 저장하지 않음).
     // 정산 분담이 있으면 항목마다 체크된 멤버/금액도 함께 저장해(items.members) 수정 화면에서
     // 항목별로 다시 체크 상태를 복원할 수 있게 한다(전체 합계는 여전히 aggregateSplit 로 처리).
-    const savedItems = isTransfer ? null : items
+    const savedItems = (isTransfer || isSettlement) ? null : items
       .filter((it) => it.name.trim() || Number(it.amount) > 0)
       .map((it) => {
         const base = { name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0 };
@@ -768,7 +774,7 @@ const TransactionForm = forwardRef(function TransactionForm({
       source_id, source_name,
       ...(isTransfer ? { to_source_id, to_source_name } : {}),
       content: (contentValue || '').trim(), memo,
-      items: isTransfer ? null : (savedItems.length ? savedItems : null),
+      items: (isTransfer || isSettlement) ? null : (savedItems.length ? savedItems : null),
       input_currency: currencyItem?.currencyMeta?.input_currency || null,
       input_amount: currencyItem?.currencyMeta?.input_amount ?? null,
       fx_rate: currencyItem?.currencyMeta?.fx_rate ?? null,
