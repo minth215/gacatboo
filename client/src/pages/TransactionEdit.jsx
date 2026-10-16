@@ -199,14 +199,14 @@ export default function TransactionEdit() {
   return (
     <div style={{ padding: '44px 0 32px' }}>
       <div className="simple-topbar flat">
-        <button className="tb-icon-btn" onClick={() => nav(-1)} aria-label="닫기">
+        <button className="tb-icon-btn" onClick={() => nav(location.state?.closeTo ?? -1)} aria-label="닫기">
           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
         </button>
         <div className="title">{editing ? '기록 수정' : '기록'}</div>
         {(showReceiptBtn || showFavoriteBtn) && (
           <div className="topbar-right" style={{ display: 'flex', gap: 8 }}>
             {showFavoriteBtn && (
-              <button type="button" className="tb-icon-btn" onClick={() => nav('/favorites', { replace: true })} aria-label="즐겨찾기">
+              <button type="button" className="tb-icon-btn" onClick={() => nav('/favorites')} aria-label="즐겨찾기">
                 <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>

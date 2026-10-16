@@ -20,9 +20,11 @@ export default function Favorites() {
   const load = () => db.listFavoriteTransactions(user.id).then(setRows).catch(() => setRows([])).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
 
-  // replace:true 로 이동: /new(원본)→즐겨찾기→/new(채워진 채) 로 이어진 중간 화면들을 히스토리에서
-  // 모두 접어, 기록 페이지의 X(닫기) 버튼을 누르면 바로 가계부로 돌아가게 한다.
-  const pick = (fav) => nav('/new', { state: { favorite: fav }, replace: true });
+  // closeTo: 즐겨찾기 페이지의 "<" 버튼은 평범하게 뒤로가기(원래 보던 기록 페이지로)가 되도록
+  // 이 화면 자체는 그냥 push 로 쌓고, 대신 다음 기록 페이지의 X(닫기) 버튼이 "즐겨찾기를 거쳐
+  // 왔으니 가계부로 바로 돌아가라"는 걸 알도록 location.state 에 실어 보낸다(TransactionEdit
+  // 의 X 버튼이 location.state.closeTo 가 있으면 그 경로로, 없으면 평범히 한 단계 뒤로 간다).
+  const pick = (fav) => nav('/new', { state: { favorite: fav, closeTo: '/' } });
   const remove = async (fav) => {
     if (!confirm('이 즐겨찾기를 삭제할까요?')) return;
     try { await db.deleteFavoriteTransaction(fav.id); load(); } catch (e) { alert(e.message); }
