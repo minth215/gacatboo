@@ -372,16 +372,15 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [contentSuggestOpen, setContentSuggestOpen] = useState(false);
   const [itemNameSuggestions, setItemNameSuggestions] = useState([]);
   const [error, setError] = useState('');
-  const [favorited, setFavorited] = useState(false);
-  const [favoriteId, setFavoriteId] = useState(null);
+  const [favorites, setFavorites] = useState([]);
   const [favoriteBusy, setFavoriteBusy] = useState(false);
-  // 수정 화면을 다시 열었을 때, 이 거래에서 등록해 둔 즐겨찾기가 있으면 별 아이콘을 노란색으로 복원
+  // 즐겨찾기 목록을 미리 받아 두고, 지금 폼 내용과 똑같은(분류/원천/내용/항목/금액) 즐겨찾기가
+  // 있는지로 별 아이콘 상태를 매번 다시 계산한다 — 특정 거래에 묶인 게 아니라 "내용이 완전히
+  // 같으면" 다른 거래를 열어도 그대로 노란색으로 보이게 하기 위함.
   useEffect(() => {
-    if (!initial?.id || groupId || onSubmit) return;
-    db.getFavoriteByTransaction(user.id, initial.id).then((row) => {
-      if (row) { setFavorited(true); setFavoriteId(row.id); }
-    }).catch(() => {});
-  }, [initial?.id]);
+    if (groupId || onSubmit) return;
+    db.listFavoriteTransactions(user.id).then(setFavorites).catch(() => {});
+  }, []);
   const [toast, setToast] = useState('');
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -682,17 +681,72 @@ const TransactionForm = forwardRef(function TransactionForm({
   };
   const rankedContentSuggestions = contentSuggestOpen ? rankSuggestions(contentSuggestions, contentValue) : [];
 
-  // 즐겨찾기 등록/해제 토글: 지금 폼에 작성 중인 내용(분류/원천/내용/항목/금액)을 그대로
-  // 템플릿으로 저장(분류/원천 해석은 submit() 의 계산과 동일한 방식을 그대로 다시 씀 — 아직
-  // 제출 전이라 결과가 없음). 이미 등록돼 있으면 그 즐겨찾기를 삭제해 해제한다.
+  // 지금 폼의 분류/원천 해석 결과(submit() 의 계산과 동일한 방식) — 즐겨찾기 저장·비교에 공용으로 씀
+  const resolvedCategorySource = useMemo(() => {
+    let category_id = null, category_name = '', category_emoji = '', category_color = '';
+    if (isTransfer) {
+      category_name = '이체';
+    } else if (categoryId === SNAP) {
+      category_name = initial?.category_name || '';
+      category_emoji = initial?.category_emoji || '';
+      category_color = initial?.category_color || '';
+    } else if (categoryId) {
+      const c = categories.find((x) => String(x.id) === String(categoryId));
+      if (c) { category_id = Number(c.id); category_name = c.name; category_emoji = c.emoji || ''; category_color = c.color || ''; }
+    }
+    let source_id = null, source_name = '', to_source_id = null, to_source_name = '';
+    if (isTransfer) {
+      source_id = items[0]?.fromSourceId ? Number(items[0].fromSourceId) : null;
+      source_name = sourcesFlat.find((x) => x.id === source_id)?.name || '';
+      to_source_id = items[0]?.toSourceId ? Number(items[0].toSourceId) : null;
+      to_source_name = sourcesFlat.find((x) => x.id === to_source_id)?.name || '';
+    } else if (sourceId === SNAP) {
+      source_name = initial?.source_name || '';
+    } else if (sourceId) {
+      source_id = Number(sourceId);
+      const s = sourcesFlat.find((x) => x.id === source_id);
+      if (s) source_name = s.name;
+    }
+    return { category_id, category_name, category_emoji, category_color, source_id, source_name, to_source_id, to_source_name };
+  }, [isTransfer, categoryId, sourceId, categories, sourcesFlat, items, initial]);
+
+  const favItemsSnapshot = useMemo(() => (
+    isTransfer ? null : items
+      .filter((it) => it.name.trim() || Number(it.amount) > 0)
+      .map((it) => ({ name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0 }))
+  ), [isTransfer, items]);
+
+  const itemsMatch = (a, b) => {
+    const an = a?.length ? a : null, bn = b?.length ? b : null;
+    if (!an && !bn) return true;
+    if (!an || !bn || an.length !== bn.length) return false;
+    return an.every((x, i) => x.name === bn[i].name && Number(x.qty) === Number(bn[i].qty) && Number(x.amount) === Number(bn[i].amount));
+  };
+  // 특정 거래에 묶는 게 아니라 "지금 폼 내용과 완전히 같은 즐겨찾기가 있는가"로 판단 — 날짜만 다르고
+  // 나머지(분류/원천/내용/항목/금액)가 같은 다른 기록을 열어도 그대로 노란 별로 보이게 하기 위함.
+  const matchedFavorites = useMemo(() => favorites.filter((f) => (
+    f.type === type &&
+    Number(f.amount) === Math.round(total) &&
+    (f.content || '').trim() === contentValue.trim() &&
+    (f.category_id || null) === (resolvedCategorySource.category_id || null) &&
+    (f.category_name || '') === (resolvedCategorySource.category_name || '') &&
+    (f.source_id || null) === (resolvedCategorySource.source_id || null) &&
+    (f.source_name || '') === (resolvedCategorySource.source_name || '') &&
+    (f.to_source_id || null) === (resolvedCategorySource.to_source_id || null) &&
+    (f.to_source_name || '') === (resolvedCategorySource.to_source_name || '') &&
+    itemsMatch(f.items, favItemsSnapshot)
+  )), [favorites, type, total, contentValue, resolvedCategorySource, favItemsSnapshot]);
+  const favorited = matchedFavorites.length > 0;
+
+  // 즐겨찾기 등록/해제 토글: 등록돼 있으면(= 지금 내용과 완전히 같은 즐겨찾기가 있으면) 그걸
+  // 지우고, 아니면 지금 폼에 작성 중인 내용(분류/원천/내용/항목/금액)을 그대로 템플릿으로 저장.
   const toggleFavorite = async () => {
     if (favoriteBusy) return;
     if (favorited) {
       setFavoriteBusy(true);
       try {
-        if (favoriteId) await db.deleteFavoriteTransaction(favoriteId);
-        setFavorited(false);
-        setFavoriteId(null);
+        await Promise.all(matchedFavorites.map((f) => db.deleteFavoriteTransaction(f.id)));
+        setFavorites((prev) => prev.filter((f) => !matchedFavorites.some((m) => m.id === f.id)));
         showToast('즐겨찾기 해제되었습니다');
       } catch (err) {
         showToast(err.message || '즐겨찾기 해제에 실패했습니다');
@@ -708,43 +762,13 @@ const TransactionForm = forwardRef(function TransactionForm({
     }
     setFavoriteBusy(true);
     try {
-      let category_id = null, category_name = '', category_emoji = '', category_color = '';
-      if (isTransfer) {
-        category_name = '이체';
-      } else if (categoryId === SNAP) {
-        category_name = initial?.category_name || '';
-        category_emoji = initial?.category_emoji || '';
-        category_color = initial?.category_color || '';
-      } else if (categoryId) {
-        const c = categories.find((x) => String(x.id) === String(categoryId));
-        if (c) { category_id = Number(c.id); category_name = c.name; category_emoji = c.emoji || ''; category_color = c.color || ''; }
-      }
-      let source_id = null, source_name = '', to_source_id = null, to_source_name = '';
-      if (isTransfer) {
-        source_id = items[0]?.fromSourceId ? Number(items[0].fromSourceId) : null;
-        source_name = sourcesFlat.find((x) => x.id === source_id)?.name || '';
-        to_source_id = items[0]?.toSourceId ? Number(items[0].toSourceId) : null;
-        to_source_name = sourcesFlat.find((x) => x.id === to_source_id)?.name || '';
-      } else if (sourceId === SNAP) {
-        source_name = initial?.source_name || '';
-      } else if (sourceId) {
-        source_id = Number(sourceId);
-        const s = sourcesFlat.find((x) => x.id === source_id);
-        if (s) source_name = s.name;
-      }
-      const favItems = isTransfer ? null : items
-        .filter((it) => it.name.trim() || Number(it.amount) > 0)
-        .map((it) => ({ name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0 }));
       const row = await db.addFavoriteTransaction(user.id, {
         type, amount: Math.round(total),
-        category_id, category_name, category_emoji, category_color,
-        source_id, source_name, to_source_id, to_source_name,
+        ...resolvedCategorySource,
         content: contentValue.trim(), memo,
-        items: favItems?.length ? favItems : null,
-        source_transaction_id: initial?.id || null,
+        items: favItemsSnapshot?.length ? favItemsSnapshot : null,
       });
-      setFavorited(true);
-      setFavoriteId(row.id);
+      setFavorites((prev) => [row, ...prev]);
       showToast('즐겨찾기에 등록되었습니다');
     } catch (err) {
       showToast(err.message || '즐겨찾기 등록에 실패했습니다');
