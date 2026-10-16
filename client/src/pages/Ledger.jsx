@@ -364,7 +364,7 @@ export default function Ledger() {
         <>
           {/* 월 이동 — 선택 모드에서는 지금 보는 달 대신 선택 개수 안내로 바뀜 */}
           {selectionMode ? (
-            <div style={{ marginTop: 3, padding: '7px 2px', fontSize: 12, fontWeight: 400, color: '#a29ead' }}>
+            <div style={{ marginTop: 3, padding: '7px 2px 7px 8px', fontSize: 12, fontWeight: 400, color: '#a29ead' }}>
               {selectedIds.size} 건 선택되었습니다
             </div>
           ) : (
