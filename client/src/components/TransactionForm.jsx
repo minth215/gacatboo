@@ -977,7 +977,7 @@ const TransactionForm = forwardRef(function TransactionForm({
 
       <div className="rcpt-card">
         <div style={{ paddingBottom: groupBadge ? 6 : 14 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
               <input
                 ref={contentInputRef}
@@ -992,14 +992,14 @@ const TransactionForm = forwardRef(function TransactionForm({
             {!groupId && !onSubmit && (
               <button
                 type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 등록'}
-                style={{ flex: 'none', marginTop: 5, border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex' }}
+                style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
               >
                 <StarIcon filled={favorited} />
               </button>
             )}
             <button
               type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
-              style={{ flex: 'none', marginTop: 5, border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex' }}
+              style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
             >
               <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : '#191722'} />
             </button>
