@@ -419,6 +419,14 @@ export const db = {
   async deleteFavoriteTransaction(id) {
     return unwrap(await supabase.from('favorite_transactions').delete().eq('id', id));
   },
+  // 이 거래에서 등록된 즐겨찾기가 있으면 그 행을 반환(기록 수정 화면을 다시 열었을 때 별 아이콘을
+  // 노란색으로 복원하는 데 사용). 없으면 null.
+  async getFavoriteByTransaction(userId, transactionId) {
+    if (!transactionId) return null;
+    const rows = unwrap(await supabase.from('favorite_transactions').select('id')
+      .eq('user_id', userId).eq('source_transaction_id', transactionId).limit(1));
+    return rows[0] || null;
+  },
 
   // ---------- 그룹 ----------
   async listGroups(userId) {

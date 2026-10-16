@@ -373,7 +373,15 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [itemNameSuggestions, setItemNameSuggestions] = useState([]);
   const [error, setError] = useState('');
   const [favorited, setFavorited] = useState(false);
+  const [favoriteId, setFavoriteId] = useState(null);
   const [favoriteBusy, setFavoriteBusy] = useState(false);
+  // 수정 화면을 다시 열었을 때, 이 거래에서 등록해 둔 즐겨찾기가 있으면 별 아이콘을 노란색으로 복원
+  useEffect(() => {
+    if (!initial?.id || groupId || onSubmit) return;
+    db.getFavoriteByTransaction(user.id, initial.id).then((row) => {
+      if (row) { setFavorited(true); setFavoriteId(row.id); }
+    }).catch(() => {});
+  }, [initial?.id]);
   const [toast, setToast] = useState('');
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -674,10 +682,25 @@ const TransactionForm = forwardRef(function TransactionForm({
   };
   const rankedContentSuggestions = contentSuggestOpen ? rankSuggestions(contentSuggestions, contentValue) : [];
 
-  // 즐겨찾기 등록: 지금 폼에 작성 중인 내용(분류/원천/내용/항목/금액)을 그대로 템플릿으로 저장.
-  // 분류/원천 해석은 submit() 의 계산과 동일한 방식을 그대로 다시 쓴다(아직 제출 전이라 결과가 없음).
-  const addFavorite = async () => {
-    if (favorited || favoriteBusy) return;
+  // 즐겨찾기 등록/해제 토글: 지금 폼에 작성 중인 내용(분류/원천/내용/항목/금액)을 그대로
+  // 템플릿으로 저장(분류/원천 해석은 submit() 의 계산과 동일한 방식을 그대로 다시 씀 — 아직
+  // 제출 전이라 결과가 없음). 이미 등록돼 있으면 그 즐겨찾기를 삭제해 해제한다.
+  const toggleFavorite = async () => {
+    if (favoriteBusy) return;
+    if (favorited) {
+      setFavoriteBusy(true);
+      try {
+        if (favoriteId) await db.deleteFavoriteTransaction(favoriteId);
+        setFavorited(false);
+        setFavoriteId(null);
+        showToast('즐겨찾기 해제되었습니다');
+      } catch (err) {
+        showToast(err.message || '즐겨찾기 해제에 실패했습니다');
+      } finally {
+        setFavoriteBusy(false);
+      }
+      return;
+    }
     if (!contentValue.trim()) {
       showToast('내용을 입력해 주세요');
       contentInputRef.current?.focus();
@@ -712,14 +735,16 @@ const TransactionForm = forwardRef(function TransactionForm({
       const favItems = isTransfer ? null : items
         .filter((it) => it.name.trim() || Number(it.amount) > 0)
         .map((it) => ({ name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0 }));
-      await db.addFavoriteTransaction(user.id, {
+      const row = await db.addFavoriteTransaction(user.id, {
         type, amount: Math.round(total),
         category_id, category_name, category_emoji, category_color,
         source_id, source_name, to_source_id, to_source_name,
         content: contentValue.trim(), memo,
         items: favItems?.length ? favItems : null,
+        source_transaction_id: initial?.id || null,
       });
       setFavorited(true);
+      setFavoriteId(row.id);
       showToast('즐겨찾기에 등록되었습니다');
     } catch (err) {
       showToast(err.message || '즐겨찾기 등록에 실패했습니다');
@@ -942,7 +967,7 @@ const TransactionForm = forwardRef(function TransactionForm({
             </div>
             {!groupId && !onSubmit && (
               <button
-                type="button" onClick={addFavorite} disabled={favoriteBusy} aria-label="즐겨찾기 등록"
+                type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 등록'}
                 style={{ flex: 'none', marginTop: 5, border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex' }}
               >
                 <StarIcon filled={favorited} />

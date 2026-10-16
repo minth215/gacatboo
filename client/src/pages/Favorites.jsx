@@ -20,7 +20,9 @@ export default function Favorites() {
   const load = () => db.listFavoriteTransactions(user.id).then(setRows).catch(() => setRows([])).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
 
-  const pick = (fav) => nav('/new', { state: { favorite: fav } });
+  // replace:true 로 이동: /new(원본)→즐겨찾기→/new(채워진 채) 로 이어진 중간 화면들을 히스토리에서
+  // 모두 접어, 기록 페이지의 X(닫기) 버튼을 누르면 바로 가계부로 돌아가게 한다.
+  const pick = (fav) => nav('/new', { state: { favorite: fav }, replace: true });
   const remove = async (fav) => {
     if (!confirm('이 즐겨찾기를 삭제할까요?')) return;
     try { await db.deleteFavoriteTransaction(fav.id); load(); } catch (e) { alert(e.message); }
@@ -41,7 +43,7 @@ export default function Favorites() {
               ? [f.category_name || '이체', (f.source_name && f.to_source_name) ? `${f.source_name} → ${f.to_source_name}` : ''].filter(Boolean).join(' · ') || '—'
               : [f.category_name, f.source_name].filter(Boolean).join(' · ') || '—';
             return (
-              <div key={f.id} style={{ marginBottom: 8 }}>
+              <div key={f.id} className="tx-daycard" style={{ marginBottom: 8, borderRadius: 20 }}>
                 <SwipeRow
                   isOpen={openId === f.id} onOpenChange={(open) => setOpenId(open ? f.id : null)}
                   onTap={() => pick(f)} actionsWidth={52}
@@ -59,7 +61,7 @@ export default function Favorites() {
                     </div>
                   )}
                 >
-                  <div className="tx-row" style={{ borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', cursor: 'pointer' }}>
+                  <div className="tx-row" style={{ cursor: 'pointer' }}>
                     <span className="tx-tile" style={{ background: f.category_emoji ? (f.category_color || tileBg(f.category_name)) : '#f2f1f5' }}>
                       {f.category_emoji || (f.type === 'income' ? '💰' : f.type === 'transfer' ? '🔁' : '💸')}
                     </span>
