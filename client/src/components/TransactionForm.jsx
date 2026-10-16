@@ -68,9 +68,27 @@ export async function fileToResizedBase64(file, maxSize = 1280, quality = 0.75) 
   return { base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' };
 }
 
+// 입력창이 포커스돼 있을 때만 우측 끝에 보이는 작은 원형 X(지우기) 버튼. mousedown 에서
+// preventDefault 해 버튼을 눌러도 입력창의 포커스(blur)가 먼저 끊기지 않게 한다.
+function ClearButton({ onClear }) {
+  return (
+    <button
+      type="button" aria-label="지우기" onMouseDown={(e) => e.preventDefault()} onClick={onClear}
+      style={{
+        position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)',
+        width: 18, height: 18, borderRadius: '50%', border: 'none', background: '#e4e2e6', color: '#8b8798',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none', cursor: 'pointer',
+      }}
+    >
+      <svg width="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+    </button>
+  );
+}
+
 // 영수증형 항목 입력 행 한 줄(내용/수량(또는 회차)/금액 [+정산 그룹이면 참여 멤버 펼치기]).
 // 이체(isTransfer)일 때는 항목명 칸 대신 출금/입금 원천 셀렉트 두 개 + 화살표를 두고, 수량 칸은 없다.
-function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource }) {
+function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, itemNameSuggestions, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource }) {
+  const [nameFocused, setNameFocused] = useState(false);
   const hasSplit = !!settlementMembers?.length;
   const cols = isTransfer ? '1fr 84px 18px' : hasSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
   const sourceSelectStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 12.5, color: '#191722', outline: 'none', appearance: 'none' };
@@ -108,10 +126,17 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer
             </select>
           </div>
         ) : (
-          <input
-            type="text" placeholder="항목 기입" value={item.name} onChange={(e) => onName(e.target.value)}
-            style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
-          />
+          <div style={{ position: 'relative', minWidth: 0 }}>
+            <input
+              type="text" list={`tx-itemname-list-${idx}`} placeholder="항목 기입" value={item.name} onChange={(e) => onName(e.target.value)}
+              onFocus={() => setNameFocused(true)} onBlur={() => setNameFocused(false)} autoComplete="off"
+              style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, padding: nameFocused && item.name ? '0 22px 0 0' : 0 }}
+            />
+            <datalist id={`tx-itemname-list-${idx}`}>
+              {(itemNameSuggestions || []).map((s) => <option key={s} value={s} />)}
+            </datalist>
+            {nameFocused && item.name && <ClearButton onClear={() => onName('')} />}
+          </div>
         )}
         {hasSplit && (
           <button
@@ -205,6 +230,7 @@ const TransactionForm = forwardRef(function TransactionForm({
         : [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : '') }]
   ));
   const [contentOverride, setContentOverride] = useState(initial?.content ?? null);
+  const [contentFocused, setContentFocused] = useState(false);
   const [memo, setMemo] = useState(initial?.memo || '');
   const memoRef = useRef(null);
   const [settlementTargetId, setSettlementTargetId] = useState(initial?.settlement_target_id ? String(initial.settlement_target_id) : '');
@@ -235,6 +261,7 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [sourcesFlat, setSourcesFlat] = useState([]);
   const [recentExpenses, setRecentExpenses] = useState([]);
   const [contentSuggestions, setContentSuggestions] = useState([]);
+  const [itemNameSuggestions, setItemNameSuggestions] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [scanBusy, setScanBusy] = useState(false);
@@ -257,6 +284,7 @@ const TransactionForm = forwardRef(function TransactionForm({
     db.listSources().then(({ tree, flat }) => { setSources(tree); setSourcesFlat(flat); }).catch(() => {});
     db.listRecentExpenses(user.id, { includeId: initial?.settlement_target_id || null }).then(setRecentExpenses).catch(() => {});
     db.listContentSuggestions(user.id).then(setContentSuggestions).catch(() => {});
+    db.listItemNameSuggestions(user.id).then(setItemNameSuggestions).catch(() => {});
   }, []);
 
   // 신규 작성 시 "내용" 기본값 템플릿 적용(비동기로 나중에 도착해도 반영)
@@ -306,6 +334,14 @@ const TransactionForm = forwardRef(function TransactionForm({
 
   // 항목 행 조작
   const updateItem = (idx, patch) => setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  // 대표 "내용"에 먼저 입력하면 첫 번째 항목명이 아직 비어 있는 동안은 그 값을 그대로 따라가다가,
+  // 항목명을 직접 건드리는 순간부터는 더 이상 따라가지 않는다. 처음부터 항목명이 이미 채워져
+  // 있었던 경우(수정 화면 등)는 "입력 안 한 상태"가 아니므로 애초에 따라가지 않게 한다.
+  const itemNameTouchedRef = useRef(!!items[0]?.name);
+  const onItemNameChange = (idx, v) => {
+    if (idx === 0) itemNameTouchedRef.current = true;
+    updateItem(idx, { name: v });
+  };
   const addItem = () => setItems((prev) => [...prev, emptyItem()]);
   const removeItem = (idx) => setItems((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
   const toggleItemExpand = (idx) => updateItem(idx, { expanded: !items[idx].expanded });
@@ -449,8 +485,15 @@ const TransactionForm = forwardRef(function TransactionForm({
   const contentValue = contentOverride ?? autoContent;
   // 입력 중에는 지워도 그대로 빈 칸으로 둬서 자유롭게 다시 쓸 수 있게 하고, 포커스를 벗어났을 때
   // 비어 있으면 그제서야 자동 모드(항목명 기반)로 복귀한다.
-  const onContentChange = (e) => setContentOverride(e.target.value);
+  const onContentChange = (e) => {
+    const v = e.target.value;
+    setContentOverride(v);
+    // 항목명을 아직 한 번도 직접 건드리지 않았고 항목이 하나뿐이면, 내용에 입력한 값을 그대로
+    // 첫 번째 항목명에도 채워준다(둘 다 비어 있는 상태에서 내용을 먼저 쓰는 경우를 위한 편의 기능).
+    if (!itemNameTouchedRef.current && items.length === 1) updateItem(0, { name: v });
+  };
   const onContentBlur = () => { if (contentOverride === '') setContentOverride(null); };
+  const clearContent = () => { setContentOverride(''); if (!itemNameTouchedRef.current && items.length === 1) updateItem(0, { name: '' }); };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -611,10 +654,14 @@ const TransactionForm = forwardRef(function TransactionForm({
       )}
 
       <div className="rcpt-card">
-        <input
-          type="text" list="tx-content-list" placeholder="내용" value={contentValue} onChange={onContentChange} onBlur={onContentBlur} autoComplete="off"
-          style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: groupBadge ? '0 0 6px' : '0 0 14px' }}
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            type="text" list="tx-content-list" placeholder="내용" value={contentValue} onChange={onContentChange}
+            onFocus={() => setContentFocused(true)} onBlur={() => { setContentFocused(false); onContentBlur(); }} autoComplete="off"
+            style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: `0 ${contentFocused && contentValue ? '26px' : '0'} ${groupBadge ? '6px' : '14px'} 0` }}
+          />
+          {contentFocused && contentValue && <ClearButton onClear={clearContent} />}
+        </div>
         <datalist id="tx-content-list">
           {contentSuggestions.map((s) => <option key={s} value={s} />)}
         </datalist>
@@ -725,7 +772,8 @@ const TransactionForm = forwardRef(function TransactionForm({
             key={idx} item={it} idx={idx} canRemove={!isTransfer && items.length > 1} qtyLabel={qtyLabel}
             settlementMembers={showMemberSplit ? settlementMembers : null}
             isTransfer={isTransfer} sources={sources}
-            onName={(v) => updateItem(idx, { name: v })}
+            onName={(v) => onItemNameChange(idx, v)}
+            itemNameSuggestions={itemNameSuggestions}
             onQty={(v) => updateItem(idx, { qty: v.replace(/[^0-9]/g, '') })}
             onAmount={(v) => updateItem(idx, { amount: v })}
             onCurrencyChange={(meta) => updateItem(idx, { currencyMeta: meta })}

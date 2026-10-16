@@ -254,6 +254,22 @@ export const db = {
     }
     return out;
   },
+  // 항목(영수증형 표) "항목명" 입력창의 자동완성 후보: 최근 기록들의 items[].name 을 모아
+  // 중복 없이 최신순으로. content 와 달리 items 는 jsonb 배열이라 클라이언트에서 펼쳐서 모은다.
+  async listItemNameSuggestions(userId) {
+    const rows = unwrap(await supabase.from('transactions').select('items')
+      .eq('user_id', userId).not('items', 'is', null)
+      .order('date', { ascending: false }).order('id', { ascending: false }).limit(300));
+    const seen = new Set(); const out = [];
+    outer:
+    for (const r of rows || []) {
+      for (const it of (Array.isArray(r.items) ? r.items : [])) {
+        const n = (it?.name || '').trim();
+        if (n && !seen.has(n)) { seen.add(n); out.push(n); if (out.length >= 100) break outer; }
+      }
+    }
+    return out;
+  },
 
   // ---------- 정산 ----------
   // 정산 대상 선택용: 최근 개인 지출 목록 (기본 최근 120일)
