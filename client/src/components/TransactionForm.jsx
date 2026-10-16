@@ -997,6 +997,12 @@ const TransactionForm = forwardRef(function TransactionForm({
                 <StarIcon filled={favorited} />
               </button>
             )}
+            <button
+              type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
+              style={{ flex: 'none', marginTop: 5, border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex' }}
+            >
+              <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : '#191722'} />
+            </button>
           </div>
         </div>
         {groupBadge && (
@@ -1026,15 +1032,6 @@ const TransactionForm = forwardRef(function TransactionForm({
                 type="date" value={date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택"
               />
             </div>
-            <button
-              type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
-              style={{
-                border: 'none', background: 'transparent', padding: 0, flex: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0,
-              }}
-            >
-              <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : (type === 'income' ? '#2CDDB9' : '#FF6F91')} />
-            </button>
           </div>
         </div>
 
