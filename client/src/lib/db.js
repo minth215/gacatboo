@@ -358,6 +358,7 @@ export const db = {
         category_id: base.category_id, category_name: base.category_name,
         category_emoji: base.category_emoji, category_color: base.category_color,
         source_id: base.source_id, source_name: base.source_name,
+        ...(payload.type === 'transfer' ? { to_source_id: base.to_source_id, to_source_name: base.to_source_name } : {}),
         content: base.content, memo: base.memo,
         start_date: payload.date,
         freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',

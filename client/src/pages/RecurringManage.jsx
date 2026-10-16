@@ -78,14 +78,14 @@ export default function RecurringManage() {
               >
                 <span style={{
                   width: 38, height: 38, borderRadius: 12, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 16.5, background: r.category_color || (dispType === 'income' ? '#E5FBF6' : '#FFE9EF'),
+                  fontSize: 16.5, background: r.category_color || (dispType === 'income' ? '#E5FBF6' : dispType === 'transfer' ? '#EFEDF5' : '#FFE9EF'),
                 }}>
-                  {dispEmoji || (dispType === 'income' ? '💰' : '💸')}
+                  {dispEmoji || (dispType === 'income' ? '💰' : dispType === 'transfer' ? '🔁' : '💸')}
                 </span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 13.75, fontWeight: 700, color: '#191722', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {r.content || dispName || (dispType === 'income' ? '수입' : '지출')}
+                      {r.content || dispName || (dispType === 'income' ? '수입' : dispType === 'transfer' ? '이체' : '지출')}
                     </span>
                     {r.group_name && (
                       <span style={{ flex: 'none', fontSize: 9.5, fontWeight: 700, color: '#FF8A00', background: '#FFF1DC', borderRadius: 999, padding: '2px 6px' }}>{r.group_name}</span>
@@ -124,15 +124,15 @@ export default function RecurringManage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#faf9f8', borderRadius: 14, padding: '12px 14px' }}>
-                <span className="tx-tile" style={{ background: detail.category_color || (dispType === 'income' ? '#E5FBF6' : '#FFE9EF') }}>
-                  {dispEmoji || (dispType === 'income' ? '💰' : '💸')}
+                <span className="tx-tile" style={{ background: detail.category_color || (dispType === 'income' ? '#E5FBF6' : dispType === 'transfer' ? '#EFEDF5' : '#FFE9EF') }}>
+                  {dispEmoji || (dispType === 'income' ? '💰' : dispType === 'transfer' ? '🔁' : '💸')}
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="tx-row-title"><span className="ttext">{detail.content || dispName || (dispType === 'income' ? '수입' : '지출')}</span></div>
+                  <div className="tx-row-title"><span className="ttext">{detail.content || dispName || (dispType === 'income' ? '수입' : dispType === 'transfer' ? '이체' : '지출')}</span></div>
                   <div className="tx-row-sub">{sub}</div>
                 </div>
-                <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: dispType === 'income' ? 'var(--income)' : 'var(--expense)' }}>
-                  {dispType === 'income' ? '+' : '-'}{fmtNum(detail.amount)}
+                <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: dispType === 'income' ? 'var(--income)' : dispType === 'transfer' ? '#8b8798' : 'var(--expense)' }}>
+                  {dispType === 'income' ? '+' : dispType === 'transfer' ? '' : '-'}{fmtNum(detail.amount)}
                 </span>
               </div>
 

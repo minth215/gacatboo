@@ -4,6 +4,7 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { today, dotDate, dotDateWithWeekday, fmtWon, fmtNum, renderTemplate } from '../lib/format.js';
 import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
+import { saveTxDraft, takeTxDraft } from '../lib/txDraft.js';
 import CalcAmountInput from './CalcAmountInput.jsx';
 import RecurrenceModal from './RecurrenceModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
@@ -165,7 +166,7 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer
       <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '5px 0' }}>
         {isTransfer ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-            <select value={item.fromSourceId} onChange={(e) => onFromSource(e.target.value)} style={sourceSelectStyle}>
+            <select id="transfer-from-source-select" value={item.fromSourceId} onChange={(e) => onFromSource(e.target.value)} style={sourceSelectStyle}>
               <option value="">출금 수단 선택</option>
               {sources.map((top) => (
                 top.children?.length ? (
@@ -179,7 +180,7 @@ function ItemRow({ item, idx, canRemove, qtyLabel, settlementMembers, isTransfer
               ))}
             </select>
             <span style={{ flex: 'none', color: '#c7c3cc', display: 'flex' }}><ArrowRightIcon /></span>
-            <select value={item.toSourceId} onChange={(e) => onToSource(e.target.value)} style={sourceSelectStyle}>
+            <select id="transfer-to-source-select" value={item.toSourceId} onChange={(e) => onToSource(e.target.value)} style={sourceSelectStyle}>
               <option value="">입금 수단 선택</option>
               {sources.map((top) => (
                 top.children?.length ? (
@@ -282,6 +283,8 @@ const TransactionForm = forwardRef(function TransactionForm({
   const { user } = useAuth();
   const nav = useNavigate();
   const editing = !!initial?.id;
+  // 분류/원천 "편집"으로 설정 페이지에 다녀올 때 작성 중이던 내용을 복원하기 위한 구분 키
+  const draftSlot = initial?.id ? `tx:${initial.id}` : (groupId ? `g:${groupId}` : 'new');
   const [type, setType] = useState(fixedType || initial?.type || 'expense');
   const [date, setDate] = useState(initial?.date || today());
   const [periods, setPeriods] = useState(initial?.periods ? String(initial.periods) : '1');
@@ -346,11 +349,35 @@ const TransactionForm = forwardRef(function TransactionForm({
     toastTimer.current = setTimeout(() => setToast(''), 2200);
   };
   // 필수 선택 칸(분류/원천)을 비워 둔 채 저장하려 할 때: 토스트로 안내하고 해당 셀렉트박스를 바로 열어줌
-  const promptRequiredSelect = (ref, msg) => {
+  const promptRequiredSelect = (refOrId, msg) => {
     showToast(msg);
-    ref.current?.focus();
-    try { ref.current?.showPicker?.(); } catch {}
+    const el = typeof refOrId === 'string' ? document.getElementById(refOrId) : refOrId.current;
+    el?.focus();
+    try { el?.showPicker?.(); } catch {}
   };
+  // 분류/원천 셀렉트박스의 "편집" 선택 시: 지금 작성 중인 내용을 기기에 저장해 두고 설정의
+  // 관리 페이지로 이동. 그 페이지의 "<" 뒤로가기로 돌아오면 아래 복원 useEffect 가 그대로 되살림.
+  const draftAppliedRef = useRef(false);
+  const saveDraftAndGo = (path) => {
+    saveTxDraft(draftSlot, { type, date, categoryId, sourceId, items, contentOverride, memo, transferMemberId, pendingRecurrence });
+    nav(path);
+  };
+  useEffect(() => {
+    if (draftAppliedRef.current) return;
+    draftAppliedRef.current = true;
+    const d = takeTxDraft(draftSlot);
+    if (!d) return;
+    if (d.type) setType(d.type);
+    if (d.date) setDate(d.date);
+    setCategoryId(d.categoryId ?? '');
+    setSourceId(d.sourceId ?? '');
+    if (Array.isArray(d.items)) setItems(d.items);
+    setContentOverride(d.contentOverride ?? null);
+    setMemo(d.memo ?? '');
+    if (d.transferMemberId) setTransferMemberId(d.transferMemberId);
+    if (d.pendingRecurrence) setPendingRecurrence(d.pendingRecurrence);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [busy, setBusy] = useState(false);
   const [scanBusy, setScanBusy] = useState(false);
   const [scanError, setScanError] = useState('');
@@ -600,7 +627,8 @@ const TransactionForm = forwardRef(function TransactionForm({
     }
     if (!isTransfer && !categoryId) return promptRequiredSelect(categorySelectRef, '분류를 선택해 주세요');
     if (!isTransfer && !fixedSourceName && !sourceId) return promptRequiredSelect(sourceSelectRef, '원천을 선택해 주세요');
-    if (isTransfer && (!items[0]?.fromSourceId || !items[0]?.toSourceId)) return setError('출금/입금 원천을 선택하세요.');
+    if (isTransfer && !items[0]?.fromSourceId) return promptRequiredSelect('transfer-from-source-select', '출금 수단을 선택해 주세요');
+    if (isTransfer && !items[0]?.toSourceId) return promptRequiredSelect('transfer-to-source-select', '입금 수단을 선택해 주세요');
     if (isTransfer && items[0].fromSourceId === items[0].toSourceId) return setError('출금/입금 원천이 같을 수 없습니다.');
     if (transferMembers && !transferMemberId) return setError('멤버를 선택하세요.');
     if (isTransfer && feeEnabled && !(Number(feeAmount) > 0)) return setError('수수료 금액을 입력하세요.');
@@ -647,7 +675,7 @@ const TransactionForm = forwardRef(function TransactionForm({
       if (s) source_name = s.name; // 세부 항목명만
     }
 
-    const recurrence = (!isTransfer && !recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, date) : null;
+    const recurrence = (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, date) : null;
     // 과거 날짜로 반복을 새로 걸면, 그동안 밀린 회차를 한 번에 생성할지 물어봄
     let backfillPast = false;
     if (recurrence && date < today()) {
@@ -795,29 +823,35 @@ const TransactionForm = forwardRef(function TransactionForm({
                 type="date" value={date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택"
               />
             </div>
-            {!isTransfer && (
-              <button
-                type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
-                style={{
-                  border: 'none', background: 'transparent', padding: 0, flex: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0,
-                }}
-              >
-                <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : (type === 'income' ? '#2CDDB9' : '#FF6F91')} />
-              </button>
-            )}
+            <button
+              type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
+              style={{
+                border: 'none', background: 'transparent', padding: 0, flex: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0,
+              }}
+            >
+              <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : (type === 'income' ? '#2CDDB9' : '#FF6F91')} />
+            </button>
           </div>
         </div>
 
         {!isTransfer && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={rowLabelStyle}>분류</span>
-            <select ref={categorySelectRef} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: categoryId ? 600 : 400, color: categoryId ? '#191722' : '#a29ead' }}>
+            <select
+              ref={categorySelectRef} value={categoryId}
+              onChange={(e) => {
+                if (e.target.value === '__edit__') { saveDraftAndGo(`/settings/categories/${type === 'income' ? 'income' : 'expense'}`); return; }
+                setCategoryId(e.target.value);
+              }}
+              style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: categoryId ? 600 : 400, color: categoryId ? '#191722' : '#a29ead' }}
+            >
               <option value="">분류 선택</option>
               {categoryId === SNAP && (
                 <option value={SNAP}>{initial?.category_emoji ? `${initial.category_emoji} ` : ''}{initial?.category_name} (기존)</option>
               )}
               {catOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
+              <option value="__edit__">편집</option>
             </select>
           </div>
         )}
@@ -831,7 +865,14 @@ const TransactionForm = forwardRef(function TransactionForm({
         {!isTransfer && !fixedSourceName && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={rowLabelStyle}>원천</span>
-            <select ref={sourceSelectRef} value={sourceId} onChange={(e) => setSourceId(e.target.value)} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: sourceId ? 600 : 400, color: sourceId ? '#191722' : '#a29ead' }}>
+            <select
+              ref={sourceSelectRef} value={sourceId}
+              onChange={(e) => {
+                if (e.target.value === '__edit__') { saveDraftAndGo('/settings/sources'); return; }
+                setSourceId(e.target.value);
+              }}
+              style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: sourceId ? 600 : 400, color: sourceId ? '#191722' : '#a29ead' }}
+            >
               <option value="">원천 선택</option>
               {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
               {sources.map((top) => (
@@ -844,6 +885,7 @@ const TransactionForm = forwardRef(function TransactionForm({
                   <option key={top.id} value={top.id}>{top.name}</option>
                 )
               ))}
+              <option value="__edit__">편집</option>
             </select>
           </div>
         )}
