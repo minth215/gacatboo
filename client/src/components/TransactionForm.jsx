@@ -333,8 +333,10 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [items, setItems] = useState(() => (
     (fixedType || initial?.type) === 'transfer'
       ? [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : '', fromSourceId: initial?.source_id ? String(initial.source_id) : '', toSourceId: initial?.to_source_id ? String(initial.to_source_id) : '' }]
-      // 분류=정산인 기록은 items 가 아니라 settlement_target_id 컬럼이 기준값이라(과거 한때 items 에도
-      // 빈 이름의 항목이 잘못 같이 저장된 적이 있어도) initial.items 를 무시하고 항상 아래 기본값으로 복원한다.
+      // 분류=정산: 정산 대상을 여러 건 담은 기록은 items[].targetId 로 행을 복원하고, 그 외에는
+      // settlement_target_id 컬럼이 기준값(과거 한때 빈 이름의 항목이 잘못 같이 저장된 적이 있어도 무시).
+      : (initial?.category_name === '정산' && Array.isArray(initial?.items) && initial.items.some((it) => it?.targetId != null))
+        ? initial.items.filter((it) => it?.targetId != null).map((it) => ({ ...emptyItem(), targetId: String(it.targetId), amount: it.amount ? String(it.amount) : '' }))
       : (Array.isArray(initial?.items) && initial.items.length && initial?.category_name !== '정산')
         ? initial.items.map((it) => ({ ...emptyItem(), name: it.name || '', qty: String(it.qty || 1), amount: it.amount ? String(it.amount) : '' }))
         : [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : ''), targetId: initial?.settlement_target_id ? String(initial.settlement_target_id) : '' }]
@@ -451,7 +453,7 @@ const TransactionForm = forwardRef(function TransactionForm({
       }
     }).catch(() => {}).finally(() => setCategoriesLoaded(true));
     db.listSources().then(({ tree, flat }) => { setSources(tree); setSourcesFlat(flat); }).catch(() => {});
-    db.listRecentExpenses(user.id, { includeId: initial?.settlement_target_id || null }).then(setRecentExpenses).catch(() => {});
+    db.listRecentExpenses(user.id, { includeId: [initial?.settlement_target_id, ...(Array.isArray(initial?.items) ? initial.items.map((it) => it?.targetId) : [])].filter((v) => v != null) }).then(setRecentExpenses).catch(() => {});
     db.listItemNameSuggestions(user.id).then(setItemNameSuggestions).catch(() => {});
     db.listContentSuggestions(user.id).then(setContentSuggestions).catch(() => {});
   }, []);
@@ -659,7 +661,17 @@ const TransactionForm = forwardRef(function TransactionForm({
     setItems((prev) => prev.map((it, i) => (i === 0 ? { ...it, memberChecked, memberAmountOverride } : it)));
   }, [showMemberSplit, initialSettlementSplit, editing]);
 
-  const total = items.reduce((s, it) => s + itemTotalOf(it), 0);
+  const rowsTotal = items.reduce((s, it) => s + itemTotalOf(it), 0);
+  // 정산 기록의 합계는 행 금액의 합으로 자동 계산되지만 직접 고쳐 적을 수 있다(예: 대상 합 40,000원에
+  // 실제로 50,000원을 받음 → 차액은 정산 초과분 수입). 비우면 다시 자동 합계로 돌아간다.
+  const [totalOverride, setTotalOverride] = useState(() => {
+    if (initial?.category_name !== '정산' || !Array.isArray(initial?.items)) return null;
+    const rows = initial.items.filter((it) => it?.targetId != null);
+    if (!rows.length) return null;
+    const sum = rows.reduce((t, it) => t + (Number(it.amount) || 0), 0);
+    return Number(initial.amount) !== sum ? String(initial.amount) : null;
+  });
+  const total = (isSettlement && totalOverride != null && totalOverride !== '') ? Number(totalOverride) : rowsTotal;
   // 정산 대상을 고른 항목의 "내용"(지출 쪽 내용/분류명) — 내용 필드 자동 채움에 사용
   const settlementTargetLabel = (it) => {
     const x = recentExpenses.find((e) => String(e.id) === it.targetId);
@@ -794,38 +806,16 @@ const TransactionForm = forwardRef(function TransactionForm({
       if (s) source_name = s.name; // 세부 항목명만
     }
 
-    // 정산 대상을 2개 이상 고른 경우: 한 행에는 정산 대상을 하나만 담을 수 있어(기존 settlement_target_id
-    // 컬럼이 단일 값), 첫 행은 지금 수정 중인(또는 새로) 기록 하나로, 나머지 행들은 각각 별도의 수입
-    // 기록으로 나눠 저장한다(공통 분류/원천/내용/메모는 그대로 복사).
-    if (isSettlement && !onSubmit) {
-      const rows = items.map((it) => ({ targetId: it.targetId, amount: Number(it.amount) || 0 })).filter((r) => r.targetId || r.amount > 0);
-      if (rows.length > 1) {
-        const basePayload = {
-          type, date, category_id, category_name, category_emoji, category_color,
-          source_id, source_name, content: (contentValue || '').trim(), memo, items: null,
-          input_currency: null, input_amount: null, fx_rate: null, recurrence: null, backfillPast: false,
-          group_id: groupId || null,
-        };
-        try {
-          await db.saveTransaction({
-            id: initial?.id, userId: user.id, sourcesFlat,
-            payload: { ...basePayload, amount: rows[0].amount, settlement_target_id: rows[0].targetId ? Number(rows[0].targetId) : null },
-          });
-          for (const r of rows.slice(1)) {
-            await db.saveTransaction({
-              id: undefined, userId: user.id, sourcesFlat,
-              payload: { ...basePayload, amount: r.amount, settlement_target_id: r.targetId ? Number(r.targetId) : null },
-            });
-          }
-          onSaved?.();
-        } catch (err) {
-          setError(err.message);
-        } finally {
-          setBusy(false);
-        }
-        return;
-      }
-    }
+    // 정산 대상 행(여러 건 가능)은 기록 한 건 안에 items 로 담는다(대상별 금액 + 라벨). 대표 대상(첫 행)은
+    // settlement_target_id 에도 넣어 기존 조회와 호환. 대상이 하나이고 합계를 고치지 않았으면 items 없이 저장.
+    const settleRows = isSettlement
+      ? items.filter((it) => it.targetId || Number(it.amount) > 0).map((it) => ({
+        targetId: it.targetId ? Number(it.targetId) : null,
+        label: settlementTargetLabel(it),
+        amount: Math.round(Number(it.amount) || 0),
+      }))
+      : [];
+    const settleItems = (isSettlement && (settleRows.length > 1 || Math.round(total) !== Math.round(rowsTotal))) ? settleRows : null;
 
     const recurrence = (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, date) : null;
     // 과거 날짜로 반복을 새로 걸면, 그동안 밀린 회차를 한 번에 생성할지 물어봄
@@ -857,12 +847,12 @@ const TransactionForm = forwardRef(function TransactionForm({
       source_id, source_name,
       ...(isTransfer ? { to_source_id, to_source_name } : {}),
       content: (contentValue || '').trim(), memo,
-      items: (isTransfer || isSettlement) ? null : (savedItems.length ? savedItems : null),
+      items: isTransfer ? null : isSettlement ? settleItems : (savedItems.length ? savedItems : null),
       input_currency: currencyItem?.currencyMeta?.input_currency || null,
       input_amount: currencyItem?.currencyMeta?.input_amount ?? null,
       fx_rate: currencyItem?.currencyMeta?.fx_rate ?? null,
       recurrence, backfillPast,
-      settlement_target_id: (isSettlement && items[0]?.targetId) ? Number(items[0].targetId) : null,
+      settlement_target_id: isSettlement ? (settleRows.find((r) => r.targetId)?.targetId ?? null) : null,
       group_id: groupId || null,
       ...(showPeriods ? { periods: Math.max(Number(periods) || 1, 1) } : {}),
       ...(aggregateSplit ? { aggregateSplit } : {}),
@@ -1100,7 +1090,17 @@ const TransactionForm = forwardRef(function TransactionForm({
           <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
           {showMemberSplit && <span />}
           {!isTransfer && !isSettlement && <span />}
-          <span style={{ fontSize: 15.5, fontWeight: 800, color: isTransfer ? '#4b4752' : (type === 'expense' ? '#FF4358' : '#2CDDB9'), textAlign: 'right' }}>{fmtNum(total)}</span>
+          {isSettlement ? (
+            <input
+              type="text" inputMode="numeric" aria-label="합계 금액"
+              value={totalOverride === '' ? '' : fmtNum(total)} placeholder={fmtNum(rowsTotal)}
+              onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setTotalOverride(v === '' ? '' : String(Number(v))); }}
+              onBlur={() => { if (totalOverride === '' || Number(totalOverride) === rowsTotal) setTotalOverride(null); }}
+              style={{ width: '100%', minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 15.5, fontWeight: 800, color: '#2CDDB9', outline: 'none', textAlign: 'right', padding: 0 }}
+            />
+          ) : (
+            <span style={{ fontSize: 15.5, fontWeight: 800, color: isTransfer ? '#4b4752' : (type === 'expense' ? '#FF4358' : '#2CDDB9'), textAlign: 'right' }}>{fmtNum(total)}</span>
+          )}
           <span />
         </div>
 

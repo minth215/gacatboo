@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { db } from '../lib/db.js';
+import { db, isSettlementIncome } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { currentMonth, shiftMonth, fmtNum } from '../lib/format.js';
 import TransactionList from '../components/TransactionList.jsx';
@@ -120,10 +120,10 @@ export default function Ledger() {
         const map = await db.settlementsByTarget(exList.map((t) => t.id));
         const expense = exList.reduce((s, t) => s + Math.max(0, Number(t.amount) - (map[t.id] || 0)), 0);
         // 이 달에 들어온 정산 수입의 초과분(+가 되는 금액)은 대상 지출의 달이 아니라 이 달의 수입으로 계상
-        const settleIncomeList = list.filter((t) => t.type === 'income' && t.settlement_target_id != null);
-        const excessMap = await db.settlementExcessByRow(settleIncomeList.map((t) => t.settlement_target_id));
+        const settleIncomeList = list.filter((t) => t.type === 'income' && isSettlementIncome(t));
+        const excessMap = settleIncomeList.length ? await db.settlementExcessByRow() : {};
         const excess = settleIncomeList.reduce((s, t) => s + (excessMap[t.id] || 0), 0);
-        const income = list.filter((t) => t.type === 'income' && t.settlement_target_id == null).reduce((s, t) => s + Number(t.amount), 0) + excess;
+        const income = list.filter((t) => t.type === 'income' && !isSettlementIncome(t)).reduce((s, t) => s + Number(t.amount), 0) + excess;
         setSummary({ income, expense });
       })
       .catch(() => { setTxs([]); setSummary({ income: 0, expense: 0 }); })

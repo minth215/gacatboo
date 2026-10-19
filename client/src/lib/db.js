@@ -38,6 +38,26 @@ function hideOthersSettlementPayments(rows, userId) {
   return (rows || []).filter((r) => !(r.group_id && r.group?.category === '정산' && r.user_id !== userId));
 }
 
+// 정산(수입) 기록 여부: 대상 하나는 settlement_target_id, 여러 개는 items[].targetId 로 표시
+export function isSettlementIncome(r) {
+  return r.type !== 'expense' && r.type !== 'transfer'
+    && (r.settlement_target_id != null || (Array.isArray(r.items) && r.items.some((it) => it?.targetId != null && it.targetId !== '')));
+}
+// 정산 기록 한 건이 대상 지출별로 얼마씩 정산했는지 + 대상 금액 합을 넘겨 적은 차액(extra).
+// 합계를 대상 금액 합보다 작게 적었으면 앞 행부터 순서대로 채운다.
+function settlementAllocations(r) {
+  const total = Number(r.amount) || 0;
+  const rows = Array.isArray(r.items) ? r.items.filter((it) => it?.targetId != null && it.targetId !== '') : [];
+  if (!rows.length) return { allocs: r.settlement_target_id != null ? [{ tid: Number(r.settlement_target_id), amt: total }] : [], extra: 0 };
+  let left = total;
+  const allocs = rows.map((it) => {
+    const amt = Math.max(0, Math.min(left, Number(it.amount) || 0));
+    left -= amt;
+    return { tid: Number(it.targetId), amt };
+  });
+  return { allocs, extra: Math.max(0, left) };
+}
+
 export const db = {
   // ---------- 분류 ----------
   async listCategories(type) {
@@ -281,45 +301,57 @@ export const db = {
       .select('id, date, amount, content, category_name, category_emoji')
       .eq('user_id', userId).is('group_id', null).eq('type', 'expense')
       .gte('date', since).order('date', { ascending: false }).order('id', { ascending: false }));
-    // 편집 중인 대상이 기간 밖이면 포함
-    if (includeId && !rows.some((r) => r.id === includeId)) {
-      const one = unwrap(await supabase.from('transactions')
-        .select('id, date, amount, content, category_name, category_emoji').eq('id', includeId).maybeSingle());
-      if (one) rows.unshift(one);
+    // 편집 중인 대상(여러 건일 수 있음)이 기간 밖이면 포함
+    const missing = [].concat(includeId ?? []).map(Number).filter((v) => v && !rows.some((r) => r.id === v));
+    if (missing.length) {
+      const extra = unwrap(await supabase.from('transactions')
+        .select('id, date, amount, content, category_name, category_emoji').in('id', missing));
+      rows.unshift(...(extra || []));
     }
     return rows;
+  },
+  // 정산(수입) 기록 전체 — 대상이 하나면 settlement_target_id, 여러 개면 items[].targetId 로 표시된다.
+  async listSettlementIncomeRows() {
+    const rows = unwrap(await supabase.from('transactions')
+      .select('id, date, amount, settlement_target_id, items')
+      .eq('type', 'income').or('settlement_target_id.not.is.null,items.not.is.null')
+      .order('date', { ascending: true }).order('id', { ascending: true }));
+    return (rows || []).filter(isSettlementIncome);
   },
   // 대상 지출 id 들에 매겨진 정산(수입) 합계 맵 { targetId: sum }
   async settlementsByTarget(expenseIds) {
     if (!expenseIds || !expenseIds.length) return {};
-    const rows = unwrap(await supabase.from('transactions')
-      .select('settlement_target_id, amount')
-      .eq('type', 'income').in('settlement_target_id', expenseIds));
+    const want = new Set(expenseIds.map(Number));
+    const rows = await this.listSettlementIncomeRows();
     const map = {};
-    (rows || []).forEach((r) => { map[r.settlement_target_id] = (map[r.settlement_target_id] || 0) + Number(r.amount); });
+    rows.forEach((r) => settlementAllocations(r).allocs.forEach(({ tid, amt }) => {
+      if (want.has(tid)) map[tid] = (map[tid] || 0) + amt;
+    }));
     return map;
   },
   // 정산 수입 건별 초과분(수입으로 계상되는 금액) 맵 { 정산수입행ID: 초과분 }
   // 한 지출에 여러 정산 수입이 걸린 경우 날짜순으로 지출액을 먼저 소진시키고, 남는 만큼을 각 건의 초과분으로 계상
-  // → 초과분이 지출 월이 아니라 '정산 수입이 들어온 달'의 수입으로 잡히도록 함
-  async settlementExcessByRow(targetIds) {
-    const ids = [...new Set((targetIds || []).filter((v) => v != null))];
+  // → 초과분이 지출 월이 아니라 '정산 수입이 들어온 달'의 수입으로 잡히도록 함.
+  // 정산 대상 여러 건을 한 기록에 담은 경우 대상별 금액을 각각 소진시키고, 합계를 대상 금액 합보다
+  // 크게 적은 차액은 그대로 초과분이 된다.
+  async settlementExcessByRow() {
+    const rows = await this.listSettlementIncomeRows();
+    const allocsByRow = rows.map((r) => ({ r, ...settlementAllocations(r) }));
+    const ids = [...new Set(allocsByRow.flatMap((x) => x.allocs.map((a) => a.tid)))];
     if (!ids.length) return {};
     const targets = unwrap(await supabase.from('transactions').select('id, amount').in('id', ids));
-    const settleRows = unwrap(await supabase.from('transactions')
-      .select('id, date, amount, settlement_target_id')
-      .eq('type', 'income').in('settlement_target_id', ids)
-      .order('date', { ascending: true }).order('id', { ascending: true }));
     const remaining = {};
     (targets || []).forEach((t) => { remaining[t.id] = Number(t.amount); });
     const excessMap = {};
-    (settleRows || []).forEach((r) => {
-      const tid = r.settlement_target_id;
-      const rem = remaining[tid] || 0;
-      const amt = Number(r.amount);
-      const consumed = Math.min(rem, amt);
-      excessMap[r.id] = amt - consumed;
-      remaining[tid] = rem - consumed;
+    allocsByRow.forEach(({ r, allocs, extra }) => {
+      let excess = extra;
+      allocs.forEach(({ tid, amt }) => {
+        const rem = remaining[tid] || 0;
+        const consumed = Math.min(rem, amt);
+        excess += amt - consumed;
+        remaining[tid] = rem - consumed;
+      });
+      excessMap[r.id] = excess;
     });
     return excessMap;
   },
@@ -919,14 +951,13 @@ export const db = {
     // 이 기간 지출에 매겨진 정산(수입) 합계 — 정산은 다른 기간일 수도 있으므로 전 기간 조회
     const settleMap = await this.settlementsByTarget(expenses.map((r) => r.id));
     // 이 기간에 들어온 정산 수입 — 초과분만 이 기간 수입으로 계상
-    const settleIncomeRows = rows.filter((r) => r.type === 'income' && r.settlement_target_id != null);
-    const excessMap = await this.settlementExcessByRow(settleIncomeRows.map((r) => r.settlement_target_id));
+    const excessMap = await this.settlementExcessByRow();
 
     const withEff = flattenTx(rows).map((r) => {
       // 대상 지출은 정산액만큼 차감(0 하한)
       if (r.type === 'expense') return { ...r, eff: Math.max(0, Number(r.amount) - (settleMap[r.id] || 0)) };
       // 정산 수입은 초과분만 '정산' 수입으로 계상
-      if (r.settlement_target_id != null) return { ...r, eff: excessMap[r.id] || 0, category_name: '정산' };
+      if (isSettlementIncome(r)) return { ...r, eff: excessMap[r.id] || 0, category_name: '정산' };
       return { ...r, eff: Number(r.amount) };
     });
     // 구독 그룹 결제/입금이 반영된 항목에 회차(몇 회분) 정보를 붙인다(가계부와 동일).
