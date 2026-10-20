@@ -21,7 +21,7 @@
 -- =====================================================================
 
 -- 알림 문구는 기존 "반복 항목 등록" 템플릿(recurring_registered)을 그대로 사용한다(관리자 알림 관리에서 수정).
--- 템플릿 변수: {{group_name}}(그룹 항목이면 그룹 이름, 개인 항목이면 '가계부'), {{content}}, {{amount}}
+-- 템플릿 변수: {group_name}(그룹 항목이면 그룹 이름, 개인 항목이면 '가계부'), {content}, {amount}
 -- (이 파일의 이전 버전이 만들었을 수 있는 별도 템플릿은 정리)
 delete from public.notification_templates where event_key = 'recurring_generated';
 

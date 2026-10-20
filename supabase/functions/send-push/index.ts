@@ -23,7 +23,8 @@ const json = (body: unknown, status = 200) =>
 const VAPID_PUBLIC_KEY = 'BBni0SbdGd9a6SeST_CgnJTtuBbkfOqR32Oh0yp4ibpM-KgBKygRs4_9KZWrToKNpbmGBPsjp1iaGY7b0u3Jgxw';
 
 const fillTemplate = (tpl: string, vars: Record<string, unknown>) =>
-  Object.entries(vars || {}).reduce((acc, [k, v]) => acc.replaceAll(`{{${k}}}`, String(v ?? '')), tpl || '');
+  // 템플릿 변수는 {변수} 표기(예전 표기 {{변수}} 도 함께 치환) — DB 의 fill_template() 과 동일(0062)
+  Object.entries(vars || {}).reduce((acc, [k, v]) => acc.replaceAll(`{{${k}}}`, String(v ?? '')).replaceAll(`{${k}}`, String(v ?? '')), tpl || '');
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
