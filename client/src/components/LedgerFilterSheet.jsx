@@ -6,8 +6,8 @@ import { createPortal } from 'react-dom';
 const TYPES = [{ key: 'all', label: '전체' }, { key: 'income', label: '수입' }, { key: 'expense', label: '지출' }, { key: 'transfer', label: '이체' }];
 const toggleIn = (arr, val) => (arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
 
-const ChevDown = () => <svg width="13" viewBox="0 0 24 24" fill="none" stroke="#8b8798" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>;
-const ChevRight = () => <svg width="13" viewBox="0 0 24 24" fill="none" stroke="#8b8798" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>;
+const ChevDown = () => <svg width="13" style={{ flex: "none" }} viewBox="0 0 24 24" fill="none" stroke="#8b8798" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>;
+const ChevRight = () => <svg width="13" style={{ flex: "none" }} viewBox="0 0 24 24" fill="none" stroke="#8b8798" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>;
 
 export default function LedgerFilterSheet({
   categories, // [{ name, emoji }]
@@ -36,7 +36,12 @@ export default function LedgerFilterSheet({
     return (ia === -1 ? Infinity : ia) - (ib === -1 ? Infinity : ib);
   });
   const catSummary = filterCats.length === 0 ? '전체' : inOrder(filterCats, catOrder).join(', ');
-  const srcSummary = filterSrcs.length === 0 ? '전체' : inOrder(filterSrcs, srcOrder).join(', ');
+  // 원천: 상위 항목의 하위가 모두 선택돼 있으면 하위 이름들 대신 상위 이름(카드, 은행 등)으로 묶어 표기
+  const srcSummary = filterSrcs.length === 0 ? '전체' : sourceGroups.flatMap((g) => {
+    if (!g.items.length) return filterSrcs.includes(g.name) ? [g.name] : [];
+    if (g.items.every((it) => filterSrcs.includes(it))) return [g.name];
+    return g.items.filter((it) => filterSrcs.includes(it));
+  }).concat(filterSrcs.filter((n) => !srcOrder.includes(n))).join(', ');
 
   const catChips = [{ name: '전체', emoji: '' }, ...categories].map(({ name, emoji }) => {
     const checked = name === '전체' ? filterCats.length === 0 : filterCats.includes(name);
@@ -96,7 +101,10 @@ export default function LedgerFilterSheet({
 
         {showCategory && (<>
         <button type="button" onClick={() => toggleSection('cat')} style={{ flex: 'none', marginTop: 22, width: '100%', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12.75, fontWeight: 700, color: '#191722', textAlign: 'left' }}>분류 <span style={{ fontWeight: 500, color: '#a29ead' }}>· {catSummary}</span></span>
+          <span style={{ flex: 1, minWidth: 0, marginRight: 10, display: 'flex', alignItems: 'baseline', gap: 4, fontSize: 12.75, textAlign: 'left' }}>
+            <span style={{ flex: 'none', fontWeight: 700, color: '#191722' }}>분류</span>
+            <span style={{ flex: 1, minWidth: 0, fontWeight: 500, color: '#a29ead', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>· {catSummary}</span>
+          </span>
           {catExpanded ? <ChevDown /> : <ChevRight />}
         </button>
         {catExpanded && (
@@ -115,7 +123,10 @@ export default function LedgerFilterSheet({
         </>)}
 
         <button type="button" onClick={() => toggleSection('src')} style={{ flex: 'none', marginTop: 22, width: '100%', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12.75, fontWeight: 700, color: '#191722', textAlign: 'left' }}>원천 <span style={{ fontWeight: 500, color: '#a29ead' }}>· {srcSummary}</span></span>
+          <span style={{ flex: 1, minWidth: 0, marginRight: 10, display: 'flex', alignItems: 'baseline', gap: 4, fontSize: 12.75, textAlign: 'left' }}>
+            <span style={{ flex: 'none', fontWeight: 700, color: '#191722' }}>원천</span>
+            <span style={{ flex: 1, minWidth: 0, fontWeight: 500, color: '#a29ead', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>· {srcSummary}</span>
+          </span>
           {srcExpanded ? <ChevDown /> : <ChevRight />}
         </button>
         {srcExpanded && (
