@@ -10,7 +10,6 @@ const EVENT_LABELS = {
   group_invite: '그룹 초대',
   settlement_request: '그룹 정산 요청',
   recurring_registered: '반복 항목 등록',
-  recurring_generated: '반복 항목 자동 기록',
 };
 
 function Toggle({ on, onClick, disabled, label }) {

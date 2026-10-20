@@ -2,7 +2,7 @@
 -- 0061: 반복 자동 등록 — 당일 회차만 생성 + 생성 시 알림(알림 센터 + 푸시)
 --   · 0060 의 "놓친 회차 따라잡기"를 되돌린다: 매일 실행 때 오늘이 반복 날짜인 규칙만 생성
 --     (예: 21일에는 매월 21일 규칙만. 전날 회차를 뒤늦게 만들지 않음). 규칙별 오류 격리는 유지.
---   · 회차가 생성되면 관련 사용자에게 알림을 남긴다(이벤트 키 recurring_generated):
+--   · 회차가 생성되면 관련 사용자에게 알림을 남긴다(기존 템플릿 recurring_registered 사용):
 --       - 일반/구독 결제 반복: 규칙을 만든 사람
 --       - 구독 입금 반복: 총대와 해당 멤버(가계부에 각각 수입/지출이 기록되므로 둘 다)
 --     알림 센터(notifications)에 바로 쌓고, 푸시는 send-push Edge Function 을 pg_net 으로 호출
@@ -20,9 +20,10 @@
 -- 0001~0060 이후 실행. 여러 번 실행해도 안전.
 -- =====================================================================
 
-insert into public.notification_templates (event_key, title_template, body_template, emoji, color) values
-  ('recurring_generated', '반복 항목 자동 기록', '{{content}} {{amount}}원이 자동으로 기록되었어요.', '🔁', '#FBF1D3')
-on conflict (event_key) do nothing;
+-- 알림 문구는 기존 "반복 항목 등록" 템플릿(recurring_registered)을 그대로 사용한다(관리자 알림 관리에서 수정).
+-- 템플릿 변수: {{group_name}}(그룹 항목이면 그룹 이름, 개인 항목이면 '가계부'), {{content}}, {{amount}}
+-- (이 파일의 이전 버전이 만들었을 수 있는 별도 템플릿은 정리)
+delete from public.notification_templates where event_key = 'recurring_generated';
 
 create extension if not exists pg_net with schema extensions;
 alter table public.recurring_rules add column if not exists last_run_date date;
@@ -56,11 +57,11 @@ declare
   v_key text;
 begin
   if p_user_id is null then return; end if;
-  select * into t from public.notification_templates where event_key = 'recurring_generated' and active;
+  select * into t from public.notification_templates where event_key = 'recurring_registered' and active;
   if not found then return; end if;
 
   insert into public.notifications (user_id, event_key, title, body, emoji, color, link)
-  values (p_user_id, 'recurring_generated', public.fill_template(t.title_template, p_vars), public.fill_template(t.body_template, p_vars), t.emoji, t.color, p_link);
+  values (p_user_id, 'recurring_registered', public.fill_template(t.title_template, p_vars), public.fill_template(t.body_template, p_vars), t.emoji, t.color, p_link);
 
   begin
     v_url := public._functions_base_url();
@@ -69,7 +70,7 @@ begin
       perform net.http_post(
         url := v_url || '/functions/v1/send-push',
         headers := jsonb_build_object('Authorization', 'Bearer ' || v_key, 'Content-Type', 'application/json'),
-        body := jsonb_build_object('userId', p_user_id, 'eventKey', 'recurring_generated', 'vars', p_vars, 'link', p_link)
+        body := jsonb_build_object('userId', p_user_id, 'eventKey', 'recurring_registered', 'vars', p_vars, 'link', p_link)
       );
     end if;
   exception when others then
@@ -94,6 +95,7 @@ begin
     begin
       if public.generate_recurring_occurrence(r, today) then
         v_vars := jsonb_build_object(
+          'group_name', coalesce((select name from public.groups where id = r.group_id), '가계부'),
           'content', coalesce(nullif(r.content, ''), nullif(r.category_name, ''), '반복 항목'),
           'amount', to_char(r.amount, 'FM999,999,999,990')
         );
