@@ -18,6 +18,7 @@ const roundBtn = (size = 36) => ({
 });
 
 const SEARCH_STASH_KEY = 'ledger:search';
+const SEARCH_PERIOD_OPTIONS = { all: '전체', week: '주별', month: '월별', year: '연별', range: '기간 선택' };
 
 export default function Ledger() {
   const { user } = useAuth();
@@ -217,7 +218,7 @@ export default function Ledger() {
   const filterSourceGroups = useMemo(() => srcTree.map((t) => ({ name: t.name, items: (t.children || []).map((c) => c.name) })), [srcTree]);
 
   const monthActive = typeFilter !== 'all' || catFilter.length > 0 || srcFilter.length > 0;
-  const searchActive = !!(sPeriod !== 'all' || sType !== 'all' || sCat.length || sSrc.length);
+  const searchActive = !!(sType !== 'all' || sCat.length || sSrc.length);
   const filterActive = searchOpen ? searchActive : monthActive;
 
   const filtered = useMemo(() => txs.filter((t) => {
@@ -242,6 +243,7 @@ export default function Ledger() {
   }, [sResults, submittedQ, sCat, sSrc]);
   const sIncome = sFiltered.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
   const sExpense = sFiltered.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+  const sTransfer = sFiltered.filter((t) => t.type === 'transfer').reduce((s, t) => s + Number(t.amount), 0);
 
   
   // 검색창 열기: 탭한 순간 바로 포커스(모바일 키보드가 뜨도록) + 펼침 애니메이션 후 한 번 더
@@ -419,7 +421,6 @@ export default function Ledger() {
               filterType={sType} setFilterType={setSType}
               filterCats={sCat} setFilterCats={setSCat}
               filterSrcs={sSrc} setFilterSrcs={setSSrc}
-              period={{ mode: sPeriod, setMode: setSPeriod, from: sFrom, to: sTo, setFrom: setSFrom, setTo: setSTo }}
               onClose={() => setShowSearchFilter(false)}
             />
           )}
@@ -459,17 +460,26 @@ export default function Ledger() {
                 )}
               </div>
 
-              {/* 수입/지출/합계 (가계부 모드와 동일한 요약 카드 + 고양이) */}
+              {/* 수입/지출/이체 요약 카드 + 카드 위 우측의 기간 기준 셀렉트(전체/주별/월별/연별/기간 선택) */}
               <div style={{ position: 'relative', marginTop: 8 }}>
-                <div style={{ position: 'absolute', right: 8, bottom: '100%', display: 'flex', alignItems: 'flex-end', zIndex: 3 }}>
-                  <CatMascot width={70} />
+                <div style={{ position: 'absolute', right: 8, bottom: '100%', marginBottom: 8, zIndex: 3 }}>
+                  <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, height: 28, padding: '0 10px 0 12px', borderRadius: 999, background: '#fff', boxShadow: '0 3px 12px rgba(25,23,34,.1)' }}>
+                    <span style={{ fontSize: 12.25, fontWeight: 700, color: '#191722', pointerEvents: 'none' }}>{SEARCH_PERIOD_OPTIONS[sPeriod]}</span>
+                    <svg width="12" viewBox="0 0 24 24" fill="none" stroke="#8b8798" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', pointerEvents: 'none' }}><polyline points="6 9 12 15 18 9" /></svg>
+                    <select
+                      value={sPeriod} onChange={(e) => setSPeriod(e.target.value)} aria-label="기간"
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
+                    >
+                      {Object.entries(SEARCH_PERIOD_OPTIONS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                    </select>
+                  </span>
                 </div>
                 <div style={{ background: '#fff', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgba(25,23,34,.07)', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
                   <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtNum(sIncome)}</div></div>
                   <div style={{ width: 1, height: 30, background: '#efeef2' }} />
                   <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtNum(sExpense)}</div></div>
                   <div style={{ width: 1, height: 30, background: '#efeef2' }} />
-                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>합계</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#191722' }}>{fmtNum(sIncome - sExpense)}</div></div>
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>이체</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#4b4752' }}>{fmtNum(sTransfer)}</div></div>
                 </div>
               </div>
 
