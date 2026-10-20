@@ -738,6 +738,11 @@ const TransactionForm = forwardRef(function TransactionForm({
   ), [isTransfer, items]);
 
   // 즐겨찾기(개인별 목록 하나 — 개인/그룹 기록 폼 공용): 지금 폼 내용 그대로를 템플릿으로 등록/해제
+  // 신규 기록 화면 진입 시 "내용" 필드에 바로 포커스(수정 화면은 제외)
+  useEffect(() => {
+    if (!editing) contentInputRef.current?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { favorited, toggle: toggleFavorite, busy: favoriteBusy } = useFavoriteToggle({
     type, amount: Math.round(total),
     ...resolvedCategorySource,

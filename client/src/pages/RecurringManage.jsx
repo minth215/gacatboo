@@ -2,10 +2,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, fmtNum, dotDate } from '../lib/format.js';
+import { fmtNum, dotDate } from '../lib/format.js';
 import { describeRule, periodDetailLabel, BUSINESS_DAY_LABELS } from '../lib/recurrence.js';
 import PageHeader from '../components/PageHeader.jsx';
 import RecurrenceModal from '../components/RecurrenceModal.jsx';
+import { DayCardRow } from '../components/TransactionList.jsx';
 
 // 입금 반복은 총대(수입)/멤버(지출) 두 관점이 공존 — 지금 보는 사람이 총대인지에 따라 표시 전환
 function viewOf(r, userId) {
@@ -24,6 +25,7 @@ export default function RecurringManage() {
   const [picking, setPicking] = useState(false);
   const [detail, setDetail] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [openId, setOpenId] = useState(null); // 스와이프로 열린 카드(한 번에 하나)
 
   const load = useCallback(() => db.listRecurringRules().then(setRules).catch((e) => alert(e.message)), []);
   useEffect(() => { load(); }, [load]);
@@ -71,34 +73,28 @@ export default function RecurringManage() {
         rules.map((r, i) => {
           const { dispType, dispName, dispEmoji } = viewOf(r, user.id);
           return (
-            <div key={r.id} className="tx-daycard" style={{ marginTop: i === 0 ? 14 : 10 }}>
-              <div
-                onClick={() => openDetail(r)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 16px', cursor: 'pointer' }}
+            <div key={r.id} className="tx-daygroup" style={{ marginTop: i === 0 ? 14 : 10 }}>
+              <DayCardRow
+                index={0} count={1} clickable
+                isOpen={openId === r.id} onOpenChange={(open) => setOpenId(open ? r.id : null)}
+                onTap={() => openDetail(r)} onDelete={() => del(r)}
               >
-                <span style={{
-                  width: 38, height: 38, borderRadius: 12, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 16.5, background: r.category_color || (dispType === 'income' ? '#E5FBF6' : dispType === 'transfer' ? '#EFEDF5' : '#FFE9EF'),
-                }}>
+                <span className="tx-tile" style={{ background: r.category_color || (dispType === 'income' ? '#E5FBF6' : dispType === 'transfer' ? '#EFEDF5' : '#FFE9EF') }}>
                   {dispEmoji || (dispType === 'income' ? '💰' : dispType === 'transfer' ? '🔁' : '💸')}
                 </span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 13.75, fontWeight: 700, color: '#191722', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {r.content || dispName || (dispType === 'income' ? '수입' : dispType === 'transfer' ? '이체' : '지출')}
-                    </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="tx-row-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span className="ttext">{r.content || dispName || (dispType === 'income' ? '수입' : dispType === 'transfer' ? '이체' : '지출')}</span>
                     {r.group_name && (
                       <span style={{ flex: 'none', fontSize: 9.5, fontWeight: 700, color: '#FF8A00', background: '#FFF1DC', borderRadius: 999, padding: '2px 6px' }}>{r.group_name}</span>
                     )}
-                  </span>
-                  <span style={{ display: 'block', fontSize: 11.5, color: '#a29ead', marginTop: 2 }}>
-                    {describeRule(r)} · {dotDate(r.start_date)}부터 · {fmtWon(r.amount)}
-                  </span>
+                  </div>
+                  <div className="tx-row-sub">{periodDetailLabel(r)}</div>
+                </div>
+                <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: dispType === 'income' ? '#2CDDB9' : dispType === 'transfer' ? '#4b4752' : '#FF4358' }}>
+                  {dispType === 'transfer' ? '' : (dispType === 'income' ? '+' : '-')}{fmtNum(r.amount)}
                 </span>
-                <button aria-label="반복 해제" onClick={(e) => { e.stopPropagation(); del(r); }} className="cat-del-btn">
-                  <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
-                </button>
-              </div>
+              </DayCardRow>
             </div>
           );
         })

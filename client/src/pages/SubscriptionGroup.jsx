@@ -1330,6 +1330,11 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     selRef.current?.focus();
     try { selRef.current?.showPicker?.(); } catch {}
   };
+  // 신규 기록 화면 진입 시 "내용" 필드에 바로 포커스(수정 화면은 제외)
+  useEffect(() => {
+    if (!editing) contentInputRef.current?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // 내용 자동완성(이전에 쓴 내용) + × 지우기
   const [contentFocused, setContentFocused] = useState(false);
   const [contentSuggestOpen, setContentSuggestOpen] = useState(false);
