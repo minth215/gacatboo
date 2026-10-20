@@ -458,6 +458,20 @@ const TransactionForm = forwardRef(function TransactionForm({
     db.listContentSuggestions(user.id).then(setContentSuggestions).catch(() => {});
   }, []);
 
+  // 분류/원천이 id 없이 이름만 저장된 기록(반복 자동 생성, 그룹 결제 미러 등): 같은 이름의 분류/원천이
+  // 지금 목록에 있으면 그 항목으로 바로 선택해, "(기존)" 표시 없이 일반 선택값처럼 보이게 한다.
+  useEffect(() => {
+    if (categoryId !== SNAP || !categories.length) return;
+    const t = fixedType || type;
+    const c = categories.find((x) => x.type === t && x.name === initial?.category_name);
+    if (c) setCategoryId(String(c.id));
+  }, [categories]);
+  useEffect(() => {
+    if (sourceId !== SNAP || !sourcesFlat.length) return;
+    const s = sourcesFlat.find((x) => x.name === initial?.source_name);
+    if (s) setSourceId(String(s.id));
+  }, [sourcesFlat]);
+
   // 신규 작성 시 "내용" 기본값 템플릿 적용(비동기로 나중에 도착해도 반영)
   useEffect(() => {
     if (!editing && contentOverride == null && defaultContentTemplate) setContentOverride(renderTemplate(defaultContentTemplate, date));
