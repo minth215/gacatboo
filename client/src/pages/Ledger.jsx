@@ -16,6 +16,8 @@ const roundBtn = (size = 36) => ({
 });
 const selStyle = { padding: 10, border: '1px solid var(--line)', borderRadius: 10, background: '#fff' };
 
+const SEARCH_STASH_KEY = 'ledger:search';
+
 export default function Ledger() {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -50,18 +52,31 @@ export default function Ledger() {
     }
   };
 
-  // 검색(전체 기간)
-  const [searchOpen, setSearchOpen] = useState(false);
+  // 검색(전체 기간). 검색 결과에서 항목을 열었다가 돌아오면(X/저장/삭제) 검색어·필터를 그대로 복원한다.
+  const [restoredSearch] = useState(() => {
+    try {
+      const v = JSON.parse(sessionStorage.getItem(SEARCH_STASH_KEY) || 'null');
+      sessionStorage.removeItem(SEARCH_STASH_KEY);
+      return v;
+    } catch { return null; }
+  });
+  const rs = restoredSearch || {};
+  const [searchOpen, setSearchOpen] = useState(!!restoredSearch);
   const searchRef = useRef(null);
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(rs.q || '');
   const [sResults, setSResults] = useState([]);
   const [sLoading, setSLoading] = useState(false);
-  const [showSearchFilter, setShowSearchFilter] = useState(false);
-  const [sFrom, setSFrom] = useState('');
-  const [sTo, setSTo] = useState('');
-  const [sType, setSType] = useState('all');
-  const [sCat, setSCat] = useState('');
-  const [sSrc, setSSrc] = useState('');
+  const [showSearchFilter, setShowSearchFilter] = useState(!!rs.showSearchFilter);
+  const [sFrom, setSFrom] = useState(rs.sFrom || '');
+  const [sTo, setSTo] = useState(rs.sTo || '');
+  const [sType, setSType] = useState(rs.sType || 'all');
+  const [sCat, setSCat] = useState(rs.sCat || '');
+  const [sSrc, setSSrc] = useState(rs.sSrc || '');
+  // 검색 중에 다른 화면(기록 수정/복사)으로 나갈 때 검색 상태를 잠깐 저장(돌아오면 위에서 한 번 읽고 지움)
+  const stashSearch = () => {
+    if (!searchOpen) return;
+    try { sessionStorage.setItem(SEARCH_STASH_KEY, JSON.stringify({ q, showSearchFilter, sFrom, sTo, sType, sCat, sSrc })); } catch {}
+  };
   const [catAll, setCatAll] = useState([]);
   const [srcAll, setSrcAll] = useState([]);
 
@@ -187,6 +202,7 @@ export default function Ledger() {
   // 보이는 항목(개인 항목 + 내가 속한 그룹의 공유 항목)은 누가 등록했든 전부 수정/삭제 가능.
   const canEdit = () => true;
   const openEdit = (t) => {
+    stashSearch();
     if (t.origin_type === 'payment') nav(`/tx/${t.origin_id}?group=${t.origin_group_id}&kind=payment`);
     else if (t.origin_type === 'deposit') nav(`/tx/${t.origin_id}?group=${t.origin_group_id}&kind=deposit`);
     else if (t.origin_type) nav(`/groups/${t.origin_group_id}?edit=${t.origin_type}:${t.origin_id}`);
@@ -209,6 +225,7 @@ export default function Ledger() {
   // 새 기록 화면을 띄운다(기록 수정 화면의 복사 버튼과 동일한 경로 재사용). 저장 전까지는
   // 실제로 생성되지 않고, 저장/닫기 시 가계부로 바로 돌아오도록 closeTo 를 함께 보낸다.
   const copyTx = (t) => {
+    stashSearch();
     const snapshot = {
       type: t.type, amount: t.amount,
       category_id: t.category_id, category_name: t.category_name,
