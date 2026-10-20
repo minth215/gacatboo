@@ -8,6 +8,7 @@ import CatMascot from '../components/CatMascot.jsx';
 import Spinner from '../components/Spinner.jsx';
 import BulkEditModal from '../components/BulkEditModal.jsx';
 import { fileToResizedBase64 } from '../components/TransactionForm.jsx';
+import LedgerFilterSheet from '../components/LedgerFilterSheet.jsx';
 
 const roundBtn = (size = 36) => ({
   width: size, height: size, borderRadius: '50%', border: 'none', background: '#fff',
@@ -82,9 +83,11 @@ export default function Ledger() {
 
   // 이 달 필터
   const [typeFilter, setTypeFilter] = useState('all');
-  const [catFilter, setCatFilter] = useState('');
-  const [srcFilter, setSrcFilter] = useState('');
+  const [catFilter, setCatFilter] = useState([]); // 분류명 여러 개(빈 배열 = 전체)
+  const [srcFilter, setSrcFilter] = useState([]); // 원천명 여러 개(빈 배열 = 전체)
   const [showFilter, setShowFilter] = useState(false);
+  const [catList, setCatList] = useState([]); // 필터 모달용 분류(이모지 포함)
+  const [srcTree, setSrcTree] = useState([]); // 필터 모달용 원천(상위 → 하위)
 
   // 카드 길게 누르기 → 선택(수정) 모드: 여러 항목을 한 번에 삭제/일괄 수정
   const [selectionMode, setSelectionMode] = useState(false);
@@ -149,8 +152,8 @@ export default function Ledger() {
 
   // 검색 필터 옵션(전체 분류/원천)
   useEffect(() => {
-    db.listCategories().then((cs) => setCatAll([...new Set(cs.map((c) => c.name).filter(Boolean))])).catch(() => {});
-    db.listSources().then(({ flat }) => setSrcAll([...new Set(flat.map((s) => s.name).filter(Boolean))])).catch(() => {});
+    db.listCategories().then((cs) => { setCatAll([...new Set(cs.map((c) => c.name).filter(Boolean))]); setCatList(cs); }).catch(() => {});
+    db.listSources().then(({ flat, tree }) => { setSrcAll([...new Set(flat.map((s) => s.name).filter(Boolean))]); setSrcTree(tree); }).catch(() => {});
   }, []);
 
   const loadSearch = useCallback(() => {
@@ -166,17 +169,24 @@ export default function Ledger() {
 
   const { income, expense } = summary;
 
-  const catOptions = useMemo(() => [...new Set(txs.map((t) => t.category_name).filter(Boolean))].sort(), [txs]);
-  const srcOptions = useMemo(() => [...new Set(txs.map((t) => t.source_name).filter(Boolean))].sort(), [txs]);
+  // 필터 모달의 분류 칩: 유형을 수입/지출로 고르면 그 유형의 분류만(같은 이름은 하나로)
+  const filterCategories = useMemo(() => {
+    const seen = new Set();
+    return catList
+      .filter((c) => (typeFilter === 'income' || typeFilter === 'expense') ? c.type === typeFilter : true)
+      .filter((c) => c.name && !seen.has(c.name) && seen.add(c.name))
+      .map((c) => ({ name: c.name, emoji: c.emoji || '' }));
+  }, [catList, typeFilter]);
+  const filterSourceGroups = useMemo(() => srcTree.map((t) => ({ name: t.name, items: (t.children || []).map((c) => c.name) })), [srcTree]);
 
-  const monthActive = typeFilter !== 'all' || catFilter || srcFilter;
+  const monthActive = typeFilter !== 'all' || catFilter.length > 0 || srcFilter.length > 0;
   const searchActive = !!(sFrom || sTo || sType !== 'all' || sCat || sSrc);
   const filterActive = searchOpen ? searchActive : monthActive;
 
   const filtered = useMemo(() => txs.filter((t) => {
     if (typeFilter !== 'all' && t.type !== typeFilter) return false;
-    if (catFilter && (t.category_name || '') !== catFilter) return false;
-    if (srcFilter && (t.source_name || '') !== srcFilter) return false;
+    if (catFilter.length && !catFilter.includes(t.category_name || '')) return false;
+    if (srcFilter.length && !srcFilter.includes(t.source_name || '') && !(t.type === 'transfer' && srcFilter.includes(t.to_source_name || ''))) return false;
     return true;
   }), [txs, typeFilter, catFilter, srcFilter]);
   // 상단(상단바+연월+요약카드)·하단(하단탭) 영역을 뺀 나머지 화면 정중앙에 빈 상태 문구 배치
@@ -191,8 +201,7 @@ export default function Ledger() {
   const sIncome = sFiltered.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
   const sExpense = sFiltered.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
 
-  const resetMonthFilter = () => { setTypeFilter('all'); setCatFilter(''); setSrcFilter(''); };
-  const resetSearchFilter = () => { setSFrom(''); setSTo(''); setSType('all'); setSCat(''); setSSrc(''); };
+    const resetSearchFilter = () => { setSFrom(''); setSTo(''); setSType('all'); setSCat(''); setSSrc(''); };
 
   const openSearch = () => { setSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 260); };
   const closeSearch = () => { setSearchOpen(false); setShowSearchFilter(false); setQ(''); };
@@ -417,26 +426,15 @@ export default function Ledger() {
             </div>
           )}
 
-          {/* 이 달 필터 패널 */}
+          {/* 이 달 필터: 하단 모달 */}
           {showFilter && (
-            <div style={{ background: '#fff', borderRadius: 16, padding: 12, marginBottom: 12, boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
-              <div className="pill-toggle" style={{ display: 'flex', width: '100%' }}>
-                <button style={{ flex: 1 }} className={typeFilter === 'all' ? 'active' : ''} onClick={() => setTypeFilter('all')}>전체</button>
-                <button style={{ flex: 1 }} className={typeFilter === 'income' ? 'income active' : ''} onClick={() => setTypeFilter('income')}>수입</button>
-                <button style={{ flex: 1 }} className={typeFilter === 'expense' ? 'expense active' : ''} onClick={() => setTypeFilter('expense')}>지출</button>
-              </div>
-              <div className="grid2" style={{ marginTop: 8 }}>
-                <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} style={selStyle}>
-                  <option value="">분류 전체</option>
-                  {catOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <select value={srcFilter} onChange={(e) => setSrcFilter(e.target.value)} style={selStyle}>
-                  <option value="">원천 전체</option>
-                  {srcOptions.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              {monthActive && <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={resetMonthFilter}>필터 초기화</button>}
-            </div>
+            <LedgerFilterSheet
+              categories={filterCategories} sourceGroups={filterSourceGroups}
+              filterType={typeFilter} setFilterType={setTypeFilter}
+              filterCats={catFilter} setFilterCats={setCatFilter}
+              filterSrcs={srcFilter} setFilterSrcs={setSrcFilter}
+              onClose={() => setShowFilter(false)}
+            />
           )}
 
           {/* 요약 카드 + 고양이/말풍선 (고양이 하단이 박스 상단에 딱 붙어 함께 이동) */}
