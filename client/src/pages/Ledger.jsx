@@ -430,19 +430,23 @@ export default function Ledger() {
               {/* 연월 컨트롤 바: 기간 필터에 따라 전체(이동 비활성) / 주별·월별·연별(이동) / 기간 선택(날짜 범위) */}
               <div style={{ marginTop: 3 }}>
                 {sPeriod === 'range' ? (
-                  <div style={{ height: 32, display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <div style={{ height: 32, display: 'flex', alignItems: 'center', gap: 7, paddingLeft: 8 }}>
                     <DateField value={sFrom} onChange={(v) => { setSFrom(v); if (v > sTo) setSTo(v); }} />
                     <span style={{ fontSize: 13.25, fontWeight: 700, color: '#6c6779' }}>~</span>
                     <DateField value={sTo} onChange={(v) => { setSTo(v); if (v < sFrom) setSFrom(v); }} />
                   </div>
+                ) : sPeriod === 'all' ? (
+                  <div style={{ height: 32, display: 'flex', alignItems: 'center', paddingLeft: 8 }}>
+                    <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px' }}>전체 기간</span>
+                  </div>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button aria-label="이전" disabled={sPeriod === 'all'} onClick={() => moveSearchPeriod(-1)} style={{ ...roundBtn(32), opacity: sPeriod === 'all' ? 0.4 : 1, cursor: sPeriod === 'all' ? 'default' : 'pointer' }}>
+                    <button aria-label="이전" onClick={() => moveSearchPeriod(-1)} style={roundBtn(32)}>
                       <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
                     </button>
-                    <div style={{ position: 'relative', minWidth: sPeriod === 'week' ? 0 : 88, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ position: 'relative', minWidth: sPeriod === 'month' ? 88 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>
-                        {sPeriod === 'all' ? '전체' : periodLabel(sPeriod, sAnchor)}
+                        {periodLabel(sPeriod, sAnchor)}
                       </span>
                       {sPeriod === 'month' && (
                         <input type="month" value={sMonth} aria-label="연월 선택" className="catmodal-date-input" onChange={(e) => { if (e.target.value) setSMonth(e.target.value); }} />
@@ -453,7 +457,7 @@ export default function Ledger() {
                         </select>
                       )}
                     </div>
-                    <button aria-label="다음" disabled={sPeriod === 'all'} onClick={() => moveSearchPeriod(1)} style={{ ...roundBtn(32), opacity: sPeriod === 'all' ? 0.4 : 1, cursor: sPeriod === 'all' ? 'default' : 'pointer' }}>
+                    <button aria-label="다음" onClick={() => moveSearchPeriod(1)} style={roundBtn(32)}>
                       <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
                     </button>
                   </div>
@@ -463,7 +467,7 @@ export default function Ledger() {
               {/* 수입/지출/이체 요약 카드 + 카드 위 우측의 기간 기준 셀렉트(전체/주별/월별/연별/기간 선택) */}
               <div style={{ position: 'relative', marginTop: 8 }}>
                 <div style={{ position: 'absolute', right: 8, bottom: '100%', marginBottom: 8, zIndex: 3 }}>
-                  <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, height: 28, padding: '0 10px 0 12px', borderRadius: 999, background: '#fff', boxShadow: '0 3px 12px rgba(25,23,34,.1)' }}>
+                  <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, height: 28 }}>
                     <span style={{ fontSize: 12.25, fontWeight: 700, color: '#191722', pointerEvents: 'none' }}>{SEARCH_PERIOD_OPTIONS[sPeriod]}</span>
                     <svg width="12" viewBox="0 0 24 24" fill="none" stroke="#8b8798" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', pointerEvents: 'none' }}><polyline points="6 9 12 15 18 9" /></svg>
                     <select

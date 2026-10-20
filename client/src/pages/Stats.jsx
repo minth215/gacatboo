@@ -390,7 +390,7 @@ export default function Stats() {
   const periodBar = (
     <div style={{ marginTop: 3 }}>
       {periodMode === 'range' ? (
-        <div style={{ height: 32, display: 'flex', alignItems: 'center', gap: 7 }}>
+        <div style={{ height: 32, display: 'flex', alignItems: 'center', gap: 7, paddingLeft: 8 }}>
           <DateField value={range.from} onChange={(v) => setRange((r) => ({ ...r, from: v, to: v > r.to ? v : r.to }))} />
           <span style={{ fontSize: 13.25, fontWeight: 700, color: '#6c6779' }}>~</span>
           <DateField value={range.to} onChange={(v) => setRange((r) => ({ ...r, to: v, from: v < r.from ? v : r.from }))} />
@@ -398,7 +398,7 @@ export default function Stats() {
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button aria-label="이전" onClick={() => movePeriod(-1)} style={roundBtn}>{arrow('15 6 9 12 15 18')}</button>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: periodMode === 'week' ? 0 : 88 }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: periodMode === 'month' ? 88 : 0 }}>
             <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>
               {periodLabel(periodMode, anchor)}
             </span>
