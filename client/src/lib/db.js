@@ -176,6 +176,8 @@ export const db = {
   async backfillRecurringRule(ruleId) {
     const { data, error } = await supabase.rpc('backfill_recurring_rule', { p_rule_id: ruleId });
     if (error) throw new Error(error.message);
+    // 오늘까지 처리했음을 표시 — 매일 자동 실행의 "놓친 회차 따라잡기"가 같은 기간을 다시 훑지 않게(0060)
+    await supabase.rpc('mark_recurring_rule_run', { p_rule_id: ruleId }).catch?.(() => {});
     return data;
   },
 
