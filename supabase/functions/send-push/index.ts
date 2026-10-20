@@ -5,7 +5,8 @@
 // 호출: supabase.functions.invoke('send-push', { body: { userId, eventKey, vars, link } })
 //
 // vars.group_id 로 호출자·수신자가 같은 그룹 멤버인지 확인해(notify_user()와 동일한 규칙),
-// 클라이언트에서 임의 사용자에게 푸시를 보내는 것을 막는다.
+// 클라이언트에서 임의 사용자에게 푸시를 보내는 것을 막는다. service_role 키로 부른 서버 내부 호출
+// (DB 반복 자동 기록 알림 — 0061)은 이 확인을 건너뛴다.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
@@ -39,9 +40,14 @@ Deno.serve(async (req) => {
 
   const authHeader = req.headers.get('Authorization') ?? '';
   const token = authHeader.replace('Bearer ', '');
-  const { data: userData, error: authErr } = await admin.auth.getUser(token);
-  if (authErr || !userData?.user) return json({ error: '인증이 필요합니다.' }, 401);
-  const callerId = userData.user.id;
+  // 서버 내부 호출(DB 의 반복 자동 기록 등, service_role 키로 호출): 사용자 인증·그룹 확인 없이 발송
+  const isServiceCall = !!token && token === serviceKey;
+  let callerId: string | null = null;
+  if (!isServiceCall) {
+    const { data: userData, error: authErr } = await admin.auth.getUser(token);
+    if (authErr || !userData?.user) return json({ error: '인증이 필요합니다.' }, 401);
+    callerId = userData.user.id;
+  }
 
   let payload: any;
   try {
@@ -55,13 +61,15 @@ Deno.serve(async (req) => {
   try {
     // 스팸 방지: notify_user() RPC와 동일하게, group_id가 있을 때 호출자·수신자가
     // 같은 그룹의 멤버인지 확인한다(그룹과 무관한 상황은 아직 없으므로 없으면 거부).
-    const groupId = vars?.group_id;
-    if (!groupId) return json({ error: '권한을 확인할 수 없습니다.' }, 403);
-    const [{ data: callerM }, { data: targetM }] = await Promise.all([
-      admin.from('group_members').select('id').eq('group_id', groupId).eq('user_id', callerId).maybeSingle(),
-      admin.from('group_members').select('id').eq('group_id', groupId).eq('user_id', userId).maybeSingle(),
-    ]);
-    if (!callerM || !targetM) return json({ error: '알림을 보낼 권한이 없습니다.' }, 403);
+    if (!isServiceCall) {
+      const groupId = vars?.group_id;
+      if (!groupId) return json({ error: '권한을 확인할 수 없습니다.' }, 403);
+      const [{ data: callerM }, { data: targetM }] = await Promise.all([
+        admin.from('group_members').select('id').eq('group_id', groupId).eq('user_id', callerId).maybeSingle(),
+        admin.from('group_members').select('id').eq('group_id', groupId).eq('user_id', userId).maybeSingle(),
+      ]);
+      if (!callerM || !targetM) return json({ error: '알림을 보낼 권한이 없습니다.' }, 403);
+    }
 
     const { data: settings } = await admin.from('user_notification_settings').select('push_enabled').eq('user_id', userId).maybeSingle();
     if (!settings?.push_enabled) return json({ message: '수신자가 푸시 알림을 꺼두었습니다.' });
