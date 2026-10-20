@@ -210,7 +210,7 @@ create or replace function public.generate_due_recurring_transactions()
 returns void language plpgsql security definer set search_path = public as $$
 declare
   today date := (now() at time zone 'Asia/Seoul')::date;
-  r record;
+  r public.recurring_rules;
 begin
   for r in select * from public.recurring_rules
     where active and start_date <= today and (end_date is null or end_date >= today)
