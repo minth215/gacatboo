@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { dotDate } from '../lib/format.js';
 import { createPortal } from 'react-dom';
 
 // 가계부 필터 하단 모달(시안 2a 그대로). 유형(전체/수입/지출/이체)은 하나만, 분류·원천은 여러 개 선택.
@@ -13,6 +14,8 @@ export default function LedgerFilterSheet({
   categories, // [{ name, emoji }]
   sourceGroups, // [{ name, items: [name] }]
   filterType, setFilterType, filterCats, setFilterCats, filterSrcs, setFilterSrcs,
+  // 검색 모드에서만: 기간 설정({ from, to, setFrom, setTo }) — 없으면 기간 항목을 표시하지 않음
+  period = null,
   onClose,
 }) {
   // 분류/원천은 한 번에 하나만 펼침('cat' | 'src' | null)
@@ -20,7 +23,10 @@ export default function LedgerFilterSheet({
   const catExpanded = expanded === 'cat';
   const srcExpanded = expanded === 'src';
   const toggleSection = (key) => setExpanded((v) => (v === key ? null : key));
-  const resetFilter = () => { setFilterType('all'); setFilterCats([]); setFilterSrcs([]); };
+  const resetFilter = () => {
+    setFilterType('all'); setFilterCats([]); setFilterSrcs([]);
+    if (period) { period.setFrom(''); period.setTo(''); }
+  };
   // 분류는 수입/지출 탭에서만 보임 — 전체/이체로 바꾸면 분류 선택은 해제
   const showCategory = filterType === 'income' || filterType === 'expense';
   const onType = (key) => {
@@ -98,6 +104,28 @@ export default function LedgerFilterSheet({
             >{t.label}</button>
           ))}
         </div>
+
+        {period && (
+          <div style={{ flex: 'none', marginTop: 22 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12.75, fontWeight: 700, color: '#191722' }}>기간</span>
+              {(period.from || period.to) && (
+                <button type="button" onClick={() => { period.setFrom(''); period.setTo(''); }} style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, color: '#a29ead', cursor: 'pointer', padding: 0 }}>지우기</button>
+              )}
+            </div>
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className="catmodal-date-field">
+                <div className={`catmodal-date-value${period.from ? '' : ' placeholder'}`} style={{ textAlign: 'center', fontSize: 12.75, padding: '10px 12px' }}>{period.from ? dotDate(period.from) : '시작일'}</div>
+                <input type="date" value={period.from} max={period.to || undefined} onChange={(e) => period.setFrom(e.target.value)} className="catmodal-date-input" aria-label="시작일" />
+              </div>
+              <span style={{ flex: 'none', fontSize: 12.75, color: '#a29ead' }}>~</span>
+              <div className="catmodal-date-field">
+                <div className={`catmodal-date-value${period.to ? '' : ' placeholder'}`} style={{ textAlign: 'center', fontSize: 12.75, padding: '10px 12px' }}>{period.to ? dotDate(period.to) : '종료일'}</div>
+                <input type="date" value={period.to} min={period.from || undefined} onChange={(e) => period.setTo(e.target.value)} className="catmodal-date-input" aria-label="종료일" />
+              </div>
+            </div>
+          </div>
+        )}
 
         {showCategory && (<>
         <button type="button" onClick={() => toggleSection('cat')} style={{ flex: 'none', marginTop: 22, width: '100%', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

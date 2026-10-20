@@ -15,7 +15,6 @@ const roundBtn = (size = 36) => ({
   boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: '#6c6779',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none',
 });
-const selStyle = { padding: 10, border: '1px solid var(--line)', borderRadius: 10, background: '#fff' };
 
 const SEARCH_STASH_KEY = 'ledger:search';
 
@@ -71,15 +70,13 @@ export default function Ledger() {
   const [sFrom, setSFrom] = useState(rs.sFrom || '');
   const [sTo, setSTo] = useState(rs.sTo || '');
   const [sType, setSType] = useState(rs.sType || 'all');
-  const [sCat, setSCat] = useState(rs.sCat || '');
-  const [sSrc, setSSrc] = useState(rs.sSrc || '');
+  const [sCat, setSCat] = useState(Array.isArray(rs.sCat) ? rs.sCat : []); // 분류명 여러 개(빈 배열 = 전체)
+  const [sSrc, setSSrc] = useState(Array.isArray(rs.sSrc) ? rs.sSrc : []); // 원천명 여러 개(빈 배열 = 전체)
   // 검색 중에 다른 화면(기록 수정/복사)으로 나갈 때 검색 상태를 잠깐 저장(돌아오면 위에서 한 번 읽고 지움)
   const stashSearch = () => {
     if (!searchOpen) return;
-    try { sessionStorage.setItem(SEARCH_STASH_KEY, JSON.stringify({ q, showSearchFilter, sFrom, sTo, sType, sCat, sSrc })); } catch {}
+    try { sessionStorage.setItem(SEARCH_STASH_KEY, JSON.stringify({ q, showSearchFilter: false, sFrom, sTo, sType, sCat, sSrc })); } catch {}
   };
-  const [catAll, setCatAll] = useState([]);
-  const [srcAll, setSrcAll] = useState([]);
 
   // 이 달 필터
   const [typeFilter, setTypeFilter] = useState('all');
@@ -152,35 +149,36 @@ export default function Ledger() {
 
   // 검색 필터 옵션(전체 분류/원천)
   useEffect(() => {
-    db.listCategories().then((cs) => { setCatAll([...new Set(cs.map((c) => c.name).filter(Boolean))]); setCatList(cs); }).catch(() => {});
-    db.listSources().then(({ flat, tree }) => { setSrcAll([...new Set(flat.map((s) => s.name).filter(Boolean))]); setSrcTree(tree); }).catch(() => {});
+    db.listCategories().then(setCatList).catch(() => {});
+    db.listSources().then(({ tree }) => setSrcTree(tree)).catch(() => {});
   }, []);
 
   const loadSearch = useCallback(() => {
     setSLoading(true);
     db.searchTransactions({
-      from: sFrom || undefined, to: sTo || undefined, type: sType,
-      category: sCat || undefined, source: sSrc || undefined, userId: user.id,
+      from: sFrom || undefined, to: sTo || undefined, type: sType, userId: user.id,
     })
       .then(setSResults).catch(() => setSResults([])).finally(() => setSLoading(false));
-  }, [sFrom, sTo, sType, sCat, sSrc, user.id]);
+  }, [sFrom, sTo, sType, user.id]);
 
   useEffect(() => { if (searchOpen) loadSearch(); }, [searchOpen, loadSearch]);
 
   const { income, expense } = summary;
 
   // 필터 모달의 분류 칩: 유형을 수입/지출로 고르면 그 유형의 분류만(같은 이름은 하나로)
-  const filterCategories = useMemo(() => {
+  const categoriesFor = useCallback((t) => {
     const seen = new Set();
     return catList
-      .filter((c) => (typeFilter === 'income' || typeFilter === 'expense') ? c.type === typeFilter : true)
+      .filter((c) => (t === 'income' || t === 'expense') ? c.type === t : true)
       .filter((c) => c.name && !seen.has(c.name) && seen.add(c.name))
       .map((c) => ({ name: c.name, emoji: c.emoji || '' }));
-  }, [catList, typeFilter]);
+  }, [catList]);
+  const filterCategories = useMemo(() => categoriesFor(typeFilter), [categoriesFor, typeFilter]);
+  const searchFilterCategories = useMemo(() => categoriesFor(sType), [categoriesFor, sType]);
   const filterSourceGroups = useMemo(() => srcTree.map((t) => ({ name: t.name, items: (t.children || []).map((c) => c.name) })), [srcTree]);
 
   const monthActive = typeFilter !== 'all' || catFilter.length > 0 || srcFilter.length > 0;
-  const searchActive = !!(sFrom || sTo || sType !== 'all' || sCat || sSrc);
+  const searchActive = !!(sFrom || sTo || sType !== 'all' || sCat.length || sSrc.length);
   const filterActive = searchOpen ? searchActive : monthActive;
 
   const filtered = useMemo(() => txs.filter((t) => {
@@ -195,14 +193,17 @@ export default function Ledger() {
   // 검색 결과: 서버 구조 필터 + 화면 텍스트 필터
   const sFiltered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return sResults;
-    return sResults.filter((t) => [t.content, t.category_name, t.source_name, t.memo].filter(Boolean).join(' ').toLowerCase().includes(term));
-  }, [sResults, q]);
+    return sResults.filter((t) => {
+      if (sCat.length && !sCat.includes(t.category_name || '')) return false;
+      if (sSrc.length && !sSrc.includes(t.source_name || '') && !(t.type === 'transfer' && sSrc.includes(t.to_source_name || ''))) return false;
+      if (!term) return true;
+      return [t.content, t.category_name, t.source_name, t.memo].filter(Boolean).join(' ').toLowerCase().includes(term);
+    });
+  }, [sResults, q, sCat, sSrc]);
   const sIncome = sFiltered.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
   const sExpense = sFiltered.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
 
-    const resetSearchFilter = () => { setSFrom(''); setSTo(''); setSType('all'); setSCat(''); setSSrc(''); };
-
+  
   const openSearch = () => { setSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 260); };
   const closeSearch = () => { setSearchOpen(false); setShowSearchFilter(false); setQ(''); };
   const onSearchIcon = () => { if (searchOpen) searchRef.current?.focus(); else openSearch(); };
@@ -358,30 +359,16 @@ export default function Ledger() {
       {searchOpen ? (
         /* ===== 검색 모드 (전체 기간, 모든 카드) ===== */
         <>
+          {/* 검색 필터: 가계부 필터와 같은 하단 모달 + 기간 설정 */}
           {showSearchFilter && (
-            <div style={{ background: '#fff', borderRadius: 16, padding: 12, marginBottom: 12, boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
-              <label className="small muted" style={{ display: 'block', marginBottom: 4 }}>기간</label>
-              <div className="grid2">
-                <input type="date" value={sFrom} max={sTo || undefined} onChange={(e) => setSFrom(e.target.value)} style={selStyle} />
-                <input type="date" value={sTo} min={sFrom || undefined} onChange={(e) => setSTo(e.target.value)} style={selStyle} />
-              </div>
-              <div className="pill-toggle" style={{ display: 'flex', width: '100%', marginTop: 8 }}>
-                <button style={{ flex: 1 }} className={sType === 'all' ? 'active' : ''} onClick={() => setSType('all')}>전체</button>
-                <button style={{ flex: 1 }} className={sType === 'income' ? 'income active' : ''} onClick={() => setSType('income')}>수입</button>
-                <button style={{ flex: 1 }} className={sType === 'expense' ? 'expense active' : ''} onClick={() => setSType('expense')}>지출</button>
-              </div>
-              <div className="grid2" style={{ marginTop: 8 }}>
-                <select value={sCat} onChange={(e) => setSCat(e.target.value)} style={selStyle}>
-                  <option value="">분류 전체</option>
-                  {catAll.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <select value={sSrc} onChange={(e) => setSSrc(e.target.value)} style={selStyle}>
-                  <option value="">원천 전체</option>
-                  {srcAll.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              {searchActive && <button className="btn sm ghost" style={{ marginTop: 8 }} onClick={resetSearchFilter}>필터 초기화</button>}
-            </div>
+            <LedgerFilterSheet
+              categories={searchFilterCategories} sourceGroups={filterSourceGroups}
+              filterType={sType} setFilterType={setSType}
+              filterCats={sCat} setFilterCats={setSCat}
+              filterSrcs={sSrc} setFilterSrcs={setSSrc}
+              period={{ from: sFrom, to: sTo, setFrom: setSFrom, setTo: setSTo }}
+              onClose={() => setShowSearchFilter(false)}
+            />
           )}
 
           {(sLoading || sFiltered.length > 0) && (

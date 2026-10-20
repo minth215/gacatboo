@@ -258,7 +258,7 @@ export const db = {
       .order('date', { ascending: false }).order('id', { ascending: false }).limit(2000);
     if (from) query = query.gte('date', from);
     if (to) query = query.lte('date', to);
-    if (type === 'income' || type === 'expense') query = query.eq('type', type);
+    if (type === 'income' || type === 'expense' || type === 'transfer') query = query.eq('type', type);
     if (category) query = query.eq('category_name', category);
     if (source) query = query.eq('source_name', source);
     return this.attachSubscriptionPeriods(flattenTx(hideOthersSettlementPayments(unwrap(await query), userId)));
