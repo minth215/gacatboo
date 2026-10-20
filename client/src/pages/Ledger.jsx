@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { db, isSettlementIncome } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { currentMonth, shiftMonth, fmtNum } from '../lib/format.js';
+import { currentMonth, shiftMonth, fmtNum, today, shiftDate, weekStartOf, currentYear, periodBounds } from '../lib/format.js';
 import TransactionList from '../components/TransactionList.jsx';
 import CatMascot from '../components/CatMascot.jsx';
 import Spinner from '../components/Spinner.jsx';
@@ -67,15 +67,24 @@ export default function Ledger() {
   const [sResults, setSResults] = useState([]);
   const [sLoading, setSLoading] = useState(false);
   const [showSearchFilter, setShowSearchFilter] = useState(!!rs.showSearchFilter);
-  const [sFrom, setSFrom] = useState(rs.sFrom || '');
-  const [sTo, setSTo] = useState(rs.sTo || '');
+  // 검색 기간: 전체 | 주별(이번 주) | 월별(이번 달) | 연별(올해) | 기간 선택(sFrom~sTo, 기본 최근 7일)
+  const [sPeriod, setSPeriod] = useState(rs.sPeriod || 'all');
+  const [sFrom, setSFrom] = useState(rs.sFrom || shiftDate(today(), -6));
+  const [sTo, setSTo] = useState(rs.sTo || today());
+  const sRange = useMemo(() => {
+    if (sPeriod === 'all') return { from: '', to: '' };
+    if (sPeriod === 'range') return { from: sFrom, to: sTo };
+    const anchor = sPeriod === 'week' ? weekStartOf(today()) : sPeriod === 'year' ? currentYear() : currentMonth();
+    const b = periodBounds(sPeriod, anchor);
+    return { from: b.start, to: shiftDate(b.endExclusive, -1) };
+  }, [sPeriod, sFrom, sTo]);
   const [sType, setSType] = useState(rs.sType || 'all');
   const [sCat, setSCat] = useState(Array.isArray(rs.sCat) ? rs.sCat : []); // 분류명 여러 개(빈 배열 = 전체)
   const [sSrc, setSSrc] = useState(Array.isArray(rs.sSrc) ? rs.sSrc : []); // 원천명 여러 개(빈 배열 = 전체)
   // 검색 중에 다른 화면(기록 수정/복사)으로 나갈 때 검색 상태를 잠깐 저장(돌아오면 위에서 한 번 읽고 지움)
   const stashSearch = () => {
     if (!searchOpen) return;
-    try { sessionStorage.setItem(SEARCH_STASH_KEY, JSON.stringify({ q, showSearchFilter: false, sFrom, sTo, sType, sCat, sSrc })); } catch {}
+    try { sessionStorage.setItem(SEARCH_STASH_KEY, JSON.stringify({ q, showSearchFilter: false, sPeriod, sFrom, sTo, sType, sCat, sSrc })); } catch {}
   };
 
   // 이 달 필터
@@ -156,10 +165,10 @@ export default function Ledger() {
   const loadSearch = useCallback(() => {
     setSLoading(true);
     db.searchTransactions({
-      from: sFrom || undefined, to: sTo || undefined, type: sType, userId: user.id,
+      from: sRange.from || undefined, to: sRange.to || undefined, type: sType, userId: user.id,
     })
       .then(setSResults).catch(() => setSResults([])).finally(() => setSLoading(false));
-  }, [sFrom, sTo, sType, user.id]);
+  }, [sRange.from, sRange.to, sType, user.id]);
 
   useEffect(() => { if (searchOpen) loadSearch(); }, [searchOpen, loadSearch]);
 
@@ -178,7 +187,7 @@ export default function Ledger() {
   const filterSourceGroups = useMemo(() => srcTree.map((t) => ({ name: t.name, items: (t.children || []).map((c) => c.name) })), [srcTree]);
 
   const monthActive = typeFilter !== 'all' || catFilter.length > 0 || srcFilter.length > 0;
-  const searchActive = !!(sFrom || sTo || sType !== 'all' || sCat.length || sSrc.length);
+  const searchActive = !!(sPeriod !== 'all' || sType !== 'all' || sCat.length || sSrc.length);
   const filterActive = searchOpen ? searchActive : monthActive;
 
   const filtered = useMemo(() => txs.filter((t) => {
@@ -366,7 +375,7 @@ export default function Ledger() {
               filterType={sType} setFilterType={setSType}
               filterCats={sCat} setFilterCats={setSCat}
               filterSrcs={sSrc} setFilterSrcs={setSSrc}
-              period={{ from: sFrom, to: sTo, setFrom: setSFrom, setTo: setSTo }}
+              period={{ mode: sPeriod, setMode: setSPeriod, from: sFrom, to: sTo, setFrom: setSFrom, setTo: setSTo }}
               onClose={() => setShowSearchFilter(false)}
             />
           )}

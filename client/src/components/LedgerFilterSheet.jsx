@@ -5,6 +5,24 @@ import { createPortal } from 'react-dom';
 // 가계부 필터 하단 모달(시안 2a 그대로). 유형(전체/수입/지출/이체)은 하나만, 분류·원천은 여러 개 선택.
 // 선택은 바로 반영되고 "적용하기"는 모달만 닫는다. 초기화는 전체 해제.
 const TYPES = [{ key: 'all', label: '전체' }, { key: 'income', label: '수입' }, { key: 'expense', label: '지출' }, { key: 'transfer', label: '이체' }];
+const PERIOD_OPTIONS = { all: '전체', week: '주별', month: '월별', year: '연별', range: '기간 선택' };
+
+// 기간 선택 모드의 날짜 입력(통계 페이지 "기간 선택" 컨트롤 바와 동일): 보이는 글자는 직접 그리고,
+// 실제 <input type="date">를 영역 전체에 투명하게 덮어 탭만 받게 한다.
+function DateField({ value, onChange }) {
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', alignSelf: 'stretch', gap: 4 }}>
+      <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', pointerEvents: 'none' }}>{dotDate(value)}</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', pointerEvents: 'none' }}>
+        <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+      <input
+        type="date" value={value} onChange={(e) => e.target.value && onChange(e.target.value)}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
+      />
+    </span>
+  );
+}
 const toggleIn = (arr, val) => (arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
 
 const ChevDown = () => <svg width="13" style={{ flex: "none" }} viewBox="0 0 24 24" fill="none" stroke="#8b8798" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>;
@@ -14,7 +32,8 @@ export default function LedgerFilterSheet({
   categories, // [{ name, emoji }]
   sourceGroups, // [{ name, items: [name] }]
   filterType, setFilterType, filterCats, setFilterCats, filterSrcs, setFilterSrcs,
-  // 검색 모드에서만: 기간 설정({ from, to, setFrom, setTo }) — 없으면 기간 항목을 표시하지 않음
+  // 검색 모드에서만: 기간 설정({ mode, setMode, from, to, setFrom, setTo }) — 없으면 기간 항목을 표시하지 않음.
+  // mode: all(전체) | week(이번 주) | month(이번 달) | year(올해) | range(기간 선택 — from~to)
   period = null,
   onClose,
 }) {
@@ -25,7 +44,7 @@ export default function LedgerFilterSheet({
   const toggleSection = (key) => setExpanded((v) => (v === key ? null : key));
   const resetFilter = () => {
     setFilterType('all'); setFilterCats([]); setFilterSrcs([]);
-    if (period) { period.setFrom(''); period.setTo(''); }
+    if (period) period.setMode('all');
   };
   // 분류는 수입/지출 탭에서만 보임 — 전체/이체로 바꾸면 분류 선택은 해제
   const showCategory = filterType === 'income' || filterType === 'expense';
@@ -109,21 +128,25 @@ export default function LedgerFilterSheet({
           <div style={{ flex: 'none', marginTop: 22 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 12.75, fontWeight: 700, color: '#191722' }}>기간</span>
-              {(period.from || period.to) && (
-                <button type="button" onClick={() => { period.setFrom(''); period.setTo(''); }} style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, color: '#a29ead', cursor: 'pointer', padding: 0 }}>지우기</button>
-              )}
+              {/* 보이는 글자 + 투명 select 를 덮어 탭만 받음(네이티브 선택기) */}
+              <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 12.75, fontWeight: 600, color: period.mode === 'all' ? '#a29ead' : '#191722', pointerEvents: 'none' }}>{PERIOD_OPTIONS[period.mode]}</span>
+                <span style={{ pointerEvents: 'none', display: 'inline-flex' }}><ChevDown /></span>
+                <select
+                  value={period.mode} onChange={(e) => period.setMode(e.target.value)} aria-label="기간"
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
+                >
+                  {Object.entries(PERIOD_OPTIONS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                </select>
+              </span>
             </div>
-            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div className="catmodal-date-field">
-                <div className={`catmodal-date-value${period.from ? '' : ' placeholder'}`} style={{ textAlign: 'center', fontSize: 12.75, padding: '10px 12px' }}>{period.from ? dotDate(period.from) : '시작일'}</div>
-                <input type="date" value={period.from} max={period.to || undefined} onChange={(e) => period.setFrom(e.target.value)} className="catmodal-date-input" aria-label="시작일" />
+            {period.mode === 'range' && (
+              <div style={{ marginTop: 12, height: 32, display: 'flex', alignItems: 'center', gap: 7 }}>
+                <DateField value={period.from} onChange={(v) => { period.setFrom(v); if (v > period.to) period.setTo(v); }} />
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#6c6779' }}>~</span>
+                <DateField value={period.to} onChange={(v) => { period.setTo(v); if (v < period.from) period.setFrom(v); }} />
               </div>
-              <span style={{ flex: 'none', fontSize: 12.75, color: '#a29ead' }}>~</span>
-              <div className="catmodal-date-field">
-                <div className={`catmodal-date-value${period.to ? '' : ' placeholder'}`} style={{ textAlign: 'center', fontSize: 12.75, padding: '10px 12px' }}>{period.to ? dotDate(period.to) : '종료일'}</div>
-                <input type="date" value={period.to} min={period.from || undefined} onChange={(e) => period.setTo(e.target.value)} className="catmodal-date-input" aria-label="종료일" />
-              </div>
-            </div>
+            )}
           </div>
         )}
 
