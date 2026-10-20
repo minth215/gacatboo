@@ -9,7 +9,7 @@ const PERIOD_OPTIONS = { all: '전체', week: '주별', month: '월별', year: '
 
 // 기간 선택 모드의 날짜 입력(통계 페이지 "기간 선택" 컨트롤 바와 동일): 보이는 글자는 직접 그리고,
 // 실제 <input type="date">를 영역 전체에 투명하게 덮어 탭만 받게 한다.
-function DateField({ value, onChange }) {
+export function DateField({ value, onChange }) {
   return (
     <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', alignSelf: 'stretch', gap: 4 }}>
       <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', pointerEvents: 'none' }}>{dotDate(value)}</span>

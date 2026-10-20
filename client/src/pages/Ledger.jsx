@@ -2,13 +2,14 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { db, isSettlementIncome } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { currentMonth, shiftMonth, fmtNum, today, shiftDate, weekStartOf, currentYear, periodBounds } from '../lib/format.js';
+import { currentMonth, shiftMonth, fmtNum, today, shiftDate, weekStartOf, currentYear, periodBounds, periodLabel, shiftPeriod } from '../lib/format.js';
 import TransactionList from '../components/TransactionList.jsx';
 import CatMascot from '../components/CatMascot.jsx';
 import Spinner from '../components/Spinner.jsx';
 import BulkEditModal from '../components/BulkEditModal.jsx';
 import { fileToResizedBase64 } from '../components/TransactionForm.jsx';
-import LedgerFilterSheet from '../components/LedgerFilterSheet.jsx';
+import LedgerFilterSheet, { DateField } from '../components/LedgerFilterSheet.jsx';
+import { SuggestList, rankSuggestions } from '../components/TransactionForm.jsx';
 
 const roundBtn = (size = 36) => ({
   width: size, height: size, borderRadius: '50%', border: 'none', background: '#fff',
@@ -71,20 +72,49 @@ export default function Ledger() {
   const [sPeriod, setSPeriod] = useState(rs.sPeriod || 'all');
   const [sFrom, setSFrom] = useState(rs.sFrom || shiftDate(today(), -6));
   const [sTo, setSTo] = useState(rs.sTo || today());
+  // 주별/월별/연별은 통계 페이지처럼 연월 컨트롤 바로 이전/다음 기간 이동(기본: 이번 주/달/해)
+  const [sWeek, setSWeek] = useState(rs.sWeek || weekStartOf(today()));
+  const [sMonth, setSMonth] = useState(rs.sMonth || currentMonth());
+  const [sYear, setSYear] = useState(rs.sYear || currentYear());
+  const sAnchor = sPeriod === 'week' ? sWeek : sPeriod === 'year' ? sYear : sPeriod === 'range' ? { from: sFrom, to: sTo } : sMonth;
   const sRange = useMemo(() => {
     if (sPeriod === 'all') return { from: '', to: '' };
     if (sPeriod === 'range') return { from: sFrom, to: sTo };
-    const anchor = sPeriod === 'week' ? weekStartOf(today()) : sPeriod === 'year' ? currentYear() : currentMonth();
-    const b = periodBounds(sPeriod, anchor);
+    const b = periodBounds(sPeriod, sPeriod === 'week' ? sWeek : sPeriod === 'year' ? sYear : sMonth);
     return { from: b.start, to: shiftDate(b.endExclusive, -1) };
-  }, [sPeriod, sFrom, sTo]);
+  }, [sPeriod, sFrom, sTo, sWeek, sMonth, sYear]);
+  const moveSearchPeriod = (delta) => {
+    if (sPeriod === 'week') setSWeek((w) => shiftPeriod('week', w, delta));
+    else if (sPeriod === 'year') setSYear((y) => shiftPeriod('year', y, delta));
+    else if (sPeriod === 'month') setSMonth((m) => shiftPeriod('month', m, delta));
+  };
+  const yearOptions = useMemo(() => {
+    const cur = Number(currentYear());
+    const set = new Set();
+    for (let y = cur - 20; y <= cur + 5; y++) set.add(y);
+    set.add(Number(sYear));
+    return [...set].sort((a, b) => a - b).map(String);
+  }, [sYear]);
+  // 검색은 엔터/키패드 "검색"을 눌렀을 때 실행(그 전에는 결과 영역을 아무것도 표시하지 않음)
+  const [submittedQ, setSubmittedQ] = useState(rs.submittedQ ?? null);
+  const [qFocused, setQFocused] = useState(false);
+  const [contentSuggestions, setContentSuggestions] = useState([]);
+  useEffect(() => { db.listContentSuggestions(user.id).then(setContentSuggestions).catch(() => {}); }, [user.id]);
+  const rankedQSuggestions = (searchOpen && qFocused) ? rankSuggestions(contentSuggestions, q) : [];
+  const submitSearch = (value) => {
+    const v = (value ?? q).trim();
+    if (!v) return;
+    setQ(v);
+    setSubmittedQ(v);
+    searchRef.current?.blur();
+  };
   const [sType, setSType] = useState(rs.sType || 'all');
   const [sCat, setSCat] = useState(Array.isArray(rs.sCat) ? rs.sCat : []); // 분류명 여러 개(빈 배열 = 전체)
   const [sSrc, setSSrc] = useState(Array.isArray(rs.sSrc) ? rs.sSrc : []); // 원천명 여러 개(빈 배열 = 전체)
   // 검색 중에 다른 화면(기록 수정/복사)으로 나갈 때 검색 상태를 잠깐 저장(돌아오면 위에서 한 번 읽고 지움)
   const stashSearch = () => {
     if (!searchOpen) return;
-    try { sessionStorage.setItem(SEARCH_STASH_KEY, JSON.stringify({ q, showSearchFilter: false, sPeriod, sFrom, sTo, sType, sCat, sSrc })); } catch {}
+    try { sessionStorage.setItem(SEARCH_STASH_KEY, JSON.stringify({ q, submittedQ, showSearchFilter: false, sPeriod, sWeek, sMonth, sYear, sFrom, sTo, sType, sCat, sSrc })); } catch {}
   };
 
   // 이 달 필터
@@ -170,7 +200,7 @@ export default function Ledger() {
       .then(setSResults).catch(() => setSResults([])).finally(() => setSLoading(false));
   }, [sRange.from, sRange.to, sType, user.id]);
 
-  useEffect(() => { if (searchOpen) loadSearch(); }, [searchOpen, loadSearch]);
+  useEffect(() => { if (searchOpen && submittedQ != null) loadSearch(); }, [searchOpen, submittedQ, loadSearch]);
 
   const { income, expense } = summary;
 
@@ -201,20 +231,22 @@ export default function Ledger() {
 
   // 검색 결과: 서버 구조 필터 + 화면 텍스트 필터
   const sFiltered = useMemo(() => {
-    const term = q.trim().toLowerCase();
+    if (submittedQ == null) return [];
+    const term = submittedQ.toLowerCase();
     return sResults.filter((t) => {
       if (sCat.length && !sCat.includes(t.category_name || '')) return false;
       if (sSrc.length && !sSrc.includes(t.source_name || '') && !(t.type === 'transfer' && sSrc.includes(t.to_source_name || ''))) return false;
       if (!term) return true;
       return [t.content, t.category_name, t.source_name, t.memo].filter(Boolean).join(' ').toLowerCase().includes(term);
     });
-  }, [sResults, q, sCat, sSrc]);
+  }, [sResults, submittedQ, sCat, sSrc]);
   const sIncome = sFiltered.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
   const sExpense = sFiltered.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
 
   
-  const openSearch = () => { setSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 260); };
-  const closeSearch = () => { setSearchOpen(false); setShowSearchFilter(false); setQ(''); };
+  // 검색창 열기: 탭한 순간 바로 포커스(모바일 키보드가 뜨도록) + 펼침 애니메이션 후 한 번 더
+  const openSearch = () => { setSearchOpen(true); setSubmittedQ(null); setSResults([]); searchRef.current?.focus(); setTimeout(() => searchRef.current?.focus(), 260); };
+  const closeSearch = () => { setSearchOpen(false); setShowSearchFilter(false); setQ(''); setSubmittedQ(null); setSResults([]); };
   const onSearchIcon = () => { if (searchOpen) searchRef.current?.focus(); else openSearch(); };
   const onFilterClick = () => { if (searchOpen) setShowSearchFilter((v) => !v); else setShowFilter((v) => !v); };
 
@@ -237,7 +269,7 @@ export default function Ledger() {
       else if (t.origin_type === 'deposit') await db.deleteDeposit(t.origin_id);
       else await db.deleteTransaction(t.id);
       load();
-      if (searchOpen) loadSearch();
+      if (searchOpen && submittedQ != null) loadSearch();
     } catch (e) { alert(e.message); }
   };
   // 카드를 왼쪽으로 밀어 복사: 그 기록과 똑같은 내용(분류/원천/내용/항목/금액)으로 오늘 날짜의
@@ -344,17 +376,29 @@ export default function Ledger() {
             <button aria-label="검색" className="lt-search-icon" onClick={onSearchIcon}>
               <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="16.2" y1="16.2" x2="21" y2="21" /></svg>
             </button>
-            <input
-              ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Escape') closeSearch(); }}
-              placeholder="검색어 입력" tabIndex={searchOpen ? 0 : -1}
-            />
+            <form onSubmit={(e) => { e.preventDefault(); submitSearch(); }} style={{ flex: 1, minWidth: 0, display: 'flex' }}>
+              <input
+                ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)}
+                onFocus={() => setQFocused(true)} onBlur={() => setQFocused(false)}
+                onKeyDown={(e) => { if (e.key === 'Escape') closeSearch(); }}
+                type="search" enterKeyHint="search" autoComplete="off"
+                placeholder="검색어 입력" tabIndex={searchOpen ? 0 : -1}
+              />
+            </form>
             {searchOpen && (
               <button aria-label="닫기" className="lt-search-close" onClick={closeSearch}>
                 <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 6 L18 18 M18 6 L6 18" /></svg>
               </button>
             )}
           </div>
+          {/* 검색어 자동완성: 기존에 작성한 "내용" 중 일치하는 항목(기록 페이지 내용 필드와 동일) */}
+          {rankedQSuggestions.length > 0 && (
+            <div style={{ position: 'absolute', top: 50, left: 16, right: 64 }}>
+              <div style={{ position: 'relative' }}>
+                <SuggestList items={rankedQSuggestions} query={q} onPick={submitSearch} />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -380,19 +424,64 @@ export default function Ledger() {
             />
           )}
 
-          {(sLoading || sFiltered.length > 0) && (
-            <div className="small muted" style={{ margin: '2px 2px 10px' }}>
-              결과 {sFiltered.length}건 · <span style={{ color: 'var(--income)', fontWeight: 700 }}>+{fmtNum(sIncome)}</span> · <span style={{ color: 'var(--expense)', fontWeight: 700 }}>-{fmtNum(sExpense)}</span>
-            </div>
-          )}
+          {submittedQ != null && (
+            <>
+              {/* 연월 컨트롤 바: 기간 필터에 따라 전체(이동 비활성) / 주별·월별·연별(이동) / 기간 선택(날짜 범위) */}
+              <div style={{ marginTop: 3 }}>
+                {sPeriod === 'range' ? (
+                  <div style={{ height: 32, display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <DateField value={sFrom} onChange={(v) => { setSFrom(v); if (v > sTo) setSTo(v); }} />
+                    <span style={{ fontSize: 13.25, fontWeight: 700, color: '#6c6779' }}>~</span>
+                    <DateField value={sTo} onChange={(v) => { setSTo(v); if (v < sFrom) setSFrom(v); }} />
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button aria-label="이전" disabled={sPeriod === 'all'} onClick={() => moveSearchPeriod(-1)} style={{ ...roundBtn(32), opacity: sPeriod === 'all' ? 0.4 : 1, cursor: sPeriod === 'all' ? 'default' : 'pointer' }}>
+                      <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
+                    </button>
+                    <div style={{ position: 'relative', minWidth: sPeriod === 'week' ? 0 : 88, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>
+                        {sPeriod === 'all' ? '전체' : periodLabel(sPeriod, sAnchor)}
+                      </span>
+                      {sPeriod === 'month' && (
+                        <input type="month" value={sMonth} aria-label="연월 선택" className="catmodal-date-input" onChange={(e) => { if (e.target.value) setSMonth(e.target.value); }} />
+                      )}
+                      {sPeriod === 'year' && (
+                        <select value={sYear} aria-label="연도 선택" className="catmodal-date-input" onChange={(e) => setSYear(e.target.value)}>
+                          {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                      )}
+                    </div>
+                    <button aria-label="다음" disabled={sPeriod === 'all'} onClick={() => moveSearchPeriod(1)} style={{ ...roundBtn(32), opacity: sPeriod === 'all' ? 0.4 : 1, cursor: sPeriod === 'all' ? 'default' : 'pointer' }}>
+                      <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
+                    </button>
+                  </div>
+                )}
+              </div>
 
-          {sLoading ? (
-            <Spinner />
-          ) : (
-            <TransactionList
-              transactions={sFiltered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} onCopy={copyTx} dateFormat="full"
-              emptyText="데이터가 없습니다." emptyCenter="notabs"
-            />
+              {/* 수입/지출/합계 (가계부 모드와 동일한 요약 카드 + 고양이) */}
+              <div style={{ position: 'relative', marginTop: 8 }}>
+                <div style={{ position: 'absolute', right: 8, bottom: '100%', display: 'flex', alignItems: 'flex-end', zIndex: 3 }}>
+                  <CatMascot width={70} />
+                </div>
+                <div style={{ background: '#fff', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgba(25,23,34,.07)', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtNum(sIncome)}</div></div>
+                  <div style={{ width: 1, height: 30, background: '#efeef2' }} />
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtNum(sExpense)}</div></div>
+                  <div style={{ width: 1, height: 30, background: '#efeef2' }} />
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>합계</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#191722' }}>{fmtNum(sIncome - sExpense)}</div></div>
+                </div>
+              </div>
+
+              {sLoading ? (
+                <Spinner />
+              ) : (
+                <TransactionList
+                  transactions={sFiltered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} onCopy={copyTx} dateFormat="full"
+                  emptyText="검색 결과가 없습니다." emptyCenter="notabs"
+                />
+              )}
+            </>
           )}
         </>
       ) : (

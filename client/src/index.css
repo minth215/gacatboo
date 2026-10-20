@@ -736,3 +736,7 @@ a { color: inherit; text-decoration: none; }
   .container { padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
 }
 @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+/* 검색창(type=search): 기본 모양·지우기(x) 버튼 숨김 — 닫기 버튼은 따로 있음 */
+.lt-search input[type="search"] { -webkit-appearance: none; appearance: none; outline: none; }
+.lt-search input[type="search"]::-webkit-search-cancel-button,
+.lt-search input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; display: none; }
