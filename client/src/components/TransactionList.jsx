@@ -170,7 +170,7 @@ export default function TransactionList({
                     <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : t.type === 'transfer' ? '#4b4752' : '#FF4358' }}>
                       {t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{t.input_currency ? fmtForeign(t.input_amount, t.input_currency) : fmtNum(t.amount)}
                     </span>
-                    {t.input_currency && <span style={{ fontSize: 10.5, color: '#a29ead', marginTop: 1 }}>{fmtNum(t.amount)} KRW</span>}
+                    {t.input_currency && <span style={{ fontSize: 10.5, color: '#a29ead', marginTop: 1 }}>{t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{fmtNum(t.amount)} KRW</span>}
                   </span>
               </DayCardRow>
             );

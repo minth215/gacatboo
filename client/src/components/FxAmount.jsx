@@ -16,7 +16,7 @@ export default function FxAmount({ row, sign = '', color, style }) {
       <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color, ...style }}>
         {sign}{fx ? fmtForeign(fx.amount, fx.code) : fmtNum(row?.amount)}
       </span>
-      {fx && <span style={{ fontSize: 10.5, color: '#a29ead', marginTop: 1 }}>{fmtNum(row?.amount)} KRW</span>}
+      {fx && <span style={{ fontSize: 10.5, color: '#a29ead', marginTop: 1 }}>{sign}{fmtNum(row?.amount)} KRW</span>}
     </span>
   );
 }
