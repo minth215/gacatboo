@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, fmtNum, dotDate, monthPillLabel } from '../lib/format.js';
+import { fmtNum, dotDate, monthPillLabel } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
@@ -69,7 +69,20 @@ export default function MemberDetail() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title={member.nickname} flat right={isOwner && (
+      <PageHeader
+        flat
+        title={(
+          // 닉네임 오른쪽: 외부 멤버면 회색 "외부" 배지, 계정 멤버면 가는 회색 "@아이디"
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, maxWidth: '100%', verticalAlign: 'middle' }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.nickname}</span>
+            {!member.is_account ? (
+              <span style={{ flex: 'none', fontSize: 10.5, fontWeight: 700, letterSpacing: 0, color: '#8b8798', background: '#efeef2', borderRadius: 999, padding: '3px 8px' }}>외부</span>
+            ) : member.username ? (
+              <span style={{ flex: 'none', fontSize: 13, fontWeight: 400, letterSpacing: 0, color: '#a29ead' }}>@{member.username}</span>
+            ) : null}
+          </span>
+        )}
+        right={isOwner && (
         <button className="tb-icon-btn" onClick={openEdit} aria-label="멤버 정보 수정">
           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 20h9" />
@@ -78,24 +91,22 @@ export default function MemberDetail() {
         </button>
       )} />
 
-      {/* 상단 카드 */}
-      <div className="card">
-        {!member.is_account && <div style={{ marginBottom: 10 }}><span className="badge pending">외부</span></div>}
-        <div className="summary">
-          <div className="box"><div className="lbl">누적 입금액</div><div className="val income">{fmtWon(cum)}</div></div>
-          <div className="box"><div className="lbl">마지막 입금일</div><div className="val" style={{ fontSize: 14 }}>{last ? dotDate(last) : '-'}</div></div>
-          <div className="box"><div className="lbl">다음 입금일</div><div className="val" style={{ fontSize: 14 }}>{nextDue ? dotDate(nextDue) : '-'}</div></div>
-        </div>
-        {(member.contact || (isOwner && member.memo)) && (
-          <div className="small muted" style={{ marginTop: 10 }}>
-            {member.contact && <div>📞 {member.contact}</div>}
-            {isOwner && member.memo && <div style={{ marginTop: 2 }}>📝 {member.memo}</div>}
-          </div>
-        )}
+      {/* 요약(구독 현황 탭의 총 금액/사용 금액/잔여 금액 영역과 같은 UI) */}
+      <div className="summary-card" style={{ marginTop: 14 }}>
+        <div className="col"><div className="lbl">누적 입금액</div><div className="val income">{fmtNum(cum)}</div></div>
+        <div className="divider" />
+        <div className="col"><div className="lbl">마지막 입금일</div><div className="val">{last ? dotDate(last) : '-'}</div></div>
+        <div className="divider" />
+        <div className="col"><div className="lbl">다음 입금일</div><div className="val">{nextDue ? dotDate(nextDue) : '-'}</div></div>
       </div>
+      {(member.contact || (isOwner && member.memo)) && (
+        <div className="small muted" style={{ margin: '10px 4px 0' }}>
+          {member.contact && <div>📞 {member.contact}</div>}
+          {isOwner && member.memo && <div style={{ marginTop: 2 }}>📝 {member.memo}</div>}
+        </div>
+      )}
 
       {/* 입금 내역 — 가계부 페이지와 동일한 카드 스타일(왼쪽으로 스와이프 시 삭제 버튼) */}
-      <h3 style={{ margin: '18px 2px 10px', fontSize: 16 }}>입금 내역</h3>
       {deposits.length === 0 ? <div className="empty">입금 내역이 없습니다.</div> : groupByMonthThenDate(deposits).map(([mo, dateGroups]) => (
         <div key={mo}>
           <div className="month-pill-wrap" style={{ margin: '16px 0 8px' }}><span className="month-pill">{monthPillLabel(mo)}</span></div>
