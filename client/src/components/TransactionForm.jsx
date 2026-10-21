@@ -174,7 +174,9 @@ function ItemRow({
   const sourceSelectStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 12.5, color: '#191722', outline: 'none', appearance: 'none' };
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '5px 0' }}>
+      {/* 보조 화폐로 입력한 행: 원화 환산 줄(금액 칸 아래 작은 회색 글씨)이 들어갈 높이를 아래쪽에 더 확보 —
+          내용/수량/보조 화폐 금액은 같은 줄에 그대로 정렬되고, 환산 줄만 그 아래에 놓인다 */}
+      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: item.currencyMeta?.input_currency ? '5px 0 21px' : '5px 0' }}>
         {isTransfer ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
             <select id="transfer-from-source-select" value={item.fromSourceId} onChange={(e) => onFromSource(e.target.value)} style={sourceSelectStyle}>

@@ -276,23 +276,27 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
           compact 에서는 좁은 항목 행 칸을 벗어나지 않도록 절대위치로 오른쪽 아래에 떠 있게 한다. */}
       {currency !== 'KRW' && (
         <div style={compact
-          ? { marginTop: 1, textAlign: 'right', fontSize: 10.5, color: '#a29ead', whiteSpace: 'nowrap' }
+          ? { position: 'absolute', top: '100%', right: 0, marginTop: 2, lineHeight: '14px', textAlign: 'right', fontSize: 10.5, color: '#a29ead', whiteSpace: 'nowrap' }
           : { padding: '6px 2px 0', fontSize: 12.5, color: '#a29ead' }
         }>
           {(rateLoading && focused) ? '환율 조회 중…' : (rateError && focused) ? rateError : editingKrw ? (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span>≈ ₩</span>
+            // 수정 중에도 "17,250 KRW" 모양 그대로(테두리 없는 입력, 천 단위 콤마 자동, 단위는 고정)
+            <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 3 }}>
+              {!compact && <span>≈</span>}
               <input
-                type="text" inputMode="numeric" autoFocus value={krwDraft}
-                onChange={(e) => setKrwDraft(e.target.value.replace(/[^0-9]/g, ''))}
+                type="text" inputMode="numeric" autoFocus
+                value={krwDraft ? Number(krwDraft).toLocaleString('ko-KR') : ''}
+                onChange={(e) => setKrwDraft(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, ''))}
                 onBlur={() => commitManualKrw(krwDraft || '0')}
                 onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                style={{ width: compact ? 72 : 110, border: '1px solid #e4e2e6', borderRadius: 8, padding: '3px 6px', fontSize: 12.5, color: '#191722', fontFamily: 'inherit' }}
+                size={Math.max(1, (krwDraft ? Number(krwDraft).toLocaleString('ko-KR') : '').length)}
+                style={{ border: 'none', outline: 'none', background: 'transparent', padding: 0, margin: 0, fontFamily: 'inherit', fontSize: 'inherit', lineHeight: 'inherit', color: 'inherit', textAlign: 'right', width: 'auto' }}
               />
+              <span>KRW</span>
             </span>
           ) : (
-            <span onClick={() => { setKrwDraft(String(previewKrw)); setEditingKrw(true); }} style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}>
-              {compact ? `₩${previewKrw.toLocaleString('ko-KR')}` : `≈ ₩${previewKrw.toLocaleString('ko-KR')} (눌러서 수정)`}
+            <span onClick={() => { setKrwDraft(String(previewKrw)); setEditingKrw(true); }} style={{ cursor: 'pointer' }}>
+              {compact ? `${previewKrw.toLocaleString('ko-KR')} KRW` : `≈ ${previewKrw.toLocaleString('ko-KR')} KRW (눌러서 수정)`}
             </span>
           )}
         </div>
