@@ -168,6 +168,8 @@ function ItemRow({
 }) {
   const [nameFocused, setNameFocused] = useState(false);
   const [nameSuggestOpen, setNameSuggestOpen] = useState(false);
+  // 금액 키패드에서 지금 고른 화폐(확정 전 포함) — 보조 화폐면 환산 줄 높이를 바로 확보
+  const [liveCurrency, setLiveCurrency] = useState(item.currencyMeta?.input_currency || 'KRW');
   const rankedNameSuggestions = nameSuggestOpen ? rankSuggestions(itemNameSuggestions || [], item.name) : [];
   const hasSplit = !!settlementMembers?.length;
   const cols = (isTransfer || isSettlement) ? '1fr 84px 18px' : hasSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
@@ -176,7 +178,7 @@ function ItemRow({
     <div>
       {/* 보조 화폐로 입력한 행: 원화 환산 줄(금액 칸 아래 작은 회색 글씨)이 들어갈 높이를 아래쪽에 더 확보 —
           내용/수량/보조 화폐 금액은 같은 줄에 그대로 정렬되고, 환산 줄만 그 아래에 놓인다 */}
-      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: item.currencyMeta?.input_currency ? '5px 0 21px' : '5px 0' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: liveCurrency !== 'KRW' ? '5px 0 21px' : '5px 0' }}>
         {isTransfer ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
             <select id="transfer-from-source-select" value={item.fromSourceId} onChange={(e) => onFromSource(e.target.value)} style={sourceSelectStyle}>
@@ -263,7 +265,7 @@ function ItemRow({
         <CalcAmountInput
           compact value={item.amount} onChange={onAmount}
           initialCurrency={item.currencyMeta?.input_currency} initialForeignAmount={item.currencyMeta?.input_amount}
-          onCurrencyChange={onCurrencyChange}
+          onCurrencyChange={onCurrencyChange} onCurrencySelect={setLiveCurrency}
         />
         {canRemove ? (
           <button type="button" aria-label="행 삭제" onClick={onRemove} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

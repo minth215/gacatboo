@@ -100,7 +100,7 @@ const KeyBtn = ({ label, onClick, bg, color, style }) => (
 // ({ input_currency, input_amount, fx_rate } 또는 원화면 null)을 매 확정 시점에 알려준다.
 // compact=true: 영수증형 기록의 좁은 항목 행에 들어갈 때 쓰는 테두리 없는 작은 표시(원 단위
 // 접미사·환산 금액 미리보기 줄은 생략하고, 펼쳐지는 계산기 키패드는 그대로 동작).
-export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange, compact = false }) {
+export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange, onCurrencySelect, compact = false }) {
   const [focused, setFocused] = useState(false);
   const [expr, setExpr] = useState('');
   const justEvaluatedRef = useRef(false);
@@ -118,6 +118,8 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   const [krwDraft, setKrwDraft] = useState('');
 
   useEffect(() => { db.listCurrencies().then(setUserCurrencies).catch(() => {}); }, []);
+  // 키패드에서 화폐를 고르는 즉시(확정 전에도) 부모에 알림 — 항목 행이 환산 줄 높이를 바로 확보하도록
+  useEffect(() => { onCurrencySelect?.(currency); }, [currency]);
 
   useEffect(() => {
     if (currency === 'KRW') { setRate(1); setRateError(''); return; }
@@ -243,7 +245,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
 
   // 닫혀 있을 때도(처음 진입했을 때 포함) 외화로 입력된 거래면 그 통화로 표시(값은 항상 원화 그대로 유지)
   const displayValue = focused
-    ? formatExpr(expr)
+    ? (compact && currency !== 'KRW' ? `${formatExpr(expr) || '0'} ${currency}` : formatExpr(expr))
     : (currency !== 'KRW' && foreignAmount
         ? `${Number(foreignAmount).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}${compact ? ` ${currency}` : ''}`
         : (value ? Number(value).toLocaleString('ko-KR') : ''));
