@@ -13,6 +13,7 @@ import { tileBg, formatDate, DayCardRow } from '../components/TransactionList.js
 import { ClearButton, SuggestList, rankSuggestions, StarIcon, fileToResizedBase64 } from '../components/TransactionForm.jsx';
 import { saveTxDraft, takeTxDraft } from '../lib/txDraft.js';
 import CalcAmountInput from '../components/CalcAmountInput.jsx';
+import FxAmount from '../components/FxAmount.jsx';
 import { useFavoriteToggle } from '../lib/useFavoriteToggle.js';
 
 // "반복 관리" 메뉴와 동일한 반복 아이콘(채워진 순환 화살표)
@@ -998,7 +999,7 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
                             </div>
                             <div className="tx-row-sub">{[tileCat, tileSource].filter(Boolean).join(' · ') || '—'}</div>
                           </div>
-                          <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: 'var(--income)' }}>+{fmtNum(d.amount)}</span>
+                          <FxAmount row={d} sign="+" color="var(--income)" />
                       </DayCardRow>
                     );
                   })}
@@ -1117,7 +1118,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                               </div>
                               <div className="tx-row-sub">{[p.category_name, p.source_name].filter(Boolean).join(' · ') || '—'}</div>
                             </div>
-                            <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: 'var(--expense)' }}>-{fmtNum(p.amount)}</span>
+                            <FxAmount row={p} sign="-" color="var(--expense)" />
                         </DayCardRow>
                       ))}
                     </div>

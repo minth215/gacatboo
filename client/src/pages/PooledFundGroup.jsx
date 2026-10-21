@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import FxAmount from '../components/FxAmount.jsx';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { dotDate, fmtNum } from '../lib/format.js';
@@ -101,7 +102,7 @@ export default function PooledFundGroup({ gid, group, members, isOwner, leaderNa
                   <div className="tx-row-title"><span className="ttext">{e.content || '공금 사용'}</span></div>
                   <div className="tx-row-sub">{dotDate(e.date)}</div>
                 </div>
-                <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--expense)' }}>-{fmtNum(e.amount)}</span>
+                <FxAmount row={e} sign="-" color="var(--expense)" />
               </div>
             ))}
           </div>
@@ -123,7 +124,7 @@ export default function PooledFundGroup({ gid, group, members, isOwner, leaderNa
                   <div className="tx-row-title"><span className="ttext">{t.content || `${t.member?.nickname || '멤버'} 이체`}</span></div>
                   <div className="tx-row-sub">{t.member?.nickname} · {dotDate(t.date)}</div>
                 </div>
-                <span style={{ fontSize: 14.5, fontWeight: 700, color: '#4b4752' }}>{fmtNum(t.amount)}</span>
+                <FxAmount row={t} color="#4b4752" />
               </div>
             ))}
           </div>
