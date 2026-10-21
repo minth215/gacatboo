@@ -1072,7 +1072,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
     const base = billingAlignedDate(last, sub?.billing_day);
     const auto = base && sub ? addInterval(base, sub.period_unit, sub.period_count, Math.max(Number(lastDep.periods) || 1, 1)) : (m.start_date || null);
     const next = m.next_due_override || auto;
-    return { id: m.id, nickname: m.nickname, isOwner: false, cum, periods, last, next, lastLabel: '마지막 입금일', nextLabel: '다음 입금일', overdue: !!(next && next < todayStr) };
+    return { id: m.id, nickname: m.nickname, isOwner: false, cum, periods, last, next, lastLabel: '마지막 입금일', nextLabel: '다음 입금일', overdue: !!(next && next < todayStr), dueToday: next === todayStr };
   });
 
   return (
@@ -1164,7 +1164,8 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
               <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.75, color: '#a29ead' }}>
                 <span>{m.lastLabel} {dotDate(m.last) || '-'}</span>
                 <span style={{ color: '#e4e2e6' }}>|</span>
-                <span style={{ color: m.overdue ? 'var(--expense)' : '#a29ead', fontWeight: m.overdue ? 700 : 400 }}>{m.nextLabel} {dotDate(m.next) || '-'}</span>
+                {/* 지난 날짜: 코랄핑크 굵게, 오늘(입금일 당일): 코랄핑크 보통 굵기 */}
+                <span style={{ color: (m.overdue || m.dueToday) ? 'var(--expense)' : '#a29ead', fontWeight: m.overdue ? 700 : 400 }}>{m.nextLabel} {dotDate(m.next) || '-'}</span>
               </div>
             </div>
           ))}
