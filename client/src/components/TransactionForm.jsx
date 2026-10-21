@@ -319,6 +319,8 @@ const TransactionForm = forwardRef(function TransactionForm({
   onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence,
   settlementMembers, initialSettlementSplit, qtyLabel = '수량', groupBadge, initialLinkedFee, defaultTransferToName,
   fixedSourceName, transferMembers, defaultTransferMemberId, autoReceiptBase64, autoReceiptMime, autoToast, onDelete,
+  // templateMode: 반복 규칙(반복으로 등록될 내용) 수정 화면 — 즐겨찾기 별·반복 아이콘을 숨김
+  templateMode = false,
 }, ref) {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -993,7 +995,7 @@ const TransactionForm = forwardRef(function TransactionForm({
               {contentFocused && contentValue && <ClearButton onClear={clearContent} />}
               <SuggestList items={rankedContentSuggestions} query={contentValue} onPick={pickContentSuggestion} />
             </div>
-            {editing && (
+            {editing && !templateMode && (
               <button
                 type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 등록'}
                 style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
@@ -1001,12 +1003,14 @@ const TransactionForm = forwardRef(function TransactionForm({
                 <StarIcon filled={favorited} />
               </button>
             )}
+            {!templateMode && (
             <button
               type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
               style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
             >
               <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : '#191722'} />
             </button>
+            )}
           </div>
         </div>
         {groupBadge && (

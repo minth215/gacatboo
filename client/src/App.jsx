@@ -22,6 +22,7 @@ import CardBenefits from './pages/CardBenefits.jsx';
 import GroupCategoryManage from './pages/GroupCategoryManage.jsx';
 import CurrencySettings from './pages/CurrencySettings.jsx';
 import RecurringManage from './pages/RecurringManage.jsx';
+import RecurringEdit from './pages/RecurringEdit.jsx';
 import SettingsNotifications from './pages/SettingsNotifications.jsx';
 import SettingsStyle from './pages/SettingsStyle.jsx';
 import SettingsExport from './pages/SettingsExport.jsx';
@@ -81,6 +82,7 @@ export default function App() {
         <Route path="/settings/group-categories" element={<GroupCategoryManage />} />
         <Route path="/settings/currency" element={<CurrencySettings />} />
         <Route path="/settings/recurring" element={<RecurringManage />} />
+        <Route path="/settings/recurring/:id/edit" element={<RecurringEdit />} />
         <Route path="/settings/notifications" element={<SettingsNotifications />} />
         <Route path="/settings/style" element={<SettingsStyle />} />
         <Route path="/settings/export" element={<SettingsExport />} />

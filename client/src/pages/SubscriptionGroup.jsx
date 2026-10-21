@@ -1208,7 +1208,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
 // 그룹 입금 내역 작성/수정 폼. 화면(내용 줄의 ×·자동완성·즐겨찾기·반복, 분류/원천 선택·편집,
 // 상단바 영수증/즐겨찾기/복사, 삭제 버튼 등)은 개인 기록 폼(TransactionForm)과 같은 조각을 쓰고,
 // 저장 방식(총대 수입 + 멤버 지출 동시 기록, 멤버 선택, 회차, 정산 대상 여러 건)만 입금 전용이다.
-export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, onDelete, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '', groupBadge, presetMemberId = null, presetSettleRows = null, favoritePreset = null, autoToast, onScanBusyChange }, ref) {
+export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, onDelete, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '', groupBadge, presetMemberId = null, presetSettleRows = null, favoritePreset = null, autoToast, onScanBusyChange, templateMode = false }, ref) {
   const editing = !!initial;
   const { user } = useAuth();
   const nav = useNavigate();
@@ -1796,7 +1796,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
               {contentFocused && f.content && <ClearButton onClear={() => setF((prev) => ({ ...prev, content: '' }))} />}
               <SuggestList items={rankedContentSuggestions} query={f.content} onPick={(v) => { setF((prev) => ({ ...prev, content: v })); setContentSuggestOpen(false); }} />
             </div>
-            {editing && (
+            {editing && !templateMode && (
               <button
                 type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 등록'}
                 style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
@@ -1804,12 +1804,14 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                 <StarIcon filled={favorited} />
               </button>
             )}
+            {!templateMode && (
             <button
               type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
               style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
             >
               <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : '#191722'} />
             </button>
+            )}
           </div>
         </div>
         {groupBadge && (

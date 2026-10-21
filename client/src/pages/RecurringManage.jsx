@@ -132,7 +132,11 @@ export default function RecurringManage() {
                 </button>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#faf9f8', borderRadius: 14, padding: '12px 14px' }}>
+              {/* 카드를 누르면 반복으로 등록될 내용을 기록 폼에서 수정(이미 등록된 내역은 그대로) */}
+              <div
+                role="button" onClick={() => nav(`/settings/recurring/${detail.id}/edit`)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, background: detail.group_id ? 'linear-gradient(135deg, #FFF1F3 0%, #FFF6EA 100%)' : '#faf9f8', borderRadius: 14, padding: '12px 14px', cursor: 'pointer' }}
+              >
                 <span className="tx-tile" style={{ background: detail.category_color || (dispType === 'income' ? '#E5FBF6' : dispType === 'transfer' ? '#EFEDF5' : '#FFE9EF') }}>
                   {dispEmoji || (dispType === 'income' ? '💰' : dispType === 'transfer' ? '🔁' : '💸')}
                 </span>
@@ -151,39 +155,27 @@ export default function RecurringManage() {
               <div style={{ height: 1, background: '#f0eee9' }} />
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>반복 시작일</span>
-                  <BareDate value={detail.start_date} disabled={saving} onChange={(v) => v && saveRule({ start_date: v })} />
-                </div>
-
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#191722', flex: 'none' }}>반복 종료일</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {detail.end_date && (
-                      <button type="button" onClick={() => saveEndDate('')} disabled={saving} className="edit-link" style={{ flex: 'none' }}>지우기</button>
-                    )}
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#191722', flex: 'none' }}>반복 기간</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <BareDate value={detail.start_date} disabled={saving} onChange={(v) => v && saveRule({ start_date: v })} />
+                    <span style={{ fontSize: 13.25, color: '#a29ead' }}>~</span>
                     <BareDate value={detail.end_date || ''} placeholder="종료일 없음" min={detail.start_date} disabled={saving} onChange={(v) => v && saveEndDate(v)} />
-                  </div>
+                    {detail.end_date && (
+                      <button type="button" aria-label="종료일 지우기" onClick={() => saveEndDate('')} disabled={saving}
+                        style={{ width: 16, height: 16, borderRadius: '50%', border: 'none', background: '#e4e2e7', color: '#fff', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none' }}>
+                        <svg width="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>
+                      </button>
+                    )}
+                  </span>
                 </div>
 
                 <PeriodEditor rule={detail} disabled={saving} onSave={saveRule} />
 
                 {(detail.freq_unit === 'month' || detail.freq_unit === 'year') && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>영업일 처리</span>
-                    <div style={{ display: 'flex', background: '#f4f2f0', borderRadius: 999, padding: 3 }}>
-                      {Object.entries(BUSINESS_DAY_LABELS).map(([v, label]) => (
-                        <button
-                          key={v} type="button" disabled={saving} onClick={() => saveBusinessDay(v)}
-                          style={{
-                            flex: 1, border: 'none', borderRadius: 999, padding: '8px 0', fontFamily: 'inherit',
-                            fontSize: 11.75, fontWeight: 700, cursor: saving ? 'default' : 'pointer',
-                            background: (detail.business_day_rule || 'none') === v ? '#fff' : 'transparent',
-                            color: (detail.business_day_rule || 'none') === v ? '#191722' : '#8b8798',
-                          }}
-                        >{label}</button>
-                      ))}
-                    </div>
+                    <BareSelect value={detail.business_day_rule || 'none'} options={Object.entries(BUSINESS_DAY_LABELS)} disabled={saving} onChange={saveBusinessDay} />
                   </div>
                 )}
               </div>

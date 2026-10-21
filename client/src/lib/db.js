@@ -172,6 +172,9 @@ export const db = {
     return unwrap(await supabase.from('recurring_rules').delete().eq('id', id));
   },
   // 반복 종료일 설정/해제. 값이 있으면 그 날짜까지만(포함) 반복 생성(서버 함수에서 체크).
+  async getRecurringRule(id) {
+    return unwrap(await supabase.from('recurring_rules').select('*').eq('id', id).single());
+  },
   async updateRecurringRule(id, patch) {
     return unwrap(await supabase.from('recurring_rules').update(patch).eq('id', id).select().single());
   },
