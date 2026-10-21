@@ -1204,7 +1204,9 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   // 총무가 정산 그룹 입금 내역을 새로 등록할 때, 또는 위처럼 건별 내역이 있는 입금을 수정할 때:
   // 정산 대상을 여러 개 골라 한 번에 입금 처리(정산 탭에서 "입금 완료"로 건너오면 presetSettleRows 로
   // 결제 건별 행이 미리 채워진다). 그 외 수정 화면은 기존 단일 선택 UI를 그대로 쓴다.
-  const multiSettle = isOwner && isSettleMode && (!editing || editingHasItems);
+  // 총무의 정산 그룹 입금은 작성/수정 모두 내용/금액 표(정산 대상별 행)로 입력한다
+  // (예전의 단일 "정산대상" 셀렉트 필드는 더 이상 쓰지 않음).
+  const multiSettle = isOwner && isSettleMode;
   const settleTargetLabel = (x) => x?.content || x?.category_name || '지출';
   // 행의 "내용" 칸: targetId 가 선택된 행이면 정산 대상, 아니면 name 에 적은 자유 텍스트(분류가 정산이
   // 아닐 때 사용 — isLeaderSettlement 참고)
@@ -1213,6 +1215,9 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     if (preset) return [{ targetId: '', name: '', amount: preset.amount ? String(preset.amount) : '' }];
     if (editingHasItems) {
       return initial.items.map((it) => ({ targetId: it.targetId != null ? String(it.targetId) : '', name: it.label || '', amount: String(it.amount) }));
+    }
+    if (editing) {
+      return [{ targetId: initial.leader_settlement_target_id ? String(initial.leader_settlement_target_id) : '', name: '', amount: String(initial.amount) }];
     }
     return presetSettleRows?.length
       ? presetSettleRows.map((r) => ({ targetId: r.targetId != null ? String(r.targetId) : '', name: '', amount: String(r.amount) }))
@@ -1234,12 +1239,16 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   // 구독 그룹 입금 내역을 새로 등록할 때: 내용/회차/금액 항목 표(여러 건을 한 번에 기록 가능).
   // "회차"는 총 결제 건수 집계를 위한 참고값(금액에 곱해지는 수량이 아니라, 금액을 정기입금액으로
   // 나눈 값이 자동 채워지며 직접 수정도 가능 — 기존 단일 입력 때와 동일한 계산 규칙).
-  const multiSub = !isSettleMode && !editing;
+  // 구독 그룹 입금도 작성/수정 모두 내용/회차/금액 표로 입력(수정 화면은 그 입금 한 건 = 한 행).
+  const multiSub = !isSettleMode;
   // 행의 "내용" 칸: targetId 가 선택된 행이면 정산 대상, 아니면 name 에 적은 자유 텍스트(분류가 정산일
   // 때만 정산 대상 셀렉트박스로 바뀜 — isLeaderSettlement 참고). "회차"는 구독 그룹이라 항상 표시.
-  const [subRows, setSubRows] = useState(() => draft?.subRows || [{
+  const [subRows, setSubRows] = useState(() => draft?.subRows || (editing ? [{
+    name: '', targetId: initial.leader_settlement_target_id ? String(initial.leader_settlement_target_id) : '',
+    periods: String(initial.periods || 1), amount: String(initial.amount),
+  }] : [{
     name: '', targetId: '', periods: preset?.periods ? String(preset.periods) : '1', amount: preset?.amount ? String(preset.amount) : '',
-  }]);
+  }]));
   useEffect(() => {
     if (!multiSub || subRows.length !== 1 || subRows[0].amount || !sub?.deposit_amount) return;
     setSubRows([{ ...subRows[0], amount: String(sub.deposit_amount) }]);
@@ -1572,8 +1581,8 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
           await onSave({
             member_id: Number(f.memberId), date: f.date,
             amount: rows.reduce((s, r) => s + Math.round(Number(r.amount)), 0), periods: 1,
-            category_name: target?.category_name || defaultCategoryName, category_emoji: target?.category_emoji || '',
-            source_id: null, source_name: '',
+            category_name: target?.category_name || (editing ? initial.category_name : defaultCategoryName), category_emoji: target?.category_emoji || (editing ? initial.category_emoji : ''),
+            source_id: null, source_name: editing ? (initial.source_name || '') : '',
             deposit_source_name: l_source,
             leader_category_name: lCat?.name || '', leader_category_emoji: lCat?.emoji || '',
             leader_settlement_target_id: rows.length === 1 ? Number(rows[0].targetId) : null,
@@ -1589,8 +1598,8 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
           for (const r of rows) {
             await onSave({
               member_id: Number(f.memberId), date: f.date, amount: Math.round(Number(r.amount)), periods: 1,
-              category_name: defaultCategoryName, category_emoji: '',
-              source_id: null, source_name: '',
+              category_name: editing ? initial.category_name : defaultCategoryName, category_emoji: editing ? initial.category_emoji : '',
+              source_id: null, source_name: editing ? (initial.source_name || '') : '',
               deposit_source_name: l_source,
               leader_category_name: lCat?.name || '', leader_category_emoji: lCat?.emoji || '',
               leader_settlement_target_id: null,
@@ -1610,8 +1619,11 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
 
       // 멤버 가계부(지출)·총대 가계부(수입) 필드 — 행마다 동일(구독료 성격은 변하지 않으므로)
       let m_name = '', m_emoji = '', m_source = '';
-      if (isOwner) { m_name = defaultCategoryName; m_emoji = defMemberCat?.emoji || ''; m_source = ''; }
-      else {
+      if (isOwner) {
+        // 총무가 수정할 때는 멤버 쪽 기록(분류/원천)은 기존 값을 그대로 유지
+        if (editing) { m_name = initial.category_name; m_emoji = initial.category_emoji; m_source = initial.source_name; }
+        else { m_name = defaultCategoryName; m_emoji = defMemberCat?.emoji || ''; m_source = ''; }
+      } else {
         if (f.mCatId === KEEP) { m_name = initial.category_name; m_emoji = initial.category_emoji; }
         else if (f.mCatId) { const c = cats.find((x) => String(x.id) === f.mCatId); if (c) { m_name = c.name; m_emoji = c.emoji || ''; } }
         m_source = f.mSourceId === KEEP ? (initial?.source_name || '') : sourceNameOf(sources.flat, f.mSourceId);
@@ -1621,6 +1633,9 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
         if (f.lCatId === KEEP) { l_name = initial.leader_category_name; l_emoji = initial.leader_category_emoji; }
         else if (f.lCatId) { const c = incomeCats.find((x) => String(x.id) === f.lCatId); if (c) { l_name = c.name; l_emoji = c.emoji || ''; } }
         l_source = f.lSourceId === KEEP ? (initial?.deposit_source_name || '') : sourceNameOf(sources.flat, f.lSourceId);
+      } else if (editing) {
+        // 멤버가 수정할 때는 총무 쪽 기록(분류/원천)은 기존 값을 그대로 유지
+        l_name = initial.leader_category_name; l_emoji = initial.leader_category_emoji; l_source = initial.deposit_source_name;
       } else {
         l_name = sub?.deposit_category || '정산'; l_emoji = sub?.deposit_category_emoji || ''; l_source = sub?.deposit_source_name || '';
       }
@@ -1649,7 +1664,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
             source_id: null, source_name: m_source,
             deposit_source_name: l_source,
             leader_category_name: l_name, leader_category_emoji: l_emoji,
-            leader_settlement_target_id: target ? Number(r.targetId) : null,
+            leader_settlement_target_id: target ? Number(r.targetId) : (!isOwner && editing ? (initial.leader_settlement_target_id || null) : null),
             content: contentOverride || (isLeaderSettlement ? multiAutoContent : ''), memo: f.memo,
             recurrence, backfillPast,
           });
@@ -1837,21 +1852,14 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                 ) : <span />}
               </div>
             ))}
-            <button type="button" onClick={addSettleRow} className="rcpt-add-row">+ 행 추가</button>
+            {(!editing || isLeaderSettlement) && <button type="button" onClick={addSettleRow} className="rcpt-add-row">+ 행 추가</button>}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed #cfccd4' }}>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
               <span style={{ fontSize: 13.75, fontWeight: 800, color: '#2CDDB9', textAlign: 'right' }}>{fmtNum(settleTotal)}</span>
               <span />
             </div>
           </div>
-        ) : (!multiSub && leaderIsSettle) && (
-          <div style={rowStyle}>
-            <span style={rowLabelStyle}>정산대상</span>
-            <select value={f.lSettleId} onChange={(e) => setF({ ...f, lSettleId: e.target.value })} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right' }}>
-              <option value="">선택 안 함</option>
-              {recentExpenses.map((x) => (
-                <option key={x.id} value={x.id}>{x.date.slice(5)} {x.category_emoji || ''} {settleTargetLabel(x)} ({fmtWon(x.amount)})</option>
-              ))}
+        ) : null)}
             </select>
           </div>
         ))}
@@ -1893,7 +1901,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                 ) : <span />}
               </div>
             ))}
-            <button type="button" onClick={addSubRow} className="rcpt-add-row">+ 행 추가</button>
+            {!editing && <button type="button" onClick={addSubRow} className="rcpt-add-row">+ 행 추가</button>}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed #cfccd4' }}>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
               <span />
