@@ -62,6 +62,19 @@ function SettleTargetSelect({ value, onChange, options, label, style }) {
 
 // 날짜(dateStr)가 속한 달의 정기결제일(billingDay)로 날짜를 맞춰줌.
 // 예: dateStr=2026-08-22, billingDay=19 → 2026-08-19 (그 달의 마지막 날짜를 넘지 않도록 보정)
+// 멤버의 다음 입금일(구독 현황 탭·멤버 상세 화면 공용): 직접 지정한 날짜가 있으면 그 날짜,
+// 아니면 마지막 입금일이 속한 달의 정기결제일 + 그 입금이 커버한 기간(회차)만큼 주기를 더한 날짜.
+// 입금 내역이 없으면 멤버 시작일.
+export function memberNextDepositDate(member, memberDeposits, sub) {
+  if (member?.next_due_override) return member.next_due_override;
+  const ds = [...(memberDeposits || [])].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.id || 0) - (b.id || 0)));
+  const lastDep = ds.length ? ds[ds.length - 1] : null;
+  const base = billingAlignedDate(lastDep?.date || null, sub?.billing_day);
+  return base && sub
+    ? addInterval(base, sub.period_unit, sub.period_count, Math.max(Number(lastDep.periods) || 1, 1))
+    : (member?.start_date || null);
+}
+
 function billingAlignedDate(dateStr, billingDay) {
   if (!dateStr) return null;
   if (!billingDay) return dateStr;
@@ -1066,12 +1079,8 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
     const ds = [...deposits.filter((d) => d.member_id === m.id)].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     const cum = ds.reduce((s, d) => s + Number(d.amount), 0);
     const periods = ds.reduce((s, d) => s + Number(d.periods || 0), 0);
-    const lastDep = ds.length ? ds[ds.length - 1] : null;
-    const last = lastDep ? lastDep.date : null;
-    // 다음 입금일 = 마지막 입금일이 속한 달의 정기결제일 + 그 입금이 커버한 기간(회차)만큼 주기 추가
-    const base = billingAlignedDate(last, sub?.billing_day);
-    const auto = base && sub ? addInterval(base, sub.period_unit, sub.period_count, Math.max(Number(lastDep.periods) || 1, 1)) : (m.start_date || null);
-    const next = m.next_due_override || auto;
+    const last = ds.length ? ds[ds.length - 1].date : null;
+    const next = memberNextDepositDate(m, ds, sub);
     return { id: m.id, nickname: m.nickname, isOwner: false, cum, periods, last, next, lastLabel: '마지막 입금일', nextLabel: '다음 입금일', overdue: !!(next && next < todayStr), dueToday: next === todayStr };
   });
 

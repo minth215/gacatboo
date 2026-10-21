@@ -2,12 +2,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, fmtNum, addInterval, monthPillLabel } from '../lib/format.js';
+import { fmtWon, fmtNum, dotDate, monthPillLabel } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { tileBg, formatDate, DayCardRow } from '../components/TransactionList.jsx';
-import { groupByMonthThenDate } from './SubscriptionGroup.jsx';
+import { groupByMonthThenDate, memberNextDepositDate } from './SubscriptionGroup.jsx';
 
 export default function MemberDetail() {
   const { id, memberId } = useParams();
@@ -49,11 +49,9 @@ export default function MemberDetail() {
   const canEditDep = isOwner || member.user_id === user.id;
 
   const cum = deposits.reduce((s, d) => s + Number(d.amount), 0);
-  const periods = deposits.reduce((s, d) => s + Number(d.periods || 0), 0);
   const last = deposits.length ? deposits.map((d) => d.date).sort().slice(-1)[0] : null;
-  const base = member.start_date || (deposits.length ? deposits.map((d) => d.date).sort()[0] : null);
-  const autoNext = base && sub ? addInterval(base, sub.period_unit, sub.period_count, periods) : (base || null);
-  const nextDue = member.next_due_override || autoNext;
+  // 구독 현황 탭과 같은 계산(memberNextDepositDate)을 그대로 사용
+  const nextDue = memberNextDepositDate(member, deposits, sub);
 
   const openEdit = () => setEditor({
     nickname: member.nickname, start_date: member.start_date || '', end_date: member.end_date || '',
@@ -85,8 +83,8 @@ export default function MemberDetail() {
         {!member.is_account && <div style={{ marginBottom: 10 }}><span className="badge pending">외부</span></div>}
         <div className="summary">
           <div className="box"><div className="lbl">누적 입금액</div><div className="val income">{fmtWon(cum)}</div></div>
-          <div className="box"><div className="lbl">마지막 입금일</div><div className="val" style={{ fontSize: 14 }}>{last || '-'}</div></div>
-          <div className="box"><div className="lbl">다음 입금일</div><div className="val" style={{ fontSize: 14 }}>{nextDue || '-'}</div></div>
+          <div className="box"><div className="lbl">마지막 입금일</div><div className="val" style={{ fontSize: 14 }}>{last ? dotDate(last) : '-'}</div></div>
+          <div className="box"><div className="lbl">다음 입금일</div><div className="val" style={{ fontSize: 14 }}>{nextDue ? dotDate(nextDue) : '-'}</div></div>
         </div>
         {(member.contact || (isOwner && member.memo)) && (
           <div className="small muted" style={{ marginTop: 10 }}>
