@@ -245,11 +245,14 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   const displayValue = focused
     ? formatExpr(expr)
     : (currency !== 'KRW' && foreignAmount
-        ? Number(foreignAmount).toLocaleString('ko-KR')
+        ? `${Number(foreignAmount).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}${compact ? ` ${currency}` : ''}`
         : (value ? Number(value).toLocaleString('ko-KR') : ''));
   // 회색 환산 금액 미리보기: 입력 중엔 실시간 수식 결과, 닫혀 있으면 마지막으로 확정된 외화 금액 기준
   const previewAmount = focused ? typedAmount : Number(foreignAmount || 0);
-  const previewKrw = manualKrw != null ? Number(manualKrw) : Math.round(previewAmount * (rate || 0));
+  // 키패드가 닫혀 있으면 확정된 원화 금액(value — 저장된 기록을 다시 열었을 때도 저장 당시 금액)을 그대로 표시
+  const previewKrw = manualKrw != null ? Number(manualKrw)
+    : (!focused && value !== '' && value != null) ? Number(value)
+    : Math.round(previewAmount * (rate || 0));
 
   return (
     <div ref={rootRef} style={{ position: 'relative' }}>
@@ -273,10 +276,10 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
           compact 에서는 좁은 항목 행 칸을 벗어나지 않도록 절대위치로 오른쪽 아래에 떠 있게 한다. */}
       {currency !== 'KRW' && (
         <div style={compact
-          ? { position: 'absolute', top: '100%', right: 0, marginTop: 2, fontSize: 10.5, color: '#a29ead', whiteSpace: 'nowrap', background: '#fff', padding: '2px 4px', borderRadius: 6, boxShadow: '0 2px 8px rgba(25,23,34,.1)', zIndex: 5 }
+          ? { marginTop: 1, textAlign: 'right', fontSize: 10.5, color: '#a29ead', whiteSpace: 'nowrap' }
           : { padding: '6px 2px 0', fontSize: 12.5, color: '#a29ead' }
         }>
-          {rateLoading ? '환율 조회 중…' : rateError ? rateError : editingKrw ? (
+          {(rateLoading && focused) ? '환율 조회 중…' : (rateError && focused) ? rateError : editingKrw ? (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <span>≈ ₩</span>
               <input
@@ -284,12 +287,12 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
                 onChange={(e) => setKrwDraft(e.target.value.replace(/[^0-9]/g, ''))}
                 onBlur={() => commitManualKrw(krwDraft || '0')}
                 onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                style={{ width: 110, border: '1px solid #e4e2e6', borderRadius: 8, padding: '3px 6px', fontSize: 12.5, color: '#191722', fontFamily: 'inherit' }}
+                style={{ width: compact ? 72 : 110, border: '1px solid #e4e2e6', borderRadius: 8, padding: '3px 6px', fontSize: 12.5, color: '#191722', fontFamily: 'inherit' }}
               />
             </span>
           ) : (
             <span onClick={() => { setKrwDraft(String(previewKrw)); setEditingKrw(true); }} style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}>
-              ≈ ₩{previewKrw.toLocaleString('ko-KR')} (눌러서 수정)
+              {compact ? `₩${previewKrw.toLocaleString('ko-KR')}` : `≈ ₩${previewKrw.toLocaleString('ko-KR')} (눌러서 수정)`}
             </span>
           )}
         </div>

@@ -330,16 +330,33 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [sourceId, setSourceId] = useState(
     initial?.source_id ? String(initial.source_id) : (initial?.source_name ? SNAP : '')
   );
+  // 보조 화폐로 입력했던 기록: 항목별로 저장된 화폐 정보(items[].input_currency…)를 복원하고, 항목별 정보가
+  // 없는 예전 기록은 기록 단위로 저장된 값(initial.input_currency…)을 해당 항목(금액이 맞는 항목, 없으면 첫 항목)에 붙인다.
+  const recordCurrencyMeta = initial?.input_currency
+    ? { input_currency: initial.input_currency, input_amount: initial.input_amount != null ? Number(initial.input_amount) : null, fx_rate: initial.fx_rate != null ? Number(initial.fx_rate) : null }
+    : null;
+  const itemCurrencyMeta = (it) => (it?.input_currency
+    ? { input_currency: it.input_currency, input_amount: it.input_amount != null ? Number(it.input_amount) : null, fx_rate: it.fx_rate != null ? Number(it.fx_rate) : null }
+    : null);
   const [items, setItems] = useState(() => (
     (fixedType || initial?.type) === 'transfer'
-      ? [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : '', fromSourceId: initial?.source_id ? String(initial.source_id) : '', toSourceId: initial?.to_source_id ? String(initial.to_source_id) : '' }]
+      ? [{ ...emptyItem(), currencyMeta: recordCurrencyMeta, amount: initial?.amount ? String(initial.amount) : '', fromSourceId: initial?.source_id ? String(initial.source_id) : '', toSourceId: initial?.to_source_id ? String(initial.to_source_id) : '' }]
       // 분류=정산: 정산 대상을 여러 건 담은 기록은 items[].targetId 로 행을 복원하고, 그 외에는
       // settlement_target_id 컬럼이 기준값(과거 한때 빈 이름의 항목이 잘못 같이 저장된 적이 있어도 무시).
       : (initial?.category_name === '정산' && Array.isArray(initial?.items) && initial.items.some((it) => it?.targetId != null))
         ? initial.items.filter((it) => it?.targetId != null).map((it) => ({ ...emptyItem(), targetId: String(it.targetId), amount: it.amount ? String(it.amount) : '' }))
       : (Array.isArray(initial?.items) && initial.items.length && initial?.category_name !== '정산')
-        ? initial.items.map((it) => ({ ...emptyItem(), name: it.name || '', qty: String(it.qty || 1), amount: it.amount ? String(it.amount) : '' }))
-        : [{ ...emptyItem(), amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : ''), targetId: initial?.settlement_target_id ? String(initial.settlement_target_id) : '' }]
+        ? (() => {
+          const rows = initial.items.map((it) => ({ ...emptyItem(), name: it.name || '', qty: String(it.qty || 1), amount: it.amount ? String(it.amount) : '', currencyMeta: itemCurrencyMeta(it) }));
+          if (recordCurrencyMeta && !rows.some((r) => r.currencyMeta)) {
+            const target = recordCurrencyMeta.input_amount != null && recordCurrencyMeta.fx_rate
+              ? rows.findIndex((r) => Math.round(recordCurrencyMeta.input_amount * recordCurrencyMeta.fx_rate) === Number(r.amount))
+              : -1;
+            rows[target >= 0 ? target : 0].currencyMeta = recordCurrencyMeta;
+          }
+          return rows;
+        })()
+        : [{ ...emptyItem(), currencyMeta: (initial?.category_name === '정산') ? null : recordCurrencyMeta, amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : ''), targetId: initial?.settlement_target_id ? String(initial.settlement_target_id) : '' }]
   ));
   const [contentOverride, setContentOverride] = useState(initial?.content ?? null);
   const [contentFocused, setContentFocused] = useState(false);
@@ -853,7 +870,11 @@ const TransactionForm = forwardRef(function TransactionForm({
     const savedItems = (isTransfer || isSettlement) ? null : items
       .filter((it) => it.name.trim() || Number(it.amount) > 0)
       .map((it) => {
-        const base = { name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0 };
+        const base = {
+          name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0,
+          // 보조 화폐로 입력한 항목은 화폐/입력 금액/환율을 함께 저장해 수정 화면에서 그대로 복원
+          ...(it.currencyMeta?.input_currency ? { input_currency: it.currencyMeta.input_currency, input_amount: it.currencyMeta.input_amount, fx_rate: it.currencyMeta.fx_rate } : {}),
+        };
         if (!showMemberSplit) return base;
         const members = memberRowsFor(it, settlementMembers, itemTotalOf(it))
           .filter((r) => r.checked)
