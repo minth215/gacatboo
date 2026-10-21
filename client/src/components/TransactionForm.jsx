@@ -331,7 +331,11 @@ const TransactionForm = forwardRef(function TransactionForm({
   const draftSlot = initial?.id ? `tx:${initial.id}` : (groupId ? `g:${groupId}` : 'new');
   const [type, setType] = useState(fixedType || initial?.type || 'expense');
   const [date, setDate] = useState(initial?.date || today());
-  const [periods, setPeriods] = useState(initial?.periods ? String(initial.periods) : '1');
+  const [periods] = useState(initial?.periods ? String(initial.periods) : '1');
+  // 구독 그룹 결제(showPeriods): 항목 표의 둘째 칸이 "회차" — 입금 내역과 같은 규칙으로, 금액에 곱하지 않고
+  // 금액을 정기결제금액으로 나눈 값을 자동으로 채운다(직접 수정 가능). 합계는 금액 그대로, 저장 회차는 행 회차 합.
+  const qtyIsPeriods = !!showPeriods;
+  const lineTotal = (it) => (qtyIsPeriods ? (Number(it.amount) || 0) : itemTotalOf(it));
   const [categoryId, setCategoryId] = useState(
     initial?.category_id ? String(initial.category_id) : (initial?.category_name ? SNAP : '')
   );
@@ -364,7 +368,7 @@ const TransactionForm = forwardRef(function TransactionForm({
           }
           return rows;
         })()
-        : [{ ...emptyItem(), currencyMeta: (initial?.category_name === '정산') ? null : recordCurrencyMeta, amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : ''), targetId: initial?.settlement_target_id ? String(initial.settlement_target_id) : '' }]
+        : [{ ...emptyItem(), qty: (showPeriods && initial?.periods) ? String(initial.periods) : '1', currencyMeta: (initial?.category_name === '정산') ? null : recordCurrencyMeta, amount: initial?.amount ? String(initial.amount) : (defaultAmount ? String(defaultAmount) : ''), targetId: initial?.settlement_target_id ? String(initial.settlement_target_id) : '' }]
   ));
   const [contentOverride, setContentOverride] = useState(initial?.content ?? null);
   const [contentFocused, setContentFocused] = useState(false);
@@ -714,7 +718,7 @@ const TransactionForm = forwardRef(function TransactionForm({
     setItems((prev) => prev.map((it, i) => (i === 0 ? { ...it, memberChecked, memberAmountOverride } : it)));
   }, [showMemberSplit, initialSettlementSplit, editing]);
 
-  const rowsTotal = items.reduce((s, it) => s + itemTotalOf(it), 0);
+  const rowsTotal = items.reduce((s, it) => s + lineTotal(it), 0);
   // 정산 기록의 합계는 행 금액의 합으로 자동 계산되지만 직접 고쳐 적을 수 있다(예: 대상 합 40,000원에
   // 실제로 50,000원을 받음 → 차액은 정산 초과분 수입). 비우면 다시 자동 합계로 돌아간다.
   const [totalOverride, setTotalOverride] = useState(() => {
@@ -917,7 +921,11 @@ const TransactionForm = forwardRef(function TransactionForm({
       recurrence, backfillPast,
       settlement_target_id: isSettlement ? (settleRows.find((r) => r.targetId)?.targetId ?? null) : null,
       group_id: groupId || null,
-      ...(showPeriods ? { periods: Math.max(Number(periods) || 1, 1) } : {}),
+      ...(showPeriods ? {
+        periods: qtyIsPeriods
+          ? Math.max(items.reduce((t, it) => t + (Number(it.qty) || 0), 0), 1)
+          : Math.max(Number(periods) || 1, 1),
+      } : {}),
       ...(aggregateSplit ? { aggregateSplit } : {}),
       ...(transferMembers ? { transferMemberId } : {}),
     };
@@ -1120,7 +1128,9 @@ const TransactionForm = forwardRef(function TransactionForm({
             onName={(v) => onItemNameChange(idx, v)}
             itemNameSuggestions={itemNameSuggestions}
             onQty={(v) => updateItem(idx, { qty: v.replace(/[^0-9]/g, '') })}
-            onAmount={(v) => updateItem(idx, { amount: v })}
+            onAmount={(v) => updateItem(idx, (qtyIsPeriods && Number(defaultAmount) > 0 && v)
+              ? { amount: v, qty: String(Math.round(Number(v) / Number(defaultAmount))) }
+              : { amount: v })}
             onCurrencyChange={(meta) => updateItem(idx, { currencyMeta: meta })}
             onRemove={() => removeItem(idx)}
             onToggleExpand={() => toggleItemExpand(idx)}
