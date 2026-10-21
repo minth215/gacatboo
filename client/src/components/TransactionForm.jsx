@@ -973,7 +973,7 @@ const TransactionForm = forwardRef(function TransactionForm({
       )}
 
       {showRecurrenceModal && (
-        <RecurrenceModal onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
+        <RecurrenceModal date={date} onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
       )}
       {backfillPrompt && (
         <ConfirmModal

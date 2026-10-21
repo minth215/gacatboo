@@ -39,8 +39,13 @@ export function resolveRecurrence(pending, dateStr) {
     case 'daily': return { freq_unit: 'day', freq_interval: 1, weekdays: [], label: '매일', business_day_rule: bdr };
     case 'weekday': return { freq_unit: 'week', freq_interval: 1, weekdays: [1, 2, 3, 4, 5], label: '평일', business_day_rule: bdr };
     case 'weekend': return { freq_unit: 'week', freq_interval: 1, weekdays: [0, 6], label: '주말', business_day_rule: bdr };
-    case 'weekly': return { freq_unit: 'week', freq_interval: 1, weekdays: [dow], label: '매주', business_day_rule: bdr };
-    case 'biweekly': return { freq_unit: 'week', freq_interval: 2, weekdays: [dow], label: '격주', business_day_rule: bdr };
+    // 매주/격주: 모달에서 요일을 여러 개 골랐으면 그 요일들, 아니면 기록 날짜의 요일
+    case 'weekly':
+    case 'biweekly': {
+      const wd = pending.weekdays?.length ? [...pending.weekdays].sort() : [dow];
+      const base = pending.preset === 'weekly' ? '매주' : '격주';
+      return { freq_unit: 'week', freq_interval: pending.preset === 'weekly' ? 1 : 2, weekdays: wd, label: wd.length > 1 ? `${base} (${wd.map((w) => WEEKDAY_LABELS[w]).join(',')})` : base, business_day_rule: bdr };
+    }
     case 'monthly': return { freq_unit: 'month', freq_interval: 1, weekdays: [], label: '매월', business_day_rule: bdr };
     case 'every2m': return { freq_unit: 'month', freq_interval: 2, weekdays: [], label: '2개월마다', business_day_rule: bdr };
     case 'every3m': return { freq_unit: 'month', freq_interval: 3, weekdays: [], label: '3개월마다', business_day_rule: bdr };

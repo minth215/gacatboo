@@ -1851,7 +1851,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
         )}
 
         {showRecurrenceModal && (
-          <RecurrenceModal onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
+          <RecurrenceModal date={f.date} onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
         )}
         {backfillPrompt && (
           <ConfirmModal
