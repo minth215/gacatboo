@@ -75,6 +75,8 @@ export default function TransactionEdit() {
 
   // 입금 내역 전용 부가 데이터
   const [sub, setSub] = useState(null);
+  // 그룹 결제/입금 신규 작성: 구독 설정(내용 기본값 등)이 도착한 뒤 폼을 띄워 기본값·포커스가 처음부터 맞게
+  const [subLoaded, setSubLoaded] = useState(false);
   const [cats, setCats] = useState([]);
   const [incomeCats, setIncomeCats] = useState([]);
   const [sources, setSources] = useState({ tree: [], flat: [] });
@@ -108,7 +110,7 @@ export default function TransactionEdit() {
 
   useEffect(() => {
     if (!isGroupKind || !groupId) return;
-    db.getSubscription(groupId).then(setSub).catch(() => {});
+    db.getSubscription(groupId).then(setSub).catch(() => {}).finally(() => setSubLoaded(true));
   }, [isGroupKind, groupId]);
 
   useEffect(() => {
@@ -309,7 +311,7 @@ export default function TransactionEdit() {
       </div>
 
       <div style={{ padding: '6px 0 0' }}>
-        {(loading || waitingGroup) ? (
+        {(loading || waitingGroup || (isGroupKind && groupId && !subLoaded)) ? (
           <Spinner />
         ) : error ? (
           <div className="empty">{error}</div>

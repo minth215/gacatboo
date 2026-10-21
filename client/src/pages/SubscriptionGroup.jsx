@@ -1350,9 +1350,9 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     selRef.current?.focus();
     try { selRef.current?.showPicker?.(); } catch {}
   };
-  // 신규 기록 화면 진입 시 "내용" 필드에 바로 포커스(수정 화면은 제외)
+  // 신규 기록 화면 진입 시 "내용" 필드에 바로 포커스(수정 화면, 내용이 기본값으로 자동 채워지는 경우는 제외)
   useEffect(() => {
-    if (!editing) contentInputRef.current?.focus({ preventScroll: true });
+    if (!editing && !sub?.deposit_content_template && !f.content) contentInputRef.current?.focus({ preventScroll: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // 내용 자동완성(이전에 쓴 내용) + × 지우기
@@ -1431,9 +1431,21 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     const id = matchSourceId(sources.flat, initial.deposit_source_name);
     if (id) setF((prev) => (prev.lSourceId === KEEP ? { ...prev, lSourceId: id } : prev));
   }, [editing, sources]);
+  // 입금 내용 기본값(템플릿)은 표의 첫 행 "항목"에도 같은 값으로 채움(비어 있거나 이전 자동값일 때만 —
+  // 분류가 정산이면 그 칸은 정산 대상 셀렉트라 이름은 쓰이지 않음)
+  const lastTplNameRef = useRef('');
+  const fillRowNames = (v) => {
+    const apply = (rows) => (rows.length && (rows[0].name === '' || rows[0].name === lastTplNameRef.current)
+      ? [{ ...rows[0], name: v }, ...rows.slice(1)] : rows);
+    setSubRows(apply);
+    setSettleRows(apply);
+    lastTplNameRef.current = v;
+  };
   useEffect(() => {
     if (editing || f.content || !sub?.deposit_content_template) return;
-    setF((prev) => ({ ...prev, content: renderTemplate(sub.deposit_content_template, prev.date) }));
+    const v = renderTemplate(sub.deposit_content_template, f.date);
+    setF((prev) => ({ ...prev, content: v }));
+    fillRowNames(v);
   }, [editing, sub]);
   // 즐겨찾기/복사 템플릿의 분류·원천(이름 기준)을 목록이 도착하는 대로 한 번씩 반영 — 위 기본값보다 우선.
   // 보는 사람 입장에 맞춰 총무는 입금(수입) 분류/원천, 멤버는 본인 지출 분류/원천 칸에 들어간다.
@@ -1494,11 +1506,9 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   };
   // 신규 작성 시 날짜 변경에 따라 "내용" 기본값 템플릿({연}/{월}/{일}) 재계산
   const onDateChange = (date) => {
-    setF((prev) => ({
-      ...prev,
-      date,
-      content: (!editing && sub?.deposit_content_template) ? renderTemplate(sub.deposit_content_template, date) : prev.content,
-    }));
+    const tpl = (!editing && sub?.deposit_content_template) ? renderTemplate(sub.deposit_content_template, date) : null;
+    setF((prev) => ({ ...prev, date, content: tpl ?? prev.content }));
+    if (tpl != null) fillRowNames(tpl);
   };
 
   const leaderCat = f.lCatId === KEEP

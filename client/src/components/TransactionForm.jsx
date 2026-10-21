@@ -494,8 +494,18 @@ const TransactionForm = forwardRef(function TransactionForm({
   }, [sourcesFlat]);
 
   // 신규 작성 시 "내용" 기본값 템플릿 적용(비동기로 나중에 도착해도 반영)
+  // 항목(내용/수량/금액 표)의 첫 행 이름도 같은 값으로 채움(항목명을 직접 건드리기 전, 항목이 하나일 때만.
+  // 이체는 항목 칸이 출금/입금 원천이라 제외, 분류가 정산이면 항목 칸이 정산 대상 셀렉트라 이름은 쓰이지 않음)
+  const fillFirstItemName = (v) => {
+    if ((fixedType || type) === 'transfer') return;
+    setItems((prev) => ((prev.length === 1 && !itemNameTouchedRef.current) ? [{ ...prev[0], name: v }] : prev));
+  };
   useEffect(() => {
-    if (!editing && contentOverride == null && defaultContentTemplate) setContentOverride(renderTemplate(defaultContentTemplate, date));
+    if (!editing && contentOverride == null && defaultContentTemplate) {
+      const v = renderTemplate(defaultContentTemplate, date);
+      setContentOverride(v);
+      fillFirstItemName(v);
+    }
   }, [defaultContentTemplate]);
 
   // 신규 작성 시 금액 기본값(예: 구독 그룹 결제 → 정기결제금액) 적용(비동기로 나중에 도착해도 반영).
@@ -524,7 +534,11 @@ const TransactionForm = forwardRef(function TransactionForm({
 
   const onDateChange = (v) => {
     setDate(v);
-    if (!editing && defaultContentTemplate) setContentOverride(renderTemplate(defaultContentTemplate, v));
+    if (!editing && defaultContentTemplate) {
+      const c = renderTemplate(defaultContentTemplate, v);
+      setContentOverride(c);
+      fillFirstItemName(c);
+    }
   };
 
   // 반복 아이콘 클릭: 이미 저장된 반복이면 해제 확인, 선택만 해둔 상태면 선택 취소, 둘 다 아니면 모달을 띄움
@@ -773,9 +787,10 @@ const TransactionForm = forwardRef(function TransactionForm({
   ), [isTransfer, items]);
 
   // 즐겨찾기(개인별 목록 하나 — 개인/그룹 기록 폼 공용): 지금 폼 내용 그대로를 템플릿으로 등록/해제
-  // 신규 기록 화면 진입 시 "내용" 필드에 바로 포커스(수정 화면은 제외)
+  // 신규 기록 화면 진입 시 "내용" 필드에 바로 포커스(수정 화면, 내용이 기본값/템플릿으로 자동으로
+  // 채워진 경우는 제외)
   useEffect(() => {
-    if (!editing) contentInputRef.current?.focus({ preventScroll: true });
+    if (!editing && !defaultContentTemplate && !(initial?.content)) contentInputRef.current?.focus({ preventScroll: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const { favorited, toggle: toggleFavorite, busy: favoriteBusy } = useFavoriteToggle({
