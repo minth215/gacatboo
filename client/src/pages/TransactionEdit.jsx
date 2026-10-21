@@ -164,6 +164,8 @@ export default function TransactionEdit() {
       category_name: payload.category_name, category_emoji: payload.category_emoji,
       source_id: payload.source_id, source_name: payload.source_name,
       content: payload.content, memo: payload.memo,
+      items: payload.items ?? null,
+      input_currency: payload.input_currency || '', input_amount: payload.input_amount ?? null, fx_rate: payload.fx_rate ?? null,
       recurrence: payload.recurrence, backfillPast: payload.backfillPast,
     };
     if (editing) await db.updatePayment(id, p, user.id);
@@ -193,8 +195,13 @@ export default function TransactionEdit() {
   const myGroupMember = members.find((m) => m.user_id === user.id);
   const savePooledTransfer = async (payload) => {
     const p = { date: payload.date, amount: payload.amount, from_source_name: payload.source_name, content: payload.content, memo: payload.memo };
+    let transferId = id;
     if (editing) await db.updatePooledFundTransfer(id, p);
-    else await db.createPooledFundTransfer({ group_id: groupId, member_id: Number(payload.transferMemberId), ...p });
+    else transferId = await db.createPooledFundTransfer({ group_id: groupId, member_id: Number(payload.transferMemberId), ...p });
+    // 보조 화폐로 입력했으면(또는 수정하며 원화로 바꿨으면) 화폐 정보도 저장 — 개인 기록과 동일하게 복원되도록
+    if (transferId && (payload.input_currency || editing)) {
+      await db.setPooledFundTransferCurrency(transferId, payload.input_currency || '', payload.input_amount ?? null, payload.fx_rate ?? null);
+    }
   };
 
   const isOwner = isGroupKind && group ? group.owner_id === user.id : false;

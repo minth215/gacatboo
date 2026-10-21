@@ -12,6 +12,7 @@ import ConfirmModal from '../components/ConfirmModal.jsx';
 import { tileBg, formatDate, DayCardRow } from '../components/TransactionList.jsx';
 import { ClearButton, SuggestList, rankSuggestions, StarIcon, fileToResizedBase64 } from '../components/TransactionForm.jsx';
 import { saveTxDraft, takeTxDraft } from '../lib/txDraft.js';
+import CalcAmountInput from '../components/CalcAmountInput.jsx';
 import { useFavoriteToggle } from '../lib/useFavoriteToggle.js';
 
 // "반복 관리" 메뉴와 동일한 반복 아이콘(채워진 순환 화살표)
@@ -1196,6 +1197,12 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   const [draft] = useState(() => takeTxDraft(draftSlot));
   // 즐겨찾기/복사로 넘어온 템플릿(신규 작성일 때만, 편집 다녀온 임시저장이 있으면 그쪽 우선)
   const preset = (!editing && !draft) ? favoritePreset : null;
+  // 보조 화폐 입력 정보({ input_currency, input_amount, fx_rate }) — 개인 기록 폼과 동일하게 저장/복원
+  const metaOf = (o) => (o?.input_currency
+    ? { input_currency: o.input_currency, input_amount: o.input_amount != null ? Number(o.input_amount) : null, fx_rate: o.fx_rate != null ? Number(o.fx_rate) : null }
+    : null);
+  const recordMeta = editing ? metaOf(initial) : null;
+  const metaPayload = (m) => ({ input_currency: m?.input_currency || '', input_amount: m?.input_currency ? (m.input_amount ?? null) : null, fx_rate: m?.input_currency ? (m.fx_rate ?? null) : null });
   const isSettleMode = defaultCategoryName === '정산';
   const settleContentDefault = groupName ? `${groupName} 정산` : '정산';
   // 수정 화면인데 정산 대상이 items 로 저장돼 있으면(정산 일괄/건별/개별 완료로 생성된 입금 내역)
@@ -1214,10 +1221,12 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     if (draft?.settleRows) return draft.settleRows;
     if (preset) return [{ targetId: '', name: '', amount: preset.amount ? String(preset.amount) : '' }];
     if (editingHasItems) {
-      return initial.items.map((it) => ({ targetId: it.targetId != null ? String(it.targetId) : '', name: it.label || '', amount: String(it.amount) }));
+      const rows = initial.items.map((it) => ({ targetId: it.targetId != null ? String(it.targetId) : '', name: it.label || '', amount: String(it.amount), currencyMeta: metaOf(it) }));
+      if (rows.length === 1 && !rows[0].currencyMeta) rows[0].currencyMeta = recordMeta;
+      return rows;
     }
     if (editing) {
-      return [{ targetId: initial.leader_settlement_target_id ? String(initial.leader_settlement_target_id) : '', name: '', amount: String(initial.amount) }];
+      return [{ targetId: initial.leader_settlement_target_id ? String(initial.leader_settlement_target_id) : '', name: '', amount: String(initial.amount), currencyMeta: recordMeta }];
     }
     return presetSettleRows?.length
       ? presetSettleRows.map((r) => ({ targetId: r.targetId != null ? String(r.targetId) : '', name: '', amount: String(r.amount) }))
@@ -1245,7 +1254,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   // 때만 정산 대상 셀렉트박스로 바뀜 — isLeaderSettlement 참고). "회차"는 구독 그룹이라 항상 표시.
   const [subRows, setSubRows] = useState(() => draft?.subRows || (editing ? [{
     name: '', targetId: initial.leader_settlement_target_id ? String(initial.leader_settlement_target_id) : '',
-    periods: String(initial.periods || 1), amount: String(initial.amount),
+    periods: String(initial.periods || 1), amount: String(initial.amount), currencyMeta: recordMeta,
   }] : [{
     name: '', targetId: '', periods: preset?.periods ? String(preset.periods) : '1', amount: preset?.amount ? String(preset.amount) : '',
   }]));
@@ -1290,6 +1299,8 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     memo: preset?.memo || '',
   });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
+  const [amountMeta, setAmountMeta] = useState(recordMeta); // 단일 금액 칸(멤버의 정산 입금 등)의 보조 화폐 정보
+  const [amountLiveCurrency, setAmountLiveCurrency] = useState(recordMeta?.input_currency || 'KRW');
   const [deleteBusy, setDeleteBusy] = useState(false);
   const handleDelete = async () => {
     if (deleteBusy || !onDelete) return;
@@ -1543,6 +1554,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   });
   const rankedContentSuggestions = contentSuggestOpen ? rankSuggestions(contentSuggestions, f.content) : [];
 
+  const r0Meta = (rows) => rows[0]?.currencyMeta || null;
   const submit = async () => {
     if (!f.memberId) return setErr('멤버를 선택하세요.');
     // 필수 항목 확인(개인 기록 폼과 동일한 순서: 내용 → 분류 → 원천)
@@ -1591,7 +1603,9 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
               targetId: Number(r.targetId),
               label: settleTargetLabel(recentExpenses.find((x) => String(x.id) === r.targetId)),
               amount: Math.round(Number(r.amount)),
+              ...(r.currencyMeta?.input_currency ? metaPayload(r.currencyMeta) : {}),
             })),
+            ...metaPayload(rows.length === 1 ? r0Meta(rows) : null),
             recurrence, backfillPast,
           });
         } else {
@@ -1604,6 +1618,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
               leader_category_name: lCat?.name || '', leader_category_emoji: lCat?.emoji || '',
               leader_settlement_target_id: null,
               content: sharedContent, memo: f.memo,
+              ...metaPayload(r.currencyMeta),
               recurrence, backfillPast,
             });
           }
@@ -1666,6 +1681,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
             leader_category_name: l_name, leader_category_emoji: l_emoji,
             leader_settlement_target_id: target ? Number(r.targetId) : (!isOwner && editing ? (initial.leader_settlement_target_id || null) : null),
             content: contentOverride || (isLeaderSettlement ? multiAutoContent : ''), memo: f.memo,
+            ...metaPayload(r.currencyMeta),
             recurrence, backfillPast,
           });
         }
@@ -1718,6 +1734,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
         deposit_source_name: l_source,
         leader_category_name: l_name, leader_category_emoji: l_emoji, leader_settlement_target_id: l_settle,
         content: f.content.trim() || (isSettleMode ? settleContentDefault : f.content), memo: f.memo,
+        ...metaPayload(amountMeta),
         recurrence, backfillPast,
       });
       onSaved?.();
@@ -1828,7 +1845,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
               <span />
             </div>
             {settleRows.map((r, idx) => (
-              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '5px 0' }}>
+              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: (r.liveCurrency || r.currencyMeta?.input_currency || 'KRW') !== 'KRW' ? '5px 0 21px' : '5px 0' }}>
                 {isLeaderSettlement ? (
                   <SettleTargetSelect
                     value={r.targetId} onChange={(e) => onSettleTargetChange(idx, e.target.value)}
@@ -1840,10 +1857,11 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                     style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
                   />
                 )}
-                <input
-                  type="text" inputMode="numeric" placeholder="0" value={r.amount ? Number(r.amount).toLocaleString('ko-KR') : ''}
-                  onChange={(e) => updateSettleRow(idx, { amount: e.target.value.replace(/[^0-9]/g, '') })}
-                  style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', minWidth: 0, padding: 0 }}
+                <CalcAmountInput
+                  compact value={r.amount} onChange={(v) => updateSettleRow(idx, { amount: v })}
+                  initialCurrency={r.currencyMeta?.input_currency} initialForeignAmount={r.currencyMeta?.input_amount}
+                  onCurrencyChange={(m) => updateSettleRow(idx, { currencyMeta: m })}
+                  onCurrencySelect={(c) => updateSettleRow(idx, { liveCurrency: c })}
                 />
                 {settleRows.length > 1 ? (
                   <button type="button" aria-label="행 삭제" onClick={() => removeSettleRow(idx)} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1870,7 +1888,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
               <span />
             </div>
             {subRows.map((r, idx) => (
-              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: '5px 0' }}>
+              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: (r.liveCurrency || r.currencyMeta?.input_currency || 'KRW') !== 'KRW' ? '5px 0 21px' : '5px 0' }}>
                 {isLeaderSettlement ? (
                   <SettleTargetSelect
                     value={r.targetId} onChange={(e) => onSubTargetChange(idx, e.target.value)}
@@ -1886,10 +1904,11 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                   type="text" inputMode="numeric" placeholder="1" value={r.periods} onChange={(e) => updateSubRow(idx, { periods: e.target.value.replace(/[^0-9]/g, '') })}
                   style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', textAlign: 'center', minWidth: 0 }}
                 />
-                <input
-                  type="text" inputMode="numeric" placeholder="0" value={r.amount ? Number(r.amount).toLocaleString('ko-KR') : ''}
-                  onChange={(e) => onSubRowAmountChange(idx, e.target.value)}
-                  style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', minWidth: 0, padding: 0 }}
+                <CalcAmountInput
+                  compact value={r.amount} onChange={(v) => onSubRowAmountChange(idx, v)}
+                  initialCurrency={r.currencyMeta?.input_currency} initialForeignAmount={r.currencyMeta?.input_amount}
+                  onCurrencyChange={(m) => updateSubRow(idx, { currencyMeta: m })}
+                  onCurrencySelect={(c) => updateSubRow(idx, { liveCurrency: c })}
                 />
                 {subRows.length > 1 ? (
                   <button type="button" aria-label="행 삭제" onClick={() => removeSubRow(idx)} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1908,14 +1927,15 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
           </div>
         ) : !multiSettle && (
           <>
-            <div style={rowStyle}>
+            <div style={{ ...rowStyle, paddingBottom: amountLiveCurrency !== 'KRW' ? 21 : 6 }}>
               <span style={rowLabelStyle}>금액</span>
-              <input
-                type="text" inputMode="numeric"
-                value={f.amount ? Number(f.amount).toLocaleString('ko-KR') : ''}
-                onChange={(e) => onAmountChange(e.target.value)}
-                style={rowInputStyle}
-              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <CalcAmountInput
+                  compact value={f.amount} onChange={onAmountChange}
+                  initialCurrency={amountMeta?.input_currency} initialForeignAmount={amountMeta?.input_amount}
+                  onCurrencyChange={setAmountMeta} onCurrencySelect={setAmountLiveCurrency}
+                />
+              </div>
             </div>
             {showPeriods && (
               <div style={rowStyle}>

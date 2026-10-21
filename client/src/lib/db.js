@@ -637,11 +637,17 @@ export const db = {
     return (rows || []).map((r) => ({ id: r.tx_id, date: r.date, amount: r.amount, content: r.content, category_name: r.category_name, category_emoji: r.category_emoji }));
   },
   async createPayment(groupId, userId, p) {
+    // 항목·보조 화폐 정보(개인 기록과 동일한 칸) — 결제와 미러 거래 양쪽에 같이 저장
+    const extra = {
+      items: p.items ?? null,
+      input_currency: p.input_currency || '', input_amount: p.input_currency ? (p.input_amount ?? null) : null, fx_rate: p.input_currency ? (p.fx_rate ?? null) : null,
+    };
     const tx = unwrap(await supabase.from('transactions').insert({
       user_id: userId, group_id: null, type: 'expense', date: p.date, amount: p.amount,
       category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
       source_id: p.source_id || null, source_name: p.source_name || '',
       content: (p.content || '').trim(), memo: (p.memo || '').trim(), created_by: userId,
+      ...extra,
     }).select('id').single());
 
     // 반복 설정을 새로 켠 경우: 규칙을 만들고(target='subscription_payment') 결제·미러 거래 양쪽에 연결.
@@ -666,7 +672,7 @@ export const db = {
       category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
       source_id: p.source_id || null, source_name: p.source_name || '',
       content: (p.content || '').trim(), memo: (p.memo || '').trim(), tx_id: tx.id, created_by: userId,
-      recurring_id,
+      recurring_id, ...extra,
     }).select().single());
     // 미러 tx 에 원본 링크
     unwrap(await supabase.from('transactions').update({ origin_type: 'payment', origin_id: pay.id, origin_group_id: groupId }).eq('id', tx.id));
@@ -699,6 +705,10 @@ export const db = {
       category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
       source_id: p.source_id || null, source_name: p.source_name || '',
       content: (p.content || '').trim(), memo: (p.memo || '').trim(),
+      ...(p.items !== undefined ? { items: p.items } : {}),
+      ...(p.input_currency !== undefined ? {
+        input_currency: p.input_currency || '', input_amount: p.input_currency ? (p.input_amount ?? null) : null, fx_rate: p.input_currency ? (p.fx_rate ?? null) : null,
+      } : {}),
       ...(recurring_id ? { recurring_id } : {}),
     };
     const saved = unwrap(await supabase.from('subscription_payments').update(patch).eq('id', id).select().single());
@@ -732,6 +742,12 @@ export const db = {
       p_items: p.items || null,
     });
     if (error) throw new Error(error.message);
+    // 보조 화폐로 입력한 입금: 화폐 정보를 저장(동기화 트리거가 총대/멤버 미러 거래에도 반영 — 0063)
+    if (p.input_currency) {
+      unwrap(await supabase.from('subscription_deposits').update({
+        input_currency: p.input_currency, input_amount: p.input_amount ?? null, fx_rate: p.fx_rate ?? null,
+      }).eq('id', depId));
+    }
 
     // 반복 설정을 새로 켠 경우: 규칙을 만들고(target='subscription_deposit') 이 입금과 총대/멤버
     // 미러 거래 양쪽에 연결. 이후 서버(pg_cron)가 생성하는 입금도 같은 규칙을 보고 총대 수입·멤버
@@ -787,6 +803,9 @@ export const db = {
       leader_category_name: p.leader_category_name || '', leader_category_emoji: p.leader_category_emoji || '',
       leader_settlement_target_id: p.leader_settlement_target_id || null,
       ...(p.items !== undefined ? { items: p.items } : {}),
+      ...(p.input_currency !== undefined ? {
+        input_currency: p.input_currency || '', input_amount: p.input_currency ? (p.input_amount ?? null) : null, fx_rate: p.input_currency ? (p.fx_rate ?? null) : null,
+      } : {}),
       ...(recurring_id ? { recurring_id } : {}),
     };
     const saved = unwrap(await supabase.from('subscription_deposits').update(patch).eq('id', id).select().single());
@@ -850,6 +869,12 @@ export const db = {
   async updatePooledFundTransfer(id, { date, amount, from_source_name, content, memo }) {
     const { error } = await supabase.rpc('update_pooled_fund_transfer', {
       p_id: id, p_date: date, p_amount: amount, p_from_source_name: from_source_name || '', p_content: content || '', p_memo: memo || '',
+    });
+    if (error) throw new Error(error.message);
+  },
+  async setPooledFundTransferCurrency(id, input_currency, input_amount, fx_rate) {
+    const { error } = await supabase.rpc('set_pooled_fund_transfer_currency', {
+      p_id: id, p_input_currency: input_currency || '', p_input_amount: input_currency ? input_amount : null, p_fx_rate: input_currency ? fx_rate : null,
     });
     if (error) throw new Error(error.message);
   },
