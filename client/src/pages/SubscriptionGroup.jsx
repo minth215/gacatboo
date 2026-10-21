@@ -63,16 +63,17 @@ function SettleTargetSelect({ value, onChange, options, label, style }) {
 // 날짜(dateStr)가 속한 달의 정기결제일(billingDay)로 날짜를 맞춰줌.
 // 예: dateStr=2026-08-22, billingDay=19 → 2026-08-19 (그 달의 마지막 날짜를 넘지 않도록 보정)
 // 멤버의 다음 입금일(구독 현황 탭·멤버 상세 화면 공용): 직접 지정한 날짜가 있으면 그 날짜,
-// 아니면 마지막 입금일이 속한 달의 정기결제일 + 그 입금이 커버한 기간(회차)만큼 주기를 더한 날짜.
-// 입금 내역이 없으면 멤버 시작일.
+// 아니면 멤버 시작일(없으면 첫 입금일)이 속한 달의 정기 입금일 + 지금까지 입금한 회차 합계만큼 주기를
+// 더한 날짜(선입금으로 여러 회차를 미리 낸 경우도 그만큼 뒤로 밀림).
 export function memberNextDepositDate(member, memberDeposits, sub) {
   if (member?.next_due_override) return member.next_due_override;
-  const ds = [...(memberDeposits || [])].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.id || 0) - (b.id || 0)));
-  const lastDep = ds.length ? ds[ds.length - 1] : null;
-  const base = billingAlignedDate(lastDep?.date || null, sub?.billing_day);
-  return base && sub
-    ? addInterval(base, sub.period_unit, sub.period_count, Math.max(Number(lastDep.periods) || 1, 1))
-    : (member?.start_date || null);
+  const ds = memberDeposits || [];
+  const firstDate = ds.length ? ds.map((d) => d.date).sort()[0] : null;
+  const start = member?.start_date || firstDate;
+  if (!start) return null;
+  if (!sub) return start;
+  const periods = ds.reduce((t, d) => t + Number(d.periods || 0), 0);
+  return addInterval(billingAlignedDate(start, sub.billing_day), sub.period_unit, sub.period_count, periods);
 }
 
 function billingAlignedDate(dateStr, billingDay) {
