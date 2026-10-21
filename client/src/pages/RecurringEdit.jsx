@@ -6,9 +6,10 @@ import { isSettlement } from '../lib/format.js';
 import TransactionForm from '../components/TransactionForm.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { DepositForm } from './SubscriptionGroup.jsx';
+import { PeriodEditor } from './RecurringManage.jsx';
 
 // "반복 수정" — 반복으로 앞으로 자동 등록될 내용(분류/원천/내용/항목/금액/메모 등)을 기록 폼으로 수정.
-// 규칙(recurring_rules)만 바뀌고, 이미 등록된 내역은 그대로 둔다. 날짜 칸은 반복 시작일로 저장.
+// 규칙(recurring_rules)만 바뀌고, 이미 등록된 내역은 그대로 둔다. 날짜 칸 자리에는 "반복 주기" 편집을 둔다.
 // 일반 기록·그룹 결제는 개인 기록 폼(TransactionForm), 그룹 입금은 입금 폼(DepositForm)을 그대로 쓴다.
 const currencyPatch = (p) => ({
   input_currency: p.input_currency || '',
@@ -53,7 +54,7 @@ export default function RecurringEdit() {
     const items = Array.isArray(payload.items) && payload.items.length && !payload.items.some((it) => it?.targetId != null) ? payload.items : null;
     await saveRule({
       type: rule.target === 'subscription_payment' ? 'expense' : payload.type,
-      start_date: payload.date, amount: payload.amount,
+      amount: payload.amount,
       category_id: payload.category_id || null, category_name: payload.category_name || '',
       category_emoji: payload.category_emoji || '', category_color: payload.category_color || '',
       source_id: payload.source_id || null, source_name: payload.source_name || '',
@@ -66,7 +67,7 @@ export default function RecurringEdit() {
   // 그룹 입금: 입금 폼의 저장 내용 → 규칙 칸(멤버/총대 양쪽 분류·원천)
   const onSaveDeposit = async (p) => {
     await saveRule({
-      start_date: p.date, amount: p.amount,
+      amount: p.amount,
       category_name: p.category_name || '', category_emoji: p.category_emoji || '', source_name: p.source_name || '',
       leader_category_name: p.leader_category_name || '', leader_category_emoji: p.leader_category_emoji || '',
       deposit_source_name: p.deposit_source_name || '',
@@ -84,9 +85,17 @@ export default function RecurringEdit() {
     </div>
   );
 
-  const notice = (
-    <p className="small muted" style={{ margin: '0 2px 12px' }}>앞으로 반복 등록될 내용만 바뀌고, 이미 등록된 내역은 그대로 유지돼요.</p>
-  );
+  // 날짜 칸 대신 반복 상세 모달과 같은 "반복 주기" 편집(바꾸는 즉시 저장)
+  const periodField = rule ? (
+    <PeriodEditor
+      rule={rule}
+      onSave={async (patch) => {
+        try { await db.updateRecurringRule(rule.id, patch); setRule((r) => ({ ...r, ...patch })); } catch (e) { alert(e.message); }
+      }}
+      rowStyle={{ padding: '6px 0', gap: 12 }}
+      labelStyle={{ width: 46, fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}
+    />
+  ) : null;
 
   let body;
   if (error) body = <div className="empty">{error}</div>;
@@ -105,7 +114,7 @@ export default function RecurringEdit() {
     };
     body = (
       <DepositForm
-        templateMode topNotice={notice}
+        templateMode periodField={periodField}
         initial={initial} sub={sub} cats={cats} incomeCats={incomeCats} sources={sources}
         members={member ? [member] : []} recentExpenses={[]}
         isOwner={isOwner} onSave={onSaveDeposit} onSaved={done}
@@ -125,7 +134,7 @@ export default function RecurringEdit() {
     };
     body = (
       <TransactionForm
-        templateMode topNotice={notice}
+        templateMode periodField={periodField}
         initial={initial} onSubmit={onSubmitTx} onSaved={done} onClose={done}
         groupId={!isPayment ? (rule.group_id || null) : null}
         fixedType={rule.group_id ? (isPayment ? 'expense' : rule.type) : undefined}

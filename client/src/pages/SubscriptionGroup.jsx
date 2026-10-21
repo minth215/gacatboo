@@ -1208,7 +1208,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
 // 그룹 입금 내역 작성/수정 폼. 화면(내용 줄의 ×·자동완성·즐겨찾기·반복, 분류/원천 선택·편집,
 // 상단바 영수증/즐겨찾기/복사, 삭제 버튼 등)은 개인 기록 폼(TransactionForm)과 같은 조각을 쓰고,
 // 저장 방식(총대 수입 + 멤버 지출 동시 기록, 멤버 선택, 회차, 정산 대상 여러 건)만 입금 전용이다.
-export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, onDelete, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '', groupBadge, presetMemberId = null, presetSettleRows = null, favoritePreset = null, autoToast, onScanBusyChange, templateMode = false }, ref) {
+export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, onDelete, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '', groupBadge, presetMemberId = null, presetSettleRows = null, favoritePreset = null, autoToast, onScanBusyChange, templateMode = false, periodField = null }, ref) {
   const editing = !!initial;
   const { user } = useAuth();
   const nav = useNavigate();
@@ -1470,7 +1470,14 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   }, [editing, sub]);
   // 즐겨찾기/복사 템플릿의 분류·원천(이름 기준)을 목록이 도착하는 대로 한 번씩 반영 — 위 기본값보다 우선.
   // 보는 사람 입장에 맞춰 총무는 입금(수입) 분류/원천, 멤버는 본인 지출 분류/원천 칸에 들어간다.
-  const presetAppliedRef = useRef({ cat: false, source: false });
+  const presetAppliedRef = useRef({ cat: false, source: false, member: false });
+  // 복사/즐겨찾기로 넘어온 멤버: 멤버 목록이 늦게 도착해도 도착하는 대로 그 멤버로 맞춤(기본값 "첫 멤버"보다 우선)
+  useEffect(() => {
+    if (!preset?.member_id || presetMemberId || presetAppliedRef.current.member) return;
+    if (!members.some((m) => String(m.id) === String(preset.member_id))) return;
+    presetAppliedRef.current.member = true;
+    setF((prev) => ({ ...prev, memberId: String(preset.member_id) }));
+  }, [members]);
   useEffect(() => {
     if (!preset || presetAppliedRef.current.cat || !preset.category_name) return;
     const list = isOwner ? incomeCats : cats;
@@ -1831,15 +1838,17 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
           </select>
         </div>
 
+        {periodField || (
         <div style={rowStyle}>
-          <span style={rowLabelStyle}>날짜</span>
-          <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <div style={{ position: 'relative' }}>
-              <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{dotDateWithWeekday(f.date)}</span>
-              <input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택" />
+            <span style={rowLabelStyle}>날짜</span>
+            <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <div style={{ position: 'relative' }}>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{dotDateWithWeekday(f.date)}</span>
+                <input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택" />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {showRecurrenceModal && (
           <RecurrenceModal onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />

@@ -321,6 +321,8 @@ const TransactionForm = forwardRef(function TransactionForm({
   fixedSourceName, transferMembers, defaultTransferMemberId, autoReceiptBase64, autoReceiptMime, autoToast, onDelete,
   // templateMode: 반복 규칙(반복으로 등록될 내용) 수정 화면 — 즐겨찾기 별·반복 아이콘을 숨김
   templateMode = false,
+  // periodField: 날짜 칸 대신 보여줄 노드(반복 수정 화면의 "반복 주기")
+  periodField = null,
 }, ref) {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -1031,17 +1033,19 @@ const TransactionForm = forwardRef(function TransactionForm({
           </div>
         )}
 
+        {periodField || (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
-          <span style={rowLabelStyle}>날짜</span>
-          <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <div style={{ position: 'relative' }}>
-              <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{dotDateWithWeekday(date)}</span>
-              <input
-                type="date" value={date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택"
-              />
+            <span style={rowLabelStyle}>날짜</span>
+            <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <div style={{ position: 'relative' }}>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{dotDateWithWeekday(date)}</span>
+                <input
+                  type="date" value={date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택"
+                />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {!isTransfer && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>

@@ -271,7 +271,7 @@ function withMonthDay(dateStr, month, day) {
 
 // 반복 주기 편집: 프리셋 셀렉트 + 그에 맞는 단위 표기(일/월·일/요일), 날짜 숫자는 테두리 없이 바로 수정.
 // 일·월을 바꾸면 반복 기준이 되는 시작일의 일·월이 바뀐다(서버 자동 기록도 시작일 기준으로 계산).
-export function PeriodEditor({ rule, disabled, onSave }) {
+export function PeriodEditor({ rule, disabled, onSave, labelStyle, rowStyle }) {
   const preset = presetOf(rule);
   const [y, mo, d] = rule.start_date.split('-').map(Number);
   const dow = new Date(y, mo - 1, d).getDay();
@@ -299,8 +299,8 @@ export function PeriodEditor({ rule, disabled, onSave }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#191722', flex: 'none' }}>반복 주기</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, ...rowStyle }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#191722', flex: 'none', ...labelStyle }}>반복 주기</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <BareSelect value={shown} options={PRESET_OPTIONS} disabled={disabled} onChange={(k) => { setCustomOpen(k === 'custom'); changePreset(k); }} />
           {shown === 'custom' && (
