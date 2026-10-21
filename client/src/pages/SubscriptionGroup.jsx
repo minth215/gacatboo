@@ -1008,7 +1008,7 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
                             <div className="tx-row-title">
                               <span className="ttext">
                                 {d.content || d.category_name || '입금'} - {d.member?.nickname || '멤버'}
-                                {showPeriods && <span className="tag-periods">{d.periods} 회분</span>}
+                                {showPeriods && <>{' '}<span className="tag-periods">{d.periods} 회분</span></>}
                               </span>
                             </div>
                             <div className="tx-row-sub">{[tileCat, tileSource].filter(Boolean).join(' · ') || '—'}</div>
