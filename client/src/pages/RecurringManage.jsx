@@ -96,7 +96,7 @@ export default function RecurringManage() {
                   <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: dispType === 'income' ? '#2CDDB9' : dispType === 'transfer' ? '#4b4752' : '#FF4358' }}>
                     {dispType === 'transfer' ? '' : (dispType === 'income' ? '+' : '-')}{r.input_currency ? fmtForeign(r.input_amount, r.input_currency) : fmtNum(r.amount)}
                   </span>
-                  {r.input_currency && <span style={{ fontSize: 10.5, color: '#a29ead', marginTop: 1 }}>₩{fmtNum(r.amount)}</span>}
+                  {r.input_currency && <span style={{ fontSize: 10.5, color: '#a29ead', marginTop: 1 }}>{fmtNum(r.amount)} KRW</span>}
                 </span>
               </DayCardRow>
             </div>
@@ -135,7 +135,7 @@ export default function RecurringManage() {
                   <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: dispType === 'income' ? 'var(--income)' : dispType === 'transfer' ? '#8b8798' : 'var(--expense)' }}>
                     {dispType === 'income' ? '+' : dispType === 'transfer' ? '' : '-'}{detail.input_currency ? fmtForeign(detail.input_amount, detail.input_currency) : fmtNum(detail.amount)}
                   </span>
-                  {detail.input_currency && <span style={{ fontSize: 10.5, color: '#a29ead', marginTop: 1 }}>₩{fmtNum(detail.amount)}</span>}
+                  {detail.input_currency && <span style={{ fontSize: 10.5, color: '#a29ead', marginTop: 1 }}>{fmtNum(detail.amount)} KRW</span>}
                 </span>
               </div>
 
