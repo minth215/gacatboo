@@ -1860,9 +1860,6 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
             </div>
           </div>
         ) : null)}
-            </select>
-          </div>
-        ))}
 
         {multiSub ? (
           <div style={{ padding: '6px 0' }}>
