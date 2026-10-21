@@ -239,7 +239,6 @@ function BareSelect({ value, options, onChange, disabled }) {
 }
 
 const PRESET_OPTIONS = RECURRENCE_PRESETS.map((p) => [p.key, p.label]);
-const WEEKDAY_OPTIONS = WEEKDAY_LABELS.map((w, i) => [i, `${w}요일`]);
 const UNIT_OPTIONS = [['day', '일마다'], ['week', '주마다'], ['month', '개월마다'], ['year', '년마다']];
 
 // 저장된 규칙이 어떤 프리셋에 해당하는지(맞는 게 없으면 사용자화)
@@ -248,7 +247,7 @@ function presetOf(r) {
   if (r.freq_unit === 'day' && r.freq_interval === 1) return 'daily';
   if (r.freq_unit === 'week' && r.freq_interval === 1 && wd === '1,2,3,4,5') return 'weekday';
   if (r.freq_unit === 'week' && r.freq_interval === 1 && wd === '0,6') return 'weekend';
-  if (r.freq_unit === 'week' && (r.weekdays || []).length === 1) {
+  if (r.freq_unit === 'week' && (r.weekdays || []).length >= 1) {
     if (r.freq_interval === 1) return 'weekly';
     if (r.freq_interval === 2) return 'biweekly';
   }
@@ -300,7 +299,7 @@ export function PeriodEditor({ rule, disabled, onSave, labelStyle, rowStyle }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, ...rowStyle }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#191722', flex: 'none', ...labelStyle }}>반복 주기</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#191722', flex: 'none', whiteSpace: 'nowrap', ...labelStyle }}>반복 주기</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <BareSelect value={shown} options={PRESET_OPTIONS} disabled={disabled} onChange={(k) => { setCustomOpen(k === 'custom'); changePreset(k); }} />
           {shown === 'custom' && (
@@ -308,9 +307,6 @@ export function PeriodEditor({ rule, disabled, onSave, labelStyle, rowStyle }) {
               <BareNumber value={rule.freq_interval} disabled={disabled} onCommit={(n) => customPatch({ freq_interval: n })} />
               <BareSelect value={unit} options={UNIT_OPTIONS} disabled={disabled} onChange={(u) => customPatch({ freq_unit: u })} />
             </span>
-          )}
-          {(shown === 'weekly' || shown === 'biweekly') && (
-            <BareSelect value={(rule.weekdays || [dow])[0]} options={WEEKDAY_OPTIONS} disabled={disabled} onChange={(w) => onSave({ weekdays: [Number(w)] })} />
           )}
           {(unit === 'month' && shown !== 'daily') && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
@@ -328,7 +324,8 @@ export function PeriodEditor({ rule, disabled, onSave, labelStyle, rowStyle }) {
           )}
         </span>
       </div>
-      {shown === 'custom' && unit === 'week' && (
+      {/* 매주·격주·사용자화(주 단위): 요일 여러 개 선택 */}
+      {(shown === 'weekly' || shown === 'biweekly' || (shown === 'custom' && unit === 'week')) && (
         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
           {WEEKDAY_LABELS.map((w, i) => {
             const on = (rule.weekdays || []).includes(i);
@@ -337,7 +334,12 @@ export function PeriodEditor({ rule, disabled, onSave, labelStyle, rowStyle }) {
                 key={i} type="button" disabled={disabled}
                 onClick={() => {
                   const next = on ? (rule.weekdays || []).filter((x) => x !== i) : [...(rule.weekdays || []), i].sort();
-                  if (next.length) customPatch({ weekdays: next });
+                  if (!next.length) return;
+                  if (shown === 'custom') customPatch({ weekdays: next });
+                  else {
+                    const base = shown === 'weekly' ? '매주' : '격주';
+                    onSave({ weekdays: next, label: next.length === 1 ? base : `${base} (${next.map((x) => WEEKDAY_LABELS[x]).join(',')})` });
+                  }
                 }}
                 style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', flex: 'none', background: on ? '#191722' : '#f4f2f0', color: on ? '#fff' : '#191722', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
               >{w}</button>

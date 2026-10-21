@@ -93,7 +93,7 @@ export default function RecurringEdit() {
         try { await db.updateRecurringRule(rule.id, patch); setRule((r) => ({ ...r, ...patch })); } catch (e) { alert(e.message); }
       }}
       rowStyle={{ padding: '6px 0', gap: 12 }}
-      labelStyle={{ width: 46, fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}
+      labelStyle={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}
     />
   ) : null;
 
