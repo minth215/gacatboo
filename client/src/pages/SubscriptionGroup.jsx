@@ -1048,6 +1048,15 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   const [payments, setPayments] = useState([]);
   const [deposits, setDeposits] = useState([]);
   const [openPayId, setOpenPayId] = useState(null); // 결제 내역: 한 번에 하나의 카드만 밀려 있도록
+  // 결제 내역 타일 배경: 결제 행에는 분류 색 스냅샷이 없어서, 보는 사람이 지출 분류 관리에서 지정한 색을 이름으로 찾아 쓴다
+  const [payCatColors, setPayCatColors] = useState({});
+  useEffect(() => {
+    db.listCategories('expense').then((cs) => {
+      const map = {};
+      for (const c of cs) if (c.color) map[c.name] = c.color;
+      setPayCatColors(map);
+    }).catch(() => {});
+  }, []);
 
   const myMember = members.find((m) => m.user_id === user.id && m.role !== 'owner');
 
@@ -1121,7 +1130,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                           clickable={isOwner} onTap={() => isOwner && nav(`/tx/${p.id}?group=${gid}&kind=payment`)}
                           onDelete={isOwner ? () => delPayment(p) : undefined}
                         >
-                            <span className="tx-tile" style={{ background: p.category_emoji ? tileBg(p.category_name) : '#f2f1f5' }}>{p.category_emoji || '💳'}</span>
+                            <span className="tx-tile" style={{ background: payCatColors[p.category_name] || (p.category_emoji ? tileBg(p.category_name) : '#f2f1f5') }}>{p.category_emoji || '💳'}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div className="tx-row-title">
                                 <span className="ttext">{p.content || p.category_name} <span className="tag-periods">{p.periods} 회분</span></span>

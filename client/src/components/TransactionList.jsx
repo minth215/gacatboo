@@ -86,12 +86,15 @@ export default function TransactionList({
   const [openId, setOpenId] = useState(null);
   // 그룹 정산 입금의 총무 수입 항목은 category_color 스냅샷이 없으므로, 표시 시점에
   // 이 계정이 수입 분류 관리에서 지정한 색을 찾아 타일 배경에 반영한다.
+  // 그룹 결제(구독 결제의 미러 지출) 등 색 스냅샷이 없는 항목도 같은 방식으로 지출 분류 색을 찾는다.
   const [incomeCatColors, setIncomeCatColors] = useState({});
+  const [expenseCatColors, setExpenseCatColors] = useState({});
   useEffect(() => {
-    db.listCategories('income').then((cs) => {
-      const map = {};
-      for (const c of cs) map[c.name] = c.color || '';
-      setIncomeCatColors(map);
+    db.listCategories().then((cs) => {
+      const inc = {}; const exp = {};
+      for (const c of cs) (c.type === 'income' ? inc : exp)[c.name] = c.color || '';
+      setIncomeCatColors(inc);
+      setExpenseCatColors(exp);
     }).catch(() => {});
   }, []);
 
@@ -122,7 +125,8 @@ export default function TransactionList({
             const editable = canEdit ? canEdit(t) : true;
             const isGroup = groupTint && !!(t.group_name || t.origin_type); // 그룹에서 입력/반영된 항목(그룹 자체 화면에서는 강조 생략)
             // 그룹 정산 입금의 총무 수입 미러 항목: 색 스냅샷이 없어도 이 계정의 정산 분류 색을 따른다.
-            const depositIncomeColor = (t.type === 'income' && t.origin_type === 'deposit') ? incomeCatColors[t.category_name] : '';
+            const depositIncomeColor = (t.type === 'income' && t.origin_type === 'deposit') ? incomeCatColors[t.category_name]
+              : (t.type === 'expense' && t.origin_type) ? expenseCatColors[t.category_name] : '';
             const sub = t.type === 'transfer'
               ? [t.category_name || '이체', (t.source_name && t.to_source_name) ? `${t.source_name} → ${t.to_source_name}` : ''].filter(Boolean).join(' · ') || '—'
               : [t.category_name, t.source_name].filter(Boolean).join(' · ') || '—';
