@@ -411,7 +411,7 @@ export const db = {
         // 정산 대상이 담긴 항목은 회차마다 같은 정산이 반복되면 안 되므로 제외.
         ...(base.input_currency ? { input_currency: base.input_currency, input_amount: base.input_amount, fx_rate: base.fx_rate } : {}),
         ...((Array.isArray(base.items) && base.items.length && !base.items.some((it) => it?.targetId != null)) ? { items: base.items } : {}),
-        start_date: payload.date,
+        start_date: r.start_date || payload.date,
         freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
       }).select().single());
       recurring_id = rule.id;
@@ -679,7 +679,7 @@ export const db = {
         source_id: p.source_id || null, source_name: p.source_name || '',
         content: (p.content || '').trim(), memo: (p.memo || '').trim(),
         ...ruleCurrency(p),
-        start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
+        start_date: r.start_date || p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
       }).select().single());
       recurring_id = rule.id;
       unwrap(await supabase.from('transactions').update({ recurring_id }).eq('id', tx.id));
@@ -713,7 +713,7 @@ export const db = {
           source_id: p.source_id || null, source_name: p.source_name || '',
           content: (p.content || '').trim(), memo: (p.memo || '').trim(),
           ...ruleCurrency(p),
-          start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
+          start_date: r.start_date || p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
         }).select().single());
         recurring_id = rule.id;
         if (existing.tx_id) unwrap(await supabase.from('transactions').update({ recurring_id }).eq('id', existing.tx_id));
@@ -781,7 +781,7 @@ export const db = {
         deposit_source_name: p.deposit_source_name || '',
         content: (p.content || '').trim(), memo: (p.memo || '').trim(),
         ...ruleCurrency(p),
-        start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
+        start_date: r.start_date || p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
       }).select().single());
       const dep = unwrap(await supabase.from('subscription_deposits').update({ recurring_id: rule.id }).eq('id', depId).select('leader_tx_id, member_tx_id').single());
       const txIds = [dep.leader_tx_id, dep.member_tx_id].filter(Boolean);
@@ -808,7 +808,7 @@ export const db = {
           deposit_source_name: p.deposit_source_name || '',
           content: (p.content || '').trim(), memo: (p.memo || '').trim(),
           ...ruleCurrency(p),
-          start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
+          start_date: r.start_date || p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
         }).select().single());
         recurring_id = rule.id;
         const txIds = [existing.leader_tx_id, existing.member_tx_id].filter(Boolean);

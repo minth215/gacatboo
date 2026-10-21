@@ -879,8 +879,8 @@ const TransactionForm = forwardRef(function TransactionForm({
     const recurrence = (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, date) : null;
     // 과거 날짜로 반복을 새로 걸면, 그동안 밀린 회차를 한 번에 생성할지 물어봄
     let backfillPast = false;
-    if (recurrence && date < today()) {
-      const n = countDueDates(recurrence, date, today());
+    if (recurrence && (recurrence.start_date || date) < today()) {
+      const n = countDueDates(recurrence, recurrence.start_date || date, today());
       if (n > 0) backfillPast = await askBackfill(n);
     }
 

@@ -1613,8 +1613,8 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
       let recurrence = null, backfillPast = false;
       if ((isLeaderSettlement || rows.length === 1) && !recurringId && pendingRecurrence) {
         recurrence = resolveRecurrence(pendingRecurrence, f.date);
-        if (recurrence && f.date < today()) {
-          const n = countDueDates(recurrence, f.date, today());
+        if (recurrence && (recurrence.start_date || f.date) < today()) {
+          const n = countDueDates(recurrence, recurrence.start_date || f.date, today());
           if (n > 0) backfillPast = await askBackfill(n);
         }
       }
@@ -1697,8 +1697,8 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
       let recurrence = null, backfillPast = false;
       if (rows.length === 1 && !recurringId && pendingRecurrence) {
         recurrence = resolveRecurrence(pendingRecurrence, f.date);
-        if (recurrence && f.date < today()) {
-          const n = countDueDates(recurrence, f.date, today());
+        if (recurrence && (recurrence.start_date || f.date) < today()) {
+          const n = countDueDates(recurrence, recurrence.start_date || f.date, today());
           if (n > 0) backfillPast = await askBackfill(n);
         }
       }
@@ -1758,8 +1758,8 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     const recurrence = (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, f.date) : null;
     // 과거 날짜로 반복을 새로 걸면, 그동안 밀린 회차를 한 번에 생성할지 물어봄
     let backfillPast = false;
-    if (recurrence && f.date < today()) {
-      const n = countDueDates(recurrence, f.date, today());
+    if (recurrence && (recurrence.start_date || f.date) < today()) {
+      const n = countDueDates(recurrence, recurrence.start_date || f.date, today());
       if (n > 0) backfillPast = await askBackfill(n);
     }
 

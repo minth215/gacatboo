@@ -32,6 +32,22 @@ const UNIT_LABEL = { day: '일', week: '주', month: '개월', year: '년' };
 // { preset: 'custom', interval, unit, weekdays, business_day_rule? }
 // dateStr: 기록 페이지에 최종 입력된 날짜('YYYY-MM-DD') — 매주/격주의 기준 요일 계산에 사용.
 export function resolveRecurrence(pending, dateStr) {
+  const r = resolveRecurrenceBase(pending, dateStr);
+  if (!r) return r;
+  // 반복 등록 모달에서 반복 날짜(일/월)를 기록 날짜와 다르게 지정한 경우: 규칙의 시작일만 그 날짜로
+  // (같은 해·같은 달 기준, 그 달 말일 초과는 말일로). 기록 날짜 자체는 바뀌지 않는다.
+  if ((r.freq_unit === 'month' && pending.day) || (r.freq_unit === 'year' && (pending.day || pending.month))) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const mm = r.freq_unit === 'year' ? (Number(pending.month) || m) : m;
+    const last = new Date(y, mm, 0).getDate();
+    const dd = Math.min(Math.max(1, Number(pending.day) || d), last);
+    const start = `${y}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+    if (start !== dateStr) r.start_date = start;
+  }
+  return r;
+}
+
+function resolveRecurrenceBase(pending, dateStr) {
   if (!pending) return null;
   const dow = weekdayOf(dateStr);
   const bdr = pending.business_day_rule || 'none'; // 일/주 반복에는 의미 없지만 그대로 넣어도 서버에서 무시됨

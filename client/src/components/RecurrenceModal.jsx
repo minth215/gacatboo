@@ -40,6 +40,11 @@ export default function RecurrenceModal({ onClose, onSelect, date }) {
   const [unit, setUnit] = useState('month');
   const [weekdays, setWeekdays] = useState([dow]);
   const [businessDayRule, setBusinessDayRule] = useState('none');
+  // 반복 날짜(월 반복의 일자, 연 반복의 월·일): 기본은 기록 날짜. 바꿔도 기록 날짜는 그대로이고
+  // 반복 규칙의 기준일만 바뀐다.
+  const [dm, dd] = (date || '').split('-').slice(1).map(Number);
+  const [day, setDay] = useState(String(dd || new Date().getDate()));
+  const [month, setMonth] = useState(String(dm || new Date().getMonth() + 1));
 
   const effectiveUnit = preset === 'custom' ? unit : PRESET_UNIT[preset];
   const showWeekdays = preset === 'weekly' || preset === 'biweekly' || (preset === 'custom' && unit === 'week');
@@ -52,10 +57,13 @@ export default function RecurrenceModal({ onClose, onSelect, date }) {
 
   const confirm = () => {
     const bdr = showBusinessDay ? businessDayRule : 'none';
+    const clamp = (v, max) => String(Math.min(max, Math.max(1, Number(v) || 1)));
+    const datePart = effectiveUnit === 'month' ? { day: clamp(day, 31) }
+      : effectiveUnit === 'year' ? { month: clamp(month, 12), day: clamp(day, 31) } : {};
     if (preset === 'custom') {
-      onSelect({ preset: 'custom', interval: Math.max(1, Number(interval) || 1), unit, weekdays: unit === 'week' ? weekdays : [], business_day_rule: bdr });
+      onSelect({ preset: 'custom', interval: Math.max(1, Number(interval) || 1), unit, weekdays: unit === 'week' ? weekdays : [], business_day_rule: bdr, ...datePart });
     } else {
-      onSelect({ preset, ...(showWeekdays ? { weekdays } : {}), business_day_rule: bdr });
+      onSelect({ preset, ...(showWeekdays ? { weekdays } : {}), business_day_rule: bdr, ...datePart });
     }
   };
 
@@ -81,6 +89,20 @@ export default function RecurrenceModal({ onClose, onSelect, date }) {
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                   <BareNumber value={interval} onChange={setIntervalVal} />
                   <BareSelect value={unit} options={UNIT_OPTIONS} onChange={setUnit} />
+                </span>
+              )}
+              {effectiveUnit === 'month' && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                  <BareNumber value={day} onChange={setDay} />
+                  <span style={{ fontSize: 13.25, color: '#191722' }}>일</span>
+                </span>
+              )}
+              {effectiveUnit === 'year' && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                  <BareNumber value={month} onChange={setMonth} />
+                  <span style={{ fontSize: 13.25, color: '#191722' }}>월</span>
+                  <BareNumber value={day} onChange={setDay} />
+                  <span style={{ fontSize: 13.25, color: '#191722' }}>일</span>
                 </span>
               )}
             </span>
