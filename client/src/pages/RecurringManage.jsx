@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtNum, dotDate } from '../lib/format.js';
+import { fmtNum, fmtForeign, dotDate } from '../lib/format.js';
 import { describeRule, periodDetailLabel, BUSINESS_DAY_LABELS } from '../lib/recurrence.js';
 import PageHeader from '../components/PageHeader.jsx';
 import RecurrenceModal from '../components/RecurrenceModal.jsx';
@@ -91,8 +91,12 @@ export default function RecurringManage() {
                   </div>
                   <div className="tx-row-sub">{periodDetailLabel(r)}</div>
                 </div>
-                <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: dispType === 'income' ? '#2CDDB9' : dispType === 'transfer' ? '#4b4752' : '#FF4358' }}>
-                  {dispType === 'transfer' ? '' : (dispType === 'income' ? '+' : '-')}{fmtNum(r.amount)}
+                {/* 보조 화폐로 입력한 반복이면 가계부 카드처럼 보조 화폐 금액 + 아래 작은 원화 금액 */}
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flex: 'none' }}>
+                  <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: dispType === 'income' ? '#2CDDB9' : dispType === 'transfer' ? '#4b4752' : '#FF4358' }}>
+                    {dispType === 'transfer' ? '' : (dispType === 'income' ? '+' : '-')}{r.input_currency ? fmtForeign(r.input_amount, r.input_currency) : fmtNum(r.amount)}
+                  </span>
+                  {r.input_currency && <span style={{ fontSize: 10.5, color: '#a29ead', marginTop: 1 }}>₩{fmtNum(r.amount)}</span>}
                 </span>
               </DayCardRow>
             </div>
@@ -127,8 +131,11 @@ export default function RecurringManage() {
                   <div className="tx-row-title"><span className="ttext">{detail.content || dispName || (dispType === 'income' ? '수입' : dispType === 'transfer' ? '이체' : '지출')}</span></div>
                   <div className="tx-row-sub">{sub}</div>
                 </div>
-                <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: dispType === 'income' ? 'var(--income)' : dispType === 'transfer' ? '#8b8798' : 'var(--expense)' }}>
-                  {dispType === 'income' ? '+' : dispType === 'transfer' ? '' : '-'}{fmtNum(detail.amount)}
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flex: 'none' }}>
+                  <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: dispType === 'income' ? 'var(--income)' : dispType === 'transfer' ? '#8b8798' : 'var(--expense)' }}>
+                    {dispType === 'income' ? '+' : dispType === 'transfer' ? '' : '-'}{detail.input_currency ? fmtForeign(detail.input_amount, detail.input_currency) : fmtNum(detail.amount)}
+                  </span>
+                  {detail.input_currency && <span style={{ fontSize: 10.5, color: '#a29ead', marginTop: 1 }}>₩{fmtNum(detail.amount)}</span>}
                 </span>
               </div>
 

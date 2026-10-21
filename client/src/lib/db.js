@@ -58,6 +58,13 @@ function settlementAllocations(r) {
   return { allocs, extra: Math.max(0, left) };
 }
 
+// 반복 규칙에 보관할 보조 화폐 정보(그룹 결제/입금 규칙 생성 시 공용)
+function ruleCurrency(p) {
+  return p?.input_currency
+    ? { input_currency: p.input_currency, input_amount: p.input_amount ?? null, fx_rate: p.fx_rate ?? null }
+    : {};
+}
+
 export const db = {
   // ---------- 분류 ----------
   async listCategories(type) {
@@ -394,6 +401,10 @@ export const db = {
         source_id: base.source_id, source_name: base.source_name,
         ...(payload.type === 'transfer' ? { to_source_id: base.to_source_id, to_source_name: base.to_source_name } : {}),
         content: base.content, memo: base.memo,
+        // 보조 화폐 입력·항목도 규칙에 보관(반복 관리 카드 표시 + 자동 기록에 그대로 반영 — 0064).
+        // 정산 대상이 담긴 항목은 회차마다 같은 정산이 반복되면 안 되므로 제외.
+        ...(base.input_currency ? { input_currency: base.input_currency, input_amount: base.input_amount, fx_rate: base.fx_rate } : {}),
+        ...((Array.isArray(base.items) && base.items.length && !base.items.some((it) => it?.targetId != null)) ? { items: base.items } : {}),
         start_date: payload.date,
         freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
       }).select().single());
@@ -661,6 +672,7 @@ export const db = {
         category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
         source_id: p.source_id || null, source_name: p.source_name || '',
         content: (p.content || '').trim(), memo: (p.memo || '').trim(),
+        ...ruleCurrency(p),
         start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
       }).select().single());
       recurring_id = rule.id;
@@ -694,6 +706,7 @@ export const db = {
           category_name: p.category_name || '구독', category_emoji: p.category_emoji || '',
           source_id: p.source_id || null, source_name: p.source_name || '',
           content: (p.content || '').trim(), memo: (p.memo || '').trim(),
+          ...ruleCurrency(p),
           start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
         }).select().single());
         recurring_id = rule.id;
@@ -761,6 +774,7 @@ export const db = {
         leader_category_name: p.leader_category_name || '', leader_category_emoji: p.leader_category_emoji || '',
         deposit_source_name: p.deposit_source_name || '',
         content: (p.content || '').trim(), memo: (p.memo || '').trim(),
+        ...ruleCurrency(p),
         start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
       }).select().single());
       const dep = unwrap(await supabase.from('subscription_deposits').update({ recurring_id: rule.id }).eq('id', depId).select('leader_tx_id, member_tx_id').single());
@@ -787,6 +801,7 @@ export const db = {
           leader_category_name: p.leader_category_name || '', leader_category_emoji: p.leader_category_emoji || '',
           deposit_source_name: p.deposit_source_name || '',
           content: (p.content || '').trim(), memo: (p.memo || '').trim(),
+          ...ruleCurrency(p),
           start_date: p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
         }).select().single());
         recurring_id = rule.id;
