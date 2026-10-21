@@ -26,6 +26,17 @@ export default function RecurringManage() {
   const [detail, setDetail] = useState(null);
   const [saving, setSaving] = useState(false);
   const [openId, setOpenId] = useState(null); // 스와이프로 열린 카드(한 번에 하나)
+  // 상단바 검색: 내용·분류·원천·반복 주기 글자로 카드 걸러 보기
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const subLineOf = (r) => {
+    const { dispName, dispSource } = viewOf(r, user.id);
+    return [dispName, dispSource, periodDetailLabel(r)].filter(Boolean).join(' · ');
+  };
+  const term = q.trim().toLowerCase();
+  const shownRules = term
+    ? rules.filter((r) => [r.content, subLineOf(r), r.group_name].filter(Boolean).join(' ').toLowerCase().includes(term))
+    : rules;
 
   const load = useCallback(() => db.listRecurringRules().then(setRules).catch((e) => alert(e.message)), []);
   useEffect(() => { load(); }, [load]);
@@ -76,12 +87,35 @@ export default function RecurringManage() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title="반복 관리" flat />
+      <PageHeader
+        flat
+        title={searchOpen ? (
+          <input
+            autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="검색어 입력" type="text" enterKeyHint="search"
+            onKeyDown={(e) => { if (e.key === 'Escape') { setSearchOpen(false); setQ(''); } }}
+            style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 15, fontWeight: 500, color: '#191722', padding: 0, letterSpacing: 0 }}
+          />
+        ) : '반복 관리'}
+        right={(
+          <button
+            type="button" className="tb-icon-btn" aria-label={searchOpen ? '검색 닫기' : '검색'}
+            onClick={() => { if (searchOpen) { setSearchOpen(false); setQ(''); } else setSearchOpen(true); }}
+          >
+            {searchOpen ? (
+              <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+            ) : (
+              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="16.2" y1="16.2" x2="21" y2="21" /></svg>
+            )}
+          </button>
+        )}
+      />
 
-      {rules.length === 0 ? (
+      {term && shownRules.length === 0 ? (
+        <div className="empty empty-center">검색 결과가 없습니다.</div>
+      ) : rules.length === 0 ? (
         <div className="empty empty-center">등록된 반복 항목이 없습니다.</div>
       ) : (
-        rules.map((r, i) => {
+        shownRules.map((r, i) => {
           const { dispType, dispName, dispEmoji } = viewOf(r, user.id);
           return (
             <div key={r.id} className="tx-daygroup" style={{ marginTop: i === 0 ? 14 : 10 }}>
@@ -98,7 +132,7 @@ export default function RecurringManage() {
                   <div className="tx-row-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span className="ttext">{r.content || dispName || (dispType === 'income' ? '수입' : dispType === 'transfer' ? '이체' : '지출')}</span>
                   </div>
-                  <div className="tx-row-sub">{periodDetailLabel(r)}</div>
+                  <div className="tx-row-sub">{subLineOf(r)}</div>
                 </div>
                 {/* 보조 화폐로 입력한 반복이면 가계부 카드처럼 보조 화폐 금액 + 아래 작은 원화 금액 */}
                 <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flex: 'none' }}>
