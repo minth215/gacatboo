@@ -103,7 +103,8 @@ export default function GroupCreate() {
         } catch (e) { memberErrors.push(`${cm.nickname}: ${e.message}`); }
       }
       if (memberErrors.length) alert('일부 멤버를 추가하지 못했습니다.\n' + memberErrors.join('\n'));
-      nav(`/groups/${g.id}`);
+      // 생성 화면을 상세 화면으로 바꿔치기(replace) — 상세에서 "<"를 누르면 그룹 목록으로 돌아감
+      nav(`/groups/${g.id}`, { replace: true });
     } catch (e) {
       setError(e.message);
       setBusy(false);
