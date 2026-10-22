@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -39,6 +39,7 @@ export default function GroupCreate() {
 
   // 스텝 3: 멤버 추가
   const [friendQuery, setFriendQuery] = useState('');
+  const chipsRef = useRef(null);
   const [selectedFriendIds, setSelectedFriendIds] = useState([]);
   const [customMembers, setCustomMembers] = useState([]); // [{ nickname, username }]
   const [addingCustom, setAddingCustom] = useState(false);
@@ -139,6 +140,14 @@ export default function GroupCreate() {
     ...selectedFriendIds.map((id) => ({ key: `f${id}`, name: friends.find((f) => f.id === id)?.nickname || '', onRemove: () => removeFriend(id) })),
     ...customMembers.map((m, idx) => ({ key: `c${idx}`, name: m.nickname, onRemove: () => removeCustom(idx) })),
   ];
+
+  // 멤버를 새로 추가하면 선택 목록을 오른쪽 끝(방금 추가한 멤버)으로 스크롤
+  const chipCountRef = useRef(0);
+  useEffect(() => {
+    const el = chipsRef.current;
+    if (el && selectedChips.length > chipCountRef.current) el.scrollTo({ left: el.scrollWidth, behavior: 'smooth' });
+    chipCountRef.current = selectedChips.length;
+  }, [selectedChips.length]);
 
   return (
     <div style={{ padding: '44px 0 12px', minHeight: 'calc(100vh - 44px)', display: 'flex', flexDirection: 'column' }}>
@@ -308,9 +317,10 @@ export default function GroupCreate() {
         {step === 3 && (
           <div>
             {selectedChips.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 14 }}>
+              // 선택한 멤버는 한 줄로 고정하고 좌우로 스크롤(새로 추가하면 끝으로 자동 스크롤)
+              <div ref={chipsRef} className="hscroll-chips" style={{ display: 'flex', flexWrap: 'nowrap', gap: 7, marginBottom: 14, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                 {selectedChips.map((chip) => (
-                  <span key={chip.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 8px 7px 12px', background: '#f4f2f0', borderRadius: 999, fontSize: 12, fontWeight: 700, color: '#191722' }}>
+                  <span key={chip.key} style={{ flex: 'none', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 8px 7px 12px', background: '#f4f2f0', borderRadius: 999, fontSize: 12, fontWeight: 700, color: '#191722' }}>
                     {chip.name}
                     <button aria-label="제거" onClick={chip.onRemove} style={{ width: 17, height: 17, borderRadius: '50%', border: 'none', background: 'rgba(25,23,34,.08)', color: '#6c6779', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flex: 'none' }}>
                       <svg width="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>

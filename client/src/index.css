@@ -740,3 +740,5 @@ a { color: inherit; text-decoration: none; }
 .lt-search input[type="search"] { -webkit-appearance: none; appearance: none; outline: none; }
 .lt-search input[type="search"]::-webkit-search-cancel-button,
 .lt-search input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; display: none; }
+.hscroll-chips { scrollbar-width: none; }
+.hscroll-chips::-webkit-scrollbar { display: none; }
