@@ -20,6 +20,7 @@ export default function GroupCreate() {
   const [groupCats, setGroupCats] = useState([]);
   const [sources, setSources] = useState({ tree: [], flat: [] });
   const [friends, setFriends] = useState([]);
+  const [friendGroups, setFriendGroups] = useState([]); // 친구 관리의 친구 분류(카테고리)
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -55,6 +56,7 @@ export default function GroupCreate() {
       if (primary) setDepositSourceId(String(primary.id));
     }).catch(() => {});
     db.listFriends().then(setFriends).catch(() => {});
+    db.listFriendGroups().then(setFriendGroups).catch(() => {});
   }, []);
 
   const step1Invalid = !name.trim() || !category;
@@ -119,6 +121,20 @@ export default function GroupCreate() {
 
   const q = friendQuery.trim().toLowerCase();
   const filteredFriends = friends.filter((f) => !q || f.nickname.toLowerCase().includes(q));
+  // 친구 관리 페이지와 같은 구성·순서: 친구 분류 순서대로, 분류 안에서는 닉네임 가나다순, 마지막에 미분류.
+  // 검색 중에는 일치하는 친구가 있는 분류만 보인다.
+  const friendSections = (() => {
+    const byName = (a, b) => a.nickname.localeCompare(b.nickname, 'ko');
+    const byGroup = new Map(friendGroups.map((g) => [g.id, []]));
+    const ungrouped = [];
+    for (const f of filteredFriends) {
+      if (f.group_id && byGroup.has(f.group_id)) byGroup.get(f.group_id).push(f);
+      else ungrouped.push(f);
+    }
+    const list = friendGroups.map((g) => ({ group: g, items: byGroup.get(g.id).sort(byName) })).filter((x) => x.items.length);
+    if (ungrouped.length) list.push({ group: null, items: ungrouped.sort(byName) });
+    return list;
+  })();
   const selectedChips = [
     ...selectedFriendIds.map((id) => ({ key: `f${id}`, name: friends.find((f) => f.id === id)?.nickname || '', onRemove: () => removeFriend(id) })),
     ...customMembers.map((m, idx) => ({ key: `c${idx}`, name: m.nickname, onRemove: () => removeCustom(idx) })),
@@ -312,8 +328,17 @@ export default function GroupCreate() {
               />
             </div>
 
-            <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden', marginBottom: 16 }}>
-              {filteredFriends.map((f, i) => {
+            {friendSections.length === 0 ? (
+              <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', marginBottom: 16, padding: '20px 14px', textAlign: 'center', fontSize: 12.5, color: '#a29ead' }}>
+                {friends.length ? '검색 결과가 없어요' : '등록된 친구가 없어요'}
+              </div>
+            ) : friendSections.map(({ group, items }) => (
+              <div key={group?.id ?? '_ungrouped'} style={{ marginBottom: 16 }}>
+                <div style={{ padding: '0 8px 0 18px', marginBottom: 8, fontSize: 13, fontWeight: 700, color: group ? '#191722' : '#a29ead' }}>
+                  {group ? group.name : '미분류'}
+                </div>
+                <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
+                  {items.map((f, i) => {
                 const selected = selectedFriendIds.includes(f.id);
                 return (
                   <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5' }}>
@@ -332,11 +357,10 @@ export default function GroupCreate() {
                     </button>
                   </div>
                 );
-              })}
-              {filteredFriends.length === 0 && (
-                <div style={{ padding: '20px 14px', textAlign: 'center', fontSize: 12.5, color: '#a29ead' }}>검색 결과가 없어요</div>
-              )}
-            </div>
+                  })}
+                </div>
+              </div>
+            ))}
 
             <button
               type="button" onClick={openAddCustom}
