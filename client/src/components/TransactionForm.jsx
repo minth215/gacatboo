@@ -667,7 +667,10 @@ const TransactionForm = forwardRef(function TransactionForm({
     const saved = tabStashRef.current[next];
     setType(next);
     setCategoryId(saved?.categoryId ?? '');
-    setSourceId(saved?.sourceId ?? '');
+    // 처음 들어가는 수입/지출 탭은 원천 관리에서 지정한 주입금수단/주결제수단으로(수정 화면 포함)
+    const primaryKey = next === 'income' ? 'is_primary_deposit' : next === 'expense' ? 'is_primary_payment' : null;
+    const primary = !saved && primaryKey ? sourcesFlat.find((x) => x[primaryKey]) : null;
+    setSourceId(saved?.sourceId ?? (primary ? String(primary.id) : ''));
     setExcludePerformance(saved?.excludePerformance ?? false);
   };
   // 카드 실적 포함/제외: 고른 원천이 "신용카드"·"체크카드" 원천 그룹(또는 그 하위)일 때만 선택(기본 포함)
@@ -850,7 +853,7 @@ const TransactionForm = forwardRef(function TransactionForm({
     if (!isTransfer && !fixedSourceName && !sourceId) return promptRequiredSelect(sourceSelectRef, '원천을 선택해 주세요');
     if (isTransfer && !items[0]?.fromSourceId) return promptRequiredSelect('transfer-from-source-select', '출금 수단을 선택해 주세요');
     if (isTransfer && !items[0]?.toSourceId) return promptRequiredSelect('transfer-to-source-select', '입금 수단을 선택해 주세요');
-    if (isTransfer && items[0].fromSourceId === items[0].toSourceId) return setError('출금/입금 원천이 같을 수 없습니다.');
+    if (isTransfer && items[0].fromSourceId === items[0].toSourceId) { showToast('입금 수단과 출금 수단이 동일합니다'); return; }
     if (transferMembers && !transferMemberId) return setError('멤버를 선택하세요.');
     if (isTransfer && feeEnabled && !(Number(feeAmount) > 0)) return setError('수수료 금액을 입력하세요.');
     const aggregateSplit = showMemberSplit ? (() => {
