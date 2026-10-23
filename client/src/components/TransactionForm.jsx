@@ -162,6 +162,14 @@ export function ClearButton({ onClear }) {
 
 // 영수증형 항목 입력 행 한 줄(내용/수량(또는 회차)/금액 [+정산 그룹이면 참여 멤버 펼치기]).
 // 이체(isTransfer)일 때는 항목명 칸 대신 출금/입금 원천 셀렉트 두 개 + 화살표를 두고, 수량 칸은 없다.
+// 이체 출금/입금 수단 목록: 특성(group_type)이 제외 대상인 원천 그룹은 빼되(출금: 신용카드, 입금: 신용카드·
+// 체크카드), 이미 선택돼 있는 값이 그 그룹에 속하면(예전 기록 수정) 그 그룹은 남겨 둔다.
+function transferSources(tree, excludeTypes, selectedId) {
+  return (tree || []).filter((top) => !excludeTypes.includes(top.group_type)
+    || String(top.id) === String(selectedId)
+    || (top.children || []).some((c) => String(c.id) === String(selectedId)));
+}
+
 function ItemRow({
   item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, itemNameSuggestions, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource,
   isSettlement, recentExpenses, onTarget, usedTargetIds,
@@ -183,7 +191,7 @@ function ItemRow({
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
             <select id="transfer-from-source-select" value={item.fromSourceId} onChange={(e) => onFromSource(e.target.value)} style={sourceSelectStyle}>
               <option value="">출금 수단 선택</option>
-              {sources.map((top) => (
+              {transferSources(sources, ['credit'], item.fromSourceId).map((top) => (
                 top.children?.length ? (
                   <optgroup key={top.id} label={top.name}>
                     <option value={top.id}>{top.name} (전체)</option>
@@ -197,7 +205,7 @@ function ItemRow({
             <span style={{ flex: 'none', color: '#c7c3cc', display: 'flex' }}><ArrowRightIcon /></span>
             <select id="transfer-to-source-select" value={item.toSourceId} onChange={(e) => onToSource(e.target.value)} style={sourceSelectStyle}>
               <option value="">입금 수단 선택</option>
-              {sources.map((top) => (
+              {transferSources(sources, ['credit', 'check'], item.toSourceId).map((top) => (
                 top.children?.length ? (
                   <optgroup key={top.id} label={top.name}>
                     <option value={top.id}>{top.name} (전체)</option>
