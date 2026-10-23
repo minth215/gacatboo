@@ -1882,7 +1882,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
           )}
         </div>
 
-        <div style={rowStyle}>
+        <div style={{ ...rowStyle, alignItems: showMemberPerf ? 'baseline' : 'center' }}>
           <span style={rowLabelStyle}>원천</span>
           {isOwner ? (
             <SourceSelect sources={sources.tree} excludeTypes={['credit', 'check']} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lSourceId ? 600 : 400, color: f.lSourceId ? '#191722' : '#a29ead' }} />
@@ -1891,13 +1891,12 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
               <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.mSourceId ? 600 : 400, color: f.mSourceId ? '#191722' : '#a29ead' }} />
               {/* 신용카드·체크카드 원천이면 같은 줄 오른쪽에 실적 포함/제외(라벨 없음, 개인 기록 폼과 동일) */}
               {showMemberPerf && (
-                <select
-                  value={memberExcludePerf ? 'exclude' : 'include'} onChange={(e) => setMemberExcludePerf(e.target.value === 'exclude')} aria-label="카드 실적"
-                  style={{ ...rowInputStyle, flex: 'none', width: 'auto', appearance: 'none', textAlignLast: 'right', color: memberExcludePerf ? '#FF4358' : '#191722' }}
-                >
-                  <option value="include">실적 포함</option>
-                  <option value="exclude">실적 제외</option>
-                </select>
+                <button
+                type="button" onClick={() => setMemberExcludePerf((v) => !v)} aria-label="카드 실적 포함/제외 전환"
+                style={{ flex: 'none', border: 'none', background: 'transparent', padding: 0, margin: 0, fontFamily: 'inherit', fontSize: 11, fontWeight: 400, color: '#a29ead', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                {memberExcludePerf ? '실적 제외' : '실적 포함'}
+              </button>
               )}
             </>
           )}
