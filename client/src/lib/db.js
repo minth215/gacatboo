@@ -398,6 +398,8 @@ export const db = {
       input_currency: payload.input_currency || '',
       input_amount: payload.input_currency ? payload.input_amount ?? null : null,
       fx_rate: payload.input_currency ? payload.fx_rate ?? null : null,
+      // 카드 실적 제외(0068) — 폼이 값을 보낼 때만 저장
+      ...(payload.exclude_performance !== undefined ? { exclude_performance: !!payload.exclude_performance } : {}),
     };
 
     // 반복 설정을 새로 켠 경우: 규칙을 먼저 만들고 이 거래에 연결(규칙의 시작일 = 이 거래의 날짜)
@@ -661,6 +663,7 @@ export const db = {
     // 항목·보조 화폐 정보(개인 기록과 동일한 칸) — 결제와 미러 거래 양쪽에 같이 저장
     const extra = {
       items: p.items ?? null,
+      ...(p.exclude_performance !== undefined ? { exclude_performance: !!p.exclude_performance } : {}),
       input_currency: p.input_currency || '', input_amount: p.input_currency ? (p.input_amount ?? null) : null, fx_rate: p.input_currency ? (p.fx_rate ?? null) : null,
     };
     const tx = unwrap(await supabase.from('transactions').insert({
@@ -732,6 +735,7 @@ export const db = {
       ...(p.input_currency !== undefined ? {
         input_currency: p.input_currency || '', input_amount: p.input_currency ? (p.input_amount ?? null) : null, fx_rate: p.input_currency ? (p.fx_rate ?? null) : null,
       } : {}),
+      ...(p.exclude_performance !== undefined ? { exclude_performance: !!p.exclude_performance } : {}),
       ...(recurring_id ? { recurring_id } : {}),
     };
     const saved = unwrap(await supabase.from('subscription_payments').update(patch).eq('id', id).select().single());
@@ -766,9 +770,10 @@ export const db = {
     });
     if (error) throw new Error(error.message);
     // 보조 화폐로 입력한 입금: 화폐 정보를 저장(동기화 트리거가 총대/멤버 미러 거래에도 반영 — 0063)
-    if (p.input_currency) {
+    if (p.input_currency || p.exclude_performance) {
       unwrap(await supabase.from('subscription_deposits').update({
-        input_currency: p.input_currency, input_amount: p.input_amount ?? null, fx_rate: p.fx_rate ?? null,
+        ...(p.input_currency ? { input_currency: p.input_currency, input_amount: p.input_amount ?? null, fx_rate: p.fx_rate ?? null } : {}),
+        ...(p.exclude_performance ? { exclude_performance: true } : {}),
       }).eq('id', depId));
     }
 
@@ -831,6 +836,7 @@ export const db = {
       ...(p.input_currency !== undefined ? {
         input_currency: p.input_currency || '', input_amount: p.input_currency ? (p.input_amount ?? null) : null, fx_rate: p.input_currency ? (p.fx_rate ?? null) : null,
       } : {}),
+      ...(p.exclude_performance !== undefined ? { exclude_performance: !!p.exclude_performance } : {}),
       ...(recurring_id ? { recurring_id } : {}),
     };
     const saved = unwrap(await supabase.from('subscription_deposits').update(patch).eq('id', id).select().single());

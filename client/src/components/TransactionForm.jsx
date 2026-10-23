@@ -658,6 +658,10 @@ const TransactionForm = forwardRef(function TransactionForm({
     updateItem(idx, { targetId: value, ...(x ? { amount: String(x.amount) } : {}) });
   };
   const isTransfer = type === 'transfer';
+  // 카드 실적 포함/제외: 고른 원천이 "신용카드"·"체크카드" 원천 그룹(또는 그 하위)일 때만 선택(기본 포함)
+  const [excludePerformance, setExcludePerformance] = useState(!!initial?.exclude_performance);
+  const selectedSourceTop = sources.find((top) => String(top.id) === String(sourceId) || (top.children || []).some((c) => String(c.id) === String(sourceId)));
+  const showPerformance = !isTransfer && !fixedSourceName && (selectedSourceTop?.group_type === 'credit' || selectedSourceTop?.group_type === 'check');
   const transferFromName = sourcesFlat.find((s) => String(s.id) === items[0]?.fromSourceId)?.name || '';
   const transferToName = sourcesFlat.find((s) => String(s.id) === items[0]?.toSourceId)?.name || '';
 
@@ -936,6 +940,8 @@ const TransactionForm = forwardRef(function TransactionForm({
       } : {}),
       ...(aggregateSplit ? { aggregateSplit } : {}),
       ...(transferMembers ? { transferMemberId } : {}),
+      // 카드 실적 제외 여부(카드 원천일 때만 의미. 예전에 제외였던 기록을 카드 아닌 원천으로 바꾸면 해제)
+      ...((showPerformance || initial?.exclude_performance) ? { exclude_performance: showPerformance && excludePerformance } : {}),
     };
     try {
       if (onSubmit) await onSubmit(payload);
@@ -1116,6 +1122,17 @@ const TransactionForm = forwardRef(function TransactionForm({
               ))}
               <option value="__edit__">편집</option>
             </select>
+            {/* 신용카드·체크카드 원천이면 같은 줄 오른쪽에 실적 포함/제외(라벨 없음) */}
+            {showPerformance && (
+              <select
+                value={excludePerformance ? 'exclude' : 'include'} onChange={(e) => setExcludePerformance(e.target.value === 'exclude')}
+                aria-label="카드 실적"
+                style={{ ...rowInputStyle, flex: 'none', width: 'auto', appearance: 'none', textAlignLast: 'right', color: excludePerformance ? '#FF4358' : '#191722' }}
+              >
+                <option value="include">실적 포함</option>
+                <option value="exclude">실적 제외</option>
+              </select>
+            )}
           </div>
         )}
 

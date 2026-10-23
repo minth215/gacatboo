@@ -1325,7 +1325,8 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     memo: preset?.memo || '',
   });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
-  const [amountMeta, setAmountMeta] = useState(recordMeta); // 단일 금액 칸(멤버의 정산 입금 등)의 보조 화폐 정보
+  const [amountMeta, setAmountMeta] = useState(recordMeta);
+  const [memberExcludePerf, setMemberExcludePerf] = useState(!!initial?.exclude_performance); // 단일 금액 칸(멤버의 정산 입금 등)의 보조 화폐 정보
   const [amountLiveCurrency, setAmountLiveCurrency] = useState(recordMeta?.input_currency || 'KRW');
   const [deleteBusy, setDeleteBusy] = useState(false);
   const handleDelete = async () => {
@@ -1598,6 +1599,10 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   const rankedContentSuggestions = contentSuggestOpen ? rankSuggestions(contentSuggestions, f.content) : [];
 
   const r0Meta = (rows) => rows[0]?.currencyMeta || null;
+  // 멤버 본인 지출 쪽 카드 실적 포함/제외(멤버가 입력할 때만 보임 — 총무는 멤버 쪽 원천을 고르지 않음)
+  const memberSourceTop = sources.tree.find((top) => String(top.id) === String(f.mSourceId) || (top.children || []).some((c) => String(c.id) === String(f.mSourceId)));
+  const showMemberPerf = !isOwner && (memberSourceTop?.group_type === 'credit' || memberSourceTop?.group_type === 'check');
+  const perfPayload = (!isOwner && (showMemberPerf || initial?.exclude_performance)) ? { exclude_performance: showMemberPerf && memberExcludePerf } : {};
   const submit = async () => {
     if (!f.memberId) return setErr('멤버를 선택하세요.');
     // 필수 항목 확인(개인 기록 폼과 동일한 순서: 내용 → 분류 → 원천)
@@ -1725,6 +1730,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
             leader_settlement_target_id: target ? Number(r.targetId) : (!isOwner && editing ? (initial.leader_settlement_target_id || null) : null),
             content: contentOverride || (isLeaderSettlement ? multiAutoContent : ''), memo: f.memo,
             ...metaPayload(r.currencyMeta),
+            ...perfPayload,
             recurrence, backfillPast,
           });
         }
@@ -1778,6 +1784,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
         leader_category_name: l_name, leader_category_emoji: l_emoji, leader_settlement_target_id: l_settle,
         content: f.content.trim() || (isSettleMode ? settleContentDefault : f.content), memo: f.memo,
         ...metaPayload(amountMeta),
+        ...perfPayload,
         recurrence, backfillPast,
       });
       onSaved?.();
@@ -1880,7 +1887,19 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
           {isOwner ? (
             <SourceSelect sources={sources.tree} excludeTypes={['credit', 'check']} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lSourceId ? 600 : 400, color: f.lSourceId ? '#191722' : '#a29ead' }} />
           ) : (
-            <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.mSourceId ? 600 : 400, color: f.mSourceId ? '#191722' : '#a29ead' }} />
+            <>
+              <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.mSourceId ? 600 : 400, color: f.mSourceId ? '#191722' : '#a29ead' }} />
+              {/* 신용카드·체크카드 원천이면 같은 줄 오른쪽에 실적 포함/제외(라벨 없음, 개인 기록 폼과 동일) */}
+              {showMemberPerf && (
+                <select
+                  value={memberExcludePerf ? 'exclude' : 'include'} onChange={(e) => setMemberExcludePerf(e.target.value === 'exclude')} aria-label="카드 실적"
+                  style={{ ...rowInputStyle, flex: 'none', width: 'auto', appearance: 'none', textAlignLast: 'right', color: memberExcludePerf ? '#FF4358' : '#191722' }}
+                >
+                  <option value="include">실적 포함</option>
+                  <option value="exclude">실적 제외</option>
+                </select>
+              )}
+            </>
           )}
         </div>
 

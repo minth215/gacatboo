@@ -168,6 +168,7 @@ export default function TransactionEdit() {
       content: payload.content, memo: payload.memo,
       items: payload.items ?? null,
       input_currency: payload.input_currency || '', input_amount: payload.input_amount ?? null, fx_rate: payload.fx_rate ?? null,
+      ...(payload.exclude_performance !== undefined ? { exclude_performance: payload.exclude_performance } : {}),
       recurrence: payload.recurrence, backfillPast: payload.backfillPast,
     };
     if (editing) await db.updatePayment(id, p, user.id);

@@ -192,7 +192,8 @@ export default function Stats() {
   }, [tiers]);
   const grossBySource = useMemo(() => {
     const m = {};
-    rows.filter((r) => r.type === 'expense' && r.source_id != null)
+    // "실적 제외"로 기록한 지출은 카드 실적 합계에서 뺀다
+    rows.filter((r) => r.type === 'expense' && r.source_id != null && !r.exclude_performance)
       .forEach((r) => { m[r.source_id] = (m[r.source_id] || 0) + Number(r.amount); });
     return m;
   }, [rows]);
