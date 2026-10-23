@@ -156,7 +156,9 @@ export default function RecurringManage() {
 
       {detail && (() => {
         const { dispType, dispName, dispEmoji, dispSource } = viewOf(detail, user.id);
-        const sub = [dispName, dispSource].filter(Boolean).join(' · ') || '—';
+        // 실적 제외 반복이면 원천 옆에 "(실적 제외)"(가계부 카드와 동일, 지출로 보이는 경우만)
+        const srcLabel = dispSource && detail.exclude_performance && dispType === 'expense' ? `${dispSource} (실적 제외)` : dispSource;
+        const sub = [dispName, srcLabel].filter(Boolean).join(' · ') || '—';
         return (
           <div className="catmodal-overlay" onClick={closeDetail}>
             <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
