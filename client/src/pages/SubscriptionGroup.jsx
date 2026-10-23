@@ -100,12 +100,17 @@ export function groupByMonthThenDate(list) {
 }
 
 const EDIT_OPTION = '__edit__';
-function SourceSelect({ sources, value, onChange, keepLabel, style, placeholder = '선택 안 함', onEdit, selectRef }) {
+// excludeTypes: 목록에서 뺄 원천 그룹 특성(예: 수입 쪽은 ['credit','check']). 이미 선택된 값이 속한 그룹은 유지.
+function SourceSelect({ sources, value, onChange, keepLabel, style, placeholder = '선택 안 함', onEdit, selectRef, excludeTypes }) {
+  const shown = excludeTypes?.length
+    ? sources.filter((top) => !excludeTypes.includes(top.group_type)
+      || String(top.id) === String(value) || (top.children || []).some((c) => String(c.id) === String(value)))
+    : sources;
   return (
     <select ref={selectRef} value={value} onChange={(e) => (e.target.value === EDIT_OPTION ? onEdit?.() : onChange(e.target.value))} style={style}>
       <option value="">{placeholder}</option>
       {value === KEEP && <option value={KEEP}>{keepLabel} (기존)</option>}
-      {sources.map((top) => (
+      {shown.map((top) => (
         top.children?.length ? (
           <optgroup key={top.id} label={top.name}>
             {String(value) === String(top.id) && <option value={top.id}>{top.name}</option>}
@@ -1873,7 +1878,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
         <div style={rowStyle}>
           <span style={rowLabelStyle}>원천</span>
           {isOwner ? (
-            <SourceSelect sources={sources.tree} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lSourceId ? 600 : 400, color: f.lSourceId ? '#191722' : '#a29ead' }} />
+            <SourceSelect sources={sources.tree} excludeTypes={['credit', 'check']} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lSourceId ? 600 : 400, color: f.lSourceId ? '#191722' : '#a29ead' }} />
           ) : (
             <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.mSourceId ? 600 : 400, color: f.mSourceId ? '#191722' : '#a29ead' }} />
           )}

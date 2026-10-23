@@ -1103,7 +1103,8 @@ const TransactionForm = forwardRef(function TransactionForm({
             >
               <option value="">원천 선택</option>
               {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
-              {sources.map((top) => (
+              {/* 수입은 신용카드·체크카드 원천 그룹 제외(이미 선택돼 있던 값은 유지) */}
+              {(type === 'income' ? transferSources(sources, ['credit', 'check'], sourceId) : sources).map((top) => (
                 top.children?.length ? (
                   <optgroup key={top.id} label={top.name}>
                     {String(sourceId) === String(top.id) && <option value={top.id}>{top.name}</option>}
