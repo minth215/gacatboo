@@ -1893,7 +1893,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
               {showMemberPerf && (
                 <button
                 type="button" onClick={() => setMemberExcludePerf((v) => !v)} aria-label="카드 실적 포함/제외 전환"
-                style={{ flex: 'none', border: 'none', background: '#f4f2f0', borderRadius: 999, padding: '3px 8px', margin: 0, fontFamily: 'inherit', fontSize: 11, fontWeight: 400, lineHeight: 1.3, color: '#a29ead', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                style={{ flex: 'none', border: 'none', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px', margin: '0 0 0 -7px', fontFamily: 'inherit', fontSize: 9.5, fontWeight: 400, lineHeight: 1.3, color: '#a29ead', cursor: 'pointer', whiteSpace: 'nowrap' }}
               >
                 {memberExcludePerf ? '실적 제외' : '실적 포함'}
               </button>
