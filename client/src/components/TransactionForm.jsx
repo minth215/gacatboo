@@ -194,7 +194,7 @@ function ItemRow({
               {transferSources(sources, ['credit'], item.fromSourceId).map((top) => (
                 top.children?.length ? (
                   <optgroup key={top.id} label={top.name}>
-                    <option value={top.id}>{top.name} (전체)</option>
+                    {String(item.fromSourceId) === String(top.id) && <option value={top.id}>{top.name}</option>}
                     {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </optgroup>
                 ) : (
@@ -208,7 +208,7 @@ function ItemRow({
               {transferSources(sources, ['credit', 'check'], item.toSourceId).map((top) => (
                 top.children?.length ? (
                   <optgroup key={top.id} label={top.name}>
-                    <option value={top.id}>{top.name} (전체)</option>
+                    {String(item.toSourceId) === String(top.id) && <option value={top.id}>{top.name}</option>}
                     {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </optgroup>
                 ) : (
@@ -1106,7 +1106,7 @@ const TransactionForm = forwardRef(function TransactionForm({
               {sources.map((top) => (
                 top.children?.length ? (
                   <optgroup key={top.id} label={top.name}>
-                    <option value={top.id}>{top.name} (전체)</option>
+                    {String(sourceId) === String(top.id) && <option value={top.id}>{top.name}</option>}
                     {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </optgroup>
                 ) : (

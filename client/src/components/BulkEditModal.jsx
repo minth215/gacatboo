@@ -108,7 +108,7 @@ export default function BulkEditModal({ field, count, onClose, onApply }) {
             {sources.map((top) => (
               top.children?.length ? (
                 <optgroup key={top.id} label={top.name}>
-                  <option value={top.id}>{top.name} (전체)</option>
+                  {String(sourceId) === String(top.id) && <option value={top.id}>{top.name}</option>}
                   {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </optgroup>
               ) : (
