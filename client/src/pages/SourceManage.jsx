@@ -6,8 +6,10 @@ import PageHeader from '../components/PageHeader.jsx';
 export default function SourceManage() {
   const { user } = useAuth();
   const [sources, setSources] = useState([]);
+  // 원천 그룹 추가 모달(이름 + 그룹 특성)
   const [addingCat, setAddingCat] = useState(false);
   const [addCatName, setAddCatName] = useState('');
+  const [addCatType, setAddCatType] = useState('general');
   const [editingCatId, setEditingCatId] = useState(null);
   const [editCatDraft, setEditCatDraft] = useState('');
   const [addingItemCatId, setAddingItemCatId] = useState(null);
@@ -21,12 +23,12 @@ export default function SourceManage() {
 
   const wrap = (p) => p.catch((e) => alert(e.message));
 
-  const openAddCat = () => { setAddingCat(true); setAddCatName(''); };
+  const openAddCat = () => { setAddingCat(true); setAddCatName(''); setAddCatType('general'); };
   const cancelAddCat = () => setAddingCat(false);
   const saveAddCat = async () => {
     const name = addCatName.trim();
-    if (!name) { setAddingCat(false); return; }
-    await wrap(db.addSource(user.id, name, null));
+    if (!name) return alert('원천 그룹 이름을 입력하세요.');
+    await wrap(db.addSource(user.id, name, null, addCatType));
     setAddingCat(false); load();
   };
 
@@ -74,19 +76,38 @@ export default function SourceManage() {
   return (
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="원천 관리" flat right={
-        <button className="tb-icon-btn" onClick={openAddCat} aria-label="대분류 추가">
+        <button className="tb-icon-btn" onClick={openAddCat} aria-label="원천 그룹 추가">
           <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
         </button>
       } />
 
       {addingCat && (
-        <div className="tx-daycard inline-edit-row" style={{ marginTop: 14 }}>
-          <input
-            type="text" placeholder="대분류 이름" value={addCatName} onChange={(e) => setAddCatName(e.target.value)}
-            autoFocus onKeyDown={(e) => e.key === 'Enter' && saveAddCat()} className="inline-edit-input"
-          />
-          <button className="inline-cancel-btn" onClick={cancelAddCat}>취소</button>
-          <button className="inline-save-btn" onClick={saveAddCat}>저장</button>
+        <div className="catmodal-overlay" onClick={cancelAddCat}>
+          <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>원천 그룹 추가</div>
+              <button aria-label="닫기" onClick={cancelAddCat} className="catmodal-icon-btn">
+                <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text" placeholder="원천 그룹 이름" value={addCatName} onChange={(e) => setAddCatName(e.target.value)}
+                autoFocus onKeyDown={(e) => e.key === 'Enter' && saveAddCat()}
+                style={{ flex: 1, minWidth: 0, boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: '#fff', border: '1.5px solid #efeef2', borderRadius: 12, padding: '12px 14px', outline: 'none' }}
+              />
+              {/* 그룹 특성(라벨 없음): 일반 / 신용카드 / 체크카드 */}
+              <select
+                value={addCatType} onChange={(e) => setAddCatType(e.target.value)} aria-label="원천 그룹 특성"
+                style={{ flex: 'none', width: 104, boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: '#fff', border: '1.5px solid #efeef2', borderRadius: 12, padding: '12px 10px', outline: 'none' }}
+              >
+                <option value="general">일반</option>
+                <option value="credit">신용카드</option>
+                <option value="check">체크카드</option>
+              </select>
+            </div>
+            <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 44, fontSize: 14 }} onClick={saveAddCat}>추가</button>
+          </div>
         </div>
       )}
 
@@ -112,10 +133,10 @@ export default function SourceManage() {
                 <button aria-label="세부 항목 추가" onClick={() => openAddItem(top.id)} className="row-icon-btn">
                   <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                 </button>
-                <button aria-label="대분류 수정" onClick={() => startEditCat(top)} className="row-icon-btn">
+                <button aria-label="원천 그룹 수정" onClick={() => startEditCat(top)} className="row-icon-btn">
                   <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
                 </button>
-                <button aria-label="대분류 삭제" onClick={() => delCat(top)} className="row-icon-btn danger">
+                <button aria-label="원천 그룹 삭제" onClick={() => delCat(top)} className="row-icon-btn danger">
                   <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
                 </button>
               </div>

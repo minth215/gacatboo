@@ -123,12 +123,16 @@ export const db = {
     const tops = flat.filter((s) => s.parent_id == null).map((t) => ({ ...t, children: flat.filter((c) => c.parent_id === t.id) }));
     return { tree: tops, flat };
   },
-  async addSource(userId, name, parentId = null) {
+  // groupType: 원천 그룹(최상위) 특성 'general' | 'credit' | 'check' — 하위 원천은 지정하지 않음(0067)
+  async addSource(userId, name, parentId = null, groupType = null) {
     let q = supabase.from('sources').select('sort_order').order('sort_order', { ascending: false }).limit(1);
     q = parentId ? q.eq('parent_id', parentId) : q.is('parent_id', null);
     const existing = unwrap(await q);
     const next = (existing[0]?.sort_order ?? -1) + 1;
-    return unwrap(await supabase.from('sources').insert({ user_id: userId, name, parent_id: parentId, sort_order: next }).select().single());
+    return unwrap(await supabase.from('sources').insert({
+      user_id: userId, name, parent_id: parentId, sort_order: next,
+      ...(!parentId && groupType ? { group_type: groupType } : {}),
+    }).select().single());
   },
   async updateSource(id, name) {
     return unwrap(await supabase.from('sources').update({ name }).eq('id', id).select().single());
