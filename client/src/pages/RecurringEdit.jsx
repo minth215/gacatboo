@@ -61,6 +61,7 @@ export default function RecurringEdit() {
       ...(payload.type === 'transfer' ? { to_source_id: payload.to_source_id || null, to_source_name: payload.to_source_name || '' } : {}),
       content: (payload.content || '').trim(), memo: (payload.memo || '').trim(),
       items, ...currencyPatch(payload),
+      ...(payload.exclude_performance !== undefined ? { exclude_performance: !!payload.exclude_performance } : {}),
     });
   };
 
@@ -73,6 +74,7 @@ export default function RecurringEdit() {
       deposit_source_name: p.deposit_source_name || '',
       content: (p.content || '').trim(), memo: (p.memo || '').trim(),
       ...currencyPatch(p),
+      ...(p.exclude_performance !== undefined ? { exclude_performance: !!p.exclude_performance } : {}),
     });
   };
 
@@ -111,6 +113,7 @@ export default function RecurringEdit() {
       deposit_source_name: rule.deposit_source_name, leader_settlement_target_id: null,
       content: rule.content, memo: rule.memo, items: null,
       input_currency: rule.input_currency, input_amount: rule.input_amount, fx_rate: rule.fx_rate,
+      exclude_performance: rule.exclude_performance,
     };
     body = (
       <DepositForm
@@ -131,6 +134,7 @@ export default function RecurringEdit() {
       source_id: rule.source_id, source_name: rule.source_name, to_source_id: rule.to_source_id, to_source_name: rule.to_source_name,
       content: rule.content, memo: rule.memo, items: rule.items,
       input_currency: rule.input_currency, input_amount: rule.input_amount, fx_rate: rule.fx_rate,
+      exclude_performance: rule.exclude_performance,
     };
     body = (
       <TransactionForm
