@@ -133,12 +133,10 @@ export default function Ledger() {
   const [bulkEditField, setBulkEditField] = useState(null); // 'content' | 'date' | 'category' | 'source' | null
   const enterSelection = (id) => { setSelectionMode(true); setSelectedIds(new Set([id])); setBulkMenuOpen(false); };
   const toggleSelect = (id) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      if (next.size === 0) setSelectionMode(false);
-      return next;
-    });
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedIds(next);
+    if (next.size === 0) setSelectionMode(false); // 마지막 선택을 해제하면 수정 모드 종료
   };
   const exitSelection = () => { setSelectionMode(false); setSelectedIds(new Set()); setBulkMenuOpen(false); };
   // 달을 바꾸거나 검색을 열면 지금 보이는 목록 자체가 바뀌므로 선택 모드는 해제

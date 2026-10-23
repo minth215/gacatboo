@@ -62,8 +62,10 @@ export default function SwipeRow({ children, deletable, onDelete, onTap, onLongP
   const longPressTimer = useRef(null);
   const longFired = useRef(false);
   const startLongPress = () => {
-    if (!onLongPress) return;
+    // 새로 누를 때마다 먼저 초기화 — 길게 누르기 뒤 click 이 오지 않은 경우(모바일 등) 플래그가 남아
+    // 다음 탭(예: 선택 모드에서 마지막 하나 남은 체크 해제)이 한 번 무시되던 문제 방지
     longFired.current = false;
+    if (!onLongPress) return;
     clearTimeout(longPressTimer.current);
     longPressTimer.current = setTimeout(() => { longFired.current = true; onLongPress(); }, 480);
   };
