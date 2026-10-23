@@ -134,8 +134,8 @@ export const db = {
       ...(!parentId && groupType ? { group_type: groupType } : {}),
     }).select().single());
   },
-  async updateSource(id, name) {
-    return unwrap(await supabase.from('sources').update({ name }).eq('id', id).select().single());
+  async updateSource(id, name, groupType) {
+    return unwrap(await supabase.from('sources').update({ name, ...(groupType ? { group_type: groupType } : {}) }).eq('id', id).select().single());
   },
   async deleteSource(id) {
     return unwrap(await supabase.from('sources').delete().eq('id', id));

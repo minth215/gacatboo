@@ -6,12 +6,11 @@ import PageHeader from '../components/PageHeader.jsx';
 export default function SourceManage() {
   const { user } = useAuth();
   const [sources, setSources] = useState([]);
-  // 원천 그룹 추가 모달(이름 + 그룹 특성)
+  // 원천 그룹 추가/수정 모달(이름 + 그룹 특성). editingCat 이 있으면 수정, 없으면 추가.
   const [addingCat, setAddingCat] = useState(false);
+  const [editingCat, setEditingCat] = useState(null);
   const [addCatName, setAddCatName] = useState('');
   const [addCatType, setAddCatType] = useState('general');
-  const [editingCatId, setEditingCatId] = useState(null);
-  const [editCatDraft, setEditCatDraft] = useState('');
   const [addingItemCatId, setAddingItemCatId] = useState(null);
   const [addItemDraft, setAddItemDraft] = useState('');
   const [editingItemId, setEditingItemId] = useState(null);
@@ -23,22 +22,15 @@ export default function SourceManage() {
 
   const wrap = (p) => p.catch((e) => alert(e.message));
 
-  const openAddCat = () => { setAddingCat(true); setAddCatName(''); setAddCatType('general'); };
-  const cancelAddCat = () => setAddingCat(false);
+  const openAddCat = () => { setEditingCat(null); setAddingCat(true); setAddCatName(''); setAddCatType('general'); };
+  const startEditCat = (s) => { setEditingCat(s); setAddingCat(true); setAddCatName(s.name); setAddCatType(s.group_type || 'general'); };
+  const cancelAddCat = () => { setAddingCat(false); setEditingCat(null); };
   const saveAddCat = async () => {
     const name = addCatName.trim();
     if (!name) return alert('원천 그룹 이름을 입력하세요.');
-    await wrap(db.addSource(user.id, name, null, addCatType));
-    setAddingCat(false); load();
-  };
-
-  const startEditCat = (s) => { setEditingCatId(s.id); setEditCatDraft(s.name); };
-  const cancelEditCat = () => setEditingCatId(null);
-  const saveEditCat = async (s) => {
-    const name = editCatDraft.trim();
-    if (!name) { setEditingCatId(null); return; }
-    await wrap(db.updateSource(s.id, name));
-    setEditingCatId(null); load();
+    if (editingCat) await wrap(db.updateSource(editingCat.id, name, addCatType));
+    else await wrap(db.addSource(user.id, name, null, addCatType));
+    cancelAddCat(); load();
   };
   const delCat = async (s) => {
     if (!confirm(`'${s.name}'${s.children?.length ? ' 및 하위 항목' : ''}을(를) 삭제할까요?`)) return;
@@ -85,7 +77,7 @@ export default function SourceManage() {
         <div className="catmodal-overlay" onClick={cancelAddCat}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>원천 그룹 추가</div>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>{editingCat ? '원천 그룹 수정' : '원천 그룹 추가'}</div>
               <button aria-label="닫기" onClick={cancelAddCat} className="catmodal-icon-btn">
                 <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
               </button>
@@ -106,23 +98,13 @@ export default function SourceManage() {
                 <option value="check">체크카드</option>
               </select>
             </div>
-            <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 44, fontSize: 14 }} onClick={saveAddCat}>추가</button>
+            <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 44, fontSize: 14 }} onClick={saveAddCat}>{editingCat ? '수정' : '추가'}</button>
           </div>
         </div>
       )}
 
       {sources.map((top) => (
         <div className="tx-daycard" style={{ marginTop: 14 }} key={top.id}>
-          {editingCatId === top.id ? (
-            <div className="inline-edit-row">
-              <input
-                type="text" value={editCatDraft} onChange={(e) => setEditCatDraft(e.target.value)}
-                autoFocus onKeyDown={(e) => e.key === 'Enter' && saveEditCat(top)} className="inline-edit-input"
-              />
-              <button className="inline-cancel-btn" onClick={cancelEditCat}>취소</button>
-              <button className="inline-save-btn" onClick={() => saveEditCat(top)}>저장</button>
-            </div>
-          ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 8px 14px 18px', cursor: 'pointer' }} onClick={() => setPrimaryModal(top)}>
               <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 13.75, fontWeight: 700, color: '#191722' }}>
                 {top.name}
@@ -141,7 +123,6 @@ export default function SourceManage() {
                 </button>
               </div>
             </div>
-          )}
 
           {top.children?.map((it) => (
             editingItemId === it.id ? (
