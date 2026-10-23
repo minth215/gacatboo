@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { db, isSettlementIncome } from '../lib/db.js';
+import { db, isSettlementIncome, netSettlementEff } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { currentMonth, shiftMonth, fmtNum, today, shiftDate, weekStartOf, currentYear, periodBounds, periodLabel, shiftPeriod } from '../lib/format.js';
 import TransactionList from '../components/TransactionList.jsx';
@@ -173,12 +173,17 @@ export default function Ledger() {
         setTxs(list);
         const exList = list.filter((t) => t.type === 'expense');
         const map = await db.settlementsByTarget(exList.map((t) => t.id));
-        const expense = exList.reduce((s, t) => s + Math.max(0, Number(t.amount) - (map[t.id] || 0)), 0);
         // 이 달에 들어온 정산 수입의 초과분(+가 되는 금액)은 대상 지출의 달이 아니라 이 달의 수입으로 계상
         const settleIncomeList = list.filter((t) => t.type === 'income' && isSettlementIncome(t));
         const excessMap = settleIncomeList.length ? await db.settlementExcessByRow() : {};
-        const excess = settleIncomeList.reduce((s, t) => s + (excessMap[t.id] || 0), 0);
-        const income = list.filter((t) => t.type === 'income' && !isSettlementIncome(t)).reduce((s, t) => s + Number(t.amount), 0) + excess;
+        // 정산 반영 금액(eff) → 같은 달 안의 정산 대상 남은 금액과 정산 초과분은 서로 상계(통계와 동일)
+        const effRows = netSettlementEff(list.map((t) => ({
+          ...t,
+          eff: t.type === 'expense' ? Math.max(0, Number(t.amount) - (map[t.id] || 0))
+            : t.type === 'income' ? (isSettlementIncome(t) ? (excessMap[t.id] || 0) : Number(t.amount)) : 0,
+        })), map);
+        const expense = effRows.filter((t) => t.type === 'expense').reduce((s, t) => s + t.eff, 0);
+        const income = effRows.filter((t) => t.type === 'income').reduce((s, t) => s + t.eff, 0);
         setSummary({ income, expense });
       })
       .catch(() => { setTxs([]); setSummary({ income: 0, expense: 0 }); })

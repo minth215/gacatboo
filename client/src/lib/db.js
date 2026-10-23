@@ -43,6 +43,24 @@ export function isSettlementIncome(r) {
   return r.type !== 'expense' && r.type !== 'transfer'
     && (r.settlement_target_id != null || (Array.isArray(r.items) && r.items.some((it) => it?.targetId != null && it.targetId !== '')));
 }
+// 같은 기간 안의 정산 상계: 정산 대상 지출 중 정산하고도 남은 금액(eff>0)과, 정산 수입의 초과분(eff>0)이
+// 같은 기간에 함께 있으면 서로 상계한다(작은 쪽만큼 양쪽에서 뺌). 예) 10월 지출 A 30,000·B 20,000,
+// A 정산 25,000·B 정산 21,000 → A 남은 5,000 과 B 초과 1,000 을 상계해 10월 수입 0, 지출 4,000.
+// rows: eff 가 계산된 기록들(해당 기간), settleMap: 지출 id → 정산 합계. eff 를 바꾼 새 배열을 반환.
+export function netSettlementEff(rows, settleMap) {
+  const byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.id || 0) - (b.id || 0));
+  const pool = rows.filter((r) => r.type === 'expense' && (settleMap[r.id] || 0) > 0 && r.eff > 0).sort(byDate);
+  const extra = rows.filter((r) => r.type === 'income' && isSettlementIncome(r) && r.eff > 0).sort(byDate);
+  const sumPool = pool.reduce((t, r) => t + r.eff, 0);
+  const sumExtra = extra.reduce((t, r) => t + r.eff, 0);
+  let offset = Math.min(sumPool, sumExtra);
+  if (offset <= 0) return rows;
+  const cut = {};
+  const take = (list) => { let left = offset; for (const r of list) { if (left <= 0) break; const d = Math.min(r.eff, left); cut[r.id] = (cut[r.id] || 0) + d; left -= d; } };
+  take(pool); take(extra);
+  return rows.map((r) => (cut[r.id] ? { ...r, eff: r.eff - cut[r.id] } : r));
+}
+
 // 정산 기록 한 건이 대상 지출별로 얼마씩 정산했는지 + 대상 금액 합을 넘겨 적은 차액(extra).
 // 합계를 대상 금액 합보다 작게 적었으면 앞 행부터 순서대로 채운다.
 function settlementAllocations(r) {
@@ -1014,13 +1032,13 @@ export const db = {
     // 이 기간에 들어온 정산 수입 — 초과분만 이 기간 수입으로 계상
     const excessMap = await this.settlementExcessByRow();
 
-    const withEff = flattenTx(rows).map((r) => {
+    const withEff = netSettlementEff(flattenTx(rows).map((r) => {
       // 대상 지출은 정산액만큼 차감(0 하한)
       if (r.type === 'expense') return { ...r, eff: Math.max(0, Number(r.amount) - (settleMap[r.id] || 0)) };
       // 정산 수입은 초과분만 '정산' 수입으로 계상
       if (isSettlementIncome(r)) return { ...r, eff: excessMap[r.id] || 0, category_name: '정산' };
       return { ...r, eff: Number(r.amount) };
-    });
+    }), settleMap);
     // 구독 그룹 결제/입금이 반영된 항목에 회차(몇 회분) 정보를 붙인다(가계부와 동일).
     return this.attachSubscriptionPeriods(withEff);
   },
