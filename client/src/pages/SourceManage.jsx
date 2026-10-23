@@ -107,11 +107,13 @@ export default function SourceManage() {
         <div className="tx-daycard" style={{ marginTop: 14 }} key={top.id}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 8px 14px 18px', cursor: 'pointer' }} onClick={() => setPrimaryModal(top)}>
               <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 13.75, fontWeight: 700, color: '#191722' }}>
-                {top.name}
-                {/* 그룹 특성(일반 제외): 회색 가는 작은 글씨 */}
-                {(top.group_type === 'credit' || top.group_type === 'check') && (
-                  <span style={{ fontSize: 11, fontWeight: 400, color: '#a29ead' }}>{top.group_type === 'credit' ? '신용카드' : '체크카드'}</span>
-                )}
+                {/* 그룹명 + 그룹 특성(일반 제외, 회색 가는 작은 글씨) — 글자 아래쪽(기준선) 맞춤 */}
+                <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
+                  {top.name}
+                  {(top.group_type === 'credit' || top.group_type === 'check') && (
+                    <span style={{ fontSize: 11, fontWeight: 400, color: '#a29ead' }}>{top.group_type === 'credit' ? '신용카드' : '체크카드'}</span>
+                  )}
+                </span>
                 {top.is_primary_payment && <span style={{ fontSize: 9, fontWeight: 700, color: '#2CDDB9', background: '#E5FBF6', borderRadius: 999, padding: '2px 6px' }}>주결제</span>}
                 {top.is_primary_deposit && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF8A00', background: '#FFF1DC', borderRadius: 999, padding: '2px 6px' }}>주입금</span>}
               </span>
