@@ -1882,7 +1882,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
           )}
         </div>
 
-        <div style={{ ...rowStyle, alignItems: showMemberPerf ? 'baseline' : 'center' }}>
+        <div style={rowStyle}>
           <span style={rowLabelStyle}>원천</span>
           {isOwner ? (
             <SourceSelect sources={sources.tree} excludeTypes={['credit', 'check']} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lSourceId ? 600 : 400, color: f.lSourceId ? '#191722' : '#a29ead' }} />
@@ -1893,7 +1893,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
               {showMemberPerf && (
                 <button
                 type="button" onClick={() => setMemberExcludePerf((v) => !v)} aria-label="카드 실적 포함/제외 전환"
-                style={{ flex: 'none', border: 'none', background: 'transparent', padding: 0, margin: 0, fontFamily: 'inherit', fontSize: 11, fontWeight: 400, color: '#a29ead', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                style={{ flex: 'none', border: 'none', background: '#f4f2f0', borderRadius: 999, padding: '3px 8px', margin: 0, fontFamily: 'inherit', fontSize: 11, fontWeight: 400, lineHeight: 1.3, color: '#a29ead', cursor: 'pointer', whiteSpace: 'nowrap' }}
               >
                 {memberExcludePerf ? '실적 제외' : '실적 포함'}
               </button>

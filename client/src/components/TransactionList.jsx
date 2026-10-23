@@ -129,7 +129,7 @@ export default function TransactionList({
               : (t.type === 'expense' && t.origin_type) ? expenseCatColors[t.category_name] : '';
             const sub = t.type === 'transfer'
               ? [t.category_name || '이체', (t.source_name && t.to_source_name) ? `${t.source_name} → ${t.to_source_name}` : ''].filter(Boolean).join(' · ') || '—'
-              : [t.category_name, t.source_name].filter(Boolean).join(' · ') || '—';
+              : [t.category_name, t.source_name ? `${t.source_name}${t.exclude_performance ? ' (실적 제외)' : ''}` : ''].filter(Boolean).join(' · ') || '—';
             const selected = selectionMode && selectedIds?.has(t.id);
             return (
               <DayCardRow

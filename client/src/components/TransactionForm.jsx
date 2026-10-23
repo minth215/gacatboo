@@ -1097,8 +1097,7 @@ const TransactionForm = forwardRef(function TransactionForm({
           </div>
         )}
         {!isTransfer && !fixedSourceName && (
-          // 실적 포함/제외 토글 글자가 원천 글자와 아래쪽(기준선)이 맞도록 baseline 정렬
-          <div style={{ display: 'flex', alignItems: showPerformance ? 'baseline' : 'center', gap: 12, padding: '6px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={rowLabelStyle}>원천</span>
             <select
               ref={sourceSelectRef} value={sourceId}
@@ -1123,11 +1122,11 @@ const TransactionForm = forwardRef(function TransactionForm({
               ))}
               <option value="__edit__">편집</option>
             </select>
-            {/* 신용카드·체크카드 원천이면 같은 줄 오른쪽에 실적 포함/제외 토글 글자(누를 때마다 전환) */}
+            {/* 신용카드·체크카드 원천이면 같은 줄 오른쪽에 실적 포함/제외 알약 배지(누를 때마다 전환) */}
             {showPerformance && (
               <button
                 type="button" onClick={() => setExcludePerformance((v) => !v)} aria-label="카드 실적 포함/제외 전환"
-                style={{ flex: 'none', border: 'none', background: 'transparent', padding: 0, margin: 0, fontFamily: 'inherit', fontSize: 11, fontWeight: 400, color: '#a29ead', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                style={{ flex: 'none', border: 'none', background: '#f4f2f0', borderRadius: 999, padding: '3px 8px', margin: 0, fontFamily: 'inherit', fontSize: 11, fontWeight: 400, lineHeight: 1.3, color: '#a29ead', cursor: 'pointer', whiteSpace: 'nowrap' }}
               >
                 {excludePerformance ? '실적 제외' : '실적 포함'}
               </button>
