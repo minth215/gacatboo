@@ -147,7 +147,7 @@ export default function Ledger() {
     if (!confirm(`선택한 ${selectedIds.size}건을 삭제할까요?`)) return;
     try {
       for (const id of selectedIds) {
-        const t = txs.find((x) => x.id === id);
+        const t = txs.find((x) => x.id === id) || sResults.find((x) => x.id === id); // 검색 결과에서 고른 것 포함
         if (!t) continue;
         if (t.origin_type === 'payment') await db.deletePayment(t.origin_id);
         else if (t.origin_type === 'deposit') await db.deleteDeposit(t.origin_id);
@@ -155,6 +155,7 @@ export default function Ledger() {
       }
       exitSelection();
       load();
+      if (searchOpen && submittedQ != null) loadSearch();
     } catch (e) { alert(e.message); }
   };
   const applyBulkEdit = async (patch) => {
@@ -162,6 +163,7 @@ export default function Ledger() {
     setBulkEditField(null);
     exitSelection();
     load();
+    if (searchOpen && submittedQ != null) loadSearch();
   };
 
   const load = useCallback(() => {
@@ -430,9 +432,14 @@ export default function Ledger() {
 
           {submittedQ != null && (
             <>
-              {/* 연월 컨트롤 바: 기간 필터에 따라 전체(이동 비활성) / 주별·월별·연별(이동) / 기간 선택(날짜 범위) */}
+              {/* 연월 컨트롤 바: 기간 필터에 따라 전체(이동 비활성) / 주별·월별·연별(이동) / 기간 선택(날짜 범위).
+                  수정(선택) 모드에서는 가계부와 같이 선택 개수 안내로 바뀜 */}
               <div style={{ marginTop: 3 }}>
-                {sPeriod === 'range' ? (
+                {selectionMode ? (
+                  <div style={{ padding: '7px 2px 7px 8px', fontSize: 12, fontWeight: 400, color: '#a29ead' }}>
+                    {selectedIds.size} 건 선택되었습니다
+                  </div>
+                ) : sPeriod === 'range' ? (
                   <div style={{ height: 32, display: 'flex', alignItems: 'center', gap: 7, paddingLeft: 8 }}>
                     <DateField value={sFrom} onChange={(v) => { setSFrom(v); if (v > sTo) setSTo(v); }} />
                     <span style={{ fontSize: 13.25, fontWeight: 700, color: '#6c6779' }}>~</span>
@@ -496,6 +503,7 @@ export default function Ledger() {
                 <TransactionList
                   transactions={sFiltered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} onCopy={copyTx} dateFormat="full"
                   emptyText="검색 결과가 없습니다." emptyCenter="notabs"
+                  selectionMode={selectionMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} onLongPress={enterSelection}
                 />
               )}
             </>
