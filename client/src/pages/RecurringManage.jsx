@@ -35,9 +35,27 @@ export default function RecurringManage() {
     return [dispName, dispSource, periodDetailLabel(r)].filter(Boolean).join(' · ');
   };
   const term = q.trim().toLowerCase();
-  const shownRules = term
+  // 반복 주기별로 묶어서 정렬: 매일 → 평일 → 주말 → 매주 → 격주 → 매월 → 2·3·6개월마다 → 매년 → 사용자화
+  // (규칙이 없는 주기는 묶음 자체를 생략). 같은 주기 안에서는 요일(일~토) 순, 그다음 일자 순(매년은 월·일).
+  const sortKey = (r) => {
+    const wd = (r.weekdays || []).length ? Math.min(...r.weekdays) : 7;
+    const [, m, d] = (r.start_date || '0000-00-00').split('-').map(Number);
+    return [wd, r.freq_unit === 'year' ? m * 100 + d : d];
+  };
+  const shownRulesRaw = term
     ? rules.filter((r) => [r.content, subLineOf(r), r.group_name].filter(Boolean).join(' ').toLowerCase().includes(term))
     : rules;
+  const ruleSections = PRESET_ORDER
+    .map((key) => ({
+      key,
+      label: RECURRENCE_PRESETS.find((p) => p.key === key)?.label || key,
+      items: shownRulesRaw.filter((r) => presetOf(r) === key).sort((a, b) => {
+        const ka = sortKey(a), kb = sortKey(b);
+        return ka[0] - kb[0] || ka[1] - kb[1] || (a.content || '').localeCompare(b.content || '', 'ko');
+      }),
+    }))
+    .filter((sec) => sec.items.length);
+  const shownRules = shownRulesRaw;
 
   const load = useCallback(() => db.listRecurringRules().then(setRules).catch((e) => alert(e.message)), []);
   useEffect(() => { load(); }, [load]);
@@ -116,10 +134,13 @@ export default function RecurringManage() {
       ) : rules.length === 0 ? (
         <div className="empty empty-center">등록된 반복 항목이 없습니다.</div>
       ) : (
-        shownRules.map((r, i) => {
+        ruleSections.map(({ key, label, items }, si) => (
+          <div key={key} style={{ marginTop: si === 0 ? 14 : 22 }}>
+            <div style={{ padding: '0 8px 0 18px', marginBottom: 8, fontSize: 13, fontWeight: 700, color: '#191722' }}>{label}</div>
+            {items.map((r, i) => {
           const { dispType, dispName, dispEmoji } = viewOf(r, user.id);
           return (
-            <div key={r.id} className="tx-daygroup" style={{ marginTop: i === 0 ? 14 : 10 }}>
+            <div key={r.id} className="tx-daygroup" style={{ marginTop: i === 0 ? 0 : 10 }}>
               <DayCardRow
                 index={0} count={1} clickable
                 isOpen={openId === r.id} onOpenChange={(open) => setOpenId(open ? r.id : null)}
@@ -145,7 +166,9 @@ export default function RecurringManage() {
               </DayCardRow>
             </div>
           );
-        })
+            })}
+          </div>
+        ))
       )}
 
       <button className="fab" onClick={() => setPicking(true)} aria-label="반복 추가">
@@ -259,6 +282,7 @@ function BareNumber({ value, min = 1, max, onCommit, disabled, width = 26 }) {
 }
 
 const PRESET_OPTIONS = RECURRENCE_PRESETS.map((p) => [p.key, p.label]);
+const PRESET_ORDER = RECURRENCE_PRESETS.map((p) => p.key); // 매일·평일·주말·매주·격주·매월·2/3/6개월마다·매년·사용자화
 const UNIT_OPTIONS = [['day', '일마다'], ['week', '주마다'], ['month', '개월마다'], ['year', '년마다']];
 
 // 저장된 규칙이 어떤 프리셋에 해당하는지(맞는 게 없으면 사용자화)
