@@ -658,6 +658,18 @@ const TransactionForm = forwardRef(function TransactionForm({
     updateItem(idx, { targetId: value, ...(x ? { amount: String(x.amount) } : {}) });
   };
   const isTransfer = type === 'transfer';
+  // 수입/지출/이체 탭을 오갈 때 탭마다 고른 분류·원천(·실적 제외)을 기억해 두었다가, 다시 그 탭으로
+  // 돌아오면 복원한다(처음 들어가는 탭은 비어 있는 상태로 시작).
+  const tabStashRef = useRef({});
+  const switchType = (next) => {
+    if (next === type) return;
+    tabStashRef.current[type] = { categoryId, sourceId, excludePerformance };
+    const saved = tabStashRef.current[next];
+    setType(next);
+    setCategoryId(saved?.categoryId ?? '');
+    setSourceId(saved?.sourceId ?? '');
+    setExcludePerformance(saved?.excludePerformance ?? false);
+  };
   // 카드 실적 포함/제외: 고른 원천이 "신용카드"·"체크카드" 원천 그룹(또는 그 하위)일 때만 선택(기본 포함)
   const [excludePerformance, setExcludePerformance] = useState(!!initial?.exclude_performance);
   const selectedSourceTop = sources.find((top) => String(top.id) === String(sourceId) || (top.children || []).some((c) => String(c.id) === String(sourceId)));
@@ -668,18 +680,21 @@ const TransactionForm = forwardRef(function TransactionForm({
   // 이체 출금/입금 선택을 이름으로 복원(id 가 아니라 이름만 아는 호출자용, 예: 공금 그룹 이체
   // 내역 — 출금은 initial.source_name, 입금은 initial.to_source_name 또는 defaultTransferToName
   // 중 먼저 매칭되는 쪽을 쓴다). 일반 개인 이체(수정)는 이미 id로 채워져 있어 아무 동작 안 함.
+  // 원래 이체였던 기록(또는 이체 전용 폼)일 때만 복원 — 지출 기록을 수정하다 이체 탭으로 바꾼 경우엔
+  // 지출의 원천(신용/체크카드일 수 있음)을 출금 수단으로 가져오지 않고 비워 둔다.
+  const restoreTransferFromInitial = !initial || initial.type === 'transfer' || fixedType === 'transfer';
   useEffect(() => {
     if (!isTransfer || !sourcesFlat.length) return;
     setItems((prev) => {
       if (prev.length !== 1) return prev;
       const cur = prev[0];
       const patch = {};
-      if (!cur.fromSourceId && initial?.source_name) {
+      if (!cur.fromSourceId && initial?.source_name && restoreTransferFromInitial) {
         const s = sourcesFlat.find((x) => x.name === initial.source_name);
         if (s) patch.fromSourceId = String(s.id);
       }
       if (!cur.toSourceId) {
-        const name = initial?.to_source_name || defaultTransferToName;
+        const name = (restoreTransferFromInitial ? initial?.to_source_name : '') || defaultTransferToName;
         if (name) { const s = sourcesFlat.find((x) => x.name === name); if (s) patch.toSourceId = String(s.id); }
       }
       return Object.keys(patch).length ? [{ ...cur, ...patch }] : prev;
@@ -986,10 +1001,10 @@ const TransactionForm = forwardRef(function TransactionForm({
 
       {!fixedType && (
         <div className="type-pill">
-          <button type="button" className={`income ${type === 'income' ? 'active' : ''}`} onClick={() => { setType('income'); setCategoryId(''); setSourceId(''); }}>수입</button>
-          <button type="button" className={`expense ${type === 'expense' ? 'active' : ''}`} onClick={() => { setType('expense'); setCategoryId(''); setSourceId(''); }}>지출</button>
+          <button type="button" className={`income ${type === 'income' ? 'active' : ''}`} onClick={() => switchType('income')}>수입</button>
+          <button type="button" className={`expense ${type === 'expense' ? 'active' : ''}`} onClick={() => switchType('expense')}>지출</button>
           {!groupId && (
-            <button type="button" className={`transfer ${type === 'transfer' ? 'active' : ''}`} onClick={() => { setType('transfer'); setCategoryId(''); setSourceId(''); }}>이체</button>
+            <button type="button" className={`transfer ${type === 'transfer' ? 'active' : ''}`} onClick={() => switchType('transfer')}>이체</button>
           )}
         </div>
       )}
