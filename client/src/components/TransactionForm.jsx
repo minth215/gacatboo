@@ -172,7 +172,7 @@ function transferSources(tree, excludeTypes, selectedId) {
 
 function ItemRow({
   item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, itemNameSuggestions, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource,
-  isSettlement, recentExpenses, onTarget, usedTargetIds,
+  isSettlement, recentExpenses, onTarget, usedTargetIds, allowNegative,
 }) {
   const [nameFocused, setNameFocused] = useState(false);
   const [nameSuggestOpen, setNameSuggestOpen] = useState(false);
@@ -271,7 +271,7 @@ function ItemRow({
           />
         )}
         <CalcAmountInput
-          compact value={item.amount} onChange={onAmount}
+          compact value={item.amount} onChange={onAmount} allowNegative={allowNegative}
           initialCurrency={item.currencyMeta?.input_currency} initialForeignAmount={item.currencyMeta?.input_amount}
           onCurrencyChange={onCurrencyChange} onCurrencySelect={setLiveCurrency}
         />
@@ -820,7 +820,7 @@ const TransactionForm = forwardRef(function TransactionForm({
 
   const favItemsSnapshot = useMemo(() => (
     isTransfer ? null : items
-      .filter((it) => it.name.trim() || Number(it.amount) > 0)
+      .filter((it) => it.name.trim() || Number(it.amount) !== 0)
       .map((it) => ({ name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0 }))
   ), [isTransfer, items]);
 
@@ -854,6 +854,8 @@ const TransactionForm = forwardRef(function TransactionForm({
     if (isTransfer && !items[0]?.fromSourceId) return promptRequiredSelect('transfer-from-source-select', '출금 수단을 선택해 주세요');
     if (isTransfer && !items[0]?.toSourceId) return promptRequiredSelect('transfer-to-source-select', '입금 수단을 선택해 주세요');
     if (isTransfer && items[0].fromSourceId === items[0].toSourceId) { showToast('입금 수단과 출금 수단이 동일합니다'); return; }
+    // 지출 항목은 할인 등 음수 금액을 넣을 수 있지만 합계는 0 이상이어야 함
+    if (total < 0) { showToast('합계 금액이 음수입니다'); return; }
     if (transferMembers && !transferMemberId) return setError('멤버를 선택하세요.');
     if (isTransfer && feeEnabled && !(Number(feeAmount) > 0)) return setError('수수료 금액을 입력하세요.');
     const aggregateSplit = showMemberSplit ? (() => {
@@ -925,7 +927,7 @@ const TransactionForm = forwardRef(function TransactionForm({
     // 정산 분담이 있으면 항목마다 체크된 멤버/금액도 함께 저장해(items.members) 수정 화면에서
     // 항목별로 다시 체크 상태를 복원할 수 있게 한다(전체 합계는 여전히 aggregateSplit 로 처리).
     const savedItems = (isTransfer || isSettlement) ? null : items
-      .filter((it) => it.name.trim() || Number(it.amount) > 0)
+      .filter((it) => it.name.trim() || Number(it.amount) !== 0)
       .map((it) => {
         const base = {
           name: it.name.trim(), qty: Number(it.qty) || 1, amount: Number(it.amount) || 0,
@@ -1166,11 +1168,12 @@ const TransactionForm = forwardRef(function TransactionForm({
             settlementMembers={showMemberSplit ? settlementMembers : null}
             isTransfer={isTransfer} sources={sources}
             isSettlement={isSettlement} recentExpenses={recentExpenses} usedTargetIds={usedSettlementTargetIds}
+            allowNegative={type === 'expense' && !isSettlement}
             onTarget={(v) => onItemTargetChange(idx, v)}
             onName={(v) => onItemNameChange(idx, v)}
             itemNameSuggestions={itemNameSuggestions}
             onQty={(v) => updateItem(idx, { qty: v.replace(/[^0-9]/g, '') })}
-            onAmount={(v) => updateItem(idx, (qtyIsPeriods && Number(defaultAmount) > 0 && v)
+            onAmount={(v) => updateItem(idx, (qtyIsPeriods && Number(defaultAmount) > 0 && Number(v) > 0)
               ? { amount: v, qty: String(Math.round(Number(v) / Number(defaultAmount))) }
               : { amount: v })}
             onCurrencyChange={(meta) => updateItem(idx, { currencyMeta: meta })}

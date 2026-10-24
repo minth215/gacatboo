@@ -13,7 +13,10 @@ function numToken(tok) {
 // "12000×10%" 같은 수식 문자열을 계산(×÷ 우선순위 적용). 끝에 연산자가 남아 있으면 무시.
 // round=true(기본, 원화)면 정수로 반올림, round=false(외화)면 소수점을 그대로 유지(센트 단위 보존).
 // 결과는 항상 0 이상으로 clamp(금액은 음수가 될 수 없음).
-function evaluate(expr, { round = true } = {}) {
+function evaluate(expr, { round = true, allowNegative = false } = {}) {
+  // allowNegative: 맨 앞의 "−"를 음수 부호로(할인 등 음수 금액 입력용)
+  let negFirst = false;
+  if (allowNegative && expr.startsWith('-')) { negFirst = true; expr = expr.slice(1); }
   const tokens = [];
   let num = '';
   for (const ch of expr) {
@@ -24,7 +27,7 @@ function evaluate(expr, { round = true } = {}) {
   while (tokens.length && OP_CHARS.includes(tokens[tokens.length - 1])) tokens.pop();
   if (!tokens.length) return 0;
 
-  const vals = [numToken(tokens[0])];
+  const vals = [numToken(tokens[0]) * (negFirst ? -1 : 1)];
   const lowOps = [];
   for (let i = 1; i < tokens.length; i += 2) {
     const op = tokens[i];
@@ -35,7 +38,7 @@ function evaluate(expr, { round = true } = {}) {
   }
   let result = vals[0];
   for (let i = 0; i < lowOps.length; i++) result = lowOps[i] === '+' ? result + vals[i + 1] : result - vals[i + 1];
-  const clamped = Math.max(0, result);
+  const clamped = allowNegative ? result : Math.max(0, result);
   return round ? Math.round(clamped) : clamped;
 }
 
@@ -61,6 +64,8 @@ function formatNumberToken(numStr) {
 // 편집 중인 수식을 "12,000 × 10%" 형태로(숫자는 천 단위 콤마, 연산자 앞뒤 띄어쓰기) 표시용 포맷
 function formatExpr(expr) {
   if (!expr) return '';
+  // 맨 앞 음수 부호는 띄어쓰기 없이 "−5,000" 처럼
+  if (expr.startsWith('-')) return `−${formatExpr(expr.slice(1))}`;
   let out = '';
   let num = '';
   for (const ch of expr) {
@@ -100,7 +105,7 @@ const KeyBtn = ({ label, onClick, bg, color, style }) => (
 // ({ input_currency, input_amount, fx_rate } 또는 원화면 null)을 매 확정 시점에 알려준다.
 // compact=true: 영수증형 기록의 좁은 항목 행에 들어갈 때 쓰는 테두리 없는 작은 표시(원 단위
 // 접미사·환산 금액 미리보기 줄은 생략하고, 펼쳐지는 계산기 키패드는 그대로 동작).
-export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange, onCurrencySelect, compact = false }) {
+export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange, onCurrencySelect, compact = false, allowNegative = false }) {
   const [focused, setFocused] = useState(false);
   const [expr, setExpr] = useState('');
   const justEvaluatedRef = useRef(false);
@@ -132,7 +137,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
     return () => { cancelled = true; };
   }, [currency]);
 
-  const typedAmount = useMemo(() => evaluate(expr, { round: currency === 'KRW' }), [expr, currency]);
+  const typedAmount = useMemo(() => evaluate(expr, { round: currency === 'KRW', allowNegative }), [expr, currency, allowNegative]);
   useEffect(() => { setManualKrw(null); setEditingKrw(false); }, [typedAmount, currency]);
 
   const open = () => {
@@ -216,7 +221,8 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   });
   const pressOp = (op) => setExpr((prev) => {
     justEvaluatedRef.current = false;
-    if (!prev) return prev;
+    if (!prev) return (allowNegative && op === '-') ? '-' : prev; // 음수 허용 칸은 처음에 "−"로 음수 시작
+    if (prev === '-') return prev;
     if (OP_CHARS.includes(prev[prev.length - 1])) return prev.slice(0, -1) + op;
     return prev + op;
   });
