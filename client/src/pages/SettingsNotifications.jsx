@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { subscribePush, unsubscribePush, pushSupported } from '../lib/push.js';
+import { subscribePush, currentPushSubscription, pushSupported } from '../lib/push.js';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 
@@ -54,7 +54,8 @@ export default function SettingsNotifications() {
         await db.setPushEnabled(user.id, true);
         setPushEnabledState(true);
       } else {
-        const sub = await unsubscribePush();
+        // 같은 기기를 다른 계정도 쓰고 있을 수 있어, 브라우저 구독 자체는 해제하지 않고 이 계정의 등록만 지운다
+        const sub = await currentPushSubscription();
         if (sub?.endpoint) await db.removePushSubscription(sub.endpoint).catch(() => {});
         await db.setPushEnabled(user.id, false);
         setPushEnabledState(false);

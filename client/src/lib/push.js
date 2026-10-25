@@ -37,3 +37,23 @@ export async function unsubscribePush() {
   await sub.unsubscribe();
   return json;
 }
+
+// 이 기기의 현재 브라우저 구독(없으면 null). 권한 요청·새 구독 없이 조회만.
+export async function currentPushSubscription() {
+  if (!pushSupported()) return null;
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  return sub ? sub.toJSON() : null;
+}
+
+// 로그인/계정 전환 시: 이 계정이 푸시를 켜 둔 상태면 이 기기의 구독을 이 계정에도 등록해 둔다
+// (구독 키가 바뀌었거나, 다른 계정으로 쓰다 돌아온 경우에도 푸시가 계속 오도록).
+export async function syncPushSubscription(db, userId) {
+  try {
+    if (!pushSupported() || Notification.permission !== 'granted') return;
+    const settings = await db.getNotificationSettings();
+    if (!settings?.push_enabled) return;
+    const sub = await currentPushSubscription();
+    if (sub?.endpoint) await db.addPushSubscription(userId, sub);
+  } catch { /* 실패해도 앱 사용에는 영향 없음 */ }
+}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
 import { db } from '../lib/db.js';
+import { syncPushSubscription } from '../lib/push.js';
 
 const S = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
 const Icon = ({ name }) => {
@@ -44,6 +45,8 @@ export default function Layout() {
   // 하단 탭의 알림 배지(안 읽은 개수). 페이지를 이동할 때마다 다시 확인.
   const [unread, setUnread] = useState(0);
   useEffect(() => { db.countUnreadNotifications().then(setUnread).catch(() => {}); }, [location.pathname]);
+  // 계정이 바뀔 때마다(로그인·계정 전환) 이 기기의 푸시 구독을 그 계정에도 등록 — 한 기기·여러 계정 지원
+  useEffect(() => { if (user?.id) syncPushSubscription(db, user.id); }, [user?.id]);
 
   return (
     <div className={`app${hideBottomNav ? ' no-bottomnav' : ''}`}>
