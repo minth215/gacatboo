@@ -16,11 +16,26 @@ const json = (body: unknown, status = 200) =>
 
 const kstToday = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
+
+// 서버 내부 호출인지: 함수 환경의 service_role 키와 같거나, 그 토큰으로 관리자 API 가 실제로 동작하면
+// (Vault 에 다른 형식/버전의 서비스 키를 넣어 둔 경우도 인정) 서비스 호출로 본다.
+async function isServiceToken(url: string, serviceKey: string, token: string) {
+  if (!token) return false;
+  if (token === serviceKey) return true;
+  try {
+    const probe = createClient(url, token, { auth: { autoRefreshToken: false, persistSession: false } });
+    const { error } = await probe.auth.admin.listUsers({ page: 1, perPage: 1 });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   const url = Deno.env.get('SUPABASE_URL')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const token = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
-  if (!token || token !== serviceKey) return json({ error: '권한이 없습니다.' }, 401);
+  if (!(await isServiceToken(url, serviceKey, token))) return json({ error: '권한이 없습니다.' }, 401);
 
   let date = kstToday();
   try {

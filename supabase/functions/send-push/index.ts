@@ -26,6 +26,21 @@ const fillTemplate = (tpl: string, vars: Record<string, unknown>) =>
   // 템플릿 변수는 {변수} 표기(예전 표기 {{변수}} 도 함께 치환) — DB 의 fill_template() 과 동일(0062)
   Object.entries(vars || {}).reduce((acc, [k, v]) => acc.replaceAll(`{{${k}}}`, String(v ?? '')).replaceAll(`{${k}}`, String(v ?? '')), tpl || '');
 
+
+// 서버 내부 호출인지: 함수 환경의 service_role 키와 같거나, 그 토큰으로 관리자 API 가 실제로 동작하면
+// (Vault 에 다른 형식/버전의 서비스 키를 넣어 둔 경우도 인정) 서비스 호출로 본다.
+async function isServiceToken(url: string, serviceKey: string, token: string) {
+  if (!token) return false;
+  if (token === serviceKey) return true;
+  try {
+    const probe = createClient(url, token, { auth: { autoRefreshToken: false, persistSession: false } });
+    const { error } = await probe.auth.admin.listUsers({ page: 1, perPage: 1 });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
@@ -42,7 +57,7 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get('Authorization') ?? '';
   const token = authHeader.replace('Bearer ', '');
   // 서버 내부 호출(DB 의 반복 자동 기록 등, service_role 키로 호출): 사용자 인증·그룹 확인 없이 발송
-  const isServiceCall = !!token && token === serviceKey;
+  const isServiceCall = await isServiceToken(url, serviceKey, token);
   let callerId: string | null = null;
   if (!isServiceCall) {
     const { data: userData, error: authErr } = await admin.auth.getUser(token);
