@@ -107,7 +107,9 @@ Deno.serve(async (req) => {
     if (action === 'reset_password') {
       const { id, password } = payload;
       if (!id || !password) return json({ error: '대상과 새 비밀번호가 필요합니다.' }, 400);
-      const { data: updated, error: rErr } = await admin.auth.admin.updateUserById(id, { password });
+      // 가입 후 이메일 인증을 하지 않은 계정도 로그인되도록 이메일 인증 처리를 함께 한다
+      // (이 앱은 관리자 승인으로 가입을 관리하므로 이메일 인증은 필요 없음)
+      const { data: updated, error: rErr } = await admin.auth.admin.updateUserById(id, { password, email_confirm: true });
       if (rErr) return json({ error: rErr.message }, 400);
       const email = updated?.user?.email ?? null;
       // 실제로 그 비밀번호로 로그인되는지 바로 확인(확인용 세션은 즉시 로그아웃 — 다른 기기 세션은 유지)
@@ -119,6 +121,15 @@ Deno.serve(async (req) => {
         await probe.auth.signOut({ scope: 'local' });
       }
       return json({ message: '비밀번호가 초기화되었습니다.', email });
+    }
+
+    // 가입 승인 시: 이메일 인증을 안 한 계정이어도 바로 로그인되도록 이메일 인증 처리
+    if (action === 'confirm_email') {
+      const { id } = payload;
+      if (!id) return json({ error: '대상이 필요합니다.' }, 400);
+      const { error: cErr } = await admin.auth.admin.updateUserById(id, { email_confirm: true });
+      if (cErr) return json({ error: cErr.message }, 400);
+      return json({ message: '이메일 인증 처리되었습니다.' });
     }
 
     return json({ error: '알 수 없는 작업입니다.' }, 400);

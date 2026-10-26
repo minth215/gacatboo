@@ -993,7 +993,12 @@ export const db = {
     return users.sort((a, b) => (a.status === 'pending' ? -1 : b.status === 'pending' ? 1 : 0));
   },
   async setUserStatus(id, status) {
-    return unwrap(await supabase.from('profiles').update({ status }).eq('id', id));
+    const res = unwrap(await supabase.from('profiles').update({ status }).eq('id', id));
+    // 승인하면 이메일 인증도 함께 처리(가입 메일의 인증 링크를 누르지 않았어도 로그인 가능). 실패해도 승인은 유지.
+    if (status === 'approved') {
+      try { await supabase.functions.invoke('admin', { body: { action: 'confirm_email', id } }); } catch {}
+    }
+    return res;
   },
   async setUserRole(id, role) {
     return unwrap(await supabase.from('profiles').update({ role }).eq('id', id));
