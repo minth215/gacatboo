@@ -742,3 +742,6 @@ a { color: inherit; text-decoration: none; }
 .lt-search input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; display: none; }
 .hscroll-chips { scrollbar-width: none; }
 .hscroll-chips::-webkit-scrollbar { display: none; }
+
+/* 라이트 테마 고정: 기기 다크 모드에서도 브라우저가 색을 자동으로 바꾸지 않게(입력칸·스크롤바 등 기본 컨트롤 포함) */
+:root { color-scheme: only light; }
