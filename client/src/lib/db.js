@@ -1090,7 +1090,12 @@ export const db = {
   },
   async resetUserPassword(id, password) {
     const { data, error } = await supabase.functions.invoke('admin', { body: { action: 'reset_password', id, password } });
-    if (error) throw new Error(data?.error || error.message);
+    if (error) {
+      // 함수가 오류(4xx/5xx)로 응답하면 본문의 error 메시지를 꺼내 보여줌(기본 메시지는 원인을 알 수 없음)
+      let msg = data?.error;
+      try { if (!msg && error.context?.json) msg = (await error.context.json())?.error; } catch {}
+      throw new Error(msg || error.message);
+    }
     if (data?.error) throw new Error(data.error);
     return data;
   },

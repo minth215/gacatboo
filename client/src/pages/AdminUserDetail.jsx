@@ -66,9 +66,10 @@ export default function AdminUserDetail() {
     if (!pw.trim()) return setPwErr('새 비밀번호를 입력하세요.');
     setPwBusy(true); setPwErr('');
     try {
-      await db.resetUserPassword(target.id, pw.trim());
+      // 입력한 그대로 저장(로그인할 때도 그대로 입력하므로 앞뒤 공백을 임의로 지우지 않음)
+      const res = await db.resetUserPassword(target.id, pw);
       setPwModal(false);
-      alert('비밀번호가 초기화되었습니다.');
+      alert(`비밀번호가 초기화되었습니다.${res?.email ? `\n로그인 이메일: ${res.email}` : ''}`);
     } catch (e2) { setPwErr(e2.message); } finally { setPwBusy(false); }
   };
 

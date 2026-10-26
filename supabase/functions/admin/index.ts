@@ -107,9 +107,18 @@ Deno.serve(async (req) => {
     if (action === 'reset_password') {
       const { id, password } = payload;
       if (!id || !password) return json({ error: '대상과 새 비밀번호가 필요합니다.' }, 400);
-      const { error: rErr } = await admin.auth.admin.updateUserById(id, { password });
+      const { data: updated, error: rErr } = await admin.auth.admin.updateUserById(id, { password });
       if (rErr) return json({ error: rErr.message }, 400);
-      return json({ message: '비밀번호가 초기화되었습니다.' });
+      const email = updated?.user?.email ?? null;
+      // 실제로 그 비밀번호로 로그인되는지 바로 확인(확인용 세션은 즉시 로그아웃 — 다른 기기 세션은 유지)
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+      if (email && anonKey) {
+        const probe = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
+        const { error: sErr } = await probe.auth.signInWithPassword({ email, password });
+        if (sErr) return json({ error: `비밀번호는 바뀌었지만 로그인 확인에 실패했습니다: ${sErr.message}`, email }, 400);
+        await probe.auth.signOut({ scope: 'local' });
+      }
+      return json({ message: '비밀번호가 초기화되었습니다.', email });
     }
 
     return json({ error: '알 수 없는 작업입니다.' }, 400);
