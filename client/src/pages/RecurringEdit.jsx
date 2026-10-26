@@ -95,7 +95,7 @@ export default function RecurringEdit() {
         try { await db.updateRecurringRule(rule.id, patch); setRule((r) => ({ ...r, ...patch })); } catch (e) { alert(e.message); }
       }}
       rowStyle={{ padding: '6px 0', gap: 12 }}
-      labelStyle={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}
+      labelStyle={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}
     />
   ) : null;
 
@@ -123,7 +123,7 @@ export default function RecurringEdit() {
         isOwner={isOwner} onSave={onSaveDeposit} onSaved={done}
         defaultCategoryName={isSettlement(group.category) ? '정산' : '구독'}
         showPeriods={false} groupName={group.name || ''}
-        groupBadge={{ name: group.name, color: group.color || '#e4e2e6' }}
+        groupBadge={{ name: group.name, color: group.color || 'var(--k-tx-e4e2e6)' }}
       />
     );
   } else {
@@ -142,7 +142,7 @@ export default function RecurringEdit() {
         initial={initial} onSubmit={onSubmitTx} onSaved={done} onClose={done}
         groupId={!isPayment ? (rule.group_id || null) : null}
         fixedType={rule.group_id ? (isPayment ? 'expense' : rule.type) : undefined}
-        groupBadge={group ? { name: group.name, color: group.color || '#e4e2e6' } : undefined}
+        groupBadge={group ? { name: group.name, color: group.color || 'var(--k-tx-e4e2e6)' } : undefined}
       />
     );
   }

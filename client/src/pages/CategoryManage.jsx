@@ -64,13 +64,13 @@ export default function CategoryManage() {
             key={c.id} ref={setRowRef(c.id)}
             className={dragId === c.id ? 'drag-lift' : ''}
             style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 16px', background: '#fff',
-              borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5',
+              display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 16px', background: 'var(--k-bg-fff)',
+              borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)',
             }}
           >
             <button onClick={() => openEdit(c)} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', minWidth: 0 }}>
               <span style={{ width: 38, height: 38, borderRadius: 12, background: c.color || tileBg(c.name), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16.5, flex: 'none' }}>{c.emoji}</span>
-              <span style={{ fontSize: 13.75, fontWeight: 600, color: '#191722' }}>{c.name}</span>
+              <span style={{ fontSize: 13.75, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{c.name}</span>
             </button>
             <button aria-label="삭제" onClick={() => del(c)} className="cat-del-btn">
               <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
@@ -86,7 +86,7 @@ export default function CategoryManage() {
         <div className="catmodal-overlay" onClick={closeModal}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>{editor.id ? `${kind} 분류 수정` : `${kind} 분류 추가`}</div>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{editor.id ? `${kind} 분류 수정` : `${kind} 분류 추가`}</div>
               <button aria-label="닫기" onClick={closeModal} className="catmodal-icon-btn">
                 <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
               </button>
@@ -113,7 +113,7 @@ export default function CategoryManage() {
                 <button
                   type="button" key={sw} aria-label={sw} onClick={() => setEditor({ ...editor, color: sw })}
                   className="catmodal-swatch"
-                  style={{ background: sw, border: editor.color === sw ? '2px solid #191722' : '1.5px solid #e4e2e6', boxShadow: editor.color === sw ? '0 0 0 3px #efeef2' : 'none' }}
+                  style={{ background: sw, border: editor.color === sw ? '2px solid var(--k-bd-191722)' : '1.5px solid var(--k-bd-e4e2e6)', boxShadow: editor.color === sw ? '0 0 0 3px var(--k-bd-efeef2)' : 'none' }}
                 />
               ))}
               <label className="catmodal-swatch catmodal-custom-swatch">

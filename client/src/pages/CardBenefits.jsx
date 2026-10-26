@@ -61,31 +61,31 @@ export default function CardBenefits() {
           <div className="tx-daycard" style={{ marginTop: 14 }} key={card.id}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 8px 14px 18px' }}>
               <span style={{ fontSize: 15, flex: 'none' }}>💳</span>
-              <span style={{ flex: 1, fontSize: 13.75, fontWeight: 700, color: '#191722' }}>{card.name}</span>
+              <span style={{ flex: 1, fontSize: 13.75, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{card.name}</span>
               <button aria-label="실적 구간 추가" onClick={() => openAddTier(card.id)} className="row-icon-btn">
                 <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
               </button>
             </div>
 
             {list.length === 0 && addingCardId !== card.id && (
-              <div style={{ padding: '4px 18px 16px', fontSize: 12.5, color: '#a29ead' }}>등록된 실적 구간이 없습니다.</div>
+              <div style={{ padding: '4px 18px 16px', fontSize: 12.5, color: 'var(--k-tx-a29ead)' }}>등록된 실적 구간이 없습니다.</div>
             )}
 
             {list.map((t) => (
               editId === t.id ? (
-                <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 14px 12px 18px', borderTop: '1.5px solid #f2f1f5' }}>
+                <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 14px 12px 18px', borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
                   <div style={{ position: 'relative' }}>
                     <input
                       type="text" inputMode="numeric" placeholder="실적 기준" value={editAmount ? Number(editAmount).toLocaleString('ko-KR') : ''}
                       onChange={(e) => setEditAmount(onlyDigits(e.target.value))} autoFocus
-                      style={{ width: '100%', fontFamily: 'inherit', fontSize: 12.75, color: '#191722', background: '#faf9f8', border: '1.5px solid #efeef2', borderRadius: 10, padding: '8px 40px 8px 11px', outline: 'none', boxSizing: 'border-box' }}
+                      style={{ width: '100%', fontFamily: 'inherit', fontSize: 12.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 10, padding: '8px 40px 8px 11px', outline: 'none', boxSizing: 'border-box' }}
                     />
-                    <span style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 12, fontWeight: 600, color: '#a29ead', pointerEvents: 'none' }}>원</span>
+                    <span style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 12, fontWeight: 600, color: 'var(--k-tx-a29ead)', pointerEvents: 'none' }}>원</span>
                   </div>
                   <input
                     type="text" placeholder="혜택" value={editBenefit} onChange={(e) => setEditBenefit(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && saveEdit(t)}
-                    style={{ width: '100%', fontFamily: 'inherit', fontSize: 12.75, color: '#191722', background: '#faf9f8', border: '1.5px solid #efeef2', borderRadius: 10, padding: '8px 11px', outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', fontFamily: 'inherit', fontSize: 12.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 10, padding: '8px 11px', outline: 'none', boxSizing: 'border-box' }}
                   />
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                     <button className="inline-cancel-btn" onClick={cancelEdit}>취소</button>
@@ -93,10 +93,10 @@ export default function CardBenefits() {
                   </div>
                 </div>
               ) : (
-                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 8px 11px 18px', borderTop: '1.5px solid #f2f1f5' }}>
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 8px 11px 18px', borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.75, fontWeight: 700, color: '#191722' }}>{fmtNum(t.threshold)} 원 이상</div>
-                    <div style={{ marginTop: 2, fontSize: 11.5, color: '#8b8798' }}>{t.benefit}</div>
+                    <div style={{ fontSize: 12.75, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(t.threshold)} 원 이상</div>
+                    <div style={{ marginTop: 2, fontSize: 11.5, color: 'var(--k-tx-8b8798)' }}>{t.benefit}</div>
                   </div>
                   <button aria-label="구간 수정" onClick={() => startEdit(t)} className="row-icon-btn sm">
                     <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
@@ -109,19 +109,19 @@ export default function CardBenefits() {
             ))}
 
             {addingCardId === card.id && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 14px 12px 18px', borderTop: '1.5px solid #f2f1f5' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 14px 12px 18px', borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
                 <div style={{ position: 'relative' }}>
                   <input
                     type="text" inputMode="numeric" placeholder="실적 기준" value={addAmount ? Number(addAmount).toLocaleString('ko-KR') : ''}
                     onChange={(e) => setAddAmount(onlyDigits(e.target.value))} autoFocus
-                    style={{ width: '100%', fontFamily: 'inherit', fontSize: 12.75, color: '#191722', background: '#faf9f8', border: '1.5px solid #efeef2', borderRadius: 10, padding: '8px 40px 8px 11px', outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', fontFamily: 'inherit', fontSize: 12.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 10, padding: '8px 40px 8px 11px', outline: 'none', boxSizing: 'border-box' }}
                   />
-                  <span style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 12, fontWeight: 600, color: '#a29ead', pointerEvents: 'none' }}>원</span>
+                  <span style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 12, fontWeight: 600, color: 'var(--k-tx-a29ead)', pointerEvents: 'none' }}>원</span>
                 </div>
                 <input
                   type="text" placeholder="혜택" value={addBenefit} onChange={(e) => setAddBenefit(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && saveAddTier(card.id)}
-                  style={{ width: '100%', fontFamily: 'inherit', fontSize: 12.75, color: '#191722', background: '#faf9f8', border: '1.5px solid #efeef2', borderRadius: 10, padding: '8px 11px', outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', fontFamily: 'inherit', fontSize: 12.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 10, padding: '8px 11px', outline: 'none', boxSizing: 'border-box' }}
                 />
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                   <button className="inline-cancel-btn" onClick={cancelAddTier}>취소</button>

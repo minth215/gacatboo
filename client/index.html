@@ -4,8 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#FF3B5C" />
-    <!-- 지금은 라이트 테마만 지원: 기기/브라우저의 다크 모드·자동 다크 변환을 적용하지 않도록 -->
+    <!-- 기본은 라이트 고정(브라우저 자동 다크 변환 방지). 설정 > 스타일의 다크 모드/기기 설정 따름이면
+         아래 스크립트와 lib/style.js 가 html.theme-dark + color-scheme: dark 로 바꿈 -->
     <meta name="color-scheme" content="only light" />
+    <script>
+      try {
+        var t = (JSON.parse(localStorage.getItem('gacatboo.style.v1') || '{}').theme) || 'light';
+        if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('theme-dark');
+          document.querySelector('meta[name="color-scheme"]').setAttribute('content', 'dark');
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#18161D');
+        }
+      } catch (e) {}
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/favicon.svg" />

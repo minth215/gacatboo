@@ -122,10 +122,10 @@ export default function FriendManage() {
   }, [friends, groups]);
 
   const friendRow = (f, i) => (
-    <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 8px 13px 18px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5' }}>
+    <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 8px 13px 18px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13.25, fontWeight: 500, color: '#191722' }}>{f.nickname}</div>
-        {f.friend_user_id && <div style={{ marginTop: 2, fontSize: 10.5, color: '#a29ead' }}>@{f.friend?.username}</div>}
+        <div style={{ fontSize: 13.25, fontWeight: 500, color: 'var(--k-tx-191722)' }}>{f.nickname}</div>
+        {f.friend_user_id && <div style={{ marginTop: 2, fontSize: 10.5, color: 'var(--k-tx-a29ead)' }}>@{f.friend?.username}</div>}
       </div>
       <button aria-label="친구 수정" onClick={() => openEdit(f)} className="row-icon-btn sm">
         <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
@@ -160,9 +160,9 @@ export default function FriendManage() {
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 8px 0 18px', marginBottom: 8 }}>
               {group ? (
-                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#191722' }}>{group.name}</span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{group.name}</span>
               ) : (
-                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#a29ead' }}>미분류</span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--k-tx-a29ead)' }}>미분류</span>
               )}
               <button aria-label="친구 추가" onClick={() => openAddToGroup(group?.id)} className="row-icon-btn sm">
                 <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
@@ -191,7 +191,7 @@ export default function FriendManage() {
         <div className="catmodal-overlay" onClick={closeModal}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '88%', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>{editor.id ? '친구 수정' : '친구 추가'}</div>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{editor.id ? '친구 수정' : '친구 추가'}</div>
               <button aria-label="닫기" onClick={closeModal} className="catmodal-icon-btn">
                 <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
               </button>
@@ -200,7 +200,7 @@ export default function FriendManage() {
             {editor.id ? (
               editor.foundProfile && (
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>가캣부 아이디</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-8b8798)' }}>가캣부 아이디</span>
                   <input value={`@${editor.username}`} disabled className="catmodal-name-input" />
                 </label>
               )
@@ -222,12 +222,12 @@ export default function FriendManage() {
             )}
 
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>이름 <span style={{ color: '#FF3B5C' }}>*</span></span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-8b8798)' }}>이름 <span style={{ color: '#FF3B5C' }}>*</span></span>
               <input value={editor.nickname} onChange={(e) => setEditor({ ...editor, nickname: e.target.value })} placeholder="친구 목록에 표시될 이름" className="catmodal-name-input" />
             </label>
 
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>분류</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-8b8798)' }}>분류</span>
               <select value={editor.groupId} onChange={(e) => onGroupSelect(e.target.value)} className="catmodal-name-input">
                 <option value="">미분류</option>
                 {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}

@@ -9,8 +9,8 @@ const PALETTE = ['#EEEBFE', '#E8F4EC', '#FDEEE6', '#E6EEFD', '#FDE8EE', '#FBF1D3
 const STEP_LABELS = ['그룹 정보', '내 정보', '멤버 추가'];
 
 const fieldStyle = {
-  fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: '#faf9f8',
-  border: '1.5px solid #efeef2', borderRadius: 14, padding: '14px 16px', outline: 'none', width: '100%', boxSizing: 'border-box',
+  fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)',
+  border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 14, padding: '14px 16px', outline: 'none', width: '100%', boxSizing: 'border-box',
 };
 
 export default function GroupCreate() {
@@ -163,17 +163,17 @@ export default function GroupCreate() {
             <div key={label} style={{ display: 'flex', alignItems: 'center', flex: num < 3 ? 1 : 'none' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 'none' }}>
                 <span style={{
-                  width: 24, height: 24, borderRadius: '50%', background: done || active ? '#FF3B5C' : '#efeef2',
-                  color: done || active ? '#fff' : '#a29ead', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 24, height: 24, borderRadius: '50%', background: done || active ? '#FF3B5C' : 'var(--k-bg-efeef2)',
+                  color: done || active ? '#fff' : 'var(--k-tx-a29ead)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 11, fontWeight: 800, flex: 'none',
                 }}>
                   {done ? (
                     <svg width="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                   ) : num}
                 </span>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: done || active ? '#191722' : '#a29ead', whiteSpace: 'nowrap' }}>{label}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: done || active ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)', whiteSpace: 'nowrap' }}>{label}</span>
               </div>
-              {num < 3 && <span style={{ flex: 1, height: 2, background: step > num ? '#FF3B5C' : '#efeef2', margin: '0 6px 16px' }} />}
+              {num < 3 && <span style={{ flex: 1, height: 2, background: step > num ? '#FF3B5C' : 'var(--k-bg-efeef2)', margin: '0 6px 16px' }} />}
             </div>
           );
         })}
@@ -182,11 +182,11 @@ export default function GroupCreate() {
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 6px 24px', margin: '0 -6px' }}>
         {step === 1 && (
           <div>
-            <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', padding: '24px 20px 22px', marginBottom: 18 }}>
+            <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', padding: '24px 20px 22px', marginBottom: 18 }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginBottom: 18 }}>
                 <div style={{ position: 'relative', width: 96, height: 96 }}>
                   <div style={{
-                    position: 'absolute', inset: 0, borderRadius: 26, background: color || 'transparent', border: color ? '1.5px solid #efeef2' : 'none',
+                    position: 'absolute', inset: 0, borderRadius: 26, background: color || 'transparent', border: color ? '1.5px solid var(--k-bd-efeef2)' : 'none',
                     boxShadow: '0 3px 10px rgba(25,23,34,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 38, pointerEvents: 'none',
                   }}>
@@ -194,40 +194,40 @@ export default function GroupCreate() {
                   </div>
                   <input
                     type="text" value={emoji} onChange={(e) => setEmoji([...e.target.value].slice(-1).join(''))} maxLength={2}
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', textAlign: 'center', fontSize: 38, fontFamily: 'inherit', color: 'transparent', caretColor: '#191722', background: 'transparent', border: 'none', borderRadius: 26, outline: 'none' }}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', textAlign: 'center', fontSize: 38, fontFamily: 'inherit', color: 'transparent', caretColor: 'var(--k-tx-191722)', background: 'transparent', border: 'none', borderRadius: 26, outline: 'none' }}
                   />
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 12, color: '#8b8798' }}>그룹을 나타낼 이모지를 직접 입력해 주세요</div>
+                  <div style={{ fontSize: 12, color: 'var(--k-tx-8b8798)' }}>그룹을 나타낼 이모지를 직접 입력해 주세요</div>
                 </div>
               </div>
 
               <div style={{ height: 1, background: '#f0eee9', margin: '0 0 20px' }} />
 
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#191722', textAlign: 'center', marginBottom: 11 }}>배경 색</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', textAlign: 'center', marginBottom: 11 }}>배경 색</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'nowrap', gap: 8 }}>
                 <button
                   type="button" onClick={() => setColor('')}
-                  style={{ width: 30, height: 30, flex: 'none', borderRadius: '50%', background: '#fff', border: 'none', boxShadow: color === '' ? '0 0 0 2px #fdfcfe, 0 0 0 4px #47444F' : 'inset 0 0 0 1.2px rgba(0,0,0,.18)', cursor: 'pointer', padding: 0, position: 'relative', overflow: 'hidden' }}
+                  style={{ width: 30, height: 30, flex: 'none', borderRadius: '50%', background: 'var(--k-bg-fff)', border: 'none', boxShadow: color === '' ? '0 0 0 2px var(--bg), 0 0 0 4px var(--k-bd-191722)' : 'inset 0 0 0 1.2px rgba(0,0,0,.18)', cursor: 'pointer', padding: 0, position: 'relative', overflow: 'hidden' }}
                 >
                   <svg width="30" height="30" viewBox="0 0 30 30" style={{ position: 'absolute', inset: 0 }}><line x1="6" y1="24" x2="24" y2="6" stroke="#c9455f" strokeWidth="1.3" /></svg>
                 </button>
                 {PALETTE.map((sw) => (
                   <button
                     type="button" key={sw} aria-label={sw} onClick={() => setColor(sw)}
-                    style={{ width: 30, height: 30, flex: 'none', borderRadius: '50%', background: sw, border: 'none', boxShadow: color === sw ? '0 0 0 2px #fdfcfe, 0 0 0 4px #47444F' : 'inset 0 0 0 1px rgba(0,0,0,.07)', cursor: 'pointer', padding: 0 }}
+                    style={{ width: 30, height: 30, flex: 'none', borderRadius: '50%', background: sw, border: 'none', boxShadow: color === sw ? '0 0 0 2px var(--bg), 0 0 0 4px var(--k-bd-191722)' : 'inset 0 0 0 1px rgba(0,0,0,.07)', cursor: 'pointer', padding: 0 }}
                   />
                 ))}
               </div>
             </div>
 
             <label style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 18 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>그룹 이름<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>그룹 이름<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
               <input type="text" placeholder="그룹 이름 입력" value={name} onChange={(e) => setName(e.target.value)} style={fieldStyle} />
             </label>
 
             <label style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 18 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>카테고리<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>카테고리<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
               {groupCats.length === 0 ? (
                 <div className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   카테고리가 없습니다. <button type="button" className="edit-link" onClick={() => nav('/settings/group-categories')}>편집 ›</button>
@@ -241,14 +241,14 @@ export default function GroupCreate() {
 
             <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
               <label style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>시작일자<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>시작일자<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
                 <div className="catmodal-date-field">
                   <div className={`catmodal-date-value${startDate ? '' : ' placeholder'}`}>{startDate ? dotDate(startDate) : '날짜 선택'}</div>
                   <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="catmodal-date-input" />
                 </div>
               </label>
               <label style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>종료일자<span style={{ fontSize: 11, fontWeight: 600, color: '#b0b0b8', marginLeft: 2 }}> 선택</span></span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>종료일자<span style={{ fontSize: 11, fontWeight: 600, color: 'var(--k-tx-b0b0b8)', marginLeft: 2 }}> 선택</span></span>
                 <div className="catmodal-date-field">
                   <div className={`catmodal-date-value${endDate ? '' : ' placeholder'}`}>{endDate ? dotDate(endDate) : '날짜 선택'}</div>
                   <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="catmodal-date-input" />
@@ -257,7 +257,7 @@ export default function GroupCreate() {
             </div>
 
             <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>코멘트<span style={{ fontSize: 11, fontWeight: 600, color: '#b0b0b8', marginLeft: 2 }}> 선택</span></span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>코멘트<span style={{ fontSize: 11, fontWeight: 600, color: 'var(--k-tx-b0b0b8)', marginLeft: 2 }}> 선택</span></span>
               <textarea
                 placeholder="그룹을 소개하는 한마디를 남겨 보세요" rows={3} value={comment} onChange={(e) => setComment(e.target.value)}
                 style={{ ...fieldStyle, lineHeight: 1.5, resize: 'none' }}
@@ -269,12 +269,12 @@ export default function GroupCreate() {
         {step === 2 && (
           <div>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>닉네임<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>닉네임<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
               <input type="text" placeholder="그룹 내에서 사용할 닉네임" value={nickname} onChange={(e) => setNickname(e.target.value)} style={fieldStyle} />
             </label>
 
-            <div style={{ marginTop: 24, fontSize: 13, fontWeight: 700, color: '#191722', marginBottom: 3 }}>{category === '공금' ? '공금 관리 수단' : '입금 수단'}<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></div>
-            <div style={{ fontSize: 11, color: '#a29ead', marginBottom: 11 }}>
+            <div style={{ marginTop: 24, fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', marginBottom: 3 }}>{category === '공금' ? '공금 관리 수단' : '입금 수단'}<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></div>
+            <div style={{ fontSize: 11, color: 'var(--k-tx-a29ead)', marginBottom: 11 }}>
               {category === '공금' ? '초대되는 멤버의 원천에 자동으로 추가됩니다' : '다른 멤버가 입금할 때 받을 원천을 선택하세요'}
             </div>
             {sources.flat.length === 0 ? (
@@ -282,7 +282,7 @@ export default function GroupCreate() {
                 등록된 원천이 없습니다. <button type="button" className="edit-link" onClick={() => nav('/settings/sources')}>편집 ›</button>
               </div>
             ) : (
-              <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
+              <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
                 {sources.tree.map((top, gi) => {
                   const topSelected = String(depositSourceId) === String(top.id);
                   const SourceRow = ({ src, selected, indent }) => (
@@ -291,18 +291,18 @@ export default function GroupCreate() {
                       style={{ width: '100%', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 12, padding: `13px 16px 13px ${16 + indent}px`, border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer' }}
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: indent ? 13 : 13.25, fontWeight: indent ? 500 : 600, color: indent ? '#4a4652' : '#191722' }}>{src.name}</div>
+                        <div style={{ fontSize: indent ? 13 : 13.25, fontWeight: indent ? 500 : 600, color: indent ? 'var(--k-tx-4a4652)' : 'var(--k-tx-191722)' }}>{src.name}</div>
                       </div>
-                      <span style={{ width: 19, height: 19, borderRadius: '50%', border: `1.5px solid ${selected ? '#191722' : '#d8d5de'}`, background: selected ? '#191722' : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-                        {selected && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />}
+                      <span style={{ width: 19, height: 19, borderRadius: '50%', border: `1.5px solid ${selected ? 'var(--k-bd-191722)' : 'var(--k-bd-d8d5de)'}`, background: selected ? 'var(--k-bg-191722)' : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+                        {selected && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--k-bg-fff)' }} />}
                       </span>
                     </button>
                   );
                   return (
-                    <div key={top.id} style={{ borderTop: gi === 0 ? 'none' : '1.5px solid #f2f1f5' }}>
+                    <div key={top.id} style={{ borderTop: gi === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
                       <SourceRow src={top} selected={topSelected} indent={0} />
                       {top.children?.map((c) => (
-                        <div key={c.id} style={{ borderTop: '1.5px solid #f2f1f5' }}>
+                        <div key={c.id} style={{ borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
                           <SourceRow src={c} selected={String(depositSourceId) === String(c.id)} indent={16} />
                         </div>
                       ))}
@@ -320,9 +320,9 @@ export default function GroupCreate() {
               // 선택한 멤버는 한 줄로 고정하고 좌우로 스크롤(새로 추가하면 끝으로 자동 스크롤)
               <div ref={chipsRef} className="hscroll-chips" style={{ display: 'flex', flexWrap: 'nowrap', gap: 7, marginBottom: 14, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                 {selectedChips.map((chip) => (
-                  <span key={chip.key} style={{ flex: 'none', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 8px 7px 12px', background: '#f4f2f0', borderRadius: 999, fontSize: 12, fontWeight: 700, color: '#191722' }}>
+                  <span key={chip.key} style={{ flex: 'none', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 8px 7px 12px', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, fontSize: 12, fontWeight: 700, color: 'var(--k-tx-191722)' }}>
                     {chip.name}
-                    <button aria-label="제거" onClick={chip.onRemove} style={{ width: 17, height: 17, borderRadius: '50%', border: 'none', background: 'rgba(25,23,34,.08)', color: '#6c6779', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flex: 'none' }}>
+                    <button aria-label="제거" onClick={chip.onRemove} style={{ width: 17, height: 17, borderRadius: '50%', border: 'none', background: 'rgba(25,23,34,.08)', color: 'var(--k-tx-6c6779)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flex: 'none' }}>
                       <svg width="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
                     </button>
                   </span>
@@ -334,30 +334,30 @@ export default function GroupCreate() {
               <svg width="15" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 15, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
               <input
                 type="text" placeholder="친구 닉네임 검색" value={friendQuery} onChange={(e) => setFriendQuery(e.target.value)}
-                style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', background: '#faf9f8', border: '1.5px solid #efeef2', borderRadius: 999, padding: '12px 16px 12px 40px', outline: 'none' }}
+                style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 999, padding: '12px 16px 12px 40px', outline: 'none' }}
               />
             </div>
 
             {friendSections.length === 0 ? (
-              <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', marginBottom: 16, padding: '20px 14px', textAlign: 'center', fontSize: 12.5, color: '#a29ead' }}>
+              <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', marginBottom: 16, padding: '20px 14px', textAlign: 'center', fontSize: 12.5, color: 'var(--k-tx-a29ead)' }}>
                 {friends.length ? '검색 결과가 없어요' : '등록된 친구가 없어요'}
               </div>
             ) : friendSections.map(({ group, items }) => (
               <div key={group?.id ?? '_ungrouped'} style={{ marginBottom: 16 }}>
-                <div style={{ padding: '0 8px 0 18px', marginBottom: 8, fontSize: 13, fontWeight: 700, color: group ? '#191722' : '#a29ead' }}>
+                <div style={{ padding: '0 8px 0 18px', marginBottom: 8, fontSize: 13, fontWeight: 700, color: group ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>
                   {group ? group.name : '미분류'}
                 </div>
-                <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
+                <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
                   {items.map((f, i) => {
                 const selected = selectedFriendIds.includes(f.id);
                 return (
-                  <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5' }}>
+                  <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.25, fontWeight: 600, color: '#191722' }}>{f.nickname}</div>
+                      <div style={{ fontSize: 13.25, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{f.nickname}</div>
                     </div>
                     <button
                       aria-label={selected ? '추가됨' : '추가'} onClick={() => toggleFriend(f.id)}
-                      style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: selected ? '#d9f1ec' : '#f4f2f0', color: selected ? '#2e9e85' : '#8b8798', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none', padding: 0 }}
+                      style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: selected ? '#d9f1ec' : 'var(--k-bg-f4f2f0)', color: selected ? '#2e9e85' : 'var(--k-tx-8b8798)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none', padding: 0 }}
                     >
                       {selected ? (
                         <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
@@ -374,7 +374,7 @@ export default function GroupCreate() {
 
             <button
               type="button" onClick={openAddCustom}
-              style={{ width: '100%', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, border: '1.5px dashed #c7c3cc', borderRadius: 14, background: 'transparent', color: '#6c6779', fontSize: 12.75, fontWeight: 700, cursor: 'pointer' }}
+              style={{ width: '100%', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, border: '1.5px dashed var(--k-bd-c7c3cc)', borderRadius: 14, background: 'transparent', color: 'var(--k-tx-6c6779)', fontSize: 12.75, fontWeight: 700, cursor: 'pointer' }}
             >
               <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
               친구 목록에 없는 멤버 추가
@@ -387,13 +387,13 @@ export default function GroupCreate() {
 
       <div style={{ flex: 'none', padding: '14px 0 22px', display: 'flex', gap: 10 }}>
         {step > 1 && (
-          <button type="button" onClick={goPrev} disabled={busy} style={{ flex: 'none', fontFamily: 'inherit', height: 52, padding: '0 20px', border: '1.5px solid #efeef2', borderRadius: 999, background: '#fff', color: '#6c6779', fontSize: 14, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>
+          <button type="button" onClick={goPrev} disabled={busy} style={{ flex: 'none', fontFamily: 'inherit', height: 52, padding: '0 20px', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 999, background: 'var(--k-bg-fff)', color: 'var(--k-tx-6c6779)', fontSize: 14, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>
             이전
           </button>
         )}
         <button
           type="button" onClick={goNext} disabled={nextDisabled || busy}
-          style={{ flex: 1, fontFamily: 'inherit', height: 52, border: 'none', borderRadius: 999, background: (nextDisabled || busy) ? '#f0eef1' : '#191722', color: (nextDisabled || busy) ? '#b6b2c0' : '#fff', fontSize: 14.5, fontWeight: 700, cursor: (nextDisabled || busy) ? 'not-allowed' : 'pointer' }}
+          style={{ flex: 1, fontFamily: 'inherit', height: 52, border: 'none', borderRadius: 999, background: (nextDisabled || busy) ? 'var(--k-bg-f0eef1)' : 'var(--k-bg-191722)', color: (nextDisabled || busy) ? 'var(--k-tx-b6b2c0)' : 'var(--k-onink-fff)', fontSize: 14.5, fontWeight: 700, cursor: (nextDisabled || busy) ? 'not-allowed' : 'pointer' }}
         >
           {busy ? '만드는 중…' : step < 3 ? '다음' : '만들기'}
         </button>
@@ -403,7 +403,7 @@ export default function GroupCreate() {
         <div className="catmodal-overlay" onClick={() => setAddingCustom(false)}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>외부 멤버 추가</div>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>외부 멤버 추가</div>
               <button aria-label="닫기" onClick={() => setAddingCustom(false)} className="catmodal-icon-btn">
                 <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
               </button>

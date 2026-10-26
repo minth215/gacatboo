@@ -75,14 +75,14 @@ export default function PooledFundGroup({ gid, group, members, isOwner, leaderNa
             <div key={m.id} className="tx-daycard" style={{ borderRadius: 16, padding: '14px 16px', marginTop: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
+                  <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{m.nickname}</span>
                   {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>{leaderName}</span>}
-                  {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
+                  {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--k-tx-8b8798)', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
                 </div>
-                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.remaining)}</span>
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(m.remaining)}</span>
               </div>
-              <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
-                <span style={{ color: m.used > m.transferred ? '#FF6F91' : '#a29ead' }}>{fmtNum(m.transferred)} 원 이체</span>
+              <div style={{ marginTop: 6, fontSize: 10.75, color: 'var(--k-tx-a29ead)' }}>
+                <span style={{ color: m.used > m.transferred ? '#FF6F91' : 'var(--k-tx-a29ead)' }}>{fmtNum(m.transferred)} 원 이체</span>
                 {' · '}{fmtNum(m.used)} 원 사용
               </div>
             </div>
@@ -96,7 +96,7 @@ export default function PooledFundGroup({ gid, group, members, isOwner, leaderNa
             {expenses.length === 0 ? <div className="empty empty-center-notabs">사용 내역이 없습니다.</div> : expenses.map((e, i) => (
               <div
                 key={e.id} className="tx-row" onClick={() => nav(`/tx/${e.id}?group=${gid}&kind=pooled-expense`)}
-                style={{ cursor: 'pointer', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', background: '#fff', borderRadius: i === 0 ? '20px 20px 0 0' : (i === expenses.length - 1 ? '0 0 20px 20px' : 0), boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}
+                style={{ cursor: 'pointer', borderTop: i > 0 ? '1px solid var(--k-bd-f2f1f5)' : 'none', background: 'var(--k-bg-fff)', borderRadius: i === 0 ? '20px 20px 0 0' : (i === expenses.length - 1 ? '0 0 20px 20px' : 0), boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="tx-row-title"><span className="ttext">{e.content || '공금 사용'}</span></div>
@@ -118,7 +118,7 @@ export default function PooledFundGroup({ gid, group, members, isOwner, leaderNa
             {transfers.length === 0 ? <div className="empty empty-center-notabs">이체 내역이 없습니다.</div> : transfers.map((t, i) => (
               <div
                 key={t.id} className="tx-row" onClick={() => nav(`/tx/${t.id}?group=${gid}&kind=pooled-transfer`)}
-                style={{ cursor: 'pointer', borderTop: i > 0 ? '1px solid #f2f1f5' : 'none', background: '#fff', borderRadius: i === 0 ? '20px 20px 0 0' : (i === transfers.length - 1 ? '0 0 20px 20px' : 0), boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}
+                style={{ cursor: 'pointer', borderTop: i > 0 ? '1px solid var(--k-bd-f2f1f5)' : 'none', background: 'var(--k-bg-fff)', borderRadius: i === 0 ? '20px 20px 0 0' : (i === transfers.length - 1 ? '0 0 20px 20px' : 0), boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="tx-row-title"><span className="ttext">{t.content || `${t.member?.nickname || '멤버'} 이체`}</span></div>

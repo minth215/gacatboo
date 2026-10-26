@@ -77,7 +77,7 @@ export default function SourceManage() {
         <div className="catmodal-overlay" onClick={cancelAddCat}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>{editingCat ? '원천 그룹 수정' : '원천 그룹 추가'}</div>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{editingCat ? '원천 그룹 수정' : '원천 그룹 추가'}</div>
               <button aria-label="닫기" onClick={cancelAddCat} className="catmodal-icon-btn">
                 <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
               </button>
@@ -86,12 +86,12 @@ export default function SourceManage() {
               <input
                 type="text" placeholder="원천 그룹 이름" value={addCatName} onChange={(e) => setAddCatName(e.target.value)}
                 autoFocus onKeyDown={(e) => e.key === 'Enter' && saveAddCat()}
-                style={{ flex: 1, minWidth: 0, boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: '#fff', border: '1.5px solid #efeef2', borderRadius: 12, padding: '12px 14px', outline: 'none' }}
+                style={{ flex: 1, minWidth: 0, boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-fff)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 12, padding: '12px 14px', outline: 'none' }}
               />
               {/* 그룹 특성(라벨 없음): 일반 / 신용카드 / 체크카드 */}
               <select
                 value={addCatType} onChange={(e) => setAddCatType(e.target.value)} aria-label="원천 그룹 특성"
-                style={{ flex: 'none', width: 104, boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: '#fff', border: '1.5px solid #efeef2', borderRadius: 12, padding: '12px 10px', outline: 'none' }}
+                style={{ flex: 'none', width: 104, boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-fff)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 12, padding: '12px 10px', outline: 'none' }}
               >
                 <option value="general">일반</option>
                 <option value="credit">신용카드</option>
@@ -106,12 +106,12 @@ export default function SourceManage() {
       {sources.map((top) => (
         <div className="tx-daycard" style={{ marginTop: 14 }} key={top.id}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 8px 14px 18px', cursor: 'pointer' }} onClick={() => setPrimaryModal(top)}>
-              <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 13.75, fontWeight: 700, color: '#191722' }}>
+              <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 13.75, fontWeight: 700, color: 'var(--k-tx-191722)' }}>
                 {/* 그룹명 + 그룹 특성(일반 제외, 회색 가는 작은 글씨) — 글자 아래쪽(기준선) 맞춤 */}
                 <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
                   {top.name}
                   {(top.group_type === 'credit' || top.group_type === 'check') && (
-                    <span style={{ fontSize: 11, fontWeight: 400, color: '#a29ead' }}>{top.group_type === 'credit' ? '신용카드' : '체크카드'}</span>
+                    <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>{top.group_type === 'credit' ? '신용카드' : '체크카드'}</span>
                   )}
                 </span>
                 {top.is_primary_payment && <span style={{ fontSize: 9, fontWeight: 700, color: '#2CDDB9', background: '#E5FBF6', borderRadius: 999, padding: '2px 6px' }}>주결제</span>}
@@ -132,7 +132,7 @@ export default function SourceManage() {
 
           {top.children?.map((it) => (
             editingItemId === it.id ? (
-              <div key={it.id} className="inline-edit-row" style={{ paddingLeft: 30, borderTop: '1.5px solid #f2f1f5' }}>
+              <div key={it.id} className="inline-edit-row" style={{ paddingLeft: 30, borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
                 <input
                   type="text" value={editItemDraft} onChange={(e) => setEditItemDraft(e.target.value)}
                   autoFocus onKeyDown={(e) => e.key === 'Enter' && saveEditItem(it)} className="inline-edit-input"
@@ -141,8 +141,8 @@ export default function SourceManage() {
                 <button className="inline-save-btn" onClick={() => saveEditItem(it)}>저장</button>
               </div>
             ) : (
-              <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 8px 11px 34px', borderTop: '1.5px solid #f2f1f5', cursor: 'pointer' }} onClick={() => setPrimaryModal(it)}>
-                <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 13.25, fontWeight: 500, color: '#4a4652' }}>
+              <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 8px 11px 34px', borderTop: '1.5px solid var(--k-bd-f2f1f5)', cursor: 'pointer' }} onClick={() => setPrimaryModal(it)}>
+                <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 13.25, fontWeight: 500, color: 'var(--k-tx-4a4652)' }}>
                   {it.name}
                   {it.is_primary_payment && <span style={{ fontSize: 9, fontWeight: 700, color: '#2CDDB9', background: '#E5FBF6', borderRadius: 999, padding: '2px 6px' }}>주결제</span>}
                   {it.is_primary_deposit && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF8A00', background: '#FFF1DC', borderRadius: 999, padding: '2px 6px' }}>주입금</span>}
@@ -160,7 +160,7 @@ export default function SourceManage() {
           ))}
 
           {addingItemCatId === top.id && (
-            <div className="inline-edit-row" style={{ paddingLeft: 30, borderTop: '1.5px solid #f2f1f5' }}>
+            <div className="inline-edit-row" style={{ paddingLeft: 30, borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
               <input
                 type="text" placeholder="세부 항목 이름" value={addItemDraft} onChange={(e) => setAddItemDraft(e.target.value)}
                 autoFocus onKeyDown={(e) => e.key === 'Enter' && saveAddItem(top.id)} className="inline-edit-input"
@@ -176,20 +176,20 @@ export default function SourceManage() {
         <div className="catmodal-overlay" onClick={() => setPrimaryModal(null)}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>{primaryModal.name}</div>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{primaryModal.name}</div>
               <button aria-label="닫기" onClick={() => setPrimaryModal(null)} className="catmodal-icon-btn">
                 <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
               </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button
-                type="button" className="btn-ink-pill" style={{ marginTop: 0, ...(primaryModal.is_primary_payment ? {} : { background: '#f4f2f0', color: '#191722' }) }}
+                type="button" className="btn-ink-pill" style={{ marginTop: 0, ...(primaryModal.is_primary_payment ? {} : { background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-191722)' }) }}
                 onClick={() => togglePrimary('payment')}
               >
                 {primaryModal.is_primary_payment ? '주결제수단 해제' : '주결제수단으로 지정'}
               </button>
               <button
-                type="button" className="btn-ink-pill" style={{ marginTop: 0, ...(primaryModal.is_primary_deposit ? {} : { background: '#f4f2f0', color: '#191722' }) }}
+                type="button" className="btn-ink-pill" style={{ marginTop: 0, ...(primaryModal.is_primary_deposit ? {} : { background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-191722)' }) }}
                 onClick={() => togglePrimary('deposit')}
               >
                 {primaryModal.is_primary_deposit ? '주입금수단 해제' : '주입금수단으로 지정'}

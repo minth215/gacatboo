@@ -8,8 +8,8 @@ import { tileBg } from '../components/TransactionList.jsx';
 
 // 통계 페이지와 동일한 원형 화살표 버튼 / 수입·지출 탭 스타일
 const roundBtn = {
-  width: 32, height: 32, borderRadius: '50%', border: 'none', background: '#fff',
-  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: '#8b8798',
+  width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'var(--k-bg-fff)',
+  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: 'var(--k-tx-8b8798)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none',
 };
 const arrow = (points) => (
@@ -55,7 +55,7 @@ export default function BudgetManage() {
       <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         <button aria-label="이전" onClick={() => setMonth(shiftPeriod('month', month, -1))} style={roundBtn}>{arrow('15 6 9 12 15 18')}</button>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 88 }}>
-          <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>
             {periodLabel('month', month)}
           </span>
           <input
@@ -66,12 +66,12 @@ export default function BudgetManage() {
         <button aria-label="다음" onClick={() => setMonth(shiftPeriod('month', month, 1))} style={roundBtn}>{arrow('9 6 15 12 9 18')}</button>
       </div>
 
-      <div style={{ marginTop: 14, display: 'flex', background: '#f4f2f0', borderRadius: 999, padding: 4 }}>
+      <div style={{ marginTop: 14, display: 'flex', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: 4 }}>
         {[['income', '수입'], ['expense', '지출']].map(([t, label]) => (
           <button key={t} onClick={() => setType(t)} style={{
             flex: 1, border: 'none', borderRadius: 999, padding: '11px 0', fontFamily: 'inherit',
             fontSize: 13.25, fontWeight: 700, cursor: 'pointer',
-            background: type === t ? '#fff' : 'transparent', color: type === t ? '#191722' : '#8b8798',
+            background: type === t ? 'var(--k-bg-fff)' : 'transparent', color: type === t ? 'var(--k-tx-191722)' : 'var(--k-tx-8b8798)',
           }}>{label}</button>
         ))}
       </div>
@@ -94,7 +94,7 @@ export default function BudgetManage() {
                 <span className="ntpl-main" style={{ cursor: 'default' }}>
                   <span className="ntpl-title">{c.name}</span>
                 </span>
-                <span style={{ fontSize: 13.5, fontWeight: 700, color: amt == null ? '#c7c3cc' : '#191722', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 13.5, fontWeight: 700, color: amt == null ? 'var(--k-tx-c7c3cc)' : 'var(--k-tx-191722)', whiteSpace: 'nowrap' }}>
                   {amt == null ? '-' : `${fmtNum(amt)}원`}
                 </span>
               </button>

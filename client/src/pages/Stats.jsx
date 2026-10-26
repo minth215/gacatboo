@@ -20,8 +20,8 @@ const CHART_BACK = 17;
 const CHART_FWD = 4;
 
 const roundBtn = {
-  width: 32, height: 32, borderRadius: '50%', border: 'none', background: '#fff',
-  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: '#8b8798',
+  width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'var(--k-bg-fff)',
+  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: 'var(--k-tx-8b8798)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none',
 };
 const arrow = (points) => (
@@ -393,14 +393,14 @@ export default function Stats() {
       {periodMode === 'range' ? (
         <div style={{ height: 32, display: 'flex', alignItems: 'center', gap: 7, paddingLeft: 8 }}>
           <DateField value={range.from} onChange={(v) => setRange((r) => ({ ...r, from: v, to: v > r.to ? v : r.to }))} />
-          <span style={{ fontSize: 13.25, fontWeight: 700, color: '#6c6779' }}>~</span>
+          <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-6c6779)' }}>~</span>
           <DateField value={range.to} onChange={(v) => setRange((r) => ({ ...r, to: v, from: v < r.from ? v : r.from }))} />
         </div>
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button aria-label="이전" onClick={() => movePeriod(-1)} style={roundBtn}>{arrow('15 6 9 12 15 18')}</button>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: periodMode === 'month' ? 88 : 0 }}>
-            <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>
               {periodLabel(periodMode, anchor)}
             </span>
             {periodMode === 'month' && (
@@ -429,15 +429,15 @@ export default function Stats() {
   const periodModeControl = (
     <div style={{ position: 'relative' }}>
       <button onClick={() => setPeriodMenuOpen((o) => !o)} style={{
-        width: 36, height: 36, borderRadius: '50%', border: 'none', background: '#fff',
-        boxShadow: '0 3px 12px rgba(25,23,34,.1)', color: '#6c6779', fontFamily: 'inherit',
+        width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'var(--k-bg-fff)',
+        boxShadow: '0 3px 12px rgba(25,23,34,.1)', color: 'var(--k-tx-6c6779)', fontFamily: 'inherit',
         fontSize: 10.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', padding: 0,
       }}>{PERIOD_LABELS[periodMode]}</button>
       {periodMenuOpen && (
         <>
           <div onClick={() => setPeriodMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
           <div style={{
-            position: 'absolute', top: 44, right: 0, background: '#fff', borderRadius: 14,
+            position: 'absolute', top: 44, right: 0, background: 'var(--k-bg-fff)', borderRadius: 14,
             boxShadow: '0 10px 30px rgba(25,23,34,.15)', padding: 5, display: 'flex', flexDirection: 'column',
             gap: 1, zIndex: 20, minWidth: 82,
           }}>
@@ -446,7 +446,7 @@ export default function Stats() {
                 border: 'none', borderRadius: 9, fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
                 padding: '8px 10px', textAlign: 'left', cursor: 'pointer',
                 background: periodMode === m ? '#fff1e6' : 'transparent',
-                color: periodMode === m ? '#FF3B5C' : '#4a4640',
+                color: periodMode === m ? '#FF3B5C' : 'var(--k-tx-4a4640)',
               }}>{label}</button>
             ))}
           </div>
@@ -467,7 +467,7 @@ export default function Stats() {
         <PageHeader title={detail.name} flat onBack={closeDetail} right={periodModeControl} />
         {periodBar}
 
-        <div style={{ marginTop: 10, background: '#fff', borderRadius: 20, padding: '16px 16px 10px', boxShadow: '0 6px 20px rgba(25,23,34,.07)' }}>
+        <div style={{ marginTop: 10, background: 'var(--k-bg-fff)', borderRadius: 20, padding: '16px 16px 10px', boxShadow: '0 6px 20px rgba(25,23,34,.07)' }}>
           <LineChart
             points={chartPoints} color={detail.color}
             leftIndex={chartLeftIndex} visibleCount={CHART_VISIBLE}
@@ -497,7 +497,7 @@ export default function Stats() {
             <button key={v} onClick={() => setStatView(v)} style={{
               border: 'none', backgroundColor: 'transparent', padding: '0 1px', cursor: 'pointer', fontFamily: 'inherit',
               fontSize: 12.5, fontWeight: 500, letterSpacing: '-.2px',
-              color: statView === v ? '#191722' : '#a29ead',
+              color: statView === v ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)',
               // 형광펜 효과: 선택되면 왼쪽에서 오른쪽으로 칠해지고, 해제되면 왼쪽부터 지워진다.
               // 폭(background-size)만 애니메이션하고 기준 위치는 선택 시 왼쪽/해제 시 오른쪽으로 둔다
               // (위치가 바뀌는 순간은 폭이 0% 또는 100%라 눈에 띄지 않음).
@@ -518,8 +518,8 @@ export default function Stats() {
       <div style={{ position: 'relative', marginTop: 8 }}>
         <div style={{ position: 'absolute', right: 8, bottom: '100%', display: 'flex', alignItems: 'flex-end', gap: 3, zIndex: 3 }}>
           <button aria-label="뷰 전환" onClick={() => setChartMode((m) => (m === 'donut' ? 'table' : 'donut'))} style={{
-            position: 'relative', width: 34, height: 26, borderRadius: 12, border: 'none', background: '#eceae7',
-            color: '#4a4640', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            position: 'relative', width: 34, height: 26, borderRadius: 12, border: 'none', background: 'var(--k-bg-eceae7)',
+            color: 'var(--k-tx-4a4640)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
             padding: 0, flex: 'none', marginBottom: 12,
           }}>
             <svg width="8" height="7.5" viewBox="0 0 8 7.5" style={{ position: 'absolute', right: 3, bottom: -4.5, pointerEvents: 'none' }} aria-hidden="true"><path d="M1.1 0 Q-0.8 5.3 7.9 6.8 Q4.7 4.7 4.2 0 Z" fill="#eceae7" /></svg>
@@ -531,12 +531,12 @@ export default function Stats() {
           </button>
           <CatMascot width={70} />
         </div>
-        <div style={{ display: 'flex', background: '#f4f2f0', borderRadius: 999, padding: 4 }}>
+        <div style={{ display: 'flex', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: 4 }}>
           {[['income', '수입'], ['expense', '지출']].map(([t, label]) => (
             <button key={t} onClick={() => setTab(t)} style={{
               flex: 1, border: 'none', borderRadius: 999, padding: '11px 0', fontFamily: 'inherit',
               fontSize: 13.25, fontWeight: 700, cursor: 'pointer',
-              background: tab === t ? '#fff' : 'transparent', color: tab === t ? '#191722' : '#8b8798',
+              background: tab === t ? 'var(--k-bg-fff)' : 'transparent', color: tab === t ? 'var(--k-tx-191722)' : 'var(--k-tx-8b8798)',
             }}>{label}</button>
           ))}
         </div>
@@ -545,7 +545,7 @@ export default function Stats() {
             분류별/원천별/항목별 모두 원형 그래프 시작 높이가 같아지도록. */}
         {statView === 'category' && (
           <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, zIndex: 3 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 400, color: '#8b8798', flex: 'none' }}>정산 반영</span>
+            <span style={{ fontSize: 11.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', flex: 'none' }}>정산 반영</span>
             <button
               type="button" role="switch" aria-checked={settleReflect} aria-label="정산 반영"
               className={`ios-toggle${settleReflect ? ' on' : ''}`}
@@ -595,7 +595,7 @@ export default function Stats() {
               {hover && hoverPos && (
                 <div ref={tipRef} style={{
                   position: 'absolute', left: tipBox?.left ?? 0, top: tipBox?.top ?? 0, visibility: tipBox ? 'visible' : 'hidden',
-                  background: '#191722', color: '#fff', borderRadius: 10, padding: '7px 12px', fontSize: 11, fontWeight: 600,
+                  background: 'var(--k-bg-191722)', color: 'var(--k-onink-fff)', borderRadius: 10, padding: '7px 12px', fontSize: 11, fontWeight: 600,
                   whiteSpace: 'nowrap', zIndex: 8, boxShadow: '0 6px 16px rgba(25,23,34,.25)', pointerEvents: 'none',
                 }}>
                   <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: hover.color, marginRight: 6 }} />
@@ -606,8 +606,8 @@ export default function Stats() {
                 position: 'absolute', inset: 20, borderRadius: '50%', display: 'flex',
                 flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none',
               }}>
-                <span style={{ fontSize: 10, fontWeight: 600, color: '#a29ead' }}>{tab === 'expense' ? '총 지출' : '총 수입'}</span>
-                <span style={{ marginTop: 3, fontSize: 16.5, fontWeight: 800, color: '#191722' }}>{fmtNum(total)}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--k-tx-a29ead)' }}>{tab === 'expense' ? '총 지출' : '총 수입'}</span>
+                <span style={{ marginTop: 3, fontSize: 16.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{fmtNum(total)}</span>
               </div>
             </div>
           </div>
@@ -617,21 +617,21 @@ export default function Stats() {
               const tier = tierOf(g.sourceId);
               return (
                 <div key={g.key} onClick={() => openDetail(g)} style={{
-                  background: '#fff', borderRadius: 16, padding: '12px 14px',
+                  background: 'var(--k-bg-fff)', borderRadius: 16, padding: '12px 14px',
                   boxShadow: '0 4px 16px rgba(25,23,34,.05)', cursor: 'pointer',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: g.color, flex: 'none' }} />
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#191722', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
-                    <span style={{ fontSize: 10.5, fontWeight: 700, color: '#a29ead' }}>{total ? Math.round((g.total / total) * 100) : 0}%</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#191722', minWidth: 64, textAlign: 'right' }}>{fmtNum(g.total)}</span>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-a29ead)' }}>{total ? Math.round((g.total / total) * 100) : 0}%</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', minWidth: 64, textAlign: 'right' }}>{fmtNum(g.total)}</span>
                   </div>
                   {tier && (
                     <div style={{ marginTop: 9 }}>
-                      <div style={{ height: 6, borderRadius: 999, background: '#f2f1f5', overflow: 'hidden' }}>
+                      <div style={{ height: 6, borderRadius: 999, background: 'var(--k-bg-f2f1f5)', overflow: 'hidden' }}>
                         <div style={{ height: '100%', borderRadius: 999, background: g.color, width: `${tier.percent}%` }} />
                       </div>
-                      <div style={{ marginTop: 5, fontSize: 10.25, color: '#8b8798' }}>
+                      <div style={{ marginTop: 5, fontSize: 10.25, color: 'var(--k-tx-8b8798)' }}>
                         실적 {fmtWon(tier.goal)} 목표 · {tier.percent}% 달성
                         {tier.achieved ? ` · ✅ ${tier.achieved.benefit || '혜택'}` : ''}
                       </div>
@@ -643,8 +643,8 @@ export default function Stats() {
           </div>
         </>
       ) : (
-        <div style={{ marginTop: statView === 'category' ? 34 : 22, background: '#fff', borderRadius: 16, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid #f2f1f5' }}>
+        <div style={{ marginTop: statView === 'category' ? 34 : 22, background: 'var(--k-bg-fff)', borderRadius: 16, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid var(--k-bd-f2f1f5)' }}>
             {[['name', '내용', { flex: 1 }], ['count', '건수', { width: 52 }], ['amount', '금액', { minWidth: 84 }]].map(([key, label, style]) => (
               <button key={key} onClick={() => setSort((s) => ({
                 key,
@@ -652,7 +652,7 @@ export default function Stats() {
               }))} style={{
                 ...style, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', fontFamily: 'inherit',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
-                fontSize: 11.5, fontWeight: 700, color: sort.key === key ? '#FF3B5C' : '#a29ead',
+                fontSize: 11.5, fontWeight: 700, color: sort.key === key ? '#FF3B5C' : 'var(--k-tx-a29ead)',
               }}>
                 {label}
                 {sort.key === key && sortArrow(sort.dir === 'asc')}
@@ -666,10 +666,10 @@ export default function Stats() {
             }}>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: g.color, flex: 'none' }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#191722', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
               </div>
-              <span style={{ width: 52, textAlign: 'right', fontSize: 12.5, color: '#8b8798' }}>{fmtNum(g.count)}</span>
-              <span style={{ minWidth: 84, textAlign: 'right', fontSize: 13, fontWeight: 700, color: '#191722' }}>{fmtNum(g.total)}</span>
+              <span style={{ width: 52, textAlign: 'right', fontSize: 12.5, color: 'var(--k-tx-8b8798)' }}>{fmtNum(g.count)}</span>
+              <span style={{ minWidth: 84, textAlign: 'right', fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(g.total)}</span>
             </div>
           ))}
         </div>
@@ -684,7 +684,7 @@ export default function Stats() {
 function DateField({ value, onChange }) {
   return (
     <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', alignSelf: 'stretch', gap: 4 }}>
-      <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', pointerEvents: 'none' }}>{dotDate(value)}</span>
+      <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)', letterSpacing: '-.2px', pointerEvents: 'none' }}>{dotDate(value)}</span>
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', pointerEvents: 'none' }}>
         <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
       </svg>
@@ -778,11 +778,11 @@ function LineChart({ points, color, leftIndex, visibleCount, onScroll, onPick })
             {points.map((p, i) => (
               <g key={p.anchor}>
                 <circle cx={xs[i]} cy={ys[i]} r={p.active ? 5.5 : 4}
-                  fill={p.active ? '#fff' : color} stroke={p.active ? color : '#fff'} strokeWidth={p.active ? 2.5 : 1.5} />
+                  fill={p.active ? 'var(--k-bg-fff)' : color} stroke={p.active ? color : 'var(--k-bg-fff)'} strokeWidth={p.active ? 2.5 : 1.5} />
                 <text x={xs[i]} y={ys[i] - 11} textAnchor="middle" fontSize="8"
-                  fontWeight={p.active ? 700 : 500} fill={p.active ? '#191722' : '#6c6779'}>{fmtNum(p.amount)}</text>
+                  fontWeight={p.active ? 700 : 500} fill={p.active ? 'var(--k-tx-191722)' : 'var(--k-tx-6c6779)'}>{fmtNum(p.amount)}</text>
                 <text x={xs[i]} y={CHART_AXIS_Y + 17} textAnchor="middle" fontSize="9.5"
-                  fontWeight={p.active ? 700 : 600} fill={p.active ? '#191722' : '#a29ead'}>{p.label}</text>
+                  fontWeight={p.active ? 700 : 600} fill={p.active ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)'}>{p.label}</text>
               </g>
             ))}
           </g>

@@ -29,7 +29,7 @@ const marqueeOff = (e) => {
 // 같은 날짜 묶음(.tx-daygroup) 안의 한 행. 묶음은 하나의 흰 박스처럼 보이지만(첫 행 위·마지막 행 아래만
 // 둥글고 가운데는 각짐) 각 행이 흰 배경·그림자를 가진 독립 카드라서 개별로 밀린다. 묶음 자체엔 배경이 없어
 // 밀린 자리엔 페이지 배경 위에 삭제 버튼만 보이고, 밀린 카드는 왼쪽 화면 끝까지 이어진다.
-export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete, onCopy, onLongPress, clickable, background = '#fff', children }) {
+export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete, onCopy, onLongPress, clickable, background = 'var(--k-bg-fff)', children }) {
   const first = index === 0;
   const last = index === count - 1;
   return (
@@ -62,7 +62,7 @@ export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete
       <div
         className="tx-row"
         style={{
-          borderTop: index > 0 ? '1px solid #f2f1f5' : 'none',
+          borderTop: index > 0 ? '1px solid var(--k-bd-f2f1f5)' : 'none',
           cursor: clickable ? 'pointer' : 'default',
           background,
           borderRadius: `${first ? 20 : 0}px ${first ? 20 : 0}px ${last ? 20 : 0}px ${last ? 20 : 0}px`,
@@ -115,8 +115,8 @@ export default function TransactionList({
     return (
       <div key={date}>
         <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date, dateFormat)}</span>
-          <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>{net >= 0 ? '+' : '-'}{fmtNum(Math.abs(net))}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{formatDate(date, dateFormat)}</span>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--k-tx-8b8798)' }}>{net >= 0 ? '+' : '-'}{fmtNum(Math.abs(net))}</span>
         </div>
         {/* 같은 날짜 항목들은 하나의 흰 박스처럼 보이지만(가운데 행은 각진 모서리) 각 행이 독립된 카드라서
             하나만 밀 수 있다. 박스 자체엔 배경/그림자가 없어 밀린 자리엔 페이지 배경 위에 버튼만 보인다. */}
@@ -140,20 +140,20 @@ export default function TransactionList({
                 onDelete={!selectionMode && editable && onDelete ? () => onDelete(t) : undefined}
                 onCopy={!selectionMode && onCopy ? () => onCopy(t) : undefined}
                 onLongPress={!selectionMode && editable && onLongPress ? () => onLongPress(t.id) : undefined}
-                background={isGroup ? 'linear-gradient(135deg, #FFF1F3 0%, #FFF6EA 100%)' : '#fff'}
+                background={isGroup ? 'linear-gradient(135deg, var(--k-bg-fff1f3) 0%, var(--k-bg-fff6ea) 100%)' : 'var(--k-bg-fff)'}
               >
                   <span style={{ position: 'relative', flex: 'none', width: 38, height: 38 }}>
                     {selected && <span className="tile-select-ring" />}
                     <span
                       className="tx-tile"
-                      style={{ position: 'relative', zIndex: 1, background: t.category_emoji ? (t.category_color || depositIncomeColor || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : '#f2f1f5') }}
+                      style={{ position: 'relative', zIndex: 1, background: t.category_emoji ? (t.category_color || depositIncomeColor || (isGroup ? 'rgba(255,255,255,.7)' : tileBg(t.category_name))) : (isGroup ? 'rgba(255,255,255,.7)' : 'var(--k-bg-f2f1f5)') }}
                     >
                       <span style={{ opacity: selected ? 0.25 : 1, transition: 'opacity 0.15s ease' }}>
                         {t.category_emoji || (t.type === 'income' ? '💰' : '💸')}
                       </span>
                     </span>
                     {selected && (
-                      <span style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#191722' }}>
+                      <span style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--k-tx-191722)' }}>
                         <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                       </span>
                     )}
@@ -164,17 +164,17 @@ export default function TransactionList({
                         {t.content || t.category_name || (t.type === 'income' ? '수입' : t.type === 'transfer' ? '이체' : '지출')}
                         {/* 구독 그룹 결제/입금이 반영된 항목: 몇 회분인지 배지(그룹 화면과 동일) */}
                         {t.periods != null && (
-                          <>{' '}<span className="tag-periods" style={isGroup ? { background: '#fff' } : undefined}>{t.periods} 회분</span></>
+                          <>{' '}<span className="tag-periods" style={isGroup ? { background: 'var(--k-bg-fff)' } : undefined}>{t.periods} 회분</span></>
                         )}
                       </span>
                     </div>
                     <div className="tx-row-sub">{sub}</div>
                   </div>
                   <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flex: 'none' }}>
-                    <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : t.type === 'transfer' ? '#4b4752' : '#FF4358' }}>
+                    <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : t.type === 'transfer' ? 'var(--k-tx-4b4752)' : '#FF4358' }}>
                       {t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{t.input_currency ? fmtForeign(t.input_amount, t.input_currency) : fmtNum(t.amount)}
                     </span>
-                    {t.input_currency && <span style={{ fontSize: 10.5, color: '#a29ead', marginTop: 1 }}>{t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{fmtNum(t.amount)} KRW</span>}
+                    {t.input_currency && <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', marginTop: 1 }}>{t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{fmtNum(t.amount)} KRW</span>}
                   </span>
               </DayCardRow>
             );

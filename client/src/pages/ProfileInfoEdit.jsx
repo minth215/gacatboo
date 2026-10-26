@@ -14,8 +14,8 @@ export default function ProfileInfoEdit() {
   const [focus, setFocus] = useState('');
 
   const fieldInputStyle = (name) => ({
-    fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: '#fff',
-    border: `1.5px solid ${focus === name ? '#191722' : '#efeef2'}`, borderRadius: 12, padding: '13px 14px', outline: 'none', width: '100%',
+    fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-fff)',
+    border: `1.5px solid ${focus === name ? 'var(--k-bd-191722)' : 'var(--k-bd-efeef2)'}`, borderRadius: 12, padding: '13px 14px', outline: 'none', width: '100%',
   });
 
   const save = async () => {
@@ -42,7 +42,7 @@ export default function ProfileInfoEdit() {
 
       <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#6c6779' }}>닉네임</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--k-tx-6c6779)' }}>닉네임</span>
           <input
             type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
             onFocus={() => setFocus('nickname')} onBlur={() => setFocus('')}
@@ -50,14 +50,14 @@ export default function ProfileInfoEdit() {
           />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#6c6779' }}>아이디</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fff', border: `1.5px solid ${focus === 'username' ? '#191722' : '#efeef2'}`, borderRadius: 12, padding: '13px 14px' }}>
-            <span style={{ fontSize: 13.75, fontWeight: 600, color: '#a29ead' }}>@</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--k-tx-6c6779)' }}>아이디</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--k-bg-fff)', border: `1.5px solid ${focus === 'username' ? 'var(--k-bd-191722)' : 'var(--k-bd-efeef2)'}`, borderRadius: 12, padding: '13px 14px' }}>
+            <span style={{ fontSize: 13.75, fontWeight: 600, color: 'var(--k-tx-a29ead)' }}>@</span>
             <input
               type="text" value={username} onChange={(e) => setUsername(e.target.value.replace(/\s/g, ''))}
               onFocus={() => setFocus('username')} onBlur={() => setFocus('')}
               placeholder="아이디 입력"
-              style={{ flex: 1, fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: 'transparent', border: 'none', outline: 'none', minWidth: 0, padding: 0 }}
+              style={{ flex: 1, fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', background: 'transparent', border: 'none', outline: 'none', minWidth: 0, padding: 0 }}
             />
           </div>
         </label>
@@ -66,7 +66,7 @@ export default function ProfileInfoEdit() {
 
         <button
           onClick={save} disabled={busy}
-          style={{ marginTop: 8, width: '100%', fontFamily: 'inherit', height: 50, border: 'none', borderRadius: 999, background: '#191722', color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1 }}
+          style={{ marginTop: 8, width: '100%', fontFamily: 'inherit', height: 50, border: 'none', borderRadius: 999, background: 'var(--k-bg-191722)', color: 'var(--k-onink-fff)', fontSize: 14.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1 }}
         >
           {busy ? '저장 중…' : '저장'}
         </button>

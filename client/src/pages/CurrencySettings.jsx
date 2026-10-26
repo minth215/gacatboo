@@ -35,16 +35,16 @@ export default function CurrencySettings() {
 
       <div className="tx-daycard" style={{ marginTop: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px 12px 16px' }}>
-          <span style={{ width: 34, height: 34, borderRadius: 10, background: '#eef1fb', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#191722', flex: 'none' }}>₩</span>
-          <span style={{ fontSize: 13.75, fontWeight: 700, color: '#191722' }}>원화 (기본)</span>
+          <span style={{ width: 34, height: 34, borderRadius: 10, background: '#eef1fb', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: 'var(--k-tx-191722)', flex: 'none' }}>₩</span>
+          <span style={{ fontSize: 13.75, fontWeight: 700, color: 'var(--k-tx-191722)' }}>원화 (기본)</span>
         </div>
 
         {list.length === 0 ? (
-          <div className="empty" style={{ padding: '20px 0', borderTop: '1.5px solid #f2f1f5' }}>추가된 보조 화폐가 없습니다.</div>
+          <div className="empty" style={{ padding: '20px 0', borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>추가된 보조 화폐가 없습니다.</div>
         ) : list.map((c) => (
-          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px 12px 16px', borderTop: '1.5px solid #f2f1f5' }}>
-            <span style={{ width: 34, height: 34, borderRadius: 10, background: '#fde8ee', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#191722', flex: 'none' }}>{c.code}</span>
-            <span style={{ flex: 1, fontSize: 13.75, fontWeight: 600, color: '#191722' }}>{CURRENCY_NAME[c.code] || c.code}</span>
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px 12px 16px', borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+            <span style={{ width: 34, height: 34, borderRadius: 10, background: '#fde8ee', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'var(--k-tx-191722)', flex: 'none' }}>{c.code}</span>
+            <span style={{ flex: 1, fontSize: 13.75, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{CURRENCY_NAME[c.code] || c.code}</span>
             <button aria-label="삭제" onClick={() => del(c)} className="cat-del-btn">
               <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
             </button>
@@ -56,7 +56,7 @@ export default function CurrencySettings() {
         <div className="catmodal-overlay" onClick={() => setPicking(false)}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>보조 화폐 추가</div>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>보조 화폐 추가</div>
               <button aria-label="닫기" onClick={() => setPicking(false)} className="catmodal-icon-btn">
                 <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
               </button>
@@ -69,12 +69,12 @@ export default function CurrencySettings() {
                   key={c.code} type="button" onClick={() => add(c.code)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'transparent',
-                    padding: '12px 2px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5', cursor: 'pointer',
+                    padding: '12px 2px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)', cursor: 'pointer',
                     textAlign: 'left', fontFamily: 'inherit', width: '100%',
                   }}
                 >
-                  <span style={{ fontSize: 11, fontWeight: 800, color: '#8b8798', width: 36, flex: 'none' }}>{c.code}</span>
-                  <span style={{ fontSize: 13.75, fontWeight: 600, color: '#191722' }}>{c.name}</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--k-tx-8b8798)', width: 36, flex: 'none' }}>{c.code}</span>
+                  <span style={{ fontSize: 13.75, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{c.name}</span>
                 </button>
               ))}
             </div>

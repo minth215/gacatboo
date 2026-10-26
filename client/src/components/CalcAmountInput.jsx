@@ -88,7 +88,7 @@ const KeyBtn = ({ label, onClick, bg, color, style }) => (
     type="button" className="calc-key"
     onPointerDown={(e) => { e.preventDefault(); onClick(); }}
     style={{
-      height: 46, border: 'none', borderRadius: 12, background: bg || '#f4f2f0', color: color || '#191722',
+      height: 46, border: 'none', borderRadius: 12, background: bg || 'var(--k-bg-f4f2f0)', color: color || 'var(--k-tx-191722)',
       fontSize: 16, fontWeight: 700, fontFamily: 'inherit', ...style,
     }}
   >
@@ -268,7 +268,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
         <input
           readOnly value={displayValue} placeholder={placeholder} autoFocus={autoFocus}
           onFocus={open} onClick={open} onKeyDown={onKeyDown}
-          style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', padding: 0 }}
+          style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'right', padding: 0 }}
         />
       ) : (
         <div className="with-suffix">
@@ -284,8 +284,8 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
           compact 에서는 좁은 항목 행 칸을 벗어나지 않도록 절대위치로 오른쪽 아래에 떠 있게 한다. */}
       {currency !== 'KRW' && (
         <div style={compact
-          ? { position: 'absolute', top: '100%', right: 0, marginTop: 2, lineHeight: '14px', textAlign: 'right', fontSize: 10.5, color: '#a29ead', whiteSpace: 'nowrap' }
-          : { padding: '6px 2px 0', fontSize: 12.5, color: '#a29ead' }
+          ? { position: 'absolute', top: '100%', right: 0, marginTop: 2, lineHeight: '14px', textAlign: 'right', fontSize: 10.5, color: 'var(--k-tx-a29ead)', whiteSpace: 'nowrap' }
+          : { padding: '6px 2px 0', fontSize: 12.5, color: 'var(--k-tx-a29ead)' }
         }>
           {(rateLoading && focused) ? '환율 조회 중…' : (rateError && focused) ? rateError : editingKrw ? (
             // 수정 중에도 "17,250 KRW" 모양 그대로(테두리 없는 입력, 천 단위 콤마 자동, 단위는 고정)
@@ -314,13 +314,13 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
         <>
           <div style={{
             position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100,
-            background: '#fff', borderRadius: '20px 20px 0 0', boxShadow: '0 -4px 20px rgba(25,23,34,.12)',
+            background: 'var(--k-bg-fff)', borderRadius: '20px 20px 0 0', boxShadow: '0 -4px 20px rgba(25,23,34,.12)',
             padding: '10px 12px calc(32px + env(safe-area-inset-bottom, 0px))',
           }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '2px 2px 8px' }}>
               <button
                 type="button" onClick={close} disabled={currency !== 'KRW' && rateLoading}
-                style={{ border: 'none', background: 'none', color: (currency !== 'KRW' && rateLoading) ? '#c7c3cc' : '#191722', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                style={{ border: 'none', background: 'none', color: (currency !== 'KRW' && rateLoading) ? 'var(--k-tx-c7c3cc)' : 'var(--k-tx-191722)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 {(currency !== 'KRW' && rateLoading) ? '환율 조회 중…' : '완료'}
               </button>
@@ -334,7 +334,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
                     onPointerDown={(e) => { e.preventDefault(); setCurrency(code); }}
                     style={{
                       flex: 'none', padding: '6px 14px', borderRadius: 999, border: 'none', fontSize: 12.5, fontWeight: 700,
-                      background: currency === code ? '#191722' : '#f4f2f0', color: currency === code ? '#fff' : '#191722',
+                      background: currency === code ? 'var(--k-bg-191722)' : 'var(--k-bg-f4f2f0)', color: currency === code ? 'var(--k-onink-fff)' : 'var(--k-tx-191722)',
                     }}
                   >
                     {code === 'KRW' ? '원화' : (CURRENCY_NAME[code] || code)}
@@ -362,7 +362,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
               <KeyBtn label="+" onClick={() => pressOp('+')} bg="#eef1fb" />
               <KeyBtn label="0" onClick={() => pressDigit('0')} style={{ gridColumn: 'span 2' }} />
               <KeyBtn label="." onClick={pressDot} />
-              <KeyBtn label="=" onClick={pressEquals} bg="#191722" color="#fff" />
+              <KeyBtn label="=" onClick={pressEquals} bg="var(--k-bg-191722)" color="var(--k-onink-fff)" />
             </div>
           </div>
         </>

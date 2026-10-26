@@ -51,14 +51,14 @@ export default function Favorites() {
                   isOpen={openId === f.id} onOpenChange={(open) => setOpenId(open ? f.id : null)}
                   onTap={() => pick(f)} onDelete={() => remove(f)}
                 >
-                  <span className="tx-tile" style={{ background: f.category_emoji ? (f.category_color || tileBg(f.category_name)) : '#f2f1f5' }}>
+                  <span className="tx-tile" style={{ background: f.category_emoji ? (f.category_color || tileBg(f.category_name)) : 'var(--k-bg-f2f1f5)' }}>
                     {f.category_emoji || (f.type === 'income' ? '💰' : f.type === 'transfer' ? '🔁' : '💸')}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="tx-row-title"><span className="ttext">{f.content || f.category_name || '기록'}</span></div>
                     <div className="tx-row-sub">{sub}</div>
                   </div>
-                  <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: f.type === 'income' ? '#2CDDB9' : f.type === 'transfer' ? '#4b4752' : '#FF4358' }}>
+                  <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: f.type === 'income' ? '#2CDDB9' : f.type === 'transfer' ? 'var(--k-tx-4b4752)' : '#FF4358' }}>
                     {f.type === 'transfer' ? '' : (f.type === 'income' ? '+' : '-')}{fmtNum(f.amount)}
                   </span>
                 </DayCardRow>

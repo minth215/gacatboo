@@ -43,20 +43,20 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
     <>
       <div className="tx-daycard" style={{ marginTop: 14 }}>
         {visibleMembers.map((m, i) => (
-          <div key={m.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '13px 8px 13px 18px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5' }}>
+          <div key={m.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '13px 8px 13px 18px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{m.nickname}</span>
                 {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 6px' }}>{leaderName}</span>}
                 {m.role !== 'owner' && m.pending && <span style={{ fontSize: 9, fontWeight: 700, color: '#B8860B', background: '#FBF1D3', borderRadius: 999, padding: '2px 6px' }}>초대중</span>}
-                {m.role !== 'owner' && !m.pending && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
+                {m.role !== 'owner' && !m.pending && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--k-tx-8b8798)', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
               </div>
-              <div style={{ marginTop: 3, fontSize: 10.5, color: '#a29ead' }}>
+              <div style={{ marginTop: 3, fontSize: 10.5, color: 'var(--k-tx-a29ead)' }}>
                 {m.is_account && m.username ? `@${m.username} · ` : ''}
                 {m.start_date ? `${m.start_date}${m.end_date ? ` ~ ${m.end_date}` : ' ~'}` : ''}
                 {m.contact ? ` · ${m.contact}` : ''}
               </div>
-              {isOwner && m.memo && <div style={{ marginTop: 4, fontSize: 10.75, color: '#8b8798' }}>📝 {m.memo}</div>}
+              {isOwner && m.memo && <div style={{ marginTop: 4, fontSize: 10.75, color: 'var(--k-tx-8b8798)' }}>📝 {m.memo}</div>}
             </div>
             {isOwner && m.role !== 'owner' && (
               <>
@@ -82,26 +82,26 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
         <div className="catmodal-overlay" onClick={closeModal}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '88%', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>{editor.id ? '멤버 수정' : '멤버 추가'}</div>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{editor.id ? '멤버 수정' : '멤버 추가'}</div>
               <button aria-label="닫기" onClick={closeModal} className="catmodal-icon-btn">
                 <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
               </button>
             </div>
 
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>멤버 이름 <span style={{ color: '#FF3B5C' }}>*</span></span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-8b8798)' }}>멤버 이름 <span style={{ color: '#FF3B5C' }}>*</span></span>
               <input value={editor.nickname} onChange={(e) => setEditor({ ...editor, nickname: e.target.value })} placeholder="멤버 이름(닉네임)" autoFocus className="catmodal-name-input" />
             </label>
             <div style={{ display: 'flex', gap: 8 }}>
               <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>시작일자 <span style={{ color: '#FF3B5C' }}>*</span></span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-8b8798)' }}>시작일자 <span style={{ color: '#FF3B5C' }}>*</span></span>
                 <div className="catmodal-date-field">
                   <div className={`catmodal-date-value${editor.start_date ? '' : ' placeholder'}`}>{editor.start_date ? dotDate(editor.start_date) : '날짜 선택'}</div>
                   <input type="date" value={editor.start_date} onChange={(e) => setEditor({ ...editor, start_date: e.target.value })} className="catmodal-date-input" />
                 </div>
               </label>
               <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>종료일자</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-8b8798)' }}>종료일자</span>
                 <div className="catmodal-date-field">
                   <div className={`catmodal-date-value${editor.end_date ? '' : ' placeholder'}`}>{editor.end_date ? dotDate(editor.end_date) : '날짜 선택'}</div>
                   <input type="date" value={editor.end_date} onChange={(e) => setEditor({ ...editor, end_date: e.target.value })} className="catmodal-date-input" />
@@ -109,17 +109,17 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
               </label>
             </div>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>연락처</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-8b8798)' }}>연락처</span>
               <input value={editor.contact} onChange={(e) => setEditor({ ...editor, contact: e.target.value })} placeholder="전화번호/이메일 등" className="catmodal-name-input" />
             </label>
             {!editor.id && (
               <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>가캣부 아이디</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-8b8798)' }}>가캣부 아이디</span>
                 <input value={editor.username} onChange={(e) => setEditor({ ...editor, username: e.target.value })} placeholder="회원일 경우 해당 그룹에 초대됩니다" className="catmodal-name-input" />
               </label>
             )}
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b8798' }}>메모</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-8b8798)' }}>메모</span>
               <textarea rows={2} value={editor.memo} onChange={(e) => setEditor({ ...editor, memo: e.target.value })} placeholder="총무만 열람 가능합니다" className="catmodal-name-input" style={{ resize: 'none' }} />
             </label>
 

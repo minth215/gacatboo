@@ -6,8 +6,8 @@ import { currentMonth, shiftMonth, today } from '../lib/format.js';
 import Modal from '../components/Modal.jsx';
 
 const roundBtn = (size = 36) => ({
-  width: size, height: size, borderRadius: '50%', border: 'none', background: '#fff',
-  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: '#6c6779',
+  width: size, height: size, borderRadius: '50%', border: 'none', background: 'var(--k-bg-fff)',
+  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: 'var(--k-tx-6c6779)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none',
 });
 
@@ -77,7 +77,7 @@ function AdminMembers() {
       )}
 
       {pending.length > 0 && (
-        <div className="card" style={{ borderColor: '#ffe0b2', background: '#fffdf8' }}>
+        <div className="card" style={{ borderColor: '#ffe0b2', background: 'var(--k-bg-fffdf8)' }}>
           <h3>승인 대기 ({pending.length})</h3>
           {pending.map((u) => (
             <div className="list-item" key={u.id}>
@@ -93,7 +93,7 @@ function AdminMembers() {
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '18px 2px 10px' }}>
-        <span style={{ fontSize: 15, fontWeight: 800, color: '#191722' }}>전체 회원</span>
+        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--k-tx-191722)' }}>전체 회원</span>
         <span className="chip">{users.length}</span>
       </div>
 
@@ -182,7 +182,7 @@ function AdminNotifications() {
     <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '14px 2px 10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 15, fontWeight: 800, color: '#191722' }}>알림 메시지</span>
+          <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--k-tx-191722)' }}>알림 메시지</span>
           <span className="chip">{templates.length}</span>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
@@ -203,7 +203,7 @@ function AdminNotifications() {
               style={{ opacity: dragId === t.id ? 1 : t.active ? 1 : 0.5 }}>
               <span
                 className={`ntpl-emoji${editMode ? ' draggable' : ''}${dragId === t.id ? ' dragging' : ''}`}
-                style={{ background: t.color || '#f4f2f0' }}
+                style={{ background: t.color || 'var(--k-bg-f4f2f0)' }}
                 onPointerDown={editMode ? startDrag(t.id) : undefined}
               >
                 {t.emoji || '🔔'}
@@ -327,7 +327,7 @@ function AdminHolidays() {
           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
         </button>
         <div style={{ position: 'relative', minWidth: 88, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px' }}>{label}</span>
+          <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)', letterSpacing: '-.2px' }}>{label}</span>
           <input
             type="month" value={month} aria-label="연월 선택" className="catmodal-date-input"
             onChange={(e) => { if (e.target.value) setMonth(e.target.value); }}
@@ -340,8 +340,8 @@ function AdminHolidays() {
 
       {/* 캘린더 — 가계부 페이지 캘린더 뷰와 동일한 구성(선택 대신 공휴일 표시). 칸 크기는
           내용 길이와 무관하게 항상 고정(height)이고, 긴 이름은 말줄임표로 줄인다. */}
-      <div style={{ marginTop: 16, background: '#fff', borderRadius: 20, padding: '14px 12px 12px', boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', textAlign: 'center', fontSize: 10.5, fontWeight: 700, color: '#a29ead' }}>
+      <div style={{ marginTop: 16, background: 'var(--k-bg-fff)', borderRadius: 20, padding: '14px 12px 12px', boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', textAlign: 'center', fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-a29ead)' }}>
           <span style={{ color: '#e0607a' }}>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span style={{ color: '#7b93c9' }}>토</span>
         </div>
         <div style={{ marginTop: 7, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
@@ -362,7 +362,7 @@ function AdminHolidays() {
                   outline: isToday ? '1.5px solid #FF8A00' : '1.5px solid transparent', outlineOffset: -1.5,
                   opacity: busyDate === dateStr ? 0.5 : 1,
                 }}>
-                <div style={{ fontSize: 11, fontWeight: name ? 800 : 600, color: name ? '#FF4358' : '#6c6779' }}>{day}</div>
+                <div style={{ fontSize: 11, fontWeight: name ? 800 : 600, color: name ? '#FF4358' : 'var(--k-tx-6c6779)' }}>{day}</div>
                 {name && (
                   <div style={{ marginTop: 2, width: '100%', fontSize: 8.5, fontWeight: 700, color: '#FF4358', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {name}
@@ -376,10 +376,10 @@ function AdminHolidays() {
 
       {/* 선택한 공휴일 카드 — 우측 끝에 수정/삭제 아이콘 */}
       {selDate && holidays[selDate] && (
-        <div style={{ marginTop: 10, background: '#fff', borderRadius: 14, padding: '12px 8px 12px 16px', boxShadow: '0 4px 16px rgba(25,23,34,.05)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ marginTop: 10, background: 'var(--k-bg-fff)', borderRadius: 14, padding: '12px 8px 12px 16px', boxShadow: '0 4px 16px rgba(25,23,34,.05)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#191722' }}>{holidays[selDate]}</div>
-            <div style={{ marginTop: 2, fontSize: 11.5, color: '#a29ead' }}>{selLabel}</div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{holidays[selDate]}</div>
+            <div style={{ marginTop: 2, fontSize: 11.5, color: 'var(--k-tx-a29ead)' }}>{selLabel}</div>
           </div>
           <button aria-label="공휴일 이름 수정" onClick={renameSelected} className="row-icon-btn">
             <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>

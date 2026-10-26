@@ -21,7 +21,7 @@ const RemoveIcon = () => (
 );
 // 즐겨찾기 등록 별 아이콘 — 미등록이면 속이 빈 옅은 회색 테두리, 등록되면 노란색으로 채워짐
 export const StarIcon = ({ filled }) => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill={filled ? '#FFC53D' : 'none'} stroke={filled ? '#FFC53D' : '#c7c3cc'} strokeWidth="1.6" strokeLinejoin="round">
+  <svg width="17" height="17" viewBox="0 0 24 24" fill={filled ? '#FFC53D' : 'none'} stroke={filled ? '#FFC53D' : 'var(--k-bd-c7c3cc)'} strokeWidth="1.6" strokeLinejoin="round">
     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
   </svg>
 );
@@ -96,15 +96,15 @@ export function rankSuggestions(list, query, max = 4) {
 // 후보 문자열에서 사용자가 입력한 부분(먹색)과 나머지(회색)를 나눠 표시
 function HighlightedText({ text, query }) {
   const idx = query ? text.toLowerCase().indexOf(query.toLowerCase()) : -1;
-  if (idx === -1) return <span style={{ color: '#a29ead' }}>{text}</span>;
+  if (idx === -1) return <span style={{ color: 'var(--k-tx-a29ead)' }}>{text}</span>;
   const before = text.slice(0, idx);
   const match = text.slice(idx, idx + query.length);
   const after = text.slice(idx + query.length);
   return (
     <>
-      {before && <span style={{ color: '#a29ead' }}>{before}</span>}
-      <span style={{ color: '#191722' }}>{match}</span>
-      {after && <span style={{ color: '#a29ead' }}>{after}</span>}
+      {before && <span style={{ color: 'var(--k-tx-a29ead)' }}>{before}</span>}
+      <span style={{ color: 'var(--k-tx-191722)' }}>{match}</span>
+      {after && <span style={{ color: 'var(--k-tx-a29ead)' }}>{after}</span>}
     </>
   );
 }
@@ -117,15 +117,15 @@ export function SuggestList({ items, query, onPick }) {
   return (
     <div style={{
       position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, zIndex: 40,
-      background: '#fff', borderRadius: 12, boxShadow: '0 8px 20px rgba(25,23,34,.14)',
-      border: '1px solid #f2f1f5', overflow: 'hidden',
+      background: 'var(--k-bg-fff)', borderRadius: 12, boxShadow: '0 8px 20px rgba(25,23,34,.14)',
+      border: '1px solid var(--k-bd-f2f1f5)', overflow: 'hidden',
     }}>
       {items.map((s, i) => (
         <button
           key={s} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onPick(s)}
           style={{
             display: 'block', width: '100%', textAlign: 'left', padding: '10px 12px', border: 'none',
-            borderTop: i === 0 ? 'none' : '1px solid #f6f5f3',
+            borderTop: i === 0 ? 'none' : '1px solid var(--k-bd-f6f5f3)',
             background: 'transparent', fontFamily: 'inherit', fontSize: 13, cursor: 'pointer',
           }}
         >
@@ -144,7 +144,7 @@ export function ClearButton({ onClear }) {
       type="button" aria-label="지우기" onMouseDown={(e) => e.preventDefault()} onClick={onClear}
       style={{
         position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)',
-        width: 18, height: 18, borderRadius: '50%', border: 'none', background: '#e4e2e6', color: '#8b8798',
+        width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'var(--k-bg-e4e2e6)', color: 'var(--k-tx-8b8798)',
         padding: 0, margin: 0, flex: 'none', cursor: 'pointer', lineHeight: 0,
       }}
     >
@@ -181,7 +181,7 @@ function ItemRow({
   const rankedNameSuggestions = nameSuggestOpen ? rankSuggestions(itemNameSuggestions || [], item.name) : [];
   const hasSplit = !!settlementMembers?.length;
   const cols = (isTransfer || isSettlement) ? '1fr 84px 18px' : hasSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
-  const sourceSelectStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 12.5, color: '#191722', outline: 'none', appearance: 'none' };
+  const sourceSelectStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--k-tx-191722)', outline: 'none', appearance: 'none' };
   return (
     <div>
       {/* 보조 화폐로 입력한 행: 원화 환산 줄(금액 칸 아래 작은 회색 글씨)이 들어갈 높이를 아래쪽에 더 확보 —
@@ -202,7 +202,7 @@ function ItemRow({
                 )
               ))}
             </select>
-            <span style={{ flex: 'none', color: '#c7c3cc', display: 'flex' }}><ArrowRightIcon /></span>
+            <span style={{ flex: 'none', color: 'var(--k-tx-c7c3cc)', display: 'flex' }}><ArrowRightIcon /></span>
             <select id="transfer-to-source-select" value={item.toSourceId} onChange={(e) => onToSource(e.target.value)} style={sourceSelectStyle}>
               <option value="">입금 수단 선택</option>
               {transferSources(sources, ['credit', 'check'], item.toSourceId).map((top) => (
@@ -227,16 +227,16 @@ function ItemRow({
               value={item.targetId} onChange={(e) => onTarget(e.target.value)}
               style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'transparent', outline: 'none', minWidth: 0, appearance: 'none' }}
             >
-              <option value="" style={{ color: '#191722' }}>정산 대상 선택</option>
+              <option value="" style={{ color: 'var(--k-tx-191722)' }}>정산 대상 선택</option>
               {recentExpenses.filter((x) => !usedTargetIds?.has(String(x.id)) || String(x.id) === item.targetId).map((x) => (
-                <option key={x.id} value={x.id} style={{ color: '#191722' }}>{x.date.slice(5).replace('-', '.')} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})</option>
+                <option key={x.id} value={x.id} style={{ color: 'var(--k-tx-191722)' }}>{x.date.slice(5).replace('-', '.')} {x.category_emoji || ''} {x.content || x.category_name || '지출'} ({fmtWon(x.amount)})</option>
               ))}
             </select>
             {(() => {
               const picked = recentExpenses.find((x) => String(x.id) === item.targetId);
               const label = picked ? `${picked.category_emoji ? `${picked.category_emoji} ` : ''}${picked.content || picked.category_name || '지출'}` : '';
               return (
-                <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', fontSize: 13.5, color: label ? '#191722' : '#a29ead', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', pointerEvents: 'none' }}>
+                <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', fontSize: 13.5, color: label ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', pointerEvents: 'none' }}>
                   {label || '정산 대상 선택'}
                 </span>
               );
@@ -250,7 +250,7 @@ function ItemRow({
               onFocus={() => { setNameFocused(true); setNameSuggestOpen(true); }}
               onBlur={() => { setNameFocused(false); setNameSuggestOpen(false); }}
               autoComplete="off"
-              style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0, padding: nameFocused && item.name ? '0 22px 0 0' : 0 }}
+              style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', outline: 'none', minWidth: 0, padding: nameFocused && item.name ? '0 22px 0 0' : 0 }}
             />
             {nameFocused && item.name && <ClearButton onClear={() => onName('')} />}
             <SuggestList items={rankedNameSuggestions} query={item.name} onPick={(s) => { onName(s); setNameSuggestOpen(false); }} />
@@ -259,7 +259,7 @@ function ItemRow({
         {hasSplit && (
           <button
             type="button" aria-label="참여 멤버 펼치기" onClick={onToggleExpand}
-            style={{ width: 20, height: 20, border: 'none', background: 'transparent', color: '#8b8798', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: item.expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+            style={{ width: 20, height: 20, border: 'none', background: 'transparent', color: 'var(--k-tx-8b8798)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: item.expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
           </button>
@@ -267,7 +267,7 @@ function ItemRow({
         {!isTransfer && !isSettlement && (
           <input
             type="text" inputMode="numeric" placeholder="1" value={item.qty} onChange={(e) => onQty(e.target.value)}
-            style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', textAlign: 'center', minWidth: 0 }}
+            style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'center', minWidth: 0 }}
           />
         )}
         <CalcAmountInput
@@ -276,7 +276,7 @@ function ItemRow({
           onCurrencyChange={onCurrencyChange} onCurrencySelect={setLiveCurrency}
         />
         {canRemove ? (
-          <button type="button" aria-label="행 삭제" onClick={onRemove} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button type="button" aria-label="행 삭제" onClick={onRemove} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--k-tx-c2bfc6)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <RemoveIcon />
           </button>
         ) : <span />}
@@ -285,7 +285,7 @@ function ItemRow({
         <div style={{ padding: '2px 0 6px 14px' }}>
           {memberRowsFor(item, settlementMembers, itemTotalOf(item)).map((m) => (
             <div key={m.id} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '2px 0' }}>
-              <span style={{ gridColumn: '1 / span 3', display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, fontSize: 11.5, color: '#6c6779' }}>
+              <span style={{ gridColumn: '1 / span 3', display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, fontSize: 11.5, color: 'var(--k-tx-6c6779)' }}>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
                 {m.isOwner && <span style={{ flex: 'none', fontSize: 8, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '1px 6px' }}>총무</span>}
               </span>
@@ -293,11 +293,11 @@ function ItemRow({
                 type="text" inputMode="numeric" disabled={!m.checked}
                 value={m.checked ? Number(m.amount).toLocaleString('ko-KR') : ''}
                 onChange={(e) => onMemberAmount(m.id, e.target.value.replace(/[^0-9]/g, ''))}
-                style={{ gridColumn: 4, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, color: '#8b8798', textAlign: 'right', outline: 'none', minWidth: 0, padding: 0, opacity: m.checked ? 1 : 0.4 }}
+                style={{ gridColumn: 4, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, color: 'var(--k-tx-8b8798)', textAlign: 'right', outline: 'none', minWidth: 0, padding: 0, opacity: m.checked ? 1 : 0.4 }}
               />
               <input
                 type="checkbox" checked={m.checked} onChange={() => onToggleMember(m.id)}
-                style={{ gridColumn: 5, width: 14, height: 14, cursor: 'pointer', justifySelf: 'center', accentColor: '#6c6779' }}
+                style={{ gridColumn: 5, width: 14, height: 14, cursor: 'pointer', justifySelf: 'center', accentColor: 'var(--k-tx-6c6779)' }}
               />
             </div>
           ))}
@@ -990,8 +990,8 @@ const TransactionForm = forwardRef(function TransactionForm({
     }
   };
 
-  const rowLabelStyle = { width: 46, flex: 'none', fontSize: 13.5, fontWeight: 400, color: '#8b8798' };
-  const rowInputStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', padding: 0 };
+  const rowLabelStyle = { width: 46, flex: 'none', fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' };
+  const rowInputStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'right', padding: 0 };
   const tableCols = (isTransfer || isSettlement) ? '1fr 84px 18px' : showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
 
   return (
@@ -1034,7 +1034,7 @@ const TransactionForm = forwardRef(function TransactionForm({
                 type="text" placeholder="내용" value={contentValue} onChange={onContentChange}
                 onFocus={() => { setContentFocused(true); setContentSuggestOpen(true); }}
                 onBlur={() => { setContentFocused(false); onContentBlur(); }} autoComplete="off"
-                style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: `0 ${contentFocused && contentValue ? '26px' : '0'} 0 0` }}
+                style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: 'var(--k-tx-191722)', outline: 'none', padding: `0 ${contentFocused && contentValue ? '26px' : '0'} 0 0` }}
               />
               {contentFocused && contentValue && <ClearButton onClear={clearContent} />}
               <SuggestList items={rankedContentSuggestions} query={contentValue} onPick={pickContentSuggestion} />
@@ -1052,13 +1052,13 @@ const TransactionForm = forwardRef(function TransactionForm({
               type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
               style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
             >
-              <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : '#191722'} />
+              <RepeatIcon color={!(recurringId || pendingRecurrence) ? 'var(--k-tx-c7c3cc)' : 'var(--k-tx-191722)'} />
             </button>
             )}
           </div>
         </div>
         {groupBadge && (
-          <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
+          <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || 'var(--k-bg-e4e2e6)', fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-6c6779)' }}>
             {groupBadge.name}
           </span>
         )}
@@ -1080,7 +1080,7 @@ const TransactionForm = forwardRef(function TransactionForm({
             <span style={rowLabelStyle}>날짜</span>
             <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <div style={{ position: 'relative' }}>
-                <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{dotDateWithWeekday(date)}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{dotDateWithWeekday(date)}</span>
                 <input
                   type="date" value={date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택"
                 />
@@ -1098,7 +1098,7 @@ const TransactionForm = forwardRef(function TransactionForm({
                 if (e.target.value === '__edit__') { saveDraftAndGo(`/settings/categories/${type === 'income' ? 'income' : 'expense'}`); return; }
                 setCategoryId(e.target.value);
               }}
-              style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: categoryId ? 600 : 400, color: categoryId ? '#191722' : '#a29ead' }}
+              style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: categoryId ? 600 : 400, color: categoryId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}
             >
               <option value="">분류 선택</option>
               {categoryId === SNAP && (
@@ -1113,7 +1113,7 @@ const TransactionForm = forwardRef(function TransactionForm({
         {!isTransfer && fixedSourceName && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={rowLabelStyle}>원천</span>
-            <span style={{ flex: 1, textAlign: 'right', fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{fixedSourceName}</span>
+            <span style={{ flex: 1, textAlign: 'right', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{fixedSourceName}</span>
           </div>
         )}
         {!isTransfer && !fixedSourceName && (
@@ -1125,7 +1125,7 @@ const TransactionForm = forwardRef(function TransactionForm({
                 if (e.target.value === '__edit__') { saveDraftAndGo('/settings/sources'); return; }
                 setSourceId(e.target.value);
               }}
-              style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: sourceId ? 600 : 400, color: sourceId ? '#191722' : '#a29ead' }}
+              style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: sourceId ? 600 : 400, color: sourceId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}
             >
               <option value="">원천 선택</option>
               {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
@@ -1146,7 +1146,7 @@ const TransactionForm = forwardRef(function TransactionForm({
             {showPerformance && (
               <button
                 type="button" onClick={() => setExcludePerformance((v) => !v)} aria-label="카드 실적 포함/제외 전환"
-                style={{ flex: 'none', border: 'none', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px', margin: '0 0 0 -7px', fontFamily: 'inherit', fontSize: 9.5, fontWeight: 400, lineHeight: 1.3, color: '#a29ead', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                style={{ flex: 'none', border: 'none', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: '2px 6px', margin: '0 0 0 -7px', fontFamily: 'inherit', fontSize: 9.5, fontWeight: 400, lineHeight: 1.3, color: 'var(--k-tx-a29ead)', cursor: 'pointer', whiteSpace: 'nowrap' }}
               >
                 {excludePerformance ? '실적 제외' : '실적 포함'}
               </button>
@@ -1154,11 +1154,11 @@ const TransactionForm = forwardRef(function TransactionForm({
           </div>
         )}
 
-        <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: tableCols, gap: 8, padding: '8px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
-          <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
+        <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: tableCols, gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
+          <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>내용</span>
           {showMemberSplit && <span />}
-          {!isTransfer && !isSettlement && <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'center' }}>{qtyLabel}</span>}
-          <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
+          {!isTransfer && !isSettlement && <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'center' }}>{qtyLabel}</span>}
+          <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'right' }}>금액</span>
           <span />
         </div>
 
@@ -1192,13 +1192,13 @@ const TransactionForm = forwardRef(function TransactionForm({
           <div style={{ display: 'grid', gridTemplateColumns: tableCols, gap: 8, alignItems: 'center', padding: '5px 0' }}>
             <input
               type="text" placeholder="수수료" value={feeName} onChange={(e) => setFeeName(e.target.value)}
-              style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
+              style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', outline: 'none', minWidth: 0 }}
             />
             <CalcAmountInput compact value={feeAmount} onChange={setFeeAmount} />
             <button
               type="button" aria-label="수수료 삭제"
               onClick={() => { setFeeEnabled(false); setFeeName('수수료'); setFeeAmount(''); }}
-              style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--k-tx-c2bfc6)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               <RemoveIcon />
             </button>
@@ -1208,8 +1208,8 @@ const TransactionForm = forwardRef(function TransactionForm({
           <button type="button" onClick={() => setFeeEnabled(true)} className="rcpt-add-row">+ 수수료 추가</button>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: tableCols, gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed #cfccd4' }}>
-          <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
+        <div style={{ display: 'grid', gridTemplateColumns: tableCols, gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)' }}>
+          <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>합계</span>
           {showMemberSplit && <span />}
           {!isTransfer && !isSettlement && <span />}
           {isSettlement ? (
@@ -1221,19 +1221,19 @@ const TransactionForm = forwardRef(function TransactionForm({
               style={{ width: '100%', minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 15.5, fontWeight: 800, color: '#2CDDB9', outline: 'none', textAlign: 'right', padding: 0 }}
             />
           ) : (
-            <span style={{ fontSize: 15.5, fontWeight: 800, color: isTransfer ? '#4b4752' : (type === 'expense' ? '#FF4358' : '#2CDDB9'), textAlign: 'right' }}>{fmtNum(total)}</span>
+            <span style={{ fontSize: 15.5, fontWeight: 800, color: isTransfer ? 'var(--k-tx-4b4752)' : (type === 'expense' ? '#FF4358' : '#2CDDB9'), textAlign: 'right' }}>{fmtNum(total)}</span>
           )}
           <span />
         </div>
 
         <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="rcpt-dots" />
-          <span style={{ flex: 'none', fontSize: 13.5, fontWeight: 400, color: '#a29ead', letterSpacing: '.3px' }}>메모</span>
+          <span style={{ flex: 'none', fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-a29ead)', letterSpacing: '.3px' }}>메모</span>
           <span className="rcpt-dots" style={{ textAlign: 'right' }} />
         </div>
         <textarea
           ref={memoRef} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="추가 설명을 적어주세요" rows={2}
-          style={{ marginTop: 8, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.5, color: '#191722', outline: 'none', resize: 'none', padding: 0, overflow: 'hidden' }}
+          style={{ marginTop: 8, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.5, color: 'var(--k-tx-191722)', outline: 'none', resize: 'none', padding: 0, overflow: 'hidden' }}
         />
       </div>
 

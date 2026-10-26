@@ -85,16 +85,16 @@ export default function AdminUserDetail() {
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="회원 상세" flat />
 
-      <div style={{ marginTop: 14, background: '#fff', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
+      <div style={{ marginTop: 14, background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
         <div style={{ padding: '18px 18px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 18, fontWeight: 800, color: '#191722', letterSpacing: '-.3px' }}>{target.display_name}</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#a29ead' }}>@{target.username}</span>
+            <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--k-tx-191722)', letterSpacing: '-.3px' }}>{target.display_name}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--k-tx-a29ead)' }}>@{target.username}</span>
             {target.role === 'admin' && <span className="settings-admin-badge">관리자</span>}
           </div>
         </div>
         <div style={{ padding: '0 18px 18px' }}>
-          <div style={{ fontSize: 12.5, fontWeight: 400, color: '#a29ead', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 400, color: 'var(--k-tx-a29ead)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {email || (emailErr ? <>이메일을 불러오지 못했습니다. <code>admin</code> Edge Function을 재배포했는지 확인해 주세요.</> : '')}
           </div>
         </div>
@@ -103,14 +103,14 @@ export default function AdminUserDetail() {
       <div style={{ marginTop: 18 }}>
         <div className="tx-daycard">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px' }}>
-            <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>역할</span>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)' }}>역할</span>
             <select className="admin-select" value={target.role} disabled={busy || isSelf} onChange={(e) => changeRole(e.target.value)}>
               <option value="user">일반</option>
               <option value="admin">관리자</option>
             </select>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderTop: '1.5px solid #f2f1f5' }}>
-            <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>상태</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)' }}>상태</span>
             <select className="admin-select" value={statusValue} disabled={busy || isSelf} onChange={(e) => changeStatus(e.target.value)}>
               <option value="approved">활성</option>
               <option value="rejected">비활성</option>

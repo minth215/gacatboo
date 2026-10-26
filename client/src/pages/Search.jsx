@@ -97,7 +97,7 @@ export default function Search() {
     } catch (e) { alert(e.message); }
   };
 
-  const selStyle = { padding: 10, border: '1px solid var(--line)', borderRadius: 10, background: '#fff' };
+  const selStyle = { padding: 10, border: '1px solid var(--line)', borderRadius: 10, background: 'var(--k-bg-fff)' };
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
@@ -109,7 +109,7 @@ export default function Search() {
             value={q}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="내용·분류·원천 검색 (전체 기간)"
-            style={{ flex: 1, padding: 10, border: '1px solid var(--line)', borderRadius: 10, background: '#fff' }}
+            style={{ flex: 1, padding: 10, border: '1px solid var(--line)', borderRadius: 10, background: 'var(--k-bg-fff)' }}
             autoFocus
           />
           <button className="btn sm" onClick={() => setShowFilter((v) => !v)}>필터{filterActive ? ' •' : ''}</button>

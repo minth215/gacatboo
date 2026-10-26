@@ -219,7 +219,7 @@ export default function TransactionEdit() {
       ? members.filter((m) => !isLeftoverName(m.nickname))
       : undefined;
   // 그룹 결제/입금/공금 내역 상단 배지: 그룹 이모지 배경색과 동일(무색이면 회색)
-  const groupBadge = group ? { name: group.name, color: group.color || '#e4e2e6' } : undefined;
+  const groupBadge = group ? { name: group.name, color: group.color || 'var(--k-tx-e4e2e6)' } : undefined;
 
   // 공금 그룹 이체 내역: 멤버 선택지(총무는 전체 멤버 중 대신 입력 가능, 일반 멤버는 본인만).
   // 기본값은 수정 중이면 기존 멤버, 신규면 입력하는 본인.
@@ -298,7 +298,7 @@ export default function TransactionEdit() {
                 onClick={() => formRef.current?.openReceiptPicker()} aria-label="영수증으로 채우기"
               >
                 {scanBusy ? (
-                  <span style={{ width: 13, height: 13, border: '2px solid #d8d5d0', borderTopColor: '#191722', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  <span style={{ width: 13, height: 13, border: '2px solid var(--k-bd-d8d5d0)', borderTopColor: 'var(--k-bd-191722)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                 ) : (
                   <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />

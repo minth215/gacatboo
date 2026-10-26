@@ -76,9 +76,9 @@ export default function MemberDetail() {
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, maxWidth: '100%', verticalAlign: 'middle' }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.nickname}</span>
             {!member.is_account ? (
-              <span style={{ flex: 'none', fontSize: 10.5, fontWeight: 700, letterSpacing: 0, color: '#8b8798', background: '#efeef2', borderRadius: 999, padding: '3px 8px' }}>외부</span>
+              <span style={{ flex: 'none', fontSize: 10.5, fontWeight: 700, letterSpacing: 0, color: 'var(--k-tx-8b8798)', background: 'var(--k-bg-efeef2)', borderRadius: 999, padding: '3px 8px' }}>외부</span>
             ) : member.username ? (
-              <span style={{ flex: 'none', fontSize: 13, fontWeight: 400, letterSpacing: 0, color: '#a29ead' }}>@{member.username}</span>
+              <span style={{ flex: 'none', fontSize: 13, fontWeight: 400, letterSpacing: 0, color: 'var(--k-tx-a29ead)' }}>@{member.username}</span>
             ) : null}
           </span>
         )}
@@ -115,8 +115,8 @@ export default function MemberDetail() {
             return (
               <div key={date}>
                 <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>+{fmtNum(net)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{formatDate(date)}</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--k-tx-8b8798)' }}>+{fmtNum(net)}</span>
                 </div>
                 <div className="tx-daygroup">
                   {items.map((d, i) => {
@@ -130,7 +130,7 @@ export default function MemberDetail() {
                         clickable={canEditDep} onTap={() => canEditDep && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)}
                         onDelete={canEditDep ? () => delDeposit(d) : undefined}
                       >
-                          <span className="tx-tile" style={{ background: tileColor || (tileEmoji ? tileBg(tileCat) : '#f2f1f5') }}>{tileEmoji || '💸'}</span>
+                          <span className="tx-tile" style={{ background: tileColor || (tileEmoji ? tileBg(tileCat) : 'var(--k-bg-f2f1f5)') }}>{tileEmoji || '💸'}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div className="tx-row-title">
                               <span className="ttext">

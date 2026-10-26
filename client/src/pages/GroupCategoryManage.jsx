@@ -67,7 +67,7 @@ export default function GroupCategoryManage() {
           <div className="empty" style={{ padding: '20px 0' }}>카테고리가 없습니다.</div>
         ) : cats.map((c, i) => (
           editId === c.id ? (
-            <div key={c.id} className="inline-edit-row" style={{ borderTop: (i === 0 && !adding) ? 'none' : '1.5px solid #f2f1f5' }}>
+            <div key={c.id} className="inline-edit-row" style={{ borderTop: (i === 0 && !adding) ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
               <input
                 type="text" value={editDraft} onChange={(e) => setEditDraft(e.target.value)}
                 autoFocus onKeyDown={(e) => e.key === 'Enter' && saveEdit(c)} className="inline-edit-input"
@@ -80,11 +80,11 @@ export default function GroupCategoryManage() {
               key={c.id} ref={setRowRef(c.id)}
               className={dragId === c.id ? 'drag-lift' : ''}
               style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 18px', background: '#fff',
-                borderTop: (i === 0 && !adding) ? 'none' : '1.5px solid #f2f1f5',
+                display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 18px', background: 'var(--k-bg-fff)',
+                borderTop: (i === 0 && !adding) ? 'none' : '1.5px solid var(--k-bd-f2f1f5)',
               }}
             >
-              <span style={{ flex: 1, fontSize: 13.75, fontWeight: 600, color: '#191722' }}>{c.name}</span>
+              <span style={{ flex: 1, fontSize: 13.75, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{c.name}</span>
               <button aria-label="수정" onClick={() => startEdit(c)} className="row-icon-btn">
                 <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
               </button>

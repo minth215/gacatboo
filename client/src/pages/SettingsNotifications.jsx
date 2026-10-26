@@ -77,11 +77,11 @@ export default function SettingsNotifications() {
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="알림 관리" flat />
 
-      <div style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', padding: '14px 16px', marginTop: 14 }}>
+      <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', padding: '14px 16px', marginTop: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 13.75, fontWeight: 700, color: '#191722' }}>푸시 알림</div>
-            <div style={{ marginTop: 2, fontSize: 11.5, color: '#a29ead' }}>기기로 알림을 받습니다. 꺼도 알림 탭에는 계속 쌓여요.</div>
+            <div style={{ fontSize: 13.75, fontWeight: 700, color: 'var(--k-tx-191722)' }}>푸시 알림</div>
+            <div style={{ marginTop: 2, fontSize: 11.5, color: 'var(--k-tx-a29ead)' }}>기기로 알림을 받습니다. 꺼도 알림 탭에는 계속 쌓여요.</div>
           </div>
           <Toggle on={pushEnabled} onClick={togglePush} disabled={busy} label="푸시 알림" />
         </div>
@@ -96,11 +96,11 @@ export default function SettingsNotifications() {
               {templates.map((t, i) => {
                 const label = EVENT_LABELS[t.event_key] || t.title_template || t.event_key;
                 return (
-                  <div key={t.event_key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5' }}>
-                    <span style={{ width: 32, height: 32, borderRadius: 10, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, background: t.color || '#f4f2f0' }}>
+                  <div key={t.event_key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
+                    <span style={{ width: 32, height: 32, borderRadius: 10, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, background: t.color || 'var(--k-bg-f4f2f0)' }}>
                       {t.emoji || '🔔'}
                     </span>
-                    <span style={{ flex: 1, fontSize: 13.25, fontWeight: 600, color: '#191722' }}>{label}</span>
+                    <span style={{ flex: 1, fontSize: 13.25, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{label}</span>
                     <Toggle on={prefs[t.event_key] ?? true} onClick={() => toggleEvent(t.event_key)} disabled={busy} label={label} />
                   </div>
                 );

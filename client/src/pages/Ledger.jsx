@@ -12,8 +12,8 @@ import LedgerFilterSheet, { DateField } from '../components/LedgerFilterSheet.js
 import { SuggestList, rankSuggestions } from '../components/TransactionForm.jsx';
 
 const roundBtn = (size = 36) => ({
-  width: size, height: size, borderRadius: '50%', border: 'none', background: '#fff',
-  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: '#6c6779',
+  width: size, height: size, borderRadius: '50%', border: 'none', background: 'var(--k-bg-fff)',
+  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: 'var(--k-tx-6c6779)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none',
 });
 
@@ -349,7 +349,7 @@ export default function Ledger() {
                   <div style={{ position: 'fixed', inset: 0, zIndex: 39 }} onClick={() => setBulkMenuOpen(false)} />
                   <div style={{
                     position: 'absolute', right: 0, top: '100%', marginTop: 6, zIndex: 40, minWidth: 148,
-                    background: '#fff', borderRadius: 14, boxShadow: '0 10px 28px rgba(25,23,34,.16)', overflow: 'hidden',
+                    background: 'var(--k-bg-fff)', borderRadius: 14, boxShadow: '0 10px 28px rgba(25,23,34,.16)', overflow: 'hidden',
                   }}>
                     {[
                       ['content', '내용 일괄 수정'], ['date', '날짜 일괄 수정'],
@@ -360,8 +360,8 @@ export default function Ledger() {
                         onClick={() => { setBulkMenuOpen(false); setBulkEditField(key); }}
                         style={{
                           display: 'block', width: '100%', textAlign: 'left', padding: '11px 14px', border: 'none',
-                          borderTop: i === 0 ? 'none' : '1px solid #f6f5f3', background: 'transparent',
-                          fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', cursor: 'pointer',
+                          borderTop: i === 0 ? 'none' : '1px solid var(--k-bd-f6f5f3)', background: 'transparent',
+                          fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', cursor: 'pointer',
                         }}
                       >
                         {label}
@@ -436,18 +436,18 @@ export default function Ledger() {
                   수정(선택) 모드에서는 가계부와 같이 선택 개수 안내로 바뀜 */}
               <div style={{ marginTop: 3 }}>
                 {selectionMode ? (
-                  <div style={{ padding: '7px 2px 7px 8px', fontSize: 12, fontWeight: 400, color: '#a29ead' }}>
+                  <div style={{ padding: '7px 2px 7px 8px', fontSize: 12, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>
                     {selectedIds.size} 건 선택되었습니다
                   </div>
                 ) : sPeriod === 'range' ? (
                   <div style={{ height: 32, display: 'flex', alignItems: 'center', gap: 7, paddingLeft: 8 }}>
                     <DateField value={sFrom} onChange={(v) => { setSFrom(v); if (v > sTo) setSTo(v); }} />
-                    <span style={{ fontSize: 13.25, fontWeight: 700, color: '#6c6779' }}>~</span>
+                    <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-6c6779)' }}>~</span>
                     <DateField value={sTo} onChange={(v) => { setSTo(v); if (v < sFrom) setSFrom(v); }} />
                   </div>
                 ) : sPeriod === 'all' ? (
                   <div style={{ height: 32, display: 'flex', alignItems: 'center', paddingLeft: 8 }}>
-                    <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px' }}>전체 기간</span>
+                    <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)', letterSpacing: '-.2px' }}>전체 기간</span>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -455,7 +455,7 @@ export default function Ledger() {
                       <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18" /></svg>
                     </button>
                     <div style={{ position: 'relative', minWidth: sPeriod === 'month' ? 88 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>
                         {periodLabel(sPeriod, sAnchor)}
                       </span>
                       {sPeriod === 'month' && (
@@ -478,7 +478,7 @@ export default function Ledger() {
               <div style={{ position: 'relative', marginTop: 8 }}>
                 <div style={{ position: 'absolute', right: 8, bottom: '100%', marginBottom: 8, zIndex: 3 }}>
                   <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, height: 28 }}>
-                    <span style={{ fontSize: 12.25, fontWeight: 700, color: '#191722', pointerEvents: 'none' }}>{SEARCH_PERIOD_OPTIONS[sPeriod]}</span>
+                    <span style={{ fontSize: 12.25, fontWeight: 700, color: 'var(--k-tx-191722)', pointerEvents: 'none' }}>{SEARCH_PERIOD_OPTIONS[sPeriod]}</span>
                     <svg width="12" viewBox="0 0 24 24" fill="none" stroke="#8b8798" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', pointerEvents: 'none' }}><polyline points="6 9 12 15 18 9" /></svg>
                     <select
                       value={sPeriod} onChange={(e) => setSPeriod(e.target.value)} aria-label="기간"
@@ -488,12 +488,12 @@ export default function Ledger() {
                     </select>
                   </span>
                 </div>
-                <div style={{ background: '#fff', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgba(25,23,34,.07)', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
-                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtNum(sIncome)}</div></div>
-                  <div style={{ width: 1, height: 30, background: '#efeef2' }} />
-                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtNum(sExpense)}</div></div>
-                  <div style={{ width: 1, height: 30, background: '#efeef2' }} />
-                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>이체</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#4b4752' }}>{fmtNum(sTransfer)}</div></div>
+                <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgba(25,23,34,.07)', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtNum(sIncome)}</div></div>
+                  <div style={{ width: 1, height: 30, background: 'var(--k-bg-efeef2)' }} />
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtNum(sExpense)}</div></div>
+                  <div style={{ width: 1, height: 30, background: 'var(--k-bg-efeef2)' }} />
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>이체</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: 'var(--k-tx-4b4752)' }}>{fmtNum(sTransfer)}</div></div>
                 </div>
               </div>
 
@@ -514,7 +514,7 @@ export default function Ledger() {
         <>
           {/* 월 이동 — 선택 모드에서는 지금 보는 달 대신 선택 개수 안내로 바뀜 */}
           {selectionMode ? (
-            <div style={{ marginTop: 3, padding: '7px 2px 7px 8px', fontSize: 12, fontWeight: 400, color: '#a29ead' }}>
+            <div style={{ marginTop: 3, padding: '7px 2px 7px 8px', fontSize: 12, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>
               {selectedIds.size} 건 선택되었습니다
             </div>
           ) : (
@@ -524,7 +524,7 @@ export default function Ledger() {
               </button>
               {/* 가운데 연월 텍스트를 누르면 네이티브 월 선택기가 떠서 직접 고를 수 있음(텍스트는 숨긴 input 아래 그대로 보임) */}
               <div style={{ position: 'relative', minWidth: 88, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px' }}>{label}</span>
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)', letterSpacing: '-.2px' }}>{label}</span>
                 <input
                   type="month" value={month} aria-label="연월 선택" className="catmodal-date-input"
                   onChange={(e) => { if (e.target.value) { setMonth(e.target.value); setSelDay(null); } }}
@@ -551,7 +551,7 @@ export default function Ledger() {
           <div style={{ position: 'relative', marginTop: 8 }}>
             <div style={{ position: 'absolute', right: 8, bottom: '100%', marginBottom: 0, display: 'flex', alignItems: 'flex-end', gap: 3, zIndex: 3 }}>
               <button aria-label="뷰 전환" onClick={() => setView((v) => (v === 'list' ? 'calendar' : 'list'))}
-                style={{ position: 'relative', width: 34, height: 26, borderRadius: 12, border: 'none', background: '#eceae7', color: '#4a4640', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flex: 'none', marginBottom: 12 }}>
+                style={{ position: 'relative', width: 34, height: 26, borderRadius: 12, border: 'none', background: 'var(--k-bg-eceae7)', color: 'var(--k-tx-4a4640)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flex: 'none', marginBottom: 12 }}>
                 <svg width="8" height="7.5" viewBox="0 0 8 7.5" style={{ position: 'absolute', right: 3, bottom: -4.5, pointerEvents: 'none' }} aria-hidden="true"><path d="M1.1 0 Q-0.8 5.3 7.9 6.8 Q4.7 4.7 4.2 0 Z" fill="#eceae7" /></svg>
                 {view === 'list' ? (
                   <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="3" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="8" y1="3" x2="8" y2="6" /><line x1="16" y1="3" x2="16" y2="6" /></svg>
@@ -561,12 +561,12 @@ export default function Ledger() {
               </button>
               <CatMascot width={70} />
             </div>
-            <div style={{ background: '#fff', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgba(25,23,34,.07)', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
-              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtNum(income)}</div></div>
-              <div style={{ width: 1, height: 30, background: '#efeef2' }} />
-              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtNum(expense)}</div></div>
-              <div style={{ width: 1, height: 30, background: '#efeef2' }} />
-              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a96a5' }}>합계</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#191722' }}>{fmtNum(income - expense)}</div></div>
+            <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgba(25,23,34,.07)', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
+              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtNum(income)}</div></div>
+              <div style={{ width: 1, height: 30, background: 'var(--k-bg-efeef2)' }} />
+              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtNum(expense)}</div></div>
+              <div style={{ width: 1, height: 30, background: 'var(--k-bg-efeef2)' }} />
+              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>합계</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: 'var(--k-tx-191722)' }}>{fmtNum(income - expense)}</div></div>
             </div>
           </div>
 
@@ -575,8 +575,8 @@ export default function Ledger() {
               <Spinner />
             ) : view === 'calendar' ? (
               <>
-                <div style={{ marginTop: 16, background: '#fff', borderRadius: 20, padding: '14px 12px 12px', boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', textAlign: 'center', fontSize: 10.5, fontWeight: 700, color: '#a29ead' }}>
+                <div style={{ marginTop: 16, background: 'var(--k-bg-fff)', borderRadius: 20, padding: '14px 12px 12px', boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', textAlign: 'center', fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-a29ead)' }}>
                     <span style={{ color: '#e0607a' }}>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span style={{ color: '#7b93c9' }}>토</span>
                   </div>
                   <div style={{ marginTop: 7, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
@@ -587,7 +587,7 @@ export default function Ledger() {
                       const sel = selDay === day;
                       const dow = (firstDow + i) % 7;
                       const isHoliday = holidaySet.has(`${month}-${String(day).padStart(2, '0')}`);
-                      const dayColor = isHoliday || dow === 0 ? '#e0607a' : dow === 6 ? '#7b93c9' : (sel ? '#191722' : '#6c6779');
+                      const dayColor = isHoliday || dow === 0 ? '#e0607a' : dow === 6 ? '#7b93c9' : (sel ? 'var(--k-tx-191722)' : 'var(--k-tx-6c6779)');
                       return (
                         <div key={day} onClick={() => setSelDay(sel ? null : day)}
                           style={{
@@ -628,7 +628,7 @@ export default function Ledger() {
                 disabled={receiptPicking} aria-label="영수증으로 기록"
               >
                 {receiptPicking ? (
-                  <span style={{ width: 15, height: 15, border: '2px solid #e4e2e6', borderTopColor: '#6c6779', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  <span style={{ width: 15, height: 15, border: '2px solid var(--k-bd-e4e2e6)', borderTopColor: '#6c6779', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                 ) : (
                   <svg width="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />

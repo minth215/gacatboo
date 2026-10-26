@@ -40,21 +40,21 @@ export default function Register() {
   };
 
   const inputStyle = (name) => ({
-    fontFamily: 'inherit', fontSize: 15, color: '#191722', background: '#fff',
-    border: `1.5px solid ${focus === name ? '#191722' : '#e9e9ee'}`, borderRadius: 999,
+    fontFamily: 'inherit', fontSize: 15, color: 'var(--k-tx-191722)', background: 'var(--k-bg-fff)',
+    border: `1.5px solid ${focus === name ? 'var(--k-bd-191722)' : 'var(--k-bd-e9e9ee)'}`, borderRadius: 999,
     padding: '15px 22px', outline: 'none', width: '100%',
   });
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 24px', background: '#FEFCFC' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 24px', background: 'var(--k-bg-fefcfc)' }}>
       <div style={{ width: '100%', maxWidth: 400, margin: '0 auto' }}>
         <div>
-          <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-1px', color: '#191722' }}>가캣부<span style={{ color: '#FF3B5C' }}>.</span></div>
-          <div style={{ marginTop: 6, fontSize: 13, color: '#8b8798' }}>관리자 승인 후 이용할 수 있어요</div>
+          <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-1px', color: 'var(--k-tx-191722)' }}>가캣부<span style={{ color: '#FF3B5C' }}>.</span></div>
+          <div style={{ marginTop: 6, fontSize: 13, color: 'var(--k-tx-8b8798)' }}>관리자 승인 후 이용할 수 있어요</div>
         </div>
 
         {!isConfigured && (
-          <div style={{ marginTop: 20, padding: '12px 15px', background: '#fff8f8', border: '1px solid #f3c7c8', borderRadius: 12, fontSize: 12.5, color: '#e5484d' }}>
+          <div style={{ marginTop: 20, padding: '12px 15px', background: 'var(--k-bg-fff8f8)', border: '1px solid #f3c7c8', borderRadius: 12, fontSize: 12.5, color: '#e5484d' }}>
             Supabase 연결이 설정되지 않았습니다. <code>client/.env</code> 에 <code>VITE_SUPABASE_URL</code> 과 <code>VITE_SUPABASE_ANON_KEY</code> 를 설정하세요.
           </div>
         )}
@@ -65,10 +65,10 @@ export default function Register() {
 
           {done ? (
             <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#191722', lineHeight: 1.5 }}>{done}</p>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--k-tx-191722)', lineHeight: 1.5 }}>{done}</p>
               <Link
                 to="/login"
-                style={{ width: '100%', fontFamily: 'inherit', height: 56, border: 'none', borderRadius: 999, background: '#191722', color: '#fff', fontSize: 14.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
+                style={{ width: '100%', fontFamily: 'inherit', height: 56, border: 'none', borderRadius: 999, background: 'var(--k-bg-191722)', color: 'var(--k-onink-fff)', fontSize: 14.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
               >
                 로그인 화면으로
               </Link>
@@ -98,7 +98,7 @@ export default function Register() {
               {error && <p style={{ margin: '2px 4px 0', fontSize: 12.5, color: '#FF4358', fontWeight: 600 }}>{error}</p>}
               <button
                 type="submit" disabled={busy}
-                style={{ marginTop: 6, width: '100%', fontFamily: 'inherit', height: 56, border: 'none', borderRadius: 999, background: '#191722', color: '#fff', fontSize: 14.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                style={{ marginTop: 6, width: '100%', fontFamily: 'inherit', height: 56, border: 'none', borderRadius: 999, background: 'var(--k-bg-191722)', color: 'var(--k-onink-fff)', fontSize: 14.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
               >
                 <svg width="16" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><circle cx="7" cy="7" r="2.4" /><circle cx="12" cy="5.4" r="2.4" /><circle cx="17" cy="7" r="2.4" /><path d="M12 10c3.4 0 6 2.4 6 5.2 0 2-1.7 3.3-3.4 2.7-1-.4-1.7-.6-2.6-.6s-1.6.2-2.6.6C7.7 18.5 6 17.2 6 15.2 6 12.4 8.6 10 12 10Z" /></svg>
                 {busy ? '신청 중…' : '가입 요청하기'}
@@ -107,7 +107,7 @@ export default function Register() {
           )}
 
           {!done && (
-            <div style={{ marginTop: 18, textAlign: 'center', fontSize: 12.25, color: '#8b8798' }}>
+            <div style={{ marginTop: 18, textAlign: 'center', fontSize: 12.25, color: 'var(--k-tx-8b8798)' }}>
               이미 계정이 있나요? <Link to="/login" style={{ color: '#FF3B5C', fontWeight: 600 }}>로그인하기</Link>
             </div>
           )}

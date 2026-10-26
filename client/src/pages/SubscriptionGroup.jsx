@@ -45,14 +45,14 @@ function SettleTargetSelect({ value, onChange, options, label, style }) {
         value={value} onChange={onChange}
         style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', color: 'transparent', outline: 'none', minWidth: 0, appearance: 'none', ...style }}
       >
-        <option value="" style={{ color: '#191722' }}>정산 대상 선택</option>
+        <option value="" style={{ color: 'var(--k-tx-191722)' }}>정산 대상 선택</option>
         {options.map((x) => (
-          <option key={x.id} value={x.id} style={{ color: '#191722' }}>{x.date.slice(5).replace('-', '.')} {x.category_emoji || ''} {label(x)} ({fmtWon(x.amount)})</option>
+          <option key={x.id} value={x.id} style={{ color: 'var(--k-tx-191722)' }}>{x.date.slice(5).replace('-', '.')} {x.category_emoji || ''} {label(x)} ({fmtWon(x.amount)})</option>
         ))}
       </select>
       <span style={{
         position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', pointerEvents: 'none',
-        color: text ? '#191722' : '#a29ead', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...style,
+        color: text ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...style,
       }}>
         {text || '정산 대상 선택'}
       </span>
@@ -615,7 +615,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
           >
             <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
           </button>
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: '#191722', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {selectedPayment ? itemLabelOf(selectedPayment) : '전체'}
           </span>
           <button
@@ -642,16 +642,16 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
           const itemSwipeForOwner = isOwner && m.role !== 'owner' && !m.settled;
           const itemTapForSelf = !isOwner && isMe && m.role !== 'owner' && !m.settled;
           const cardInner = (
-            <div style={{ padding: '14px 16px', background: '#fff' }}>
+            <div style={{ padding: '14px 16px', background: 'var(--k-bg-fff)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
+                  <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{m.nickname}</span>
                   {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>총무</span>}
-                  {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
+                  {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--k-tx-8b8798)', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
                 </div>
-                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(m.owed)}</span>
               </div>
-              <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead' }}>
+              <div style={{ marginTop: 6, fontSize: 10.75, color: 'var(--k-tx-a29ead)' }}>
                 {m.role === 'owner' ? (() => {
                   const itemOwnerRemaining = Math.max(Number(selectedPayment.amount) - m.owed - summaryTotalSettled, 0);
                   return itemOwnerRemaining <= 0
@@ -716,9 +716,9 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
           const leftoverCardBox = (
             <div className="settle-card settle-card-leftover">
               <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{LEFTOVER_NAME}</span>
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{LEFTOVER_NAME}</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span key={m.owed} style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
+                  <span key={m.owed} style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(m.owed)}</span>
                   {isOwner && (
                     <button type="button" className="settle-pencil-btn" onClick={deleteLeftover} aria-label="짤짤이 삭제">
                       <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -769,12 +769,12 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
         const tapForSelf = !isOwner && isMe && m.role !== 'owner' && !m.settled;
 
         const cardInner = (
-          <div style={{ padding: '14px 16px', background: '#fff' }}>
+          <div style={{ padding: '14px 16px', background: 'var(--k-bg-fff)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{m.nickname}</span>
                 {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>총무</span>}
-                {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: '#8b8798', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
+                {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--k-tx-8b8798)', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
               </div>
               {isOwner && editingId === m.id ? (
                 <div className="settle-edit-inline">
@@ -793,7 +793,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                 </div>
               ) : (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span key={m.owed} style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.owed)}</span>
+                  <span key={m.owed} style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(m.owed)}</span>
                   {isOwner && (
                     <button type="button" className="settle-pencil-btn" onClick={() => startEdit(m)} aria-label="정산 금액 수정">
                       <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -805,7 +805,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                 </span>
               )}
             </div>
-            <div style={{ marginTop: 6, fontSize: 10.75, color: '#a29ead', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ marginTop: 6, fontSize: 10.75, color: 'var(--k-tx-a29ead)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               {/* key 로 금액이 바뀔 때마다 노드를 새로 만들어 iOS 에서 화면 갱신이 누락되지 않게 한다 */}
               <span key={`${m.owed}-${m.paid}-${totalSettled}`} style={{ minWidth: 0 }}>
                 {m.role === 'owner' ? (() => {
@@ -905,15 +905,15 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
         <div className="catmodal-overlay" onClick={() => setPayOpen(null)}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>정산 보내기</div>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>정산 보내기</div>
               <button aria-label="닫기" onClick={() => setPayOpen(null)} className="catmodal-icon-btn">
                 <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
               </button>
             </div>
 
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 10.75, fontWeight: 700, color: '#a29ead' }}>보낼 금액</div>
-              <div style={{ marginTop: 4, fontSize: 24, fontWeight: 800, color: '#191722' }}>{fmtNum(payOpen.remaining)}원</div>
+              <div style={{ fontSize: 10.75, fontWeight: 700, color: 'var(--k-tx-a29ead)' }}>보낼 금액</div>
+              <div style={{ marginTop: 4, fontSize: 24, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{fmtNum(payOpen.remaining)}원</div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -941,7 +941,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
         <div className="catmodal-overlay" onClick={() => setSettleDateOpen(false)}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>정산 일괄 완료</div>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>정산 일괄 완료</div>
               <button aria-label="닫기" onClick={() => setSettleDateOpen(false)} className="catmodal-icon-btn">
                 <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
               </button>
@@ -991,8 +991,8 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
             return (
               <div key={date}>
                 <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>+{fmtNum(net)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{formatDate(date)}</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--k-tx-8b8798)' }}>+{fmtNum(net)}</span>
                 </div>
                 <div className="tx-daygroup">
                   {items.map((d, i) => {
@@ -1008,7 +1008,7 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
                         clickable={mine} onTap={() => mine && nav(`/tx/${d.id}?group=${gid}&kind=deposit`)}
                         onDelete={mine ? () => delDeposit(d) : undefined}
                       >
-                          <span className="tx-tile" style={{ background: tileColor || (tileEmoji ? tileBg(tileCat) : '#f2f1f5') }}>{tileEmoji || '💸'}</span>
+                          <span className="tx-tile" style={{ background: tileColor || (tileEmoji ? tileBg(tileCat) : 'var(--k-bg-f2f1f5)') }}>{tileEmoji || '💸'}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div className="tx-row-title">
                               <span className="ttext">
@@ -1124,8 +1124,8 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                 return (
                   <div key={date}>
                     <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>{formatDate(date)}</span>
-                      <span style={{ fontSize: 11.5, fontWeight: 600, color: '#8b8798' }}>-{fmtNum(net)}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{formatDate(date)}</span>
+                      <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--k-tx-8b8798)' }}>-{fmtNum(net)}</span>
                     </div>
                     <div className="tx-daygroup">
                       {items.map((p, i) => (
@@ -1135,7 +1135,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                           clickable={isOwner} onTap={() => isOwner && nav(`/tx/${p.id}?group=${gid}&kind=payment`)}
                           onDelete={isOwner ? () => delPayment(p) : undefined}
                         >
-                            <span className="tx-tile" style={{ background: payCatColors[p.category_name] || (p.category_emoji ? tileBg(p.category_name) : '#f2f1f5') }}>{p.category_emoji || '💳'}</span>
+                            <span className="tx-tile" style={{ background: payCatColors[p.category_name] || (p.category_emoji ? tileBg(p.category_name) : 'var(--k-bg-f2f1f5)') }}>{p.category_emoji || '💳'}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div className="tx-row-title">
                                 <span className="ttext">{p.content || p.category_name} <span className="tag-periods">{p.periods} 회분</span></span>
@@ -1176,20 +1176,20 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
             <div key={m.id} className="tx-daycard" style={{ borderRadius: 16, padding: '14px 16px', marginTop: 10, cursor: m.isOwner ? 'default' : 'pointer' }} onClick={() => !m.isOwner && nav(`/groups/${gid}/member/${m.id}`)}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{m.nickname}</span>
+                  <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{m.nickname}</span>
                   <span className="tag-periods">{m.periods} 회차</span>
                   {m.isOwner && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>{leaderName}</span>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#a29ead' }}>누적</span>
-                  <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722' }}>{fmtNum(m.cum)}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--k-tx-a29ead)' }}>누적</span>
+                  <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(m.cum)}</span>
                 </div>
               </div>
-              <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.75, color: '#a29ead' }}>
+              <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.75, color: 'var(--k-tx-a29ead)' }}>
                 <span>{m.lastLabel} {dotDate(m.last) || '-'}</span>
-                <span style={{ color: '#e4e2e6' }}>|</span>
+                <span style={{ color: 'var(--k-tx-e4e2e6)' }}>|</span>
                 {/* 지난 날짜: 코랄핑크 굵게, 오늘(결제일/입금일 당일): 코랄핑크 보통 굵기 */}
-                <span style={{ color: (m.overdue || m.dueToday) ? 'var(--expense)' : '#a29ead', fontWeight: m.overdue ? 700 : 400 }}>{m.nextLabel} {dotDate(m.next) || '-'}</span>
+                <span style={{ color: (m.overdue || m.dueToday) ? 'var(--expense)' : 'var(--k-tx-a29ead)', fontWeight: m.overdue ? 700 : 400 }}>{m.nextLabel} {dotDate(m.next) || '-'}</span>
               </div>
             </div>
           ))}
@@ -1792,8 +1792,8 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   };
 
   const rowStyle = { display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' };
-  const rowLabelStyle = { width: 46, flex: 'none', fontSize: 13.5, fontWeight: 400, color: '#8b8798' };
-  const rowInputStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: '#191722', outline: 'none', textAlign: 'right', padding: 0 };
+  const rowLabelStyle = { width: 46, flex: 'none', fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' };
+  const rowInputStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'right', padding: 0 };
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
@@ -1810,7 +1810,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                 onFocus={() => { setContentFocused(true); setContentSuggestOpen(true); }}
                 onBlur={() => { setContentFocused(false); setTimeout(() => setContentSuggestOpen(false), 150); }} autoComplete="off"
                 placeholder={isSettleMode ? settleContentDefault : '내용'}
-                style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: '#191722', outline: 'none', padding: `0 ${contentFocused && f.content ? '26px' : '0'} 0 0` }}
+                style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: 'var(--k-tx-191722)', outline: 'none', padding: `0 ${contentFocused && f.content ? '26px' : '0'} 0 0` }}
               />
               {contentFocused && f.content && <ClearButton onClear={() => setF((prev) => ({ ...prev, content: '' }))} />}
               <SuggestList items={rankedContentSuggestions} query={f.content} onPick={(v) => { setF((prev) => ({ ...prev, content: v })); setContentSuggestOpen(false); }} />
@@ -1828,13 +1828,13 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
               type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
               style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
             >
-              <RepeatIcon color={!(recurringId || pendingRecurrence) ? '#c7c3cc' : '#191722'} />
+              <RepeatIcon color={!(recurringId || pendingRecurrence) ? 'var(--k-tx-c7c3cc)' : 'var(--k-tx-191722)'} />
             </button>
             )}
           </div>
         </div>
         {groupBadge && (
-          <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || '#e4e2e6', fontSize: 10.5, fontWeight: 700, color: '#6c6779' }}>
+          <span style={{ display: 'inline-block', marginBottom: 10, padding: '3px 9px', borderRadius: 999, background: groupBadge.color || 'var(--k-bg-e4e2e6)', fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-6c6779)' }}>
             {groupBadge.name}
           </span>
         )}
@@ -1855,7 +1855,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
             <span style={rowLabelStyle}>날짜</span>
             <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <div style={{ position: 'relative' }}>
-                <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{dotDateWithWeekday(f.date)}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{dotDateWithWeekday(f.date)}</span>
                 <input type="date" value={f.date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택" />
               </div>
             </div>
@@ -1876,24 +1876,24 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
         <div style={rowStyle}>
           <span style={rowLabelStyle}>분류</span>
           {isOwner ? (
-            <CategorySelect cats={incomeCats} value={f.lCatId} onChange={(v) => setF({ ...f, lCatId: v })} keepLabel={initial?.leader_category_name} placeholder="분류 선택" selectRef={categorySelectRef} onEdit={() => goEditSettings('/settings/categories/income')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lCatId ? 600 : 400, color: f.lCatId ? '#191722' : '#a29ead' }} />
+            <CategorySelect cats={incomeCats} value={f.lCatId} onChange={(v) => setF({ ...f, lCatId: v })} keepLabel={initial?.leader_category_name} placeholder="분류 선택" selectRef={categorySelectRef} onEdit={() => goEditSettings('/settings/categories/income')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lCatId ? 600 : 400, color: f.lCatId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }} />
           ) : (
-            <CategorySelect cats={cats} value={f.mCatId} onChange={(v) => setF({ ...f, mCatId: v })} keepLabel={initial?.category_name} placeholder="분류 선택" selectRef={categorySelectRef} onEdit={() => goEditSettings('/settings/categories/expense')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.mCatId ? 600 : 400, color: f.mCatId ? '#191722' : '#a29ead' }} />
+            <CategorySelect cats={cats} value={f.mCatId} onChange={(v) => setF({ ...f, mCatId: v })} keepLabel={initial?.category_name} placeholder="분류 선택" selectRef={categorySelectRef} onEdit={() => goEditSettings('/settings/categories/expense')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.mCatId ? 600 : 400, color: f.mCatId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }} />
           )}
         </div>
 
         <div style={rowStyle}>
           <span style={rowLabelStyle}>원천</span>
           {isOwner ? (
-            <SourceSelect sources={sources.tree} excludeTypes={['credit', 'check']} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lSourceId ? 600 : 400, color: f.lSourceId ? '#191722' : '#a29ead' }} />
+            <SourceSelect sources={sources.tree} excludeTypes={['credit', 'check']} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lSourceId ? 600 : 400, color: f.lSourceId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }} />
           ) : (
             <>
-              <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.mSourceId ? 600 : 400, color: f.mSourceId ? '#191722' : '#a29ead' }} />
+              <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.mSourceId ? 600 : 400, color: f.mSourceId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }} />
               {/* 신용카드·체크카드 원천이면 같은 줄 오른쪽에 실적 포함/제외(라벨 없음, 개인 기록 폼과 동일) */}
               {showMemberPerf && (
                 <button
                 type="button" onClick={() => setMemberExcludePerf((v) => !v)} aria-label="카드 실적 포함/제외 전환"
-                style={{ flex: 'none', border: 'none', background: '#f4f2f0', borderRadius: 999, padding: '2px 6px', margin: '0 0 0 -7px', fontFamily: 'inherit', fontSize: 9.5, fontWeight: 400, lineHeight: 1.3, color: '#a29ead', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                style={{ flex: 'none', border: 'none', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: '2px 6px', margin: '0 0 0 -7px', fontFamily: 'inherit', fontSize: 9.5, fontWeight: 400, lineHeight: 1.3, color: 'var(--k-tx-a29ead)', cursor: 'pointer', whiteSpace: 'nowrap' }}
               >
                 {memberExcludePerf ? '실적 제외' : '실적 포함'}
               </button>
@@ -1904,9 +1904,9 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
 
         {isOwner && (multiSettle ? (
           <div style={{ padding: '6px 0' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, padding: '8px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
-              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
-              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>내용</span>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'right' }}>금액</span>
               <span />
             </div>
             {settleRows.map((r, idx) => (
@@ -1919,7 +1919,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                 ) : (
                   <input
                     type="text" placeholder="항목 기입" value={r.name} onChange={(e) => updateSettleRow(idx, { name: e.target.value })}
-                    style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
+                    style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', outline: 'none', minWidth: 0 }}
                   />
                 )}
                 <CalcAmountInput
@@ -1929,15 +1929,15 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                   onCurrencySelect={(c) => updateSettleRow(idx, { liveCurrency: c })}
                 />
                 {settleRows.length > 1 ? (
-                  <button type="button" aria-label="행 삭제" onClick={() => removeSettleRow(idx)} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <button type="button" aria-label="행 삭제" onClick={() => removeSettleRow(idx)} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--k-tx-c2bfc6)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
                   </button>
                 ) : <span />}
               </div>
             ))}
             {(!editing || isLeaderSettlement) && <button type="button" onClick={addSettleRow} className="rcpt-add-row">+ 행 추가</button>}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed #cfccd4' }}>
-              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)' }}>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>합계</span>
               <span style={{ fontSize: 13.75, fontWeight: 800, color: '#2CDDB9', textAlign: 'right' }}>{fmtNum(settleTotal)}</span>
               <span />
             </div>
@@ -1946,10 +1946,10 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
 
         {multiSub ? (
           <div style={{ padding: '6px 0' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, padding: '8px 0', borderTop: '1px dashed #cfccd4', borderBottom: '1px dashed #cfccd4' }}>
-              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>내용</span>
-              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'center' }}>회차</span>
-              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798', textAlign: 'right' }}>금액</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>내용</span>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'center' }}>회차</span>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'right' }}>금액</span>
               <span />
             </div>
             {subRows.map((r, idx) => (
@@ -1962,12 +1962,12 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                 ) : (
                   <input
                     type="text" placeholder="항목 기입" value={r.name} onChange={(e) => updateSubRow(idx, { name: e.target.value })}
-                    style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', minWidth: 0 }}
+                    style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', outline: 'none', minWidth: 0 }}
                   />
                 )}
                 <input
                   type="text" inputMode="numeric" placeholder="1" value={r.periods} onChange={(e) => updateSubRow(idx, { periods: e.target.value.replace(/[^0-9]/g, '') })}
-                  style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: '#191722', outline: 'none', textAlign: 'center', minWidth: 0 }}
+                  style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'center', minWidth: 0 }}
                 />
                 <CalcAmountInput
                   compact value={r.amount} onChange={(v) => onSubRowAmountChange(idx, v)}
@@ -1976,15 +1976,15 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                   onCurrencySelect={(c) => updateSubRow(idx, { liveCurrency: c })}
                 />
                 {subRows.length > 1 ? (
-                  <button type="button" aria-label="행 삭제" onClick={() => removeSubRow(idx)} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: '#c2bfc6', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <button type="button" aria-label="행 삭제" onClick={() => removeSubRow(idx)} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--k-tx-c2bfc6)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
                   </button>
                 ) : <span />}
               </div>
             ))}
             {!editing && <button type="button" onClick={addSubRow} className="rcpt-add-row">+ 행 추가</button>}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed #cfccd4' }}>
-              <span style={{ fontSize: 13.5, fontWeight: 400, color: '#8b8798' }}>합계</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)' }}>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>합계</span>
               <span />
               <span style={{ fontSize: 13.75, fontWeight: 800, color: '#2CDDB9', textAlign: 'right' }}>{fmtNum(subTotal)}</span>
               <span />
@@ -2013,12 +2013,12 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
 
         <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="rcpt-dots" />
-          <span style={{ flex: 'none', fontSize: 13.5, fontWeight: 400, color: '#a29ead', letterSpacing: '.3px' }}>메모</span>
+          <span style={{ flex: 'none', fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-a29ead)', letterSpacing: '.3px' }}>메모</span>
           <span className="rcpt-dots" style={{ textAlign: 'right' }} />
         </div>
         <textarea
           ref={memoRef} value={f.memo} onChange={(e) => setF({ ...f, memo: e.target.value })} placeholder="추가 설명을 적어주세요" rows={2}
-          style={{ marginTop: 8, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.5, color: '#191722', outline: 'none', resize: 'none', padding: 0, overflow: 'hidden' }}
+          style={{ marginTop: 8, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.5, color: 'var(--k-tx-191722)', outline: 'none', resize: 'none', padding: 0, overflow: 'hidden' }}
         />
       </div>
 

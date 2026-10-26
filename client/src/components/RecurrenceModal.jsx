@@ -22,7 +22,7 @@ function BareNumber({ value, onChange }) {
     <input
       type="text" inputMode="numeric" value={value}
       onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ''))}
-      style={{ width: 26, border: 'none', outline: 'none', background: 'transparent', padding: 0, margin: 0, fontFamily: 'inherit', fontSize: 13.25, color: '#191722', textAlign: 'right' }}
+      style={{ width: 26, border: 'none', outline: 'none', background: 'transparent', padding: 0, margin: 0, fontFamily: 'inherit', fontSize: 13.25, color: 'var(--k-tx-191722)', textAlign: 'right' }}
     />
   );
 }
@@ -68,13 +68,13 @@ export default function RecurrenceModal({ onClose, onSelect, date }) {
   };
 
   const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 };
-  const labelStyle = { fontSize: 13, fontWeight: 700, color: '#191722', flex: 'none', whiteSpace: 'nowrap' };
+  const labelStyle = { fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', flex: 'none', whiteSpace: 'nowrap' };
 
   return (
     <div className="catmodal-overlay" onClick={onClose}>
       <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>반복 등록</div>
+          <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>반복 등록</div>
           <button aria-label="닫기" onClick={onClose} className="catmodal-icon-btn">
             <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
           </button>
@@ -94,15 +94,15 @@ export default function RecurrenceModal({ onClose, onSelect, date }) {
               {effectiveUnit === 'month' && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                   <BareNumber value={day} onChange={setDay} />
-                  <span style={{ fontSize: 13.25, color: '#191722' }}>일</span>
+                  <span style={{ fontSize: 13.25, color: 'var(--k-tx-191722)' }}>일</span>
                 </span>
               )}
               {effectiveUnit === 'year' && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                   <BareNumber value={month} onChange={setMonth} />
-                  <span style={{ fontSize: 13.25, color: '#191722' }}>월</span>
+                  <span style={{ fontSize: 13.25, color: 'var(--k-tx-191722)' }}>월</span>
                   <BareNumber value={day} onChange={setDay} />
-                  <span style={{ fontSize: 13.25, color: '#191722' }}>일</span>
+                  <span style={{ fontSize: 13.25, color: 'var(--k-tx-191722)' }}>일</span>
                 </span>
               )}
             </span>
@@ -115,7 +115,7 @@ export default function RecurrenceModal({ onClose, onSelect, date }) {
                 return (
                   <button
                     key={i} type="button" onClick={() => toggleWeekday(i)}
-                    style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', flex: 'none', background: on ? '#191722' : '#f4f2f0', color: on ? '#fff' : '#191722', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                    style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', flex: 'none', background: on ? 'var(--k-bg-191722)' : 'var(--k-bg-f4f2f0)', color: on ? 'var(--k-onink-fff)' : 'var(--k-tx-191722)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
                   >{w}</button>
                 );
               })}

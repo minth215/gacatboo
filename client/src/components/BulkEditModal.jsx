@@ -61,7 +61,7 @@ export default function BulkEditModal({ field, count, onClose, onApply }) {
     <div className="catmodal-overlay" onClick={onClose}>
       <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 15.5, fontWeight: 800, color: '#191722' }}>{FIELD_TITLE[field]}</div>
+          <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{FIELD_TITLE[field]}</div>
           <button aria-label="닫기" onClick={onClose} className="catmodal-icon-btn">
             <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
           </button>
@@ -72,19 +72,19 @@ export default function BulkEditModal({ field, count, onClose, onApply }) {
         {field === 'content' && (
           <input
             type="text" autoFocus value={content} onChange={(e) => setContent(e.target.value)} placeholder="내용"
-            style={{ width: '100%', border: '1px solid #e4e2e6', borderRadius: 10, padding: '10px 12px', fontFamily: 'inherit', fontSize: 14, color: '#191722' }}
+            style={{ width: '100%', border: '1px solid var(--k-bd-e4e2e6)', borderRadius: 10, padding: '10px 12px', fontFamily: 'inherit', fontSize: 14, color: 'var(--k-tx-191722)' }}
           />
         )}
         {field === 'date' && (
           <input
             type="date" value={date} onChange={(e) => setDate(e.target.value)}
-            style={{ width: '100%', border: '1px solid #e4e2e6', borderRadius: 10, padding: '10px 12px', fontFamily: 'inherit', fontSize: 14, color: '#191722' }}
+            style={{ width: '100%', border: '1px solid var(--k-bd-e4e2e6)', borderRadius: 10, padding: '10px 12px', fontFamily: 'inherit', fontSize: 14, color: 'var(--k-tx-191722)' }}
           />
         )}
         {field === 'category' && (
           <select
             value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
-            style={{ width: '100%', border: '1px solid #e4e2e6', borderRadius: 10, padding: '10px 12px', fontFamily: 'inherit', fontSize: 14, color: '#191722', background: '#fff' }}
+            style={{ width: '100%', border: '1px solid var(--k-bd-e4e2e6)', borderRadius: 10, padding: '10px 12px', fontFamily: 'inherit', fontSize: 14, color: 'var(--k-tx-191722)', background: 'var(--k-bg-fff)' }}
           >
             <option value="">분류 선택</option>
             {expenseCats.length > 0 && (
@@ -102,7 +102,7 @@ export default function BulkEditModal({ field, count, onClose, onApply }) {
         {field === 'source' && (
           <select
             value={sourceId} onChange={(e) => setSourceId(e.target.value)}
-            style={{ width: '100%', border: '1px solid #e4e2e6', borderRadius: 10, padding: '10px 12px', fontFamily: 'inherit', fontSize: 14, color: '#191722', background: '#fff' }}
+            style={{ width: '100%', border: '1px solid var(--k-bd-e4e2e6)', borderRadius: 10, padding: '10px 12px', fontFamily: 'inherit', fontSize: 14, color: 'var(--k-tx-191722)', background: 'var(--k-bg-fff)' }}
           >
             <option value="">원천 선택</option>
             {sources.map((top) => (

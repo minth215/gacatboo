@@ -10,7 +10,7 @@ const TYPES = [{ key: 'all', label: '전체' }, { key: 'income', label: '수입'
 export function DateField({ value, onChange }) {
   return (
     <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', alignSelf: 'stretch', gap: 4 }}>
-      <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', pointerEvents: 'none' }}>{dotDate(value)}</span>
+      <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)', letterSpacing: '-.2px', pointerEvents: 'none' }}>{dotDate(value)}</span>
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', pointerEvents: 'none' }}>
         <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
       </svg>
@@ -66,9 +66,9 @@ export default function LedgerFilterSheet({
     const checked = name === '전체' ? filterCats.length === 0 : filterCats.includes(name);
     return {
       name, emoji, checked,
-      bg: '#fff',
-      fg: checked ? '#191722' : '#6c6779',
-      border: checked ? '#191722' : '#efeef2',
+      bg: 'var(--k-bg-fff)',
+      fg: checked ? 'var(--k-tx-191722)' : 'var(--k-tx-6c6779)',
+      border: checked ? 'var(--k-bd-191722)' : 'var(--k-bd-efeef2)',
       onClick: name === '전체' ? () => setFilterCats([]) : () => setFilterCats((x) => toggleIn(x, name)),
     };
   });
@@ -91,9 +91,9 @@ export default function LedgerFilterSheet({
     });
     return rows.map((r) => ({
       ...r,
-      fg: r.checked ? '#191722' : '#6c6779',
-      dotBg: r.checked ? '#191722' : '#fff',
-      dotBorder: r.checked ? '#191722' : '#d8d5dc',
+      fg: r.checked ? 'var(--k-tx-191722)' : 'var(--k-tx-6c6779)',
+      dotBg: r.checked ? 'var(--k-bg-191722)' : 'var(--k-bg-fff)',
+      dotBorder: r.checked ? 'var(--k-bd-191722)' : 'var(--k-bd-d8d5dc)',
       paddingLeft: r.indent ? '26px' : '0px',
       fontWeight: r.bold ? 700 : 500,
     }));
@@ -102,18 +102,18 @@ export default function LedgerFilterSheet({
   return createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: 80 }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(25,23,34,.42)' }} />
-      <div className="ledger-filter-sheet" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '88%', background: '#fff', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 32px rgba(25,23,34,.18)', padding: '10px 20px calc(24px + env(safe-area-inset-bottom))', animation: 'sheet-up .22s ease-out', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e4e2e7', margin: '0 auto 14px', flex: 'none' }} />
+      <div className="ledger-filter-sheet" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '88%', background: 'var(--k-bg-fff)', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 32px rgba(25,23,34,.18)', padding: '10px 20px calc(24px + env(safe-area-inset-bottom))', animation: 'sheet-up .22s ease-out', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--k-bg-e4e2e7)', margin: '0 auto 14px', flex: 'none' }} />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 'none' }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: '#191722', letterSpacing: '-.3px' }}>필터</div>
-          <button type="button" onClick={resetFilter} style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 12.25, fontWeight: 700, color: '#8b8798', cursor: 'pointer', padding: '4px 2px' }}>초기화</button>
+          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--k-tx-191722)', letterSpacing: '-.3px' }}>필터</div>
+          <button type="button" onClick={resetFilter} style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 12.25, fontWeight: 700, color: 'var(--k-tx-8b8798)', cursor: 'pointer', padding: '4px 2px' }}>초기화</button>
         </div>
 
-        <div style={{ marginTop: 16, display: 'flex', background: '#f4f2f0', borderRadius: 999, padding: 3, flex: 'none' }}>
+        <div style={{ marginTop: 16, display: 'flex', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: 3, flex: 'none' }}>
           {TYPES.map((t) => (
             <button
               key={t.key} type="button" onClick={() => onType(t.key)}
-              style={{ flex: 1, border: 'none', borderRadius: 999, padding: '9px 0', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: filterType === t.key ? '#fff' : 'transparent', color: filterType === t.key ? '#191722' : '#8b8798' }}
+              style={{ flex: 1, border: 'none', borderRadius: 999, padding: '9px 0', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: filterType === t.key ? 'var(--k-bg-fff)' : 'transparent', color: filterType === t.key ? 'var(--k-tx-191722)' : 'var(--k-tx-8b8798)' }}
             >{t.label}</button>
           ))}
         </div>
@@ -121,8 +121,8 @@ export default function LedgerFilterSheet({
         {showCategory && (<>
         <button type="button" onClick={() => toggleSection('cat')} style={{ flex: 'none', marginTop: 22, width: '100%', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ flex: 1, minWidth: 0, marginRight: 10, display: 'flex', alignItems: 'baseline', gap: 4, fontSize: 12.75, textAlign: 'left' }}>
-            <span style={{ flex: 'none', fontWeight: 700, color: '#191722' }}>분류</span>
-            <span style={{ flex: 1, minWidth: 0, fontWeight: 500, color: '#a29ead', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>· {catSummary}</span>
+            <span style={{ flex: 'none', fontWeight: 700, color: 'var(--k-tx-191722)' }}>분류</span>
+            <span style={{ flex: 1, minWidth: 0, fontWeight: 500, color: 'var(--k-tx-a29ead)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>· {catSummary}</span>
           </span>
           {catExpanded ? <ChevDown /> : <ChevRight />}
         </button>
@@ -143,8 +143,8 @@ export default function LedgerFilterSheet({
 
         <button type="button" onClick={() => toggleSection('src')} style={{ flex: 'none', marginTop: 22, width: '100%', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ flex: 1, minWidth: 0, marginRight: 10, display: 'flex', alignItems: 'baseline', gap: 4, fontSize: 12.75, textAlign: 'left' }}>
-            <span style={{ flex: 'none', fontWeight: 700, color: '#191722' }}>원천</span>
-            <span style={{ flex: 1, minWidth: 0, fontWeight: 500, color: '#a29ead', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>· {srcSummary}</span>
+            <span style={{ flex: 'none', fontWeight: 700, color: 'var(--k-tx-191722)' }}>원천</span>
+            <span style={{ flex: 1, minWidth: 0, fontWeight: 500, color: 'var(--k-tx-a29ead)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>· {srcSummary}</span>
           </span>
           {srcExpanded ? <ChevDown /> : <ChevRight />}
         </button>
@@ -156,7 +156,7 @@ export default function LedgerFilterSheet({
                 style={{ flex: 'none', border: 'none', background: 'transparent', fontFamily: 'inherit', padding: `9px 0 9px ${r.paddingLeft}`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left' }}
               >
                 <span style={{ width: 17, height: 17, borderRadius: 4, border: `1.5px solid ${r.dotBorder}`, background: r.dotBg, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {r.checked && <svg width="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
+                  {r.checked && <svg width="9" viewBox="0 0 24 24" fill="none" stroke="var(--k-onink-fff)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
                 </span>
                 <span style={{ fontSize: 13, color: r.fg, fontWeight: r.fontWeight }}>{r.label}</span>
               </button>
@@ -164,7 +164,7 @@ export default function LedgerFilterSheet({
           </div>
         )}
 
-        <button type="button" onClick={onClose} style={{ flex: 'none', marginTop: 26, width: '100%', fontFamily: 'inherit', height: 52, border: 'none', borderRadius: 999, background: '#191722', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>적용하기</button>
+        <button type="button" onClick={onClose} style={{ flex: 'none', marginTop: 26, width: '100%', fontFamily: 'inherit', height: 52, border: 'none', borderRadius: 999, background: 'var(--k-bg-191722)', color: 'var(--k-onink-fff)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>적용하기</button>
       </div>
     </div>,
     document.body

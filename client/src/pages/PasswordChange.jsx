@@ -7,7 +7,7 @@ import { passwordPolicyError } from '../lib/validators.js';
 // 비밀번호 보기/숨기기 토글 아이콘: 켜짐(보임)=빗금 없는 먹색 눈, 꺼짐(숨김)=빗금 있는 회색 눈
 const EyeIcon = ({ visible }) => (
   visible ? (
-    <svg width="17" viewBox="0 0 24 24" fill="none" stroke="#191722" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="17" viewBox="0 0 24 24" fill="none" stroke="var(--k-tx-191722)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
       <circle cx="12" cy="12" r="3" />
     </svg>
@@ -33,8 +33,8 @@ export default function PasswordChange() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const fieldInputStyle = (name) => ({
-    fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: '#fff',
-    border: `1.5px solid ${focus === name ? '#191722' : '#efeef2'}`, borderRadius: 12, padding: '13px 44px 13px 14px', outline: 'none', width: '100%',
+    fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-fff)',
+    border: `1.5px solid ${focus === name ? 'var(--k-bd-191722)' : 'var(--k-bd-efeef2)'}`, borderRadius: 12, padding: '13px 44px 13px 14px', outline: 'none', width: '100%',
   });
   const eyeBtnStyle = {
     position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
@@ -74,7 +74,7 @@ export default function PasswordChange() {
 
       <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#6c6779' }}>현재 비밀번호</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--k-tx-6c6779)' }}>현재 비밀번호</span>
           <div style={{ position: 'relative' }}>
             <input
               type={showCurrent ? 'text' : 'password'} value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)}
@@ -87,7 +87,7 @@ export default function PasswordChange() {
           </div>
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#6c6779' }}>새 비밀번호</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--k-tx-6c6779)' }}>새 비밀번호</span>
           <div style={{ position: 'relative' }}>
             <input
               type={showNew ? 'text' : 'password'} value={pwNew} onChange={(e) => setPwNew(e.target.value)}
@@ -101,7 +101,7 @@ export default function PasswordChange() {
           {pwPolicyInvalid && <span style={{ fontSize: 11.5, fontWeight: 400, color: '#FF4358' }}>영문, 숫자 포함 8 자 이상의 비밀번호만 사용 가능합니다.</span>}
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#6c6779' }}>새 비밀번호 확인</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--k-tx-6c6779)' }}>새 비밀번호 확인</span>
           <div style={{ position: 'relative' }}>
             <input
               type={showConfirm ? 'text' : 'password'} value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)}
@@ -121,7 +121,7 @@ export default function PasswordChange() {
           onClick={submit} disabled={!canSubmit}
           style={{
             marginTop: 8, width: '100%', fontFamily: 'inherit', height: 50, border: 'none', borderRadius: 999,
-            background: canSubmit ? '#191722' : '#f0eef1', color: canSubmit ? '#fff' : '#b6b2c0',
+            background: canSubmit ? 'var(--k-bg-191722)' : 'var(--k-bg-f0eef1)', color: canSubmit ? 'var(--k-onink-fff)' : 'var(--k-tx-b6b2c0)',
             fontSize: 14.5, fontWeight: 700, cursor: canSubmit ? 'pointer' : 'not-allowed',
           }}
         >

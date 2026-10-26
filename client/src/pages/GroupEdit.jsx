@@ -10,8 +10,8 @@ import { SettingsForm } from './SubscriptionGroup.jsx';
 const PALETTE = ['#EEEBFE', '#E8F4EC', '#FDEEE6', '#E6EEFD', '#FDE8EE', '#FBF1D3', '#FDE2E2'];
 
 const fieldStyle = {
-  fontFamily: 'inherit', fontSize: 13.75, color: '#191722', background: '#faf9f8',
-  border: '1.5px solid #efeef2', borderRadius: 14, padding: '14px 16px', outline: 'none', width: '100%', boxSizing: 'border-box',
+  fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)',
+  border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 14, padding: '14px 16px', outline: 'none', width: '100%', boxSizing: 'border-box',
 };
 
 export default function GroupEdit() {
@@ -64,11 +64,11 @@ export default function GroupEdit() {
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="그룹 정보" flat />
 
-      <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', padding: '24px 20px 22px', marginTop: 14, marginBottom: 18 }}>
+      <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', padding: '24px 20px 22px', marginTop: 14, marginBottom: 18 }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginBottom: 18 }}>
           <div style={{ position: 'relative', width: 96, height: 96 }}>
             <div style={{
-              position: 'absolute', inset: 0, borderRadius: 26, background: form.color || 'transparent', border: form.color ? '1.5px solid #efeef2' : 'none',
+              position: 'absolute', inset: 0, borderRadius: 26, background: form.color || 'transparent', border: form.color ? '1.5px solid var(--k-bd-efeef2)' : 'none',
               boxShadow: '0 3px 10px rgba(25,23,34,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 38, pointerEvents: 'none',
             }}>
@@ -77,40 +77,40 @@ export default function GroupEdit() {
             <input
               type="text" value={form.category_emoji} maxLength={2}
               onChange={(e) => setForm({ ...form, category_emoji: [...e.target.value].slice(-1).join('') })}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', textAlign: 'center', fontSize: 38, fontFamily: 'inherit', color: 'transparent', caretColor: '#191722', background: 'transparent', border: 'none', borderRadius: 26, outline: 'none' }}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', textAlign: 'center', fontSize: 38, fontFamily: 'inherit', color: 'transparent', caretColor: 'var(--k-tx-191722)', background: 'transparent', border: 'none', borderRadius: 26, outline: 'none' }}
             />
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 12, color: '#8b8798' }}>그룹을 나타낼 이모지를 직접 입력해 주세요</div>
+            <div style={{ fontSize: 12, color: 'var(--k-tx-8b8798)' }}>그룹을 나타낼 이모지를 직접 입력해 주세요</div>
           </div>
         </div>
 
         <div style={{ height: 1, background: '#f0eee9', margin: '0 0 20px' }} />
 
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#191722', textAlign: 'center', marginBottom: 11 }}>배경 색</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', textAlign: 'center', marginBottom: 11 }}>배경 색</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'nowrap', gap: 8 }}>
           <button
             type="button" onClick={() => setForm({ ...form, color: '' })}
-            style={{ width: 30, height: 30, flex: 'none', borderRadius: '50%', background: '#fff', border: 'none', boxShadow: form.color === '' ? '0 0 0 2px #fdfcfe, 0 0 0 4px #47444F' : 'inset 0 0 0 1.2px rgba(0,0,0,.18)', cursor: 'pointer', padding: 0, position: 'relative', overflow: 'hidden' }}
+            style={{ width: 30, height: 30, flex: 'none', borderRadius: '50%', background: 'var(--k-bg-fff)', border: 'none', boxShadow: form.color === '' ? '0 0 0 2px var(--bg), 0 0 0 4px var(--k-bd-191722)' : 'inset 0 0 0 1.2px rgba(0,0,0,.18)', cursor: 'pointer', padding: 0, position: 'relative', overflow: 'hidden' }}
           >
             <svg width="30" height="30" viewBox="0 0 30 30" style={{ position: 'absolute', inset: 0 }}><line x1="6" y1="24" x2="24" y2="6" stroke="#c9455f" strokeWidth="1.3" /></svg>
           </button>
           {PALETTE.map((sw) => (
             <button
               type="button" key={sw} aria-label={sw} onClick={() => setForm({ ...form, color: sw })}
-              style={{ width: 30, height: 30, flex: 'none', borderRadius: '50%', background: sw, border: 'none', boxShadow: form.color === sw ? '0 0 0 2px #fdfcfe, 0 0 0 4px #47444F' : 'inset 0 0 0 1px rgba(0,0,0,.07)', cursor: 'pointer', padding: 0 }}
+              style={{ width: 30, height: 30, flex: 'none', borderRadius: '50%', background: sw, border: 'none', boxShadow: form.color === sw ? '0 0 0 2px var(--bg), 0 0 0 4px var(--k-bd-191722)' : 'inset 0 0 0 1px rgba(0,0,0,.07)', cursor: 'pointer', padding: 0 }}
             />
           ))}
         </div>
       </div>
 
       <label style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 18 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>그룹 이름<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>그룹 이름<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
         <input type="text" placeholder="그룹 이름 입력" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={fieldStyle} />
       </label>
 
       <label style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 18 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>카테고리<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>카테고리<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
         {groupCats.length === 0 ? (
           <div className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             카테고리가 없습니다. <button type="button" className="edit-link" onClick={() => nav('/settings/group-categories')}>편집 ›</button>
@@ -127,14 +127,14 @@ export default function GroupEdit() {
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
         <label style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>시작일자<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>시작일자<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
           <div className="catmodal-date-field">
             <div className={`catmodal-date-value${form.start_date ? '' : ' placeholder'}`}>{form.start_date ? dotDate(form.start_date) : '날짜 선택'}</div>
             <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="catmodal-date-input" />
           </div>
         </label>
         <label style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>종료일자<span style={{ fontSize: 11, fontWeight: 600, color: '#b0b0b8', marginLeft: 2 }}> 선택</span></span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>종료일자<span style={{ fontSize: 11, fontWeight: 600, color: 'var(--k-tx-b0b0b8)', marginLeft: 2 }}> 선택</span></span>
           <div className="catmodal-date-field">
             <div className={`catmodal-date-value${form.end_date ? '' : ' placeholder'}`}>{form.end_date ? dotDate(form.end_date) : '날짜 선택'}</div>
             <input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="catmodal-date-input" />
@@ -144,7 +144,7 @@ export default function GroupEdit() {
       {form.end_date && <p className="small muted" style={{ marginTop: -10, marginBottom: 18 }}>종료일자를 입력하면 종료된 그룹으로 표시됩니다.</p>}
 
       <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#191722' }}>코멘트<span style={{ fontSize: 11, fontWeight: 600, color: '#b0b0b8', marginLeft: 2 }}> 선택</span></span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>코멘트<span style={{ fontSize: 11, fontWeight: 600, color: 'var(--k-tx-b0b0b8)', marginLeft: 2 }}> 선택</span></span>
         <textarea
           placeholder="그룹을 소개하는 한마디를 남겨 보세요" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
           style={{ ...fieldStyle, lineHeight: 1.5, resize: 'none' }}

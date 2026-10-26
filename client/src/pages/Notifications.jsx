@@ -86,7 +86,7 @@ export default function Notifications() {
       <PageHeader title="알림" showBack={false} right={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {hasUnread && <button type="button" className="edit-link" onClick={markAllRead}>모두 읽음</button>}
-          <button type="button" className="tb-icon-btn" style={{ color: '#6c6779' }} onClick={() => nav('/settings/notifications')} aria-label="알림 설정">
+          <button type="button" className="tb-icon-btn" style={{ color: 'var(--k-tx-6c6779)' }} onClick={() => nav('/settings/notifications')} aria-label="알림 설정">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
@@ -121,12 +121,12 @@ export default function Notifications() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                      <span style={{ fontSize: 13.5, fontWeight: r.read_at ? 600 : 800, color: '#191722' }}>{r.title}</span>
+                      <span style={{ fontSize: 13.5, fontWeight: r.read_at ? 600 : 800, color: 'var(--k-tx-191722)' }}>{r.title}</span>
                       {!r.read_at && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF3B5C', flex: 'none' }} />}
                     </div>
-                    <span style={{ fontSize: 10.5, color: '#a29ead', flex: 'none', whiteSpace: 'nowrap' }}>{timeAgo(r.created_at)}</span>
+                    <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', flex: 'none', whiteSpace: 'nowrap' }}>{timeAgo(r.created_at)}</span>
                   </div>
-                  <div style={{ marginTop: 2, fontSize: 12, color: '#6c6779', lineHeight: 1.4 }}>{r.body}</div>
+                  <div style={{ marginTop: 2, fontSize: 12, color: 'var(--k-tx-6c6779)', lineHeight: 1.4 }}>{r.body}</div>
                   {r.event_key === 'group_invite' && r.data?.member_id && (() => {
                     const st = inviteStatus[r.data.member_id];
                     if (!st || st.status === 'pending') {
@@ -134,12 +134,12 @@ export default function Notifications() {
                       return (
                         <div style={{ display: 'flex', gap: 8, marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
                           <button type="button" className="btn-ink-pill" style={{ height: 34, flex: 1, fontSize: 12.5 }} disabled={busy} onClick={() => respondInvite(r, true)}>수락</button>
-                          <button type="button" className="btn-ink-pill" style={{ height: 34, flex: 1, fontSize: 12.5, background: '#f4f2f0', color: '#6c6779' }} disabled={busy} onClick={() => respondInvite(r, false)}>거절</button>
+                          <button type="button" className="btn-ink-pill" style={{ height: 34, flex: 1, fontSize: 12.5, background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-6c6779)' }} disabled={busy} onClick={() => respondInvite(r, false)}>거절</button>
                         </div>
                       );
                     }
                     return (
-                      <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: st.linked_to_me ? 'var(--income)' : '#a29ead' }}>
+                      <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: st.linked_to_me ? 'var(--income)' : 'var(--k-tx-a29ead)' }}>
                         {st.linked_to_me ? '수락했어요' : '거절했어요'}
                       </div>
                     );

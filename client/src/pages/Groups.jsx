@@ -72,12 +72,12 @@ export default function Groups() {
       </div>
 
       {filterOpen && (
-        <div style={{ background: '#fff', borderRadius: 16, padding: 12, marginTop: 14, marginBottom: 10, boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
+        <div style={{ background: 'var(--k-bg-fff)', borderRadius: 16, padding: 12, marginTop: 14, marginBottom: 10, boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
           <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="catmodal-name-input" style={{ appearance: 'none' }}>
             <option value="">카테고리 전체</option>
             {groupCats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
           </select>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12.5, fontWeight: 600, color: '#6c6779' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12.5, fontWeight: 600, color: 'var(--k-tx-6c6779)' }}>
             <input type="checkbox" checked={showEnded} onChange={(e) => setShowEnded(e.target.checked)} /> 종료된 그룹 표시
           </label>
         </div>
@@ -99,17 +99,17 @@ export default function Groups() {
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
-                  <span style={{ fontSize: 13.75, fontWeight: 700, color: '#191722' }}>{g.name}</span>
+                  <span style={{ fontSize: 13.75, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{g.name}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#6c6779', background: '#f4f2f0', borderRadius: 999, padding: '2px 8px' }}>{g.category}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--k-tx-6c6779)', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: '2px 8px' }}>{g.category}</span>
                     {g.owner_id === user.id && <span style={{ fontSize: 9.5, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>{leaderLabel(g.category)}</span>}
                   </div>
                 </div>
-                <span style={{ fontSize: 10.5, fontWeight: 600, color: '#a29ead', flex: 'none', whiteSpace: 'nowrap' }}>{g.member_count} 명</span>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-a29ead)', flex: 'none', whiteSpace: 'nowrap' }}>{g.member_count} 명</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
-                <span style={{ fontSize: 11, color: '#8b8798', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.description || '-'}</span>
-                <span style={{ fontSize: 10.5, color: '#a29ead', flex: 'none', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 11, color: 'var(--k-tx-8b8798)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.description || '-'}</span>
+                <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', flex: 'none', whiteSpace: 'nowrap' }}>
                   {g.start_date
                     ? (!g.end_date ? `${dotDate(g.start_date)} ~` : g.end_date === g.start_date ? dotDate(g.start_date) : `${dotDate(g.start_date)} ~ ${dotDate(g.end_date)}`)
                     : ''}

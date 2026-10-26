@@ -28,28 +28,28 @@ export default function Withdraw() {
       <PageHeader title="회원 탈퇴" flat />
 
       <div style={{ flex: 1, marginTop: 18 }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: '#191722', marginBottom: 12 }}>탈퇴 전 꼭 확인해 주세요</div>
-        <div style={{ background: '#fff', borderRadius: 18, padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 4px 16px rgba(25,23,34,.06)' }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--k-tx-191722)', marginBottom: 12 }}>탈퇴 전 꼭 확인해 주세요</div>
+        <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 4px 16px rgba(25,23,34,.06)' }}>
           {WARNINGS.map((w) => (
             <div key={w} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
               <svg width="14" viewBox="0 0 24 24" fill="none" stroke="#FF3B5C" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', marginTop: 2 }}>
                 <polyline points="20 6 9 17 4 12" />
               </svg>
-              <span style={{ fontSize: 12.75, lineHeight: 1.55, color: '#191722' }}>{w}</span>
+              <span style={{ fontSize: 12.75, lineHeight: 1.55, color: 'var(--k-tx-191722)' }}>{w}</span>
             </div>
           ))}
         </div>
 
         <button
           type="button" onClick={() => setAgree((v) => !v)}
-          style={{ marginTop: 20, width: '100%', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', border: 'none', borderRadius: 14, background: '#fff', boxShadow: '0 4px 16px rgba(25,23,34,.06)', cursor: 'pointer', textAlign: 'left' }}
+          style={{ marginTop: 20, width: '100%', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', border: 'none', borderRadius: 14, background: 'var(--k-bg-fff)', boxShadow: '0 4px 16px rgba(25,23,34,.06)', cursor: 'pointer', textAlign: 'left' }}
         >
-          <span style={{ width: 20, height: 20, borderRadius: 6, background: agree ? '#FF3B5C' : '#fff', border: `1.5px solid ${agree ? '#FF3B5C' : '#d8d5de'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+          <span style={{ width: 20, height: 20, borderRadius: 6, background: agree ? '#FF3B5C' : 'var(--k-bg-fff)', border: `1.5px solid ${agree ? '#FF3B5C' : 'var(--k-bd-d8d5de)'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
             {agree && (
               <svg width="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
             )}
           </span>
-          <span style={{ fontSize: 12.75, fontWeight: 600, color: '#191722' }}>안내 사항을 모두 확인하였으며, 이에 동의합니다.</span>
+          <span style={{ fontSize: 12.75, fontWeight: 600, color: 'var(--k-tx-191722)' }}>안내 사항을 모두 확인하였으며, 이에 동의합니다.</span>
         </button>
 
         {error && <p style={{ margin: '14px 2px 0', fontSize: 12.5, color: '#FF4358', fontWeight: 600 }}>{error}</p>}
@@ -60,7 +60,7 @@ export default function Withdraw() {
           onClick={submit} disabled={!agree || busy}
           style={{
             width: '100%', fontFamily: 'inherit', height: 52, border: 'none', borderRadius: 999,
-            background: agree ? '#FF3B5C' : '#f0eef1', color: agree ? '#fff' : '#b6b2c0',
+            background: agree ? '#FF3B5C' : 'var(--k-bg-f0eef1)', color: agree ? '#fff' : 'var(--k-tx-b6b2c0)',
             fontSize: 14.5, fontWeight: 700, cursor: (agree && !busy) ? 'pointer' : 'not-allowed',
           }}
         >

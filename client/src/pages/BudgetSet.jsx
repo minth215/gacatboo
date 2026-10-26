@@ -11,8 +11,8 @@ const onlyDigits = (v) => v.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
 
 // 통계 페이지와 동일한 원형 화살표 버튼 스타일
 const roundBtn = {
-  width: 32, height: 32, borderRadius: '50%', border: 'none', background: '#fff',
-  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: '#8b8798',
+  width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'var(--k-bg-fff)',
+  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: 'var(--k-tx-8b8798)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none',
 };
 const arrow = (points) => (
@@ -31,11 +31,11 @@ function AmountField({ value, placeholder, onChange, onBlur }) {
         onChange={(e) => onChange(onlyDigits(e.target.value))}
         onBlur={onBlur}
         style={{
-          width: 130, textAlign: 'right', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, color: '#191722',
+          width: 130, textAlign: 'right', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, color: 'var(--k-tx-191722)',
           background: 'transparent', border: 'none', outline: 'none', padding: '4px 22px 4px 4px', boxSizing: 'border-box',
         }}
       />
-      <span style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', fontSize: 11.5, fontWeight: 600, color: '#a29ead', pointerEvents: 'none' }}>원</span>
+      <span style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', fontSize: 11.5, fontWeight: 600, color: 'var(--k-tx-a29ead)', pointerEvents: 'none' }}>원</span>
     </div>
   );
 }
@@ -108,7 +108,7 @@ export default function BudgetSet() {
       <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         <button aria-label="이전" onClick={() => setYearAndUrl(String(Number(year) - 1))} style={roundBtn}>{arrow('15 6 9 12 15 18')}</button>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 60 }}>
-          <span style={{ fontSize: 13.25, fontWeight: 700, color: '#191722', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>{year}년</span>
+          <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>{year}년</span>
           <select value={year} aria-label="연도 선택" className="catmodal-date-input" onChange={(e) => setYearAndUrl(e.target.value)}>
             {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
@@ -118,7 +118,7 @@ export default function BudgetSet() {
 
       <div className="tx-daycard">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px' }}>
-          <span style={{ fontSize: 13.5, fontWeight: 700, color: '#191722' }}>기본 예산</span>
+          <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--k-tx-191722)' }}>기본 예산</span>
           <AmountField value={defaultAmount} placeholder="0" onChange={setDefaultAmount} onBlur={saveDefault} />
         </div>
       </div>
@@ -126,8 +126,8 @@ export default function BudgetSet() {
 
       <div className="tx-daycard" style={{ marginTop: 18 }}>
         {MONTHS.map((m, i) => (
-          <div key={m} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderTop: i === 0 ? 'none' : '1.5px solid #f2f1f5' }}>
-            <span style={{ fontSize: 13.5, fontWeight: 600, color: '#191722' }}>{m}월</span>
+          <div key={m} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{m}월</span>
             <AmountField
               value={monthAmounts[m] || ''}
               placeholder={defaultAmount ? fmtNum(defaultAmount) : '0'}
