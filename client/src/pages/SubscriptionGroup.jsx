@@ -813,11 +813,13 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                   // (다른 멤버 각자의 owed 를 합산하면 개별 반올림 오차가 누적될 수 있어,
                   //  총액에서 총무 몫 하나만 빼는 방식으로 정확하게 계산한다.)
                   const ownerRemaining = Math.max(totalPaid - m.owed - totalSettled, 0);
+                  // 결제 내역이 아직 없으면 정산할 대상 자체가 없음(민트색 "정산 완료" 대신)
+                  if (!payments.length) return <>{fmtNum(totalPaid)} 원 결제 · 정산 대상 없음</>;
                   return ownerRemaining <= 0
                     ? <>{fmtNum(totalPaid)} 원 결제 · <span style={{ color: 'var(--income)' }}>정산 완료</span></>
                     : <>{fmtNum(totalPaid)} 원 결제 · 남은 금액 {fmtNum(ownerRemaining)} 원</>;
                 })() : m.settled ? (
-                  <>{fmtNum(m.paid)} 원 입금 · 정산 완료</>
+                  <>{fmtNum(m.paid)} 원 입금 · {payments.length ? '정산 완료' : '정산 대상 없음'}</>
                 ) : (
                   <>{fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span></>
                 )}
