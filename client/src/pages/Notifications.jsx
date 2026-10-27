@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import PageHeader from '../components/PageHeader.jsx';
@@ -25,6 +25,15 @@ export default function Notifications() {
   // group_members 를 직접 조회할 수 없어 전용 RPC로 받아온다.
   const [inviteStatus, setInviteStatus] = useState({});
   const [inviteBusy, setInviteBusy] = useState(null);
+  const [toast, setToast] = useState('');
+  const [toastKey, setToastKey] = useState(0);
+  const toastTimer = useRef(null);
+  const showToast = (msg) => {
+    setToast(msg);
+    setToastKey((k) => k + 1);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(''), 2200);
+  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -35,7 +44,8 @@ export default function Notifications() {
   useEffect(() => {
     const ids = [...new Set(rows.filter((r) => r.event_key === 'group_invite' && r.data?.member_id).map((r) => r.data.member_id))];
     if (!ids.length) return;
-    Promise.all(ids.map((id) => db.getGroupInviteStatus(id).then((s) => [id, s]).catch(() => [id, null])))
+    // 멤버 행이 없으면(그룹에서 나왔거나 그룹이 삭제됨) 'gone'. 조회 실패는 상태를 비워 둔다.
+    Promise.all(ids.map((id) => db.getGroupInviteStatus(id).then((s) => [id, s || { status: 'gone', linked_to_me: false }]).catch(() => [id, null])))
       .then((pairs) => setInviteStatus((prev) => {
         const next = { ...prev };
         pairs.forEach(([id, s]) => { if (s) next[id] = s; });
@@ -66,8 +76,11 @@ export default function Notifications() {
 
   const openRow = async (r) => {
     if (r.event_key === 'group_invite') {
+      // 수락 전/거절 상태는 눌러도 이동 없음(버튼으로만 응답). 수락한 상태면 그 그룹으로,
+      // 그 뒤 그룹에서 나왔거나 그룹이 삭제됐으면 안내 토스트.
       const st = r.data?.member_id ? inviteStatus[r.data.member_id] : null;
-      if (!(st?.status === 'active' && st?.linked_to_me)) return; // 수락 전/거절 상태는 버튼으로만 응답
+      if (st?.status === 'gone') { showToast('지금 참여 중인 그룹이 아닙니다'); return; }
+      if (!(st?.status === 'active' && st?.linked_to_me)) return;
     }
     if (!r.read_at) {
       setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, read_at: new Date().toISOString() } : x)));
@@ -109,10 +122,11 @@ export default function Notifications() {
               onTap={() => openRow(r)} onDelete={() => removeRow(r)}
               background={r.read_at ? 'var(--k-bg-fff)' : 'var(--k-unread-bg)'}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, margin: '1px 0' }}>
+              {/* 제목/내용은 이모지와 세로 가운데 정렬. 초대 카드는 아래 버튼·상태 줄이 있어 이모지를 위쪽에 둠 */}
+              <div style={{ display: 'flex', alignItems: r.event_key === 'group_invite' ? 'flex-start' : 'center', gap: 10, flex: 1, minWidth: 0, margin: '1px 0' }}>
                 <span style={{
                   width: 38, height: 38, borderRadius: 12, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 17, background: r.color || '#FFE9EF',
+                  fontSize: 17, background: r.color || '#FFE9EF', marginTop: r.event_key === 'group_invite' ? 1 : 0,
                 }}>
                   {r.emoji || '🔔'}
                 </span>
@@ -127,6 +141,7 @@ export default function Notifications() {
                   <div style={{ marginTop: 2, fontSize: 12, color: 'var(--k-tx-6c6779)', lineHeight: 1.4 }}>{r.body}</div>
                   {r.event_key === 'group_invite' && r.data?.member_id && (() => {
                     const st = inviteStatus[r.data.member_id];
+                    if (st?.status === 'gone') return null;
                     if (!st || st.status === 'pending') {
                       const busy = inviteBusy === r.data.member_id;
                       return (
@@ -148,6 +163,7 @@ export default function Notifications() {
           </div>
         ))
       )}
+      {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
     </div>
   );
 }
