@@ -664,10 +664,15 @@ export default function Stats() {
                       <div style={{ height: 6, borderRadius: 999, background: 'var(--k-bg-f2f1f5)', overflow: 'hidden' }}>
                         <div style={{ height: '100%', borderRadius: 999, background: g.color, width: `${Math.min(100, budgetPct)}%` }} />
                       </div>
-                      {/* 왼쪽: 예산 사용/예산, 오른쪽: 남은 금액(초과면 음수) (사용 비율) — 초과면 오른쪽만 코랄 핑크 */}
+                      {/* 왼쪽: 예산 사용/예산, 오른쪽: 지출은 남은 금액(초과면 음수, 코랄 핑크), 수입은 -남은 금액/+초과(민트) + (비율) */}
                       <div style={{ marginTop: 5, display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 10.25, color: 'var(--k-tx-8b8798)' }}>
                         <span>예산 {fmtNum(g.total)}/{fmtNum(budget)}</span>
-                        <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: '#FF3B5C', fontWeight: 700 } : {}) }}>{fmtNum(-over)} ({budgetPct} %)</span>
+                        {tab === 'expense' ? (
+                          <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: '#FF3B5C', fontWeight: 700 } : {}) }}>{fmtNum(-over)} ({budgetPct} %)</span>
+                        ) : (
+                          // 수입: 예산까지 남은 금액은 -, 예산보다 많아지면 +(민트)
+                          <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: 'var(--income)', fontWeight: 700 } : {}) }}>{over > 0 ? '+' : ''}{fmtNum(over)} ({budgetPct} %)</span>
+                        )}
                       </div>
                     </div>
                   )}
