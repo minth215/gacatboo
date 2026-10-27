@@ -102,7 +102,7 @@ export default function LedgerFilterSheet({
   return createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: 80 }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(25,23,34,.42)' }} />
-      <div className="ledger-filter-sheet" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '88%', background: 'var(--k-bg-fff)', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 32px rgba(25,23,34,.18)', padding: '10px 20px calc(24px + env(safe-area-inset-bottom))', animation: 'sheet-up .22s ease-out', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="ledger-filter-sheet" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '88%', background: 'var(--k-bg-fff)', borderRadius: '24px 24px 0 0', boxShadow: '0 -12px 32px rgb(var(--k-sh) / calc(.18 * var(--k-sha)))', padding: '10px 20px calc(24px + env(safe-area-inset-bottom))', animation: 'sheet-up .22s ease-out', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--k-bg-e4e2e7)', margin: '0 auto 14px', flex: 'none' }} />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 'none' }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--k-tx-191722)', letterSpacing: '-.3px' }}>필터</div>

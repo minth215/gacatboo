@@ -66,7 +66,7 @@ export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete
           cursor: clickable ? 'pointer' : 'default',
           background,
           borderRadius: `${first ? 20 : 0}px ${first ? 20 : 0}px ${last ? 20 : 0}px ${last ? 20 : 0}px`,
-          boxShadow: '0 4px 16px rgba(25,23,34,.05)',
+          boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))',
           // 그림자는 행마다 두되 이웃 행 쪽으로는 번지지 않게 잘라서, 모아 놓으면 하나의 박스 그림자처럼 보임
           clipPath: `inset(${first ? -20 : 0}px -20px ${last ? -20 : 0}px -20px)`,
         }}

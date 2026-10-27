@@ -314,7 +314,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
         <>
           <div style={{
             position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100,
-            background: 'var(--k-bg-fff)', borderRadius: '20px 20px 0 0', boxShadow: '0 -4px 20px rgba(25,23,34,.12)',
+            background: 'var(--k-bg-fff)', borderRadius: '20px 20px 0 0', boxShadow: '0 -4px 20px rgb(var(--k-sh) / calc(.12 * var(--k-sha)))',
             padding: '10px 12px calc(32px + env(safe-area-inset-bottom, 0px))',
           }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '2px 2px 8px' }}>

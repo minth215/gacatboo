@@ -117,7 +117,7 @@ export function SuggestList({ items, query, onPick }) {
   return (
     <div style={{
       position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, zIndex: 40,
-      background: 'var(--k-bg-fff)', borderRadius: 12, boxShadow: '0 8px 20px rgba(25,23,34,.14)',
+      background: 'var(--k-bg-fff)', borderRadius: 12, boxShadow: '0 8px 20px rgb(var(--k-sh) / calc(.14 * var(--k-sha)))',
       border: '1px solid var(--k-bd-f2f1f5)', overflow: 'hidden',
     }}>
       {items.map((s, i) => (

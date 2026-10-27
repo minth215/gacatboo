@@ -64,12 +64,12 @@ export default function GroupEdit() {
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="그룹 정보" flat />
 
-      <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', padding: '24px 20px 22px', marginTop: 14, marginBottom: 18 }}>
+      <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', padding: '24px 20px 22px', marginTop: 14, marginBottom: 18 }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginBottom: 18 }}>
           <div style={{ position: 'relative', width: 96, height: 96 }}>
             <div style={{
               position: 'absolute', inset: 0, borderRadius: 26, background: form.color || 'transparent', border: form.color ? '1.5px solid var(--k-bd-efeef2)' : 'none',
-              boxShadow: '0 3px 10px rgba(25,23,34,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 3px 10px rgb(var(--k-sh) / calc(.06 * var(--k-sha)))', display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 38, pointerEvents: 'none',
             }}>
               {form.category_emoji || '💸'}

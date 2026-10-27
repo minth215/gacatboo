@@ -7,7 +7,7 @@ import Modal from '../components/Modal.jsx';
 
 const roundBtn = (size = 36) => ({
   width: size, height: size, borderRadius: '50%', border: 'none', background: 'var(--k-bg-fff)',
-  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: 'var(--k-tx-6c6779)',
+  boxShadow: '0 3px 12px rgb(var(--k-sh) / calc(.1 * var(--k-sha)))', cursor: 'pointer', color: 'var(--k-tx-6c6779)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none',
 });
 
@@ -340,7 +340,7 @@ function AdminHolidays() {
 
       {/* 캘린더 — 가계부 페이지 캘린더 뷰와 동일한 구성(선택 대신 공휴일 표시). 칸 크기는
           내용 길이와 무관하게 항상 고정(height)이고, 긴 이름은 말줄임표로 줄인다. */}
-      <div style={{ marginTop: 16, background: 'var(--k-bg-fff)', borderRadius: 20, padding: '14px 12px 12px', boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
+      <div style={{ marginTop: 16, background: 'var(--k-bg-fff)', borderRadius: 20, padding: '14px 12px 12px', boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', textAlign: 'center', fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-a29ead)' }}>
           <span style={{ color: '#e0607a' }}>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span style={{ color: '#7b93c9' }}>토</span>
         </div>
@@ -376,7 +376,7 @@ function AdminHolidays() {
 
       {/* 선택한 공휴일 카드 — 우측 끝에 수정/삭제 아이콘 */}
       {selDate && holidays[selDate] && (
-        <div style={{ marginTop: 10, background: 'var(--k-bg-fff)', borderRadius: 14, padding: '12px 8px 12px 16px', boxShadow: '0 4px 16px rgba(25,23,34,.05)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ marginTop: 10, background: 'var(--k-bg-fff)', borderRadius: 14, padding: '12px 8px 12px 16px', boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{holidays[selDate]}</div>
             <div style={{ marginTop: 2, fontSize: 11.5, color: 'var(--k-tx-a29ead)' }}>{selLabel}</div>

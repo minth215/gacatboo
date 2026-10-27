@@ -77,7 +77,7 @@ export default function SettingsNotifications() {
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="알림 관리" flat />
 
-      <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', padding: '14px 16px', marginTop: 14 }}>
+      <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', padding: '14px 16px', marginTop: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 13.75, fontWeight: 700, color: 'var(--k-tx-191722)' }}>푸시 알림</div>

@@ -72,7 +72,7 @@ export default function Groups() {
       </div>
 
       {filterOpen && (
-        <div style={{ background: 'var(--k-bg-fff)', borderRadius: 16, padding: 12, marginTop: 14, marginBottom: 10, boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
+        <div style={{ background: 'var(--k-bg-fff)', borderRadius: 16, padding: 12, marginTop: 14, marginBottom: 10, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))' }}>
           <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="catmodal-name-input" style={{ appearance: 'none' }}>
             <option value="">카테고리 전체</option>
             {groupCats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}

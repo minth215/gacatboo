@@ -29,7 +29,7 @@ export default function Withdraw() {
 
       <div style={{ flex: 1, marginTop: 18 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--k-tx-191722)', marginBottom: 12 }}>탈퇴 전 꼭 확인해 주세요</div>
-        <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 4px 16px rgba(25,23,34,.06)' }}>
+        <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.06 * var(--k-sha)))' }}>
           {WARNINGS.map((w) => (
             <div key={w} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
               <svg width="14" viewBox="0 0 24 24" fill="none" stroke="#FF3B5C" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', marginTop: 2 }}>
@@ -42,7 +42,7 @@ export default function Withdraw() {
 
         <button
           type="button" onClick={() => setAgree((v) => !v)}
-          style={{ marginTop: 20, width: '100%', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', border: 'none', borderRadius: 14, background: 'var(--k-bg-fff)', boxShadow: '0 4px 16px rgba(25,23,34,.06)', cursor: 'pointer', textAlign: 'left' }}
+          style={{ marginTop: 20, width: '100%', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', border: 'none', borderRadius: 14, background: 'var(--k-bg-fff)', boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.06 * var(--k-sha)))', cursor: 'pointer', textAlign: 'left' }}
         >
           <span style={{ width: 20, height: 20, borderRadius: 6, background: agree ? '#FF3B5C' : 'var(--k-bg-fff)', border: `1.5px solid ${agree ? '#FF3B5C' : 'var(--k-bd-d8d5de)'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
             {agree && (

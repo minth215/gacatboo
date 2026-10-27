@@ -182,12 +182,12 @@ export default function GroupCreate() {
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 6px 24px', margin: '0 -6px' }}>
         {step === 1 && (
           <div>
-            <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', padding: '24px 20px 22px', marginBottom: 18 }}>
+            <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', padding: '24px 20px 22px', marginBottom: 18 }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginBottom: 18 }}>
                 <div style={{ position: 'relative', width: 96, height: 96 }}>
                   <div style={{
                     position: 'absolute', inset: 0, borderRadius: 26, background: color || 'transparent', border: color ? '1.5px solid var(--k-bd-efeef2)' : 'none',
-                    boxShadow: '0 3px 10px rgba(25,23,34,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 3px 10px rgb(var(--k-sh) / calc(.06 * var(--k-sha)))', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 38, pointerEvents: 'none',
                   }}>
                     {emoji || '💸'}
@@ -282,7 +282,7 @@ export default function GroupCreate() {
                 등록된 원천이 없습니다. <button type="button" className="edit-link" onClick={() => nav('/settings/sources')}>편집 ›</button>
               </div>
             ) : (
-              <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
+              <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', overflow: 'hidden' }}>
                 {sources.tree.map((top, gi) => {
                   const topSelected = String(depositSourceId) === String(top.id);
                   const SourceRow = ({ src, selected, indent }) => (
@@ -339,7 +339,7 @@ export default function GroupCreate() {
             </div>
 
             {friendSections.length === 0 ? (
-              <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', marginBottom: 16, padding: '20px 14px', textAlign: 'center', fontSize: 12.5, color: 'var(--k-tx-a29ead)' }}>
+              <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', marginBottom: 16, padding: '20px 14px', textAlign: 'center', fontSize: 12.5, color: 'var(--k-tx-a29ead)' }}>
                 {friends.length ? '검색 결과가 없어요' : '등록된 친구가 없어요'}
               </div>
             ) : friendSections.map(({ group, items }) => (
@@ -347,7 +347,7 @@ export default function GroupCreate() {
                 <div style={{ padding: '0 8px 0 18px', marginBottom: 8, fontSize: 13, fontWeight: 700, color: group ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>
                   {group ? group.name : '미분류'}
                 </div>
-                <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
+                <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', overflow: 'hidden' }}>
                   {items.map((f, i) => {
                 const selected = selectedFriendIds.includes(f.id);
                 return (

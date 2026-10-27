@@ -96,7 +96,7 @@ export default function PooledFundGroup({ gid, group, members, isOwner, leaderNa
             {expenses.length === 0 ? <div className="empty empty-center-notabs">사용 내역이 없습니다.</div> : expenses.map((e, i) => (
               <div
                 key={e.id} className="tx-row" onClick={() => nav(`/tx/${e.id}?group=${gid}&kind=pooled-expense`)}
-                style={{ cursor: 'pointer', borderTop: i > 0 ? '1px solid var(--k-bd-f2f1f5)' : 'none', background: 'var(--k-bg-fff)', borderRadius: i === 0 ? '20px 20px 0 0' : (i === expenses.length - 1 ? '0 0 20px 20px' : 0), boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}
+                style={{ cursor: 'pointer', borderTop: i > 0 ? '1px solid var(--k-bd-f2f1f5)' : 'none', background: 'var(--k-bg-fff)', borderRadius: i === 0 ? '20px 20px 0 0' : (i === expenses.length - 1 ? '0 0 20px 20px' : 0), boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))' }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="tx-row-title"><span className="ttext">{e.content || '공금 사용'}</span></div>
@@ -118,7 +118,7 @@ export default function PooledFundGroup({ gid, group, members, isOwner, leaderNa
             {transfers.length === 0 ? <div className="empty empty-center-notabs">이체 내역이 없습니다.</div> : transfers.map((t, i) => (
               <div
                 key={t.id} className="tx-row" onClick={() => nav(`/tx/${t.id}?group=${gid}&kind=pooled-transfer`)}
-                style={{ cursor: 'pointer', borderTop: i > 0 ? '1px solid var(--k-bd-f2f1f5)' : 'none', background: 'var(--k-bg-fff)', borderRadius: i === 0 ? '20px 20px 0 0' : (i === transfers.length - 1 ? '0 0 20px 20px' : 0), boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}
+                style={{ cursor: 'pointer', borderTop: i > 0 ? '1px solid var(--k-bd-f2f1f5)' : 'none', background: 'var(--k-bg-fff)', borderRadius: i === 0 ? '20px 20px 0 0' : (i === transfers.length - 1 ? '0 0 20px 20px' : 0), boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))' }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="tx-row-title"><span className="ttext">{t.content || `${t.member?.nickname || '멤버'} 이체`}</span></div>

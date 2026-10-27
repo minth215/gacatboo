@@ -85,7 +85,7 @@ export default function AdminUserDetail() {
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="회원 상세" flat />
 
-      <div style={{ marginTop: 14, background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
+      <div style={{ marginTop: 14, background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', overflow: 'hidden' }}>
         <div style={{ padding: '18px 18px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--k-tx-191722)', letterSpacing: '-.3px' }}>{target.display_name}</span>

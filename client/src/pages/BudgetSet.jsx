@@ -12,7 +12,7 @@ const onlyDigits = (v) => v.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
 // 통계 페이지와 동일한 원형 화살표 버튼 스타일
 const roundBtn = {
   width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'var(--k-bg-fff)',
-  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: 'var(--k-tx-8b8798)',
+  boxShadow: '0 3px 12px rgb(var(--k-sh) / calc(.1 * var(--k-sha)))', cursor: 'pointer', color: 'var(--k-tx-8b8798)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none',
 };
 const arrow = (points) => (

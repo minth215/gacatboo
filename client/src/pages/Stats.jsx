@@ -21,7 +21,7 @@ const CHART_FWD = 4;
 
 const roundBtn = {
   width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'var(--k-bg-fff)',
-  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: 'var(--k-tx-8b8798)',
+  boxShadow: '0 3px 12px rgb(var(--k-sh) / calc(.1 * var(--k-sha)))', cursor: 'pointer', color: 'var(--k-tx-8b8798)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none',
 };
 const arrow = (points) => (
@@ -430,7 +430,7 @@ export default function Stats() {
     <div style={{ position: 'relative' }}>
       <button onClick={() => setPeriodMenuOpen((o) => !o)} style={{
         width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'var(--k-bg-fff)',
-        boxShadow: '0 3px 12px rgba(25,23,34,.1)', color: 'var(--k-tx-6c6779)', fontFamily: 'inherit',
+        boxShadow: '0 3px 12px rgb(var(--k-sh) / calc(.1 * var(--k-sha)))', color: 'var(--k-tx-6c6779)', fontFamily: 'inherit',
         fontSize: 10.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', padding: 0,
       }}>{PERIOD_LABELS[periodMode]}</button>
       {periodMenuOpen && (
@@ -438,7 +438,7 @@ export default function Stats() {
           <div onClick={() => setPeriodMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
           <div style={{
             position: 'absolute', top: 44, right: 0, background: 'var(--k-bg-fff)', borderRadius: 14,
-            boxShadow: '0 10px 30px rgba(25,23,34,.15)', padding: 5, display: 'flex', flexDirection: 'column',
+            boxShadow: '0 10px 30px rgb(var(--k-sh) / calc(.15 * var(--k-sha)))', padding: 5, display: 'flex', flexDirection: 'column',
             gap: 1, zIndex: 20, minWidth: 82,
           }}>
             {Object.entries({ week: '주별', month: '월별', year: '연별', range: '기간 선택' }).map(([m, label]) => (
@@ -467,7 +467,7 @@ export default function Stats() {
         <PageHeader title={detail.name} flat onBack={closeDetail} right={periodModeControl} />
         {periodBar}
 
-        <div style={{ marginTop: 10, background: 'var(--k-bg-fff)', borderRadius: 20, padding: '16px 16px 10px', boxShadow: '0 6px 20px rgba(25,23,34,.07)' }}>
+        <div style={{ marginTop: 10, background: 'var(--k-bg-fff)', borderRadius: 20, padding: '16px 16px 10px', boxShadow: '0 6px 20px rgb(var(--k-sh) / calc(.07 * var(--k-sha)))' }}>
           <LineChart
             points={chartPoints} color={detail.color}
             leftIndex={chartLeftIndex} visibleCount={CHART_VISIBLE}
@@ -501,7 +501,7 @@ export default function Stats() {
               // 형광펜 효과: 선택되면 왼쪽에서 오른쪽으로 칠해지고, 해제되면 왼쪽부터 지워진다.
               // 폭(background-size)만 애니메이션하고 기준 위치는 선택 시 왼쪽/해제 시 오른쪽으로 둔다
               // (위치가 바뀌는 순간은 폭이 0% 또는 100%라 눈에 띄지 않음).
-              backgroundImage: 'linear-gradient(180deg, transparent 56%, #FFD9A0 56%)',
+              backgroundImage: 'linear-gradient(180deg, transparent 56%, var(--k-hl) 56%)',
               backgroundRepeat: 'no-repeat',
               backgroundSize: statView === v ? '100% 100%' : '0% 100%',
               backgroundPosition: statView === v ? 'left bottom' : 'right bottom',
@@ -596,7 +596,7 @@ export default function Stats() {
                 <div ref={tipRef} style={{
                   position: 'absolute', left: tipBox?.left ?? 0, top: tipBox?.top ?? 0, visibility: tipBox ? 'visible' : 'hidden',
                   background: 'var(--k-bg-191722)', color: 'var(--k-onink-fff)', borderRadius: 10, padding: '7px 12px', fontSize: 11, fontWeight: 600,
-                  whiteSpace: 'nowrap', zIndex: 8, boxShadow: '0 6px 16px rgba(25,23,34,.25)', pointerEvents: 'none',
+                  whiteSpace: 'nowrap', zIndex: 8, boxShadow: '0 6px 16px rgb(var(--k-sh) / calc(.25 * var(--k-sha)))', pointerEvents: 'none',
                 }}>
                   <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: hover.color, marginRight: 6 }} />
                   {hover.name} · {fmtNum(hover.total)} · {Math.round((hover.total / total) * 100)}%
@@ -618,7 +618,7 @@ export default function Stats() {
               return (
                 <div key={g.key} onClick={() => openDetail(g)} style={{
                   background: 'var(--k-bg-fff)', borderRadius: 16, padding: '12px 14px',
-                  boxShadow: '0 4px 16px rgba(25,23,34,.05)', cursor: 'pointer',
+                  boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', cursor: 'pointer',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: g.color, flex: 'none' }} />
@@ -643,7 +643,7 @@ export default function Stats() {
           </div>
         </>
       ) : (
-        <div style={{ marginTop: statView === 'category' ? 34 : 22, background: 'var(--k-bg-fff)', borderRadius: 16, boxShadow: '0 4px 16px rgba(25,23,34,.05)', overflow: 'hidden' }}>
+        <div style={{ marginTop: statView === 'category' ? 34 : 22, background: 'var(--k-bg-fff)', borderRadius: 16, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid var(--k-bd-f2f1f5)' }}>
             {[['name', '내용', { flex: 1 }], ['count', '건수', { width: 52 }], ['amount', '금액', { minWidth: 84 }]].map(([key, label, style]) => (
               <button key={key} onClick={() => setSort((s) => ({

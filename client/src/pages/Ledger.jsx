@@ -13,7 +13,7 @@ import { SuggestList, rankSuggestions } from '../components/TransactionForm.jsx'
 
 const roundBtn = (size = 36) => ({
   width: size, height: size, borderRadius: '50%', border: 'none', background: 'var(--k-bg-fff)',
-  boxShadow: '0 3px 12px rgba(25,23,34,.1)', cursor: 'pointer', color: 'var(--k-tx-6c6779)',
+  boxShadow: '0 3px 12px rgb(var(--k-sh) / calc(.1 * var(--k-sha)))', cursor: 'pointer', color: 'var(--k-tx-6c6779)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flex: 'none',
 });
 
@@ -349,7 +349,7 @@ export default function Ledger() {
                   <div style={{ position: 'fixed', inset: 0, zIndex: 39 }} onClick={() => setBulkMenuOpen(false)} />
                   <div style={{
                     position: 'absolute', right: 0, top: '100%', marginTop: 6, zIndex: 40, minWidth: 148,
-                    background: 'var(--k-bg-fff)', borderRadius: 14, boxShadow: '0 10px 28px rgba(25,23,34,.16)', overflow: 'hidden',
+                    background: 'var(--k-bg-fff)', borderRadius: 14, boxShadow: '0 10px 28px rgb(var(--k-sh) / calc(.16 * var(--k-sha)))', overflow: 'hidden',
                   }}>
                     {[
                       ['content', '내용 일괄 수정'], ['date', '날짜 일괄 수정'],
@@ -488,7 +488,7 @@ export default function Ledger() {
                     </select>
                   </span>
                 </div>
-                <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgba(25,23,34,.07)', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
+                <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgb(var(--k-sh) / calc(.07 * var(--k-sha)))', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
                   <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtNum(sIncome)}</div></div>
                   <div style={{ width: 1, height: 30, background: 'var(--k-bg-efeef2)' }} />
                   <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtNum(sExpense)}</div></div>
@@ -561,7 +561,7 @@ export default function Ledger() {
               </button>
               <CatMascot width={70} />
             </div>
-            <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgba(25,23,34,.07)', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
+            <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgb(var(--k-sh) / calc(.07 * var(--k-sha)))', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
               <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtNum(income)}</div></div>
               <div style={{ width: 1, height: 30, background: 'var(--k-bg-efeef2)' }} />
               <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtNum(expense)}</div></div>
@@ -575,7 +575,7 @@ export default function Ledger() {
               <Spinner />
             ) : view === 'calendar' ? (
               <>
-                <div style={{ marginTop: 16, background: 'var(--k-bg-fff)', borderRadius: 20, padding: '14px 12px 12px', boxShadow: '0 4px 16px rgba(25,23,34,.05)' }}>
+                <div style={{ marginTop: 16, background: 'var(--k-bg-fff)', borderRadius: 20, padding: '14px 12px 12px', boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', textAlign: 'center', fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-a29ead)' }}>
                     <span style={{ color: '#e0607a' }}>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span style={{ color: '#7b93c9' }}>토</span>
                   </div>
