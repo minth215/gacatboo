@@ -4,6 +4,7 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { leaderLabel, dotDate } from '../lib/format.js';
 import Spinner from '../components/Spinner.jsx';
+import GroupFilterSheet from '../components/GroupFilterSheet.jsx';
 
 export default function Groups() {
   const nav = useNavigate();
@@ -16,7 +17,7 @@ export default function Groups() {
   const searchRef = useRef(null);
   const [query, setQuery] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
-  const [filterCategory, setFilterCategory] = useState('');
+  const [filterCats, setFilterCats] = useState([]); // 선택한 카테고리(빈 배열 = 전체)
   const [showEnded, setShowEnded] = useState(true);
 
   const openSearch = () => { setSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 260); };
@@ -32,12 +33,12 @@ export default function Groups() {
   useEffect(() => { db.listGroupCategories().then(setGroupCats).catch(() => setGroupCats([])); }, []);
 
   const isEnded = (g) => !!(g.end_date && new Date(g.end_date) < new Date());
-  const filterActive = !!filterCategory || !showEnded;
+  const filterActive = filterCats.length > 0 || !showEnded;
 
   const filteredGroups = groups
     .filter((g) => {
       if (query.trim() && !g.name.toLowerCase().includes(query.trim().toLowerCase())) return false;
-      if (filterCategory && g.category !== filterCategory) return false;
+      if (filterCats.length && !filterCats.includes(g.category)) return false;
       if (!showEnded && isEnded(g)) return false;
       return true;
     })
@@ -72,15 +73,10 @@ export default function Groups() {
       </div>
 
       {filterOpen && (
-        <div style={{ background: 'var(--k-bg-fff)', borderRadius: 16, padding: 12, marginTop: 14, marginBottom: 10, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))' }}>
-          <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="catmodal-name-input" style={{ appearance: 'none' }}>
-            <option value="">카테고리 전체</option>
-            {groupCats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-          </select>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12.5, fontWeight: 600, color: 'var(--k-tx-6c6779)' }}>
-            <input type="checkbox" checked={showEnded} onChange={(e) => setShowEnded(e.target.checked)} /> 종료된 그룹 표시
-          </label>
-        </div>
+        <GroupFilterSheet
+          categories={groupCats} filterCats={filterCats} setFilterCats={setFilterCats}
+          showEnded={showEnded} setShowEnded={setShowEnded} onClose={() => setFilterOpen(false)}
+        />
       )}
 
       {loading ? (
