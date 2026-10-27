@@ -252,7 +252,7 @@ a { color: inherit; text-decoration: none; }
   font-weight: 800; font-size: 14px; color: var(--k-tx-8b8798); cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease;
 }
-.type-pill button.income.active, .type-pill button.expense.active, .type-pill button.transfer.active { background: var(--k-bg-fff); color: var(--k-tx-191722); box-shadow: 0 2px 8px rgb(var(--k-sh) / calc(.08 * var(--k-sha))); }
+.type-pill button.income.active, .type-pill button.expense.active, .type-pill button.transfer.active { background: var(--k-bg-fff); color: var(--k-tx-191722); box-shadow: none; }
 
 /* 저장 버튼: 알약 모양 먹색 */
 .btn-ink-pill {

@@ -160,6 +160,18 @@ export default function Stats() {
   }, [start, endExclusive]);
   useEffect(() => { db.listCardBenefits().then(setTiers).catch(() => setTiers([])); }, []);
 
+  // 분류별 예산(설정 > 예산 관리). 예산은 월 단위라 월/연 기간에서만 게이지를 보여준다.
+  const [allCats, setAllCats] = useState([]);
+  const [budgetRows, setBudgetRows] = useState([]);
+  const budgetYear = periodMode === 'month' ? Number(month.slice(0, 4)) : periodMode === 'year' ? Number(year) : null;
+  useEffect(() => { db.listCategories().then(setAllCats).catch(() => setAllCats([])); }, []);
+  useEffect(() => {
+    if (budgetYear == null) { setBudgetRows([]); return; }
+    let alive = true;
+    db.listCategoryBudgetsForYear(budgetYear).then((r) => { if (alive) setBudgetRows(r); }).catch(() => { if (alive) setBudgetRows([]); });
+    return () => { alive = false; };
+  }, [budgetYear]);
+
   const movePeriod = (delta) => {
     if (periodMode === 'week') setWeek((w) => shiftPeriod('week', w, delta));
     else if (periodMode === 'year') setYear((y) => shiftPeriod('year', y, delta));
@@ -206,6 +218,24 @@ export default function Stats() {
     const next = arr.find((t) => gross < Number(t.threshold));
     const goal = Number((next || achieved).threshold);
     return { goal, percent: Math.min(100, Math.round((gross / goal) * 100)), achieved, next };
+  };
+
+  // 분류 카드의 예산: 그 달 재정의 ?? 그 해 기본(월=0). 연 기간은 12개월 예산의 합(설정된 달만).
+  const budgetOf = (name) => {
+    if (statView !== 'category' || budgetYear == null || !budgetRows.length) return null;
+    const cat = allCats.find((c) => c.type === tab && c.name === name);
+    if (!cat) return null;
+    const monthBudget = (m) => {
+      const own = budgetRows.find((r) => r.category_id === cat.id && r.month === m);
+      if (own) return Number(own.amount);
+      const base = budgetRows.find((r) => r.category_id === cat.id && r.month === 0);
+      return base ? Number(base.amount) : null;
+    };
+    const months = periodMode === 'month' ? [Number(month.slice(5, 7))] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const vals = months.map(monthBudget).filter((v) => v != null);
+    if (!vals.length) return null;
+    const amount = vals.reduce((a, b) => a + b, 0);
+    return amount > 0 ? amount : null;
   };
 
   const sorted = useMemo(() => {
@@ -615,6 +645,9 @@ export default function Stats() {
           <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 10 }}>
             {groups.map((g) => {
               const tier = tierOf(g.sourceId);
+              const budget = budgetOf(g.name);
+              const budgetPct = budget ? Math.round((g.total / budget) * 100) : 0;
+              const over = budget ? g.total - budget : 0;
               return (
                 <div key={g.key} onClick={() => openDetail(g)} style={{
                   background: 'var(--k-bg-fff)', borderRadius: 16, padding: '12px 14px',
@@ -626,6 +659,19 @@ export default function Stats() {
                     <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-a29ead)' }}>{total ? Math.round((g.total / total) * 100) : 0}%</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', minWidth: 64, textAlign: 'right' }}>{fmtNum(g.total)}</span>
                   </div>
+                  {budget && (
+                    <div style={{ marginTop: 9 }}>
+                      <div style={{ height: 6, borderRadius: 999, background: 'var(--k-bg-f2f1f5)', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: 999, background: tab === 'expense' && over > 0 ? '#FF3B5C' : g.color, width: `${Math.min(100, budgetPct)}%` }} />
+                      </div>
+                      <div style={{ marginTop: 5, fontSize: 10.25, color: 'var(--k-tx-8b8798)' }}>
+                        예산 {fmtWon(budget)} · {budgetPct}% {tab === 'expense' ? '사용' : '달성'}
+                        {tab === 'expense' && (over > 0
+                          ? <span style={{ color: '#FF3B5C', fontWeight: 700 }}> · {fmtWon(over)} 초과</span>
+                          : ` · ${fmtWon(-over)} 남음`)}
+                      </div>
+                    </div>
+                  )}
                   {tier && (
                     <div style={{ marginTop: 9 }}>
                       <div style={{ height: 6, borderRadius: 999, background: 'var(--k-bg-f2f1f5)', overflow: 'hidden' }}>
