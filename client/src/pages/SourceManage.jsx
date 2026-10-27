@@ -132,7 +132,7 @@ export default function SourceManage() {
 
           {top.children?.map((it) => (
             editingItemId === it.id ? (
-              <div key={it.id} className="inline-edit-row" style={{ paddingLeft: 30, borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+              <div key={it.id} className="inline-edit-row" style={{ paddingLeft: 30, borderTop: '1.5px solid var(--k-divider)' }}>
                 <input
                   type="text" value={editItemDraft} onChange={(e) => setEditItemDraft(e.target.value)}
                   autoFocus onKeyDown={(e) => e.key === 'Enter' && saveEditItem(it)} className="inline-edit-input"
@@ -141,7 +141,7 @@ export default function SourceManage() {
                 <button className="inline-save-btn" onClick={() => saveEditItem(it)}>저장</button>
               </div>
             ) : (
-              <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 8px 11px 34px', borderTop: '1.5px solid var(--k-bd-f2f1f5)', cursor: 'pointer' }} onClick={() => setPrimaryModal(it)}>
+              <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 8px 11px 34px', borderTop: '1.5px solid var(--k-divider)', cursor: 'pointer' }} onClick={() => setPrimaryModal(it)}>
                 <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 13.25, fontWeight: 500, color: 'var(--k-tx-4a4652)' }}>
                   {it.name}
                   {it.is_primary_payment && <span style={{ fontSize: 9, fontWeight: 700, color: '#2CDDB9', background: '#E5FBF6', borderRadius: 999, padding: '2px 6px' }}>주결제</span>}
@@ -160,7 +160,7 @@ export default function SourceManage() {
           ))}
 
           {addingItemCatId === top.id && (
-            <div className="inline-edit-row" style={{ paddingLeft: 30, borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+            <div className="inline-edit-row" style={{ paddingLeft: 30, borderTop: '1.5px solid var(--k-divider)' }}>
               <input
                 type="text" placeholder="세부 항목 이름" value={addItemDraft} onChange={(e) => setAddItemDraft(e.target.value)}
                 autoFocus onKeyDown={(e) => e.key === 'Enter' && saveAddItem(top.id)} className="inline-edit-input"

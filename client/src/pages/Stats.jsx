@@ -644,7 +644,7 @@ export default function Stats() {
         </>
       ) : (
         <div style={{ marginTop: statView === 'category' ? 34 : 22, background: 'var(--k-bg-fff)', borderRadius: 16, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid var(--k-bd-f2f1f5)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid var(--k-divider)' }}>
             {[['name', '내용', { flex: 1 }], ['count', '건수', { width: 52 }], ['amount', '금액', { minWidth: 84 }]].map(([key, label, style]) => (
               <button key={key} onClick={() => setSort((s) => ({
                 key,
@@ -662,7 +662,7 @@ export default function Stats() {
           {sorted.map((g, i) => (
             <div key={g.key} onClick={() => openDetail(g)} style={{
               display: 'flex', alignItems: 'center', padding: '12px 14px', cursor: 'pointer',
-              borderBottom: i === sorted.length - 1 ? 'none' : '1px solid #f7f6f4',
+              borderBottom: i === sorted.length - 1 ? 'none' : '1px solid var(--k-divider)',
             }}>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: g.color, flex: 'none' }} />

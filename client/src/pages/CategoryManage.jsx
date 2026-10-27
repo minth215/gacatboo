@@ -65,7 +65,7 @@ export default function CategoryManage() {
             className={dragId === c.id ? 'drag-lift' : ''}
             style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 16px', background: 'var(--k-bg-fff)',
-              borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)',
+              borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)',
             }}
           >
             <button onClick={() => openEdit(c)} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', minWidth: 0 }}>

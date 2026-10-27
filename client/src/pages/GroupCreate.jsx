@@ -299,10 +299,10 @@ export default function GroupCreate() {
                     </button>
                   );
                   return (
-                    <div key={top.id} style={{ borderTop: gi === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
+                    <div key={top.id} style={{ borderTop: gi === 0 ? 'none' : '1.5px solid var(--k-divider)' }}>
                       <SourceRow src={top} selected={topSelected} indent={0} />
                       {top.children?.map((c) => (
-                        <div key={c.id} style={{ borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+                        <div key={c.id} style={{ borderTop: '1.5px solid var(--k-divider)' }}>
                           <SourceRow src={c} selected={String(depositSourceId) === String(c.id)} indent={16} />
                         </div>
                       ))}
@@ -351,7 +351,7 @@ export default function GroupCreate() {
                   {items.map((f, i) => {
                 const selected = selectedFriendIds.includes(f.id);
                 return (
-                  <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
+                  <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13.25, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{f.nickname}</div>
                     </div>

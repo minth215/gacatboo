@@ -48,11 +48,11 @@ export default function ProfileEdit() {
           <span className="settings-menu-main"><span className="settings-menu-label">비밀번호 변경</span></span>
           <Chevron />
         </button>
-        <button className="settings-menu-row" onClick={logout} style={{ borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+        <button className="settings-menu-row" onClick={logout} style={{ borderTop: '1.5px solid var(--k-divider)' }}>
           <span className="settings-menu-tile" style={{ background: '#fff1e6' }}>🚪</span>
           <span className="settings-menu-main"><span className="settings-menu-label">로그아웃</span></span>
         </button>
-        <button className="settings-menu-row" onClick={() => nav('/settings/profile/withdraw')} style={{ borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+        <button className="settings-menu-row" onClick={() => nav('/settings/profile/withdraw')} style={{ borderTop: '1.5px solid var(--k-divider)' }}>
           <span className="settings-menu-tile" style={{ background: '#fde8ee' }}>👋</span>
           <span className="settings-menu-main"><span className="settings-menu-label">회원 탈퇴</span></span>
           <Chevron />

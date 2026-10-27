@@ -126,7 +126,7 @@ export default function BudgetSet() {
 
       <div className="tx-daycard" style={{ marginTop: 18 }}>
         {MONTHS.map((m, i) => (
-          <div key={m} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
+          <div key={m} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)' }}>
             <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{m}월</span>
             <AmountField
               value={monthAmounts[m] || ''}

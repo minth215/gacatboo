@@ -43,7 +43,7 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
     <>
       <div className="tx-daycard" style={{ marginTop: 14 }}>
         {visibleMembers.map((m, i) => (
-          <div key={m.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '13px 8px 13px 18px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
+          <div key={m.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '13px 8px 13px 18px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{m.nickname}</span>

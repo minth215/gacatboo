@@ -109,7 +109,7 @@ export default function AdminUserDetail() {
               <option value="admin">관리자</option>
             </select>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderTop: '1.5px solid var(--k-divider)' }}>
             <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)' }}>상태</span>
             <select className="admin-select" value={statusValue} disabled={busy || isSelf} onChange={(e) => changeStatus(e.target.value)}>
               <option value="approved">활성</option>

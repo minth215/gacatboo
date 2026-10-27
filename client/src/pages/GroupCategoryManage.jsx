@@ -67,7 +67,7 @@ export default function GroupCategoryManage() {
           <div className="empty" style={{ padding: '20px 0' }}>카테고리가 없습니다.</div>
         ) : cats.map((c, i) => (
           editId === c.id ? (
-            <div key={c.id} className="inline-edit-row" style={{ borderTop: (i === 0 && !adding) ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
+            <div key={c.id} className="inline-edit-row" style={{ borderTop: (i === 0 && !adding) ? 'none' : '1.5px solid var(--k-divider)' }}>
               <input
                 type="text" value={editDraft} onChange={(e) => setEditDraft(e.target.value)}
                 autoFocus onKeyDown={(e) => e.key === 'Enter' && saveEdit(c)} className="inline-edit-input"
@@ -81,7 +81,7 @@ export default function GroupCategoryManage() {
               className={dragId === c.id ? 'drag-lift' : ''}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 18px', background: 'var(--k-bg-fff)',
-                borderTop: (i === 0 && !adding) ? 'none' : '1.5px solid var(--k-bd-f2f1f5)',
+                borderTop: (i === 0 && !adding) ? 'none' : '1.5px solid var(--k-divider)',
               }}
             >
               <span style={{ flex: 1, fontSize: 13.75, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{c.name}</span>

@@ -96,7 +96,7 @@ export default function SettingsNotifications() {
               {templates.map((t, i) => {
                 const label = EVENT_LABELS[t.event_key] || t.title_template || t.event_key;
                 return (
-                  <div key={t.event_key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
+                  <div key={t.event_key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)' }}>
                     <span style={{ width: 32, height: 32, borderRadius: 10, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, background: t.color || 'var(--k-bg-f4f2f0)' }}>
                       {t.emoji || '🔔'}
                     </span>

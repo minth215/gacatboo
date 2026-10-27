@@ -62,7 +62,7 @@ export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete
       <div
         className="tx-row"
         style={{
-          borderTop: index > 0 ? '1px solid var(--k-bd-f2f1f5)' : 'none',
+          borderTop: index > 0 ? '1px solid var(--k-divider)' : 'none',
           cursor: clickable ? 'pointer' : 'default',
           background,
           borderRadius: `${first ? 20 : 0}px ${first ? 20 : 0}px ${last ? 20 : 0}px ${last ? 20 : 0}px`,

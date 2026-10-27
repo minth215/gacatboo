@@ -75,7 +75,7 @@ export default function SettingsExport() {
 
       <div className="tx-daycard" style={{ marginTop: 14 }}>
         {SCOPES.map((s, i) => (
-          <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
+          <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)' }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{s.label}</div>
               <div style={{ marginTop: 2, fontSize: 11.5, color: 'var(--k-tx-a29ead)' }}>{s.desc}</div>

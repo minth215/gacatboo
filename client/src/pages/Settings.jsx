@@ -126,7 +126,7 @@ export default function Settings() {
             {g.items.map((it, i) => (
               <button
                 key={it.label} className="settings-menu-row" onClick={it.to ? () => nav(it.to) : undefined}
-                style={{ borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}
+                style={{ borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)' }}
               >
                 <span className="settings-menu-tile" style={{ background: it.bg }}>{it.icon}</span>
                 <span className="settings-menu-main">
@@ -186,7 +186,7 @@ export default function Settings() {
                       key={acc.id} type="button" onClick={() => doSwitch(acc)} disabled={busy}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'transparent',
-                        padding: '12px 2px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)',
+                        padding: '12px 2px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)',
                         cursor: acc.id === user.id ? 'default' : 'pointer', textAlign: 'left', fontFamily: 'inherit', width: '100%',
                         opacity: busy && acc.id !== user.id ? 0.5 : 1,
                       }}

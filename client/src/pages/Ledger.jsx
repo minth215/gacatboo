@@ -490,9 +490,9 @@ export default function Ledger() {
                 </div>
                 <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgb(var(--k-sh) / calc(.07 * var(--k-sha)))', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
                   <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtNum(sIncome)}</div></div>
-                  <div style={{ width: 1, height: 30, background: 'var(--k-bg-efeef2)' }} />
+                  <div style={{ width: 1, height: 30, background: 'var(--k-divider)' }} />
                   <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtNum(sExpense)}</div></div>
-                  <div style={{ width: 1, height: 30, background: 'var(--k-bg-efeef2)' }} />
+                  <div style={{ width: 1, height: 30, background: 'var(--k-divider)' }} />
                   <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>이체</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: 'var(--k-tx-4b4752)' }}>{fmtNum(sTransfer)}</div></div>
                 </div>
               </div>
@@ -563,9 +563,9 @@ export default function Ledger() {
             </div>
             <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgb(var(--k-sh) / calc(.07 * var(--k-sha)))', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
               <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtNum(income)}</div></div>
-              <div style={{ width: 1, height: 30, background: 'var(--k-bg-efeef2)' }} />
+              <div style={{ width: 1, height: 30, background: 'var(--k-divider)' }} />
               <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtNum(expense)}</div></div>
-              <div style={{ width: 1, height: 30, background: 'var(--k-bg-efeef2)' }} />
+              <div style={{ width: 1, height: 30, background: 'var(--k-divider)' }} />
               <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>합계</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: 'var(--k-tx-191722)' }}>{fmtNum(income - expense)}</div></div>
             </div>
           </div>

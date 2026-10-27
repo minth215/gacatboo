@@ -122,7 +122,7 @@ export default function FriendManage() {
   }, [friends, groups]);
 
   const friendRow = (f, i) => (
-    <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 8px 13px 18px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
+    <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 8px 13px 18px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13.25, fontWeight: 500, color: 'var(--k-tx-191722)' }}>{f.nickname}</div>
         {f.friend_user_id && <div style={{ marginTop: 2, fontSize: 10.5, color: 'var(--k-tx-a29ead)' }}>@{f.friend?.username}</div>}

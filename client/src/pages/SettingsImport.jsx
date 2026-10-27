@@ -59,13 +59,13 @@ export default function SettingsImport() {
       {result && (
         <div className="tx-daycard" style={{ marginTop: 14 }}>
           {Object.entries(result).filter(([k]) => k !== 'groups_skipped').map(([k, v], i) => (
-            <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)' }}>
+            <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)' }}>
               <span style={{ fontSize: 13, color: 'var(--k-tx-191722)' }}>{SUMMARY_LABELS[k] || k}</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{v}건</span>
             </div>
           ))}
           {result.groups_skipped > 0 && (
-            <div style={{ padding: '12px 14px', borderTop: '1.5px solid var(--k-bd-f2f1f5)', fontSize: 11.5, color: 'var(--k-tx-a29ead)' }}>
+            <div style={{ padding: '12px 14px', borderTop: '1.5px solid var(--k-divider)', fontSize: 11.5, color: 'var(--k-tx-a29ead)' }}>
               내가 총무/총대가 아니었던 그룹 {result.groups_skipped}건은 소유권을 옮길 수 없어 제외됐습니다. 필요하면 직접 다시 만들어 주세요.
             </div>
           )}

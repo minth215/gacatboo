@@ -73,7 +73,7 @@ export default function CardBenefits() {
 
             {list.map((t) => (
               editId === t.id ? (
-                <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 14px 12px 18px', borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+                <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 14px 12px 18px', borderTop: '1.5px solid var(--k-divider)' }}>
                   <div style={{ position: 'relative' }}>
                     <input
                       type="text" inputMode="numeric" placeholder="실적 기준" value={editAmount ? Number(editAmount).toLocaleString('ko-KR') : ''}
@@ -93,7 +93,7 @@ export default function CardBenefits() {
                   </div>
                 </div>
               ) : (
-                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 8px 11px 18px', borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 8px 11px 18px', borderTop: '1.5px solid var(--k-divider)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.75, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(t.threshold)} 원 이상</div>
                     <div style={{ marginTop: 2, fontSize: 11.5, color: 'var(--k-tx-8b8798)' }}>{t.benefit}</div>
@@ -109,7 +109,7 @@ export default function CardBenefits() {
             ))}
 
             {addingCardId === card.id && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 14px 12px 18px', borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 14px 12px 18px', borderTop: '1.5px solid var(--k-divider)' }}>
                 <div style={{ position: 'relative' }}>
                   <input
                     type="text" inputMode="numeric" placeholder="실적 기준" value={addAmount ? Number(addAmount).toLocaleString('ko-KR') : ''}

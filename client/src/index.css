@@ -335,7 +335,7 @@ a { color: inherit; text-decoration: none; }
 .summary-card .col .val { margin-top: 4px; font-size: 15px; font-weight: 700; letter-spacing: -.3px; white-space: nowrap; color: var(--k-tx-191722); }
 .summary-card .col .val.income { color: var(--income); }
 .summary-card .col .val.expense { color: var(--expense); }
-.summary-card .divider { width: 1px; height: 30px; background: var(--k-bg-efeef2); flex: none; }
+.summary-card .divider { width: 1px; height: 30px; background: var(--k-divider); flex: none; }
 
 /* ---------- Transaction list (시안 카드/행) ---------- */
 .tx-daycard { background: var(--k-bg-fff); border-radius: 20px; box-shadow: 0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha))); overflow: hidden; }
@@ -754,6 +754,8 @@ a { color: inherit; text-decoration: none; }
   --k-sh: 25 23 34;
   --k-sha: 1;
   --k-hl: #FFD9A0;
+  /* 카드 안 구분선: 카드 그림자와 같은 색 */
+  --k-divider: rgb(var(--k-sh) / calc(.05 * var(--k-sha)));
   --k-bd-191722: #191722;
   --k-bd-c7c3cc: #c7c3cc;
   --k-bd-cfccd4: #cfccd4;

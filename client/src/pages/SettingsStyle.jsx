@@ -47,10 +47,10 @@ export default function SettingsStyle() {
       <div className="settings-group-label" style={{ marginTop: 18 }}>테마</div>
       <div className="tx-daycard">
         <OptionRow active={style.theme === 'light'} label="라이트 모드" onClick={() => choose({ theme: 'light' })} />
-        <div style={{ borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+        <div style={{ borderTop: '1.5px solid var(--k-divider)' }}>
           <OptionRow active={style.theme === 'dark'} label="다크 모드" onClick={() => choose({ theme: 'dark' })} />
         </div>
-        <div style={{ borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+        <div style={{ borderTop: '1.5px solid var(--k-divider)' }}>
           <OptionRow active={style.theme === 'system'} label="기기 설정 따름" desc="휴대폰의 라이트/다크 설정에 맞춰 바뀌어요" onClick={() => choose({ theme: 'system' })} />
         </div>
       </div>
@@ -58,7 +58,7 @@ export default function SettingsStyle() {
       <div className="settings-group-label" style={{ marginTop: 18 }}>폰트</div>
       <div className="tx-daycard">
         <OptionRow active={style.font === 'paperlogy'} label="페이퍼로지" onClick={() => choose({ font: 'paperlogy' })} />
-        <div style={{ borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+        <div style={{ borderTop: '1.5px solid var(--k-divider)' }}>
           <OptionRow active={style.font === 'system'} label="시스템 폰트" onClick={() => choose({ font: 'system' })} />
         </div>
       </div>

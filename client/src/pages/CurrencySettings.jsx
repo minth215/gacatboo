@@ -40,9 +40,9 @@ export default function CurrencySettings() {
         </div>
 
         {list.length === 0 ? (
-          <div className="empty" style={{ padding: '20px 0', borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>추가된 보조 화폐가 없습니다.</div>
+          <div className="empty" style={{ padding: '20px 0', borderTop: '1.5px solid var(--k-divider)' }}>추가된 보조 화폐가 없습니다.</div>
         ) : list.map((c) => (
-          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px 12px 16px', borderTop: '1.5px solid var(--k-bd-f2f1f5)' }}>
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px 12px 16px', borderTop: '1.5px solid var(--k-divider)' }}>
             <span style={{ width: 34, height: 34, borderRadius: 10, background: '#fde8ee', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'var(--k-tx-191722)', flex: 'none' }}>{c.code}</span>
             <span style={{ flex: 1, fontSize: 13.75, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{CURRENCY_NAME[c.code] || c.code}</span>
             <button aria-label="삭제" onClick={() => del(c)} className="cat-del-btn">
@@ -69,7 +69,7 @@ export default function CurrencySettings() {
                   key={c.code} type="button" onClick={() => add(c.code)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'transparent',
-                    padding: '12px 2px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-bd-f2f1f5)', cursor: 'pointer',
+                    padding: '12px 2px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)', cursor: 'pointer',
                     textAlign: 'left', fontFamily: 'inherit', width: '100%',
                   }}
                 >
