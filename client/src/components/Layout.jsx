@@ -45,6 +45,12 @@ export default function Layout() {
   // 하단 탭의 알림 배지(안 읽은 개수). 페이지를 이동할 때마다 다시 확인.
   const [unread, setUnread] = useState(0);
   useEffect(() => { db.countUnreadNotifications().then(setUnread).catch(() => {}); }, [location.pathname]);
+  // 알림 페이지에서 읽음/삭제/모두 읽음 처리하면 바로 반영(페이지 이동 전에도 점이 즉시 사라지게)
+  useEffect(() => {
+    const onUnread = (e) => setUnread(Number(e.detail) || 0);
+    window.addEventListener('gacatboo:unread', onUnread);
+    return () => window.removeEventListener('gacatboo:unread', onUnread);
+  }, []);
   // 계정이 바뀔 때마다(로그인·계정 전환) 이 기기의 푸시 구독을 그 계정에도 등록 — 한 기기·여러 계정 지원
   useEffect(() => { if (user?.id) syncPushSubscription(db, user.id); }, [user?.id]);
 
@@ -71,7 +77,7 @@ export default function Layout() {
                 {n.icon === 'notifications' && unread > 0 && (
                   <span style={{
                     position: 'absolute', top: -3, right: -5, minWidth: 8, height: 8, borderRadius: 999,
-                    background: '#FF3B5C', border: '1.5px solid #fff',
+                    background: '#FF3B5C',
                   }} />
                 )}
               </span>

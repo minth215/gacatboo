@@ -54,9 +54,16 @@ export default function Notifications() {
   }, [rows]);
 
   const hasUnread = rows.some((r) => !r.read_at);
+  // 하단 바 알림 점(Layout)에 안 읽은 개수를 바로 알림
+  useEffect(() => {
+    if (loading) return;
+    window.dispatchEvent(new CustomEvent('gacatboo:unread', { detail: rows.filter((r) => !r.read_at).length }));
+  }, [rows, loading]);
 
   const markAllRead = async () => {
-    try { await db.markAllNotificationsRead(); load(); } catch (e) { alert(e.message); }
+    const now = new Date().toISOString();
+    setRows((prev) => prev.map((x) => (x.read_at ? x : { ...x, read_at: now })));
+    try { await db.markAllNotificationsRead(); } catch (e) { alert(e.message); load(); }
   };
 
   const respondInvite = async (r, accept) => {
@@ -122,42 +129,45 @@ export default function Notifications() {
               onTap={() => openRow(r)} onDelete={() => removeRow(r)}
               background={r.read_at ? 'var(--k-bg-fff)' : 'var(--k-unread-bg)'}
             >
-              {/* 제목/내용은 이모지와 세로 가운데 정렬. 초대 카드는 아래 버튼·상태 줄이 있어 이모지를 위쪽에 둠 */}
-              <div style={{ display: 'flex', alignItems: r.event_key === 'group_invite' ? 'flex-start' : 'center', gap: 10, flex: 1, minWidth: 0, margin: '1px 0' }}>
-                <span style={{
-                  width: 38, height: 38, borderRadius: 12, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 17, background: r.color || '#FFE9EF', marginTop: r.event_key === 'group_invite' ? 1 : 0,
-                }}>
-                  {r.emoji || '🔔'}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                      <span style={{ fontSize: 13.5, fontWeight: r.read_at ? 600 : 800, color: 'var(--k-tx-191722)' }}>{r.title}</span>
-                      {!r.read_at && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF3B5C', flex: 'none' }} />}
+              {/* 제목/내용은 이모지와 세로 가운데 정렬(모든 카드 동일). 초대 카드는 그 아래에 수락/거절 버튼·상태 줄이
+                  붙어 카드 높이만 늘어남 */}
+              <div style={{ flex: 1, minWidth: 0, margin: '1px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{
+                    width: 38, height: 38, borderRadius: 12, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 17, background: r.color || '#FFE9EF',
+                  }}>
+                    {r.emoji || '🔔'}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                        <span style={{ fontSize: 13.5, fontWeight: r.read_at ? 600 : 800, color: 'var(--k-tx-191722)' }}>{r.title}</span>
+                        {!r.read_at && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF3B5C', flex: 'none' }} />}
+                      </div>
+                      <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', flex: 'none', whiteSpace: 'nowrap' }}>{timeAgo(r.created_at)}</span>
                     </div>
-                    <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', flex: 'none', whiteSpace: 'nowrap' }}>{timeAgo(r.created_at)}</span>
+                    <div style={{ marginTop: 2, fontSize: 12, color: 'var(--k-tx-6c6779)', lineHeight: 1.4 }}>{r.body}</div>
                   </div>
-                  <div style={{ marginTop: 2, fontSize: 12, color: 'var(--k-tx-6c6779)', lineHeight: 1.4 }}>{r.body}</div>
-                  {r.event_key === 'group_invite' && r.data?.member_id && (() => {
-                    const st = inviteStatus[r.data.member_id];
-                    if (st?.status === 'gone') return null;
-                    if (!st || st.status === 'pending') {
-                      const busy = inviteBusy === r.data.member_id;
-                      return (
-                        <div style={{ display: 'flex', gap: 8, marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
-                          <button type="button" className="btn-ink-pill" style={{ height: 34, flex: 1, fontSize: 12.5 }} disabled={busy} onClick={() => respondInvite(r, true)}>수락</button>
-                          <button type="button" className="btn-ink-pill" style={{ height: 34, flex: 1, fontSize: 12.5, background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-6c6779)' }} disabled={busy} onClick={() => respondInvite(r, false)}>거절</button>
-                        </div>
-                      );
-                    }
+                </div>
+                {r.event_key === 'group_invite' && r.data?.member_id && (() => {
+                  const st = inviteStatus[r.data.member_id];
+                  if (st?.status === 'gone') return null;
+                  if (!st || st.status === 'pending') {
+                    const busy = inviteBusy === r.data.member_id;
                     return (
-                      <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: st.linked_to_me ? 'var(--income)' : 'var(--k-tx-a29ead)' }}>
-                        {st.linked_to_me ? '수락했어요' : '거절했어요'}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 10, marginLeft: 48 }} onClick={(e) => e.stopPropagation()}>
+                        <button type="button" className="btn-ink-pill" style={{ height: 34, flex: 1, fontSize: 12.5 }} disabled={busy} onClick={() => respondInvite(r, true)}>수락</button>
+                        <button type="button" className="btn-ink-pill" style={{ height: 34, flex: 1, fontSize: 12.5, background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-6c6779)' }} disabled={busy} onClick={() => respondInvite(r, false)}>거절</button>
                       </div>
                     );
-                  })()}
-                </div>
+                  }
+                  return (
+                    <div style={{ marginTop: 6, marginLeft: 48, fontSize: 11, fontWeight: 700, color: st.linked_to_me ? 'var(--income)' : 'var(--k-tx-a29ead)' }}>
+                      {st.linked_to_me ? '수락했어요' : '거절했어요'}
+                    </div>
+                  );
+                })()}
               </div>
             </DayCardRow>
           </div>
