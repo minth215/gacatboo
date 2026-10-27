@@ -662,13 +662,12 @@ export default function Stats() {
                   {budget && (
                     <div style={{ marginTop: 9 }}>
                       <div style={{ height: 6, borderRadius: 999, background: 'var(--k-bg-f2f1f5)', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: 999, background: tab === 'expense' && over > 0 ? '#FF3B5C' : g.color, width: `${Math.min(100, budgetPct)}%` }} />
+                        <div style={{ height: '100%', borderRadius: 999, background: g.color, width: `${Math.min(100, budgetPct)}%` }} />
                       </div>
-                      <div style={{ marginTop: 5, fontSize: 10.25, color: 'var(--k-tx-8b8798)' }}>
-                        예산 {fmtWon(budget)} · {budgetPct}% {tab === 'expense' ? '사용' : '달성'}
-                        {tab === 'expense' && (over > 0
-                          ? <span style={{ color: '#FF3B5C', fontWeight: 700 }}> · {fmtWon(over)} 초과</span>
-                          : ` · ${fmtWon(-over)} 남음`)}
+                      {/* 왼쪽: 예산 사용/예산, 오른쪽: 남은 금액(초과면 음수) (사용 비율) — 초과면 오른쪽만 코랄 핑크 */}
+                      <div style={{ marginTop: 5, display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 10.25, color: 'var(--k-tx-8b8798)' }}>
+                        <span>예산 {fmtNum(g.total)}/{fmtNum(budget)}</span>
+                        <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: '#FF3B5C', fontWeight: 700 } : {}) }}>{fmtNum(-over)} ({budgetPct} %)</span>
                       </div>
                     </div>
                   )}
