@@ -261,6 +261,7 @@ a { color: inherit; text-decoration: none; }
   cursor: pointer; margin-top: 8px; font-family: inherit;
 }
 .btn-ink-pill:hover { background: #2c2938; }
+html.theme-dark .btn-ink-pill:hover { background: #E2DFE8; }
 .btn-ink-pill:active { transform: scale(0.985); }
 .btn-ink-pill:disabled { opacity: 0.6; cursor: not-allowed; }
 

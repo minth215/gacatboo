@@ -156,9 +156,9 @@ export default function Notifications() {
                   if (!st || st.status === 'pending') {
                     const busy = inviteBusy === r.data.member_id;
                     return (
-                      <div style={{ display: 'flex', gap: 8, marginTop: 10, marginLeft: 48 }} onClick={(e) => e.stopPropagation()}>
-                        <button type="button" className="btn-ink-pill" style={{ height: 34, flex: 1, fontSize: 12.5 }} disabled={busy} onClick={() => respondInvite(r, true)}>수락</button>
-                        <button type="button" className="btn-ink-pill" style={{ height: 34, flex: 1, fontSize: 12.5, background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-6c6779)' }} disabled={busy} onClick={() => respondInvite(r, false)}>거절</button>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
+                        <button type="button" className="btn-ink-pill" style={{ height: 30, width: 72, flex: 'none', marginTop: 0, fontSize: 12 }} disabled={busy} onClick={() => respondInvite(r, true)}>수락</button>
+                        <button type="button" className="btn-ink-pill" style={{ height: 30, width: 72, flex: 'none', marginTop: 0, fontSize: 12, background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-6c6779)' }} disabled={busy} onClick={() => respondInvite(r, false)}>거절</button>
                       </div>
                     );
                   }
