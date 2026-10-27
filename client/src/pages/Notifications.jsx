@@ -3,16 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
-import SwipeRow from '../components/SwipeRow.jsx';
+import { DayCardRow } from '../components/TransactionList.jsx';
 
-// 상대 시간 표기(방금/N분 전/N시간 전/N일 전), 오래된 건 날짜로.
+// 상대 시간 표기(방금/N 분 전/N 시간 전/N 일 전 — 의존 명사 띄어쓰기), 오래된 건 날짜로.
 function timeAgo(iso) {
   const d = new Date(iso);
   const diffSec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
   if (diffSec < 60) return '방금';
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}시간 전`;
-  if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}일 전`;
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} 분 전`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} 시간 전`;
+  if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)} 일 전`;
   return d.toISOString().slice(0, 10).replace(/-/g, '.');
 }
 
@@ -101,17 +101,15 @@ export default function Notifications() {
         <div className="empty empty-center">알림이 없습니다.</div>
       ) : (
         rows.map((r, i) => (
-          <div key={r.id} className="tx-daycard" style={{ marginTop: i === 0 ? 14 : 10 }}>
-            <SwipeRow
+          // 가계부 카드와 같은 스와이프: 카드 자체가 밀리고 그 자리엔 페이지 배경 위 삭제 버튼만 보임
+          <div key={r.id} className="tx-daygroup" style={{ marginTop: i === 0 ? 14 : 10 }}>
+            <DayCardRow
+              index={0} count={1} clickable
               isOpen={openId === r.id} onOpenChange={(open) => setOpenId(open ? r.id : null)}
-              onTap={() => openRow(r)} deletable onDelete={() => removeRow(r)}
+              onTap={() => openRow(r)} onDelete={() => removeRow(r)}
+              background={r.read_at ? 'var(--k-bg-fff)' : 'var(--k-unread-bg)'}
             >
-              <div
-                style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 10, padding: '13px 16px', cursor: 'pointer',
-                  background: r.read_at ? 'transparent' : '#fff8f3',
-                }}
-              >
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flex: 1, minWidth: 0, margin: '1px 0' }}>
                 <span style={{
                   width: 38, height: 38, borderRadius: 12, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 17, background: r.color || '#FFE9EF', marginTop: 1,
@@ -146,7 +144,7 @@ export default function Notifications() {
                   })()}
                 </div>
               </div>
-            </SwipeRow>
+            </DayCardRow>
           </div>
         ))
       )}

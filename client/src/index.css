@@ -754,6 +754,7 @@ a { color: inherit; text-decoration: none; }
   --k-sh: 25 23 34;
   --k-sha: 1;
   --k-hl: #FFD9A0;
+  --k-unread-bg: #fff8f3;
   /* 카드 안 구분선: 카드 그림자와 같은 색 */
   --k-divider: rgb(var(--k-sh) / calc(.05 * var(--k-sha)));
   --k-bd-191722: #191722;
@@ -807,6 +808,7 @@ html.theme-dark {
   --k-sha: 8;
   /* 통계 분류별/원천별/항목별 형광펜: 흰 글자가 보이게 진한 주황 */
   --k-hl: #C9670F;
+  --k-unread-bg: #2E2630;
   --k-bd-191722: #F2F0F5;
   --k-bd-c7c3cc: #4A4654;
   --k-bd-cfccd4: #4A4654;
