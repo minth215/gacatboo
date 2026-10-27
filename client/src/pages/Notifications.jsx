@@ -109,10 +109,10 @@ export default function Notifications() {
               onTap={() => openRow(r)} onDelete={() => removeRow(r)}
               background={r.read_at ? 'var(--k-bg-fff)' : 'var(--k-unread-bg)'}
             >
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flex: 1, minWidth: 0, margin: '1px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, margin: '1px 0' }}>
                 <span style={{
                   width: 38, height: 38, borderRadius: 12, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 17, background: r.color || '#FFE9EF', marginTop: 1,
+                  fontSize: 17, background: r.color || '#FFE9EF',
                 }}>
                   {r.emoji || '🔔'}
                 </span>
