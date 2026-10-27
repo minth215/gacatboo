@@ -120,7 +120,9 @@ export default function Notifications() {
       ) : rows.length === 0 ? (
         <div className="empty empty-center">알림이 없습니다.</div>
       ) : (
-        rows.map((r, i) => (
+        rows.map((r, i) => {
+          const invite = r.event_key === 'group_invite' && r.data?.member_id ? inviteStatus[r.data.member_id] : null;
+          return (
           // 가계부 카드와 같은 스와이프: 카드 자체가 밀리고 그 자리엔 페이지 배경 위 삭제 버튼만 보임
           <div key={r.id} className="tx-daygroup" style={{ marginTop: i === 0 ? 14 : 10 }}>
             <DayCardRow
@@ -147,7 +149,15 @@ export default function Notifications() {
                       </div>
                       <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', flex: 'none', whiteSpace: 'nowrap' }}>{timeAgo(r.created_at)}</span>
                     </div>
-                    <div style={{ marginTop: 2, fontSize: 12, color: 'var(--k-tx-6c6779)', lineHeight: 1.4 }}>{r.body}</div>
+                    {/* 내용 줄. 초대에 응답했으면 같은 줄 오른쪽 끝에 "수락했어요/거절했어요" */}
+                    <div style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ minWidth: 0, fontSize: 12, color: 'var(--k-tx-6c6779)', lineHeight: 1.4 }}>{r.body}</span>
+                      {invite && (invite.status === 'active') && (
+                        <span style={{ flex: 'none', whiteSpace: 'nowrap', fontSize: 11, fontWeight: 700, color: invite.linked_to_me ? 'var(--income)' : 'var(--k-tx-a29ead)' }}>
+                          {invite.linked_to_me ? '수락했어요' : '거절했어요'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {r.event_key === 'group_invite' && r.data?.member_id && (() => {
@@ -162,16 +172,13 @@ export default function Notifications() {
                       </div>
                     );
                   }
-                  return (
-                    <div style={{ marginTop: 6, marginLeft: 48, fontSize: 11, fontWeight: 700, color: st.linked_to_me ? 'var(--income)' : 'var(--k-tx-a29ead)' }}>
-                      {st.linked_to_me ? '수락했어요' : '거절했어요'}
-                    </div>
-                  );
+                  return null; // 응답한 상태 문구는 내용 줄 오른쪽 끝에 표시
                 })()}
               </div>
             </DayCardRow>
           </div>
-        ))
+          );
+        })
       )}
       {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
     </div>
