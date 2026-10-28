@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
+import { loadPrefs } from '../lib/prefs.js';
 import {
   fmtNum, fmtWon, currentMonth, currentYear, today, dotDate, shiftDate,
   weekStartOf, periodBounds, periodLabel, shiftPeriod, periodTickLabel,
@@ -113,8 +114,10 @@ export default function Stats() {
   const [tab, setTab] = useState(() => restoreRef.current?.tab ?? 'expense'); // expense | income
   const [statView, setStatView] = useState(() => restoreRef.current?.statView ?? 'category'); // category | source | item
   // 분류별 보기에서만 쓰는 "정산 반영" 토글. On(기본)이면 정산 상계 반영, Off 면 원천별·항목별처럼 원금 그대로.
-  const [settleReflect, setSettleReflect] = useState(true);
-  const [chartMode, setChartMode] = useState('donut'); // donut | table
+  // 기본값: 설정 > 가계부 커스터마이즈(분류별 통계 정산 반영 / 기본 뷰 / 예산 바 보기)
+  const [prefs] = useState(() => loadPrefs(user?.id));
+  const [settleReflect, setSettleReflect] = useState(prefs.statsSettle);
+  const [chartMode, setChartMode] = useState(prefs.statsView === 'table' ? 'table' : 'donut'); // donut | table
   const [sort, setSort] = useState({ key: 'amount', dir: 'desc' });
   const [hoverIdx, setHoverIdx] = useState(null);
   const [hoverPos, setHoverPos] = useState(null); // 툴팁을 띄울 위치(원형 그래프 기준 좌표)
@@ -222,7 +225,7 @@ export default function Stats() {
 
   // 분류 카드의 예산: 그 달 재정의 ?? 그 해 기본(월=0). 연 기간은 12개월 예산의 합(설정된 달만).
   const budgetOf = (name) => {
-    if (statView !== 'category' || budgetYear == null || !budgetRows.length) return null;
+    if (!prefs.statsBudget || statView !== 'category' || budgetYear == null || !budgetRows.length) return null;
     const cat = allCats.find((c) => c.type === tab && c.name === name);
     if (!cat) return null;
     const monthBudget = (m) => {

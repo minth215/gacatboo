@@ -6,6 +6,7 @@ import { today, dotDate, dotDateWithWeekday, fmtWon, fmtNum, renderTemplate } fr
 import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
 import { saveTxDraft, takeTxDraft } from '../lib/txDraft.js';
 import { useFavoriteToggle } from '../lib/useFavoriteToggle.js';
+import { loadPrefs } from '../lib/prefs.js';
 import CalcAmountInput from './CalcAmountInput.jsx';
 import RecurrenceModal from './RecurrenceModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
@@ -172,7 +173,7 @@ function transferSources(tree, excludeTypes, selectedId) {
 
 function ItemRow({
   item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, itemNameSuggestions, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource,
-  isSettlement, recentExpenses, onTarget, usedTargetIds, allowNegative,
+  isSettlement, recentExpenses, onTarget, usedTargetIds, allowNegative, autoFocusAmount,
 }) {
   const [nameFocused, setNameFocused] = useState(false);
   const [nameSuggestOpen, setNameSuggestOpen] = useState(false);
@@ -271,7 +272,7 @@ function ItemRow({
           />
         )}
         <CalcAmountInput
-          compact value={item.amount} onChange={onAmount} allowNegative={allowNegative}
+          compact value={item.amount} onChange={onAmount} allowNegative={allowNegative} autoFocus={autoFocusAmount}
           initialCurrency={item.currencyMeta?.input_currency} initialForeignAmount={item.currencyMeta?.input_amount}
           onCurrencyChange={onCurrencyChange} onCurrencySelect={setLiveCurrency}
         />
@@ -827,7 +828,12 @@ const TransactionForm = forwardRef(function TransactionForm({
   // 즐겨찾기(개인별 목록 하나 — 개인/그룹 기록 폼 공용): 지금 폼 내용 그대로를 템플릿으로 등록/해제
   // 신규 기록 화면 진입 시 "내용" 필드에 바로 포커스(수정 화면, 내용이 기본값/템플릿으로 자동으로
   // 채워진 경우는 제외)
+  // 설정 > 가계부 커스터마이즈 "기록 순서"가 금액이면 새 기록 화면에서 첫 행 금액 칸(키패드)에 포커스
+  // (금액이 이미 채워진 경우 — 즐겨찾기·복사·영수증 등 — 와 반복 수정 화면은 제외)
+  const [focusAmountFirst] = useState(() => !editing && !templateMode && !(Number(initial?.amount) > 0) && !autoReceiptBase64
+    && loadPrefs(user?.id).recordFocus === 'amount');
   useEffect(() => {
+    if (focusAmountFirst) return;
     if (!editing && !defaultContentTemplate && !(initial?.content)) contentInputRef.current?.focus({ preventScroll: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1165,6 +1171,7 @@ const TransactionForm = forwardRef(function TransactionForm({
         {items.map((it, idx) => (
           <ItemRow
             key={idx} item={it} idx={idx} canRemove={!isTransfer && items.length > 1} qtyLabel={qtyLabel}
+            autoFocusAmount={focusAmountFirst && idx === 0}
             settlementMembers={showMemberSplit ? settlementMembers : null}
             isTransfer={isTransfer} sources={sources}
             isSettlement={isSettlement} recentExpenses={recentExpenses} usedTargetIds={usedSettlementTargetIds}

@@ -5,8 +5,9 @@ import { createPortal } from 'react-dom';
 // 종료된 그룹 표시는 iOS 스타일 토글. 선택은 바로 반영되고 "적용하기"는 모달만 닫는다.
 const toggleIn = (arr, v) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
-export default function GroupFilterSheet({ categories, filterCats, setFilterCats, showEnded, setShowEnded, onClose }) {
-  const resetFilter = () => { setFilterCats([]); setShowEnded(true); };
+export default function GroupFilterSheet({ categories, filterCats, setFilterCats, showEnded, setShowEnded, defaultShowEnded = false, onClose }) {
+  // 초기화: 카테고리 전체 + 종료된 그룹 표시는 설정(가계부 커스터마이즈)의 기본값으로
+  const resetFilter = () => { setFilterCats([]); setShowEnded(defaultShowEnded); };
 
   const chips = [{ name: '전체' }, ...categories].map(({ name }) => {
     const checked = name === '전체' ? filterCats.length === 0 : filterCats.includes(name);

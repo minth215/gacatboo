@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { db, isSettlementIncome, netSettlementEff } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
+import { loadPrefs } from '../lib/prefs.js';
 import { currentMonth, shiftMonth, fmtNum, today, shiftDate, weekStartOf, currentYear, periodBounds, periodLabel, shiftPeriod } from '../lib/format.js';
 import TransactionList from '../components/TransactionList.jsx';
 import CatMascot from '../components/CatMascot.jsx';
@@ -32,8 +33,10 @@ export default function Ledger() {
   }, [params, setParams]);
   const [txs, setTxs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState({ income: 0, expense: 0 });
-  const [view, setView] = useState('list'); // list | calendar
+  // 설정 > 가계부 커스터마이즈: 기본 뷰 / 퀵 메뉴("+" 왼쪽 버튼) / 요약 정산 반영
+  const [prefs] = useState(() => loadPrefs(user?.id));
+  const [summary, setSummary] = useState({ income: 0, expense: 0, grossIncome: 0, grossExpense: 0 });
+  const [view, setView] = useState(() => (prefs.ledgerView === 'calendar' ? 'calendar' : 'list')); // list | calendar
   const [selDay, setSelDay] = useState(null);
   // "+" 버튼 왼쪽의 촬영 버튼: 사진을 리사이즈까지만 미리 해서(용량 절감) 기록 페이지로
   // 넘기고, 실제 인식(Gemini 호출)은 기록 페이지가 뜬 뒤 자동으로 한 번 실행한다.
@@ -184,9 +187,12 @@ export default function Ledger() {
         })), map);
         const expense = effRows.filter((t) => t.type === 'expense').reduce((s, t) => s + t.eff, 0);
         const income = effRows.filter((t) => t.type === 'income').reduce((s, t) => s + t.eff, 0);
-        setSummary({ income, expense });
+        // 정산 반영 OFF 용: 정산 상계 없이 수입/지출 원금 그대로
+        const grossIncome = list.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+        const grossExpense = list.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+        setSummary({ income, expense, grossIncome, grossExpense });
       })
-      .catch(() => { setTxs([]); setSummary({ income: 0, expense: 0 }); })
+      .catch(() => { setTxs([]); setSummary({ income: 0, expense: 0, grossIncome: 0, grossExpense: 0 }); })
       .finally(() => setLoading(false));
   }, [month, user.id]);
 
@@ -208,7 +214,8 @@ export default function Ledger() {
 
   useEffect(() => { if (searchOpen && submittedQ != null) loadSearch(); }, [searchOpen, submittedQ, loadSearch]);
 
-  const { income, expense } = summary;
+  const income = prefs.ledgerSettle ? summary.income : summary.grossIncome;
+  const expense = prefs.ledgerSettle ? summary.expense : summary.grossExpense;
 
   // 필터 모달의 분류 칩: 유형을 수입/지출로 고르면 그 유형의 분류만(같은 이름은 하나로)
   const categoriesFor = useCallback((t) => {
@@ -619,23 +626,36 @@ export default function Ledger() {
 
           {!selectionMode && (
             <>
-              <input
-                ref={receiptInputRef} type="file" accept="image/*"
-                style={{ display: 'none' }} onChange={onReceiptPick}
-              />
-              <button
-                type="button" className="fab-camera" onClick={() => receiptInputRef.current?.click()}
-                disabled={receiptPicking} aria-label="영수증으로 기록"
-              >
-                {receiptPicking ? (
-                  <span style={{ width: 15, height: 15, border: '2px solid var(--k-bd-e4e2e6)', borderTopColor: '#6c6779', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                ) : (
-                  <svg width="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                    <circle cx="12" cy="13" r="4" />
+              {prefs.quickMenu === 'favorites' && (
+                // 퀵 메뉴: 즐겨찾기 — 고르면 그 내용으로 채워진 새 기록 화면(닫으면 가계부로 바로 복귀)
+                <button
+                  type="button" className="fab-camera" aria-label="즐겨찾기"
+                  onClick={() => nav('/favorites', { state: { returnTo: '/new', pickCloseTo: -1 } })}
+                >
+                  <svg width="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                   </svg>
-                )}
-              </button>
+                </button>
+              )}
+              {prefs.quickMenu === 'receipt' && (<>
+                <input
+                  ref={receiptInputRef} type="file" accept="image/*"
+                  style={{ display: 'none' }} onChange={onReceiptPick}
+                />
+                <button
+                  type="button" className="fab-camera" onClick={() => receiptInputRef.current?.click()}
+                  disabled={receiptPicking} aria-label="영수증으로 기록"
+                >
+                  {receiptPicking ? (
+                    <span style={{ width: 15, height: 15, border: '2px solid var(--k-bd-e4e2e6)', borderTopColor: '#6c6779', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  ) : (
+                    <svg width="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+                  )}
+                </button>
+              </>)}
               <button className="fab" onClick={() => nav('/new')} aria-label="추가">
                 <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
               </button>

@@ -25,6 +25,7 @@ import RecurringManage from './pages/RecurringManage.jsx';
 import RecurringEdit from './pages/RecurringEdit.jsx';
 import SettingsNotifications from './pages/SettingsNotifications.jsx';
 import SettingsStyle from './pages/SettingsStyle.jsx';
+import SettingsCustomize from './pages/SettingsCustomize.jsx';
 import SettingsExport from './pages/SettingsExport.jsx';
 import SettingsImport from './pages/SettingsImport.jsx';
 import Notifications from './pages/Notifications.jsx';
@@ -85,6 +86,7 @@ export default function App() {
         <Route path="/settings/recurring/:id/edit" element={<RecurringEdit />} />
         <Route path="/settings/notifications" element={<SettingsNotifications />} />
         <Route path="/settings/style" element={<SettingsStyle />} />
+        <Route path="/settings/customize" element={<SettingsCustomize />} />
         <Route path="/settings/export" element={<SettingsExport />} />
         <Route path="/settings/import" element={<SettingsImport />} />
         <Route path="/notifications" element={<Notifications />} />

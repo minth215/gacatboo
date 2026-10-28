@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { leaderLabel, dotDate } from '../lib/format.js';
 import Spinner from '../components/Spinner.jsx';
 import GroupFilterSheet from '../components/GroupFilterSheet.jsx';
+import { loadPrefs } from '../lib/prefs.js';
 
 export default function Groups() {
   const nav = useNavigate();
@@ -18,7 +19,8 @@ export default function Groups() {
   const [query, setQuery] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterCats, setFilterCats] = useState([]); // 선택한 카테고리(빈 배열 = 전체)
-  const [showEnded, setShowEnded] = useState(true);
+  // 종료된 그룹 표시 기본값: 설정 > 가계부 커스터마이즈(기본 숨기기)
+  const [showEnded, setShowEnded] = useState(() => loadPrefs(user?.id).groupShowEnded);
 
   const openSearch = () => { setSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 260); };
   const closeSearch = () => { setSearchOpen(false); setQuery(''); };
@@ -33,7 +35,7 @@ export default function Groups() {
   useEffect(() => { db.listGroupCategories().then(setGroupCats).catch(() => setGroupCats([])); }, []);
 
   const isEnded = (g) => !!(g.end_date && new Date(g.end_date) < new Date());
-  const filterActive = filterCats.length > 0 || !showEnded;
+  const filterActive = filterCats.length > 0 || showEnded !== loadPrefs(user?.id).groupShowEnded;
 
   const filteredGroups = groups
     .filter((g) => {
@@ -75,7 +77,7 @@ export default function Groups() {
       {filterOpen && (
         <GroupFilterSheet
           categories={groupCats} filterCats={filterCats} setFilterCats={setFilterCats}
-          showEnded={showEnded} setShowEnded={setShowEnded} onClose={() => setFilterOpen(false)}
+          showEnded={showEnded} setShowEnded={setShowEnded} defaultShowEnded={loadPrefs(user?.id).groupShowEnded} onClose={() => setFilterOpen(false)}
         />
       )}
 

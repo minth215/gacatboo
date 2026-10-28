@@ -24,7 +24,9 @@ export default function Favorites() {
   // 돌아가고, 항목을 고르면 이 화면을 같은 종류의 새 기록 화면(returnTo)으로 바꿔치기(replace)해
   // 채워 넣는다. 그 화면에서 저장/닫기하면 원래 기록 화면까지 건너뛰고 그 전 화면으로(-2) 돌아간다.
   const returnTo = location.state?.returnTo || '/new';
-  const pick = (fav) => nav(returnTo, { replace: true, state: { favorite: fav, closeTo: -2 } });
+  // pickCloseTo: 새 기록 화면을 닫을 때 돌아갈 거리(기록 화면에서 왔으면 -2, 가계부 퀵 메뉴에서 바로 왔으면 -1)
+  const pickCloseTo = location.state?.pickCloseTo ?? -2;
+  const pick = (fav) => nav(returnTo, { replace: true, state: { favorite: fav, closeTo: pickCloseTo } });
   const remove = async (fav) => {
     if (!confirm('이 즐겨찾기를 삭제할까요?')) return;
     try { await db.deleteFavoriteTransaction(fav.id); load(); } catch (e) { alert(e.message); }
