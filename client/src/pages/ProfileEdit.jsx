@@ -63,10 +63,10 @@ export default function ProfileEdit() {
       {/* 설정: 친구 검색 허용 / 그룹 초대 허용 */}
       <div style={{ marginTop: 22, background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', overflow: 'hidden' }}>
         {[
-          ['allowFriendSearch', '🔍', '#eef1fb', '친구 검색 허용', '끄면 아이디로 나를 찾을 수 없어요'],
-          ['allowGroupInvite', '✉️', '#e8f6ee', '그룹 초대 허용', '끄면 초대 없이 외부 멤버로 추가돼요'],
+          ['allowFriendSearch', '🔍', '#eef1fb', '친구 검색 허용', '내 아이디가 검색되는 것을 허용합니다'],
+          ['allowGroupInvite', '✉️', '#e8f6ee', '그룹 초대 허용', '나를 그룹에 초대하는 것을 허용합니다'],
         ].map(([key, icon, bg, label, desc], i) => (
-          <div key={key} className="settings-menu-row" style={{ cursor: 'default', ...(i ? { borderTop: '1.5px solid var(--k-divider)' } : {}) }}>
+          <div key={key} className="settings-menu-row static" style={{ ...(i ? { borderTop: '1.5px solid var(--k-divider)' } : {}) }}>
             <span className="settings-menu-tile" style={{ background: bg }}>{icon}</span>
             <span className="settings-menu-main">
               <span className="settings-menu-label">{label}</span>

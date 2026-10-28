@@ -579,6 +579,7 @@ html.theme-dark .btn-ink-pill:hover { background: #E2DFE8; }
   padding: 14px 18px; border: none; background: transparent; text-align: left; cursor: pointer;
 }
 .settings-menu-row:hover { background: var(--k-bg-faf9f8); }
+.settings-menu-row.static, .settings-menu-row.static:hover { background: transparent; cursor: default; }
 .settings-menu-tile { width: 38px; height: 38px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 16.5px; flex: none; }
 .settings-menu-main { flex: 1; min-width: 0; }
 .settings-menu-label { display: block; font-size: 13.75px; font-weight: 600; color: var(--k-tx-191722); }
