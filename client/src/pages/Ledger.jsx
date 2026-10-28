@@ -250,7 +250,9 @@ export default function Ledger() {
       if (sCat.length && !sCat.includes(t.category_name || '')) return false;
       if (sSrc.length && !sSrc.includes(t.source_name || '') && !(t.type === 'transfer' && sSrc.includes(t.to_source_name || ''))) return false;
       if (!term) return true;
-      return [t.content, t.category_name, t.source_name, t.memo].filter(Boolean).join(' ').toLowerCase().includes(term);
+      // 세부 항목명(items[].name)도 검색 대상
+      const itemNames = Array.isArray(t.items) ? t.items.map((it) => it?.name) : [];
+      return [t.content, t.category_name, t.source_name, t.memo, ...itemNames].filter(Boolean).join(' ').toLowerCase().includes(term);
     });
   }, [sResults, submittedQ, sCat, sSrc]);
   const sIncome = sFiltered.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
