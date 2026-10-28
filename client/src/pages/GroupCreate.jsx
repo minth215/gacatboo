@@ -345,7 +345,7 @@ export default function GroupCreate() {
             ) : friendSections.map(({ group, items }) => (
               <div key={group?.id ?? '_ungrouped'} style={{ marginBottom: 16 }}>
                 <div style={{ padding: '0 8px 0 18px', marginBottom: 8, fontSize: 13, fontWeight: 700, color: group ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>
-                  {group ? group.name : '미분류'}
+                  {group ? group.name : '그룹 없음'}
                 </div>
                 <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', overflow: 'hidden' }}>
                   {items.map((f, i) => {

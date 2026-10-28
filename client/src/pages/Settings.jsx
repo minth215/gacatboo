@@ -67,7 +67,7 @@ export default function Settings() {
       items: [
         { label: '가계부 커스터마이즈', desc: '가계부·그룹·통계 탭의 기본 상태 설정', bg: '#f4f0fb', icon: '🎛️', to: '/settings/customize' },
         { label: '반복 관리', desc: '정기적으로 반복되는 내역 관리', bg: '#eef1fb', icon: <RepeatIcon />, to: '/settings/recurring' },
-        { label: '친구 관리', desc: '자주 정산하는 친구 등록 및 분류 관리', bg: '#fff1e6', icon: '🗂️', to: '/settings/friends' },
+        { label: '친구 관리', desc: '자주 정산하는 친구 등록 및 친구 그룹 관리', bg: '#fff1e6', icon: '🗂️', to: '/settings/friends' },
       ],
     },
     {

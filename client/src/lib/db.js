@@ -940,7 +940,7 @@ export const db = {
     return unwrap(await supabase.rpc('update_my_profile', { p_username: username, p_display_name: displayName }));
   },
 
-  // ---------- 친구 분류 ----------
+  // ---------- 친구 그룹(친구 분류) ----------
   async listFriendGroups() {
     return unwrap(await supabase.from('friend_groups').select('*').order('sort_order').order('id'));
   },
@@ -967,7 +967,7 @@ export const db = {
     if (prof.status !== 'approved') throw new Error('승인된 사용자만 등록할 수 있습니다.');
     return prof;
   },
-  async addFriend(userId, { friendUserId = null, nickname, groupId = null }) {
+  async addFriend(userId, { friendUserId = null, nickname, groupId = null, memo = '' }) {
     if (friendUserId === userId) throw new Error('자기 자신은 친구로 등록할 수 없습니다.');
     if (friendUserId) {
       const exists = unwrap(await supabase.from('friends').select('id').eq('user_id', userId).eq('friend_user_id', friendUserId).maybeSingle());
@@ -977,10 +977,11 @@ export const db = {
     const next = (existing[0]?.sort_order ?? -1) + 1;
     return unwrap(await supabase.from('friends').insert({
       user_id: userId, friend_user_id: friendUserId, nickname: nickname.trim(), group_id: groupId, sort_order: next,
+      ...(memo && memo.trim() ? { memo: memo.trim() } : {}),
     }).select('*, friend:profiles!friends_friend_user_id_fkey(username, display_name)').single());
   },
-  async updateFriend(id, { nickname, groupId = null }) {
-    return unwrap(await supabase.from('friends').update({ nickname: nickname.trim(), group_id: groupId })
+  async updateFriend(id, { nickname, groupId = null, memo }) {
+    return unwrap(await supabase.from('friends').update({ nickname: nickname.trim(), group_id: groupId, ...(memo !== undefined ? { memo: memo.trim() } : {}) })
       .eq('id', id).select('*, friend:profiles!friends_friend_user_id_fkey(username, display_name)').single());
   },
   async deleteFriend(id) {
