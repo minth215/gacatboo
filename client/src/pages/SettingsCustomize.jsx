@@ -21,17 +21,17 @@ const SECTIONS = [
     ],
   },
   {
-    label: '그룹',
-    rows: [
-      { key: 'groupShowEnded', label: '종료된 그룹', options: SHOW_HIDE, ...bool('show', 'hide') },
-    ],
-  },
-  {
     label: '통계',
     rows: [
       { key: 'statsView', label: '기본 뷰', options: [['donut', '원형 그래프'], ['table', '테이블']] },
       { key: 'statsSettle', label: '분류별 통계 정산 반영', options: ON_OFF, ...bool('on', 'off') },
       { key: 'statsBudget', label: '예산', options: SHOW_HIDE, ...bool('show', 'hide') },
+    ],
+  },
+  {
+    label: '그룹',
+    rows: [
+      { key: 'groupShowEnded', label: '종료된 그룹', options: SHOW_HIDE, ...bool('show', 'hide') },
     ],
   },
 ];
