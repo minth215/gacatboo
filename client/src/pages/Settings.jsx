@@ -77,7 +77,7 @@ export default function Settings() {
         { label: '지출 분류 관리', desc: '식당·교통·쇼핑 등 지출 분류 관리', bg: '#fde8ee', icon: '🧾', to: '/settings/categories/expense' },
         { label: '예산 관리', desc: '수입·지출 분류별 예산 설정', bg: '#fff1e6', icon: '📊', to: '/settings/budget' },
         { label: '원천 관리', desc: '현금·은행·카드 등 원천 자산 관리', bg: '#eef1fb', icon: '🏦', to: '/settings/sources' },
-        { label: '카드 실적 관리', desc: '카드별 실적 구간에 따른 혜택 관리', bg: '#fff1e6', icon: '💳', to: '/settings/card-benefits' },
+        { label: '카드 실적 관리', desc: '카드별 실적 구간에 따른 혜택 관리', bg: '#f4f0fb', icon: '💳', to: '/settings/card-benefits' },
       ],
     },
     {
@@ -85,9 +85,9 @@ export default function Settings() {
       items: [
         { label: '알림 관리', desc: '세부 항목별 알림 수신 설정', bg: '#fff1e6', icon: '🔔', to: '/settings/notifications' },
         { label: '화폐 설정', desc: '보조 화폐 추가 및 환율 자동 환산 설정', bg: '#eef1fb', icon: '💱', to: '/settings/currency' },
-        { label: '내보내기', desc: '가계부 데이터 파일 백업', bg: '#eef1fb', icon: '📤', to: '/settings/export' },
+        { label: '내보내기', desc: '가계부 데이터 파일 백업', bg: '#fde8ee', icon: '📤', to: '/settings/export' },
         { label: '가져오기', desc: '파일 업로드로 가계부 데이터 복원', bg: '#e8f6ee', icon: '📥', to: '/settings/import' },
-        { label: '스타일', desc: '테마와 폰트 설정', bg: '#eef1fb', icon: '🎨', to: '/settings/style' },
+        { label: '스타일', desc: '테마와 폰트 설정', bg: '#f4f0fb', icon: '🎨', to: '/settings/style' },
       ],
     },
   ];
