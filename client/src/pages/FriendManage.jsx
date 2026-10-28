@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import PageHeader from '../components/PageHeader.jsx';
+import { DayCardRow } from '../components/TransactionList.jsx';
 
 const NEW_GROUP = '__new_group__';
 
@@ -17,6 +18,7 @@ export default function FriendManage() {
   const [busy, setBusy] = useState(false);
 
   const [editingGroupId, setEditingGroupId] = useState(null);
+  const [openId, setOpenId] = useState(null); // 한 번에 하나의 친구 카드만 스와이프로 열려 있도록
   const [editGroupDraft, setEditGroupDraft] = useState('');
 
   const load = useCallback(() => {
@@ -121,19 +123,18 @@ export default function FriendManage() {
     return list;
   }, [friends, groups]);
 
-  const friendRow = (f, i) => (
-    <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 8px 13px 18px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)' }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
+  // 친구 카드: 누르면 편집 모달, 왼쪽으로 밀면 삭제 버튼(가계부 카드와 같은 스와이프)
+  const friendRow = (f, i, count) => (
+    <DayCardRow
+      key={f.id} index={i} count={count} clickable
+      isOpen={openId === f.id} onOpenChange={(open) => setOpenId(open ? f.id : null)}
+      onTap={() => openEdit(f)} onDelete={() => remove(f)}
+    >
+      <div style={{ flex: 1, minWidth: 0, padding: '1px 0 1px 2px' }}>
         <div style={{ fontSize: 13.25, fontWeight: 500, color: 'var(--k-tx-191722)' }}>{f.nickname}</div>
         {f.friend_user_id && <div style={{ marginTop: 2, fontSize: 10.5, color: 'var(--k-tx-a29ead)' }}>@{f.friend?.username}</div>}
       </div>
-      <button aria-label="친구 수정" onClick={() => openEdit(f)} className="row-icon-btn sm">
-        <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-      </button>
-      <button aria-label="친구 삭제" onClick={() => remove(f)} className="row-icon-btn sm danger">
-        <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
-      </button>
-    </div>
+    </DayCardRow>
   );
 
   return (
@@ -179,11 +180,13 @@ export default function FriendManage() {
               )}
             </div>
           )}
-          <div className="tx-daycard">
-            {items.length === 0 ? (
+          {items.length === 0 ? (
+            <div className="tx-daycard">
               <div className="small muted" style={{ padding: '14px 18px' }}>등록된 친구가 없습니다.</div>
-            ) : items.map((f, i) => friendRow(f, i))}
-          </div>
+            </div>
+          ) : (
+            <div className="tx-daygroup">{items.map((f, i) => friendRow(f, i, items.length))}</div>
+          )}
         </div>
       ))}
 
