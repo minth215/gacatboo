@@ -241,6 +241,31 @@ export default function Stats() {
     return amount > 0 ? amount : null;
   };
 
+  // 분류별 예산 게이지(원형 그래프 카드·테이블 행 공용). 예산이 없으면 null.
+  const budgetGauge = (g) => {
+    const budget = budgetOf(g.name);
+    if (!budget) return null;
+    const budgetPct = Math.round((g.total / budget) * 100);
+    const over = g.total - budget;
+    return (
+      <div style={{ marginTop: 9 }}>
+        <div style={{ height: 6, borderRadius: 999, background: 'var(--k-bg-f2f1f5)', overflow: 'hidden' }}>
+          <div style={{ height: '100%', borderRadius: 999, background: g.color, width: `${Math.min(100, budgetPct)}%` }} />
+        </div>
+        {/* 왼쪽: 예산 사용/예산, 오른쪽: 지출은 남은 금액(초과면 음수, 코랄 핑크), 수입은 -남은 금액/+초과(민트) + (비율) */}
+        <div style={{ marginTop: 5, display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 10.25, color: 'var(--k-tx-8b8798)' }}>
+          <span>예산 {fmtNum(g.total)}/{fmtNum(budget)}</span>
+          {tab === 'expense' ? (
+            <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: '#FF3B5C', fontWeight: 700 } : {}) }}>{fmtNum(-over)} ({budgetPct} %)</span>
+          ) : (
+            // 수입: 예산까지 남은 금액은 -, 예산보다 많아지면 +(민트)
+            <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: 'var(--income)', fontWeight: 700 } : {}) }}>{over > 0 ? '+' : ''}{fmtNum(over)} ({budgetPct} %)</span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const sorted = useMemo(() => {
     const dir = sort.dir === 'asc' ? 1 : -1;
     return [...groups].sort((a, b) => (sort.key === 'name'
@@ -648,9 +673,6 @@ export default function Stats() {
           <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 10 }}>
             {groups.map((g) => {
               const tier = tierOf(g.sourceId);
-              const budget = budgetOf(g.name);
-              const budgetPct = budget ? Math.round((g.total / budget) * 100) : 0;
-              const over = budget ? g.total - budget : 0;
               return (
                 <div key={g.key} onClick={() => openDetail(g)} style={{
                   background: 'var(--k-bg-fff)', borderRadius: 16, padding: '12px 14px',
@@ -662,23 +684,7 @@ export default function Stats() {
                     <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-a29ead)' }}>{total ? Math.round((g.total / total) * 100) : 0}%</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', minWidth: 64, textAlign: 'right' }}>{fmtNum(g.total)}</span>
                   </div>
-                  {budget && (
-                    <div style={{ marginTop: 9 }}>
-                      <div style={{ height: 6, borderRadius: 999, background: 'var(--k-bg-f2f1f5)', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: 999, background: g.color, width: `${Math.min(100, budgetPct)}%` }} />
-                      </div>
-                      {/* 왼쪽: 예산 사용/예산, 오른쪽: 지출은 남은 금액(초과면 음수, 코랄 핑크), 수입은 -남은 금액/+초과(민트) + (비율) */}
-                      <div style={{ marginTop: 5, display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 10.25, color: 'var(--k-tx-8b8798)' }}>
-                        <span>예산 {fmtNum(g.total)}/{fmtNum(budget)}</span>
-                        {tab === 'expense' ? (
-                          <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: '#FF3B5C', fontWeight: 700 } : {}) }}>{fmtNum(-over)} ({budgetPct} %)</span>
-                        ) : (
-                          // 수입: 예산까지 남은 금액은 -, 예산보다 많아지면 +(민트)
-                          <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: 'var(--income)', fontWeight: 700 } : {}) }}>{over > 0 ? '+' : ''}{fmtNum(over)} ({budgetPct} %)</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  {budgetGauge(g)}
                   {tier && (
                     <div style={{ marginTop: 9 }}>
                       <div style={{ height: 6, borderRadius: 999, background: 'var(--k-bg-f2f1f5)', overflow: 'hidden' }}>
@@ -714,15 +720,19 @@ export default function Stats() {
           </div>
           {sorted.map((g, i) => (
             <div key={g.key} onClick={() => openDetail(g)} style={{
-              display: 'flex', alignItems: 'center', padding: '12px 14px', cursor: 'pointer',
+              padding: '12px 14px', cursor: 'pointer',
               borderBottom: i === sorted.length - 1 ? 'none' : '1px solid var(--k-divider)',
             }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: g.color, flex: 'none' }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: g.color, flex: 'none' }} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
+                </div>
+                <span style={{ width: 52, textAlign: 'right', fontSize: 12.5, color: 'var(--k-tx-8b8798)' }}>{fmtNum(g.count)}</span>
+                <span style={{ minWidth: 84, textAlign: 'right', fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(g.total)}</span>
               </div>
-              <span style={{ width: 52, textAlign: 'right', fontSize: 12.5, color: 'var(--k-tx-8b8798)' }}>{fmtNum(g.count)}</span>
-              <span style={{ minWidth: 84, textAlign: 'right', fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(g.total)}</span>
+              {/* 예산 보기 상태면 테이블 뷰에서도 분류별 예산 게이지 */}
+              {budgetGauge(g)}
             </div>
           ))}
         </div>
