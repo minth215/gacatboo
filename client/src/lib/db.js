@@ -589,12 +589,16 @@ export const db = {
   async addMember(groupId, { nickname, start_date, end_date, contact, memo, username }) {
     let user_id = null;
     if (username && username.trim()) {
-      const prof = unwrap(await supabase.from('profiles').select('id, status').eq('username', username.trim()).maybeSingle());
+      // select('*'): 그룹 초대 허용(allow_group_invite) 칸이 없던 DB(0073 이전)에서도 동작하도록
+      const prof = unwrap(await supabase.from('profiles').select('*').eq('username', username.trim()).maybeSingle());
       if (!prof) throw new Error('해당 아이디의 사용자를 찾을 수 없습니다.');
       if (prof.status !== 'approved') throw new Error('승인된 사용자만 연결할 수 있습니다.');
-      const exists = unwrap(await supabase.from('group_members').select('id').eq('group_id', groupId).eq('user_id', prof.id).maybeSingle());
-      if (exists) throw new Error('이미 멤버로 추가된 계정입니다.');
-      user_id = prof.id;
+      // 그룹 초대를 허용하지 않은 회원은 초대장 없이 외부 멤버로 추가(이미 친구여도 동일)
+      if (prof.allow_group_invite !== false) {
+        const exists = unwrap(await supabase.from('group_members').select('id').eq('group_id', groupId).eq('user_id', prof.id).maybeSingle());
+        if (exists) throw new Error('이미 멤버로 추가된 계정입니다.');
+        user_id = prof.id;
+      }
     }
     const row = unwrap(await supabase.from('group_members').insert({
       group_id: groupId, user_id, role: 'member',
@@ -962,8 +966,9 @@ export const db = {
   },
   // 아이디로 가캣부 회원 검색(등록 전 닉네임 미리 채우기용)
   async findProfileByUsername(username) {
-    const prof = unwrap(await supabase.from('profiles').select('id, username, display_name, status').eq('username', username.trim()).maybeSingle());
-    if (!prof) throw new Error('해당 아이디의 사용자를 찾을 수 없습니다.');
+    const prof = unwrap(await supabase.from('profiles').select('*').eq('username', username.trim()).maybeSingle());
+    // 친구 검색을 허용하지 않은 회원은 아이디가 맞아도 없는 것으로 처리
+    if (!prof || prof.allow_friend_search === false) throw new Error('해당 아이디의 사용자를 찾을 수 없습니다.');
     if (prof.status !== 'approved') throw new Error('승인된 사용자만 등록할 수 있습니다.');
     return prof;
   },
@@ -986,6 +991,11 @@ export const db = {
   },
   async deleteFriend(id) {
     return unwrap(await supabase.from('friends').delete().eq('id', id));
+  },
+
+  // 내 정보 > 친구 검색 허용 / 그룹 초대 허용(본인만)
+  async setMyPrivacy({ allowFriendSearch = null, allowGroupInvite = null }) {
+    return unwrap(await supabase.rpc('set_my_privacy', { p_allow_friend_search: allowFriendSearch, p_allow_group_invite: allowGroupInvite }));
   },
 
   // ---------- 관리자 ----------
