@@ -11,15 +11,15 @@ import PageHeader from '../components/PageHeader.jsx';
 // ?group=<id> 로 들어오면(친구 그룹 줄의 "+") 그 친구 그룹이 미리 선택된다.
 const NEW_GROUP = '__new_group__';
 
-const fieldStyle = {
+export const fieldStyle = {
   fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)',
   border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 14, padding: '14px 16px', outline: 'none', width: '100%', boxSizing: 'border-box',
 };
-const labelStyle = { fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' };
-const optional = <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--k-tx-b0b0b8)', marginLeft: 2 }}> 선택</span>;
+export const labelStyle = { fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' };
+export const optional = <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--k-tx-b0b0b8)', marginLeft: 2 }}> 선택</span>;
 
 // 친구 그룹 선택(+ 새 친구 그룹 바로 추가)
-function FriendGroupSelect({ groups, setGroups, value, onChange, userId }) {
+export function FriendGroupSelect({ groups, setGroups, value, onChange, userId }) {
   const [newName, setNewName] = useState(null); // null(숨김) | 입력 중인 문자열
   const saveNew = async () => {
     const name = (newName || '').trim();

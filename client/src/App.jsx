@@ -27,6 +27,7 @@ import SettingsNotifications from './pages/SettingsNotifications.jsx';
 import SettingsStyle from './pages/SettingsStyle.jsx';
 import SettingsCustomize from './pages/SettingsCustomize.jsx';
 import FriendAdd from './pages/FriendAdd.jsx';
+import FriendEdit from './pages/FriendEdit.jsx';
 import SettingsExport from './pages/SettingsExport.jsx';
 import SettingsImport from './pages/SettingsImport.jsx';
 import Notifications from './pages/Notifications.jsx';
@@ -77,6 +78,7 @@ export default function App() {
         <Route path="/settings/profile/withdraw" element={<Withdraw />} />
         <Route path="/settings/friends" element={<FriendManage />} />
         <Route path="/settings/friends/add" element={<FriendAdd />} />
+        <Route path="/settings/friends/:id/edit" element={<FriendEdit />} />
         <Route path="/settings/categories/:type" element={<CategoryManage />} />
         <Route path="/settings/budget" element={<BudgetManage />} />
         <Route path="/settings/budget/:type/:categoryId" element={<BudgetSet />} />

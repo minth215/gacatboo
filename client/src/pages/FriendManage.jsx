@@ -5,17 +5,11 @@ import { useAuth } from '../lib/auth.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import { DayCardRow } from '../components/TransactionList.jsx';
 
-const NEW_GROUP = '__new_group__';
-
 export default function FriendManage() {
   const { user } = useAuth();
   const nav = useNavigate();
   const [friends, setFriends] = useState([]);
   const [groups, setGroups] = useState([]);
-  const [editor, setEditor] = useState(null); // 친구 수정 모달: null | {id, username, foundProfile, nickname, memo, groupId}
-  const [newGroupName, setNewGroupName] = useState(null); // null(숨김) | 입력 중인 문자열
-  const [err, setErr] = useState('');
-  const [busy, setBusy] = useState(false);
 
   const [editingGroupId, setEditingGroupId] = useState(null);
   const [openId, setOpenId] = useState(null); // 한 번에 하나의 친구 카드만 스와이프로 열려 있도록
@@ -30,46 +24,8 @@ export default function FriendManage() {
   // 친구 추가는 별도 페이지(회원/비회원 탭). 친구 그룹 줄의 "+"는 그 그룹을 미리 선택해서 연다.
   const openAdd = () => nav('/settings/friends/add');
   const openAddToGroup = (groupId) => nav(groupId ? `/settings/friends/add?group=${groupId}` : '/settings/friends/add');
-  const openEdit = (f) => {
-    setErr(''); setNewGroupName(null);
-    setEditor({
-      id: f.id,
-      username: f.friend?.username || '',
-      foundProfile: f.friend_user_id ? { id: f.friend_user_id, username: f.friend?.username, display_name: f.friend?.display_name } : null,
-      nickname: f.nickname,
-      memo: f.memo || '',
-      groupId: f.group_id ? String(f.group_id) : '',
-    });
-  };
-  const closeModal = () => setEditor(null);
-
-  const onGroupSelect = (v) => {
-    if (v === NEW_GROUP) { setNewGroupName(''); return; }
-    setEditor({ ...editor, groupId: v });
-  };
-  const saveNewGroup = async () => {
-    const name = newGroupName.trim();
-    if (!name) { setNewGroupName(null); return; }
-    try {
-      const g = await db.addFriendGroup(user.id, name);
-      setGroups((prev) => [...prev, g]);
-      setEditor((prev) => ({ ...prev, groupId: String(g.id) }));
-      setNewGroupName(null);
-    } catch (e) { setErr(e.message); }
-  };
-
-  const save = async () => {
-    setErr('');
-    const nickname = editor.nickname.trim();
-    if (!nickname) return setErr('이름을 입력하세요.');
-    setBusy(true);
-    try {
-      const groupId = editor.groupId ? Number(editor.groupId) : null;
-      const prevMemo = friends.find((f) => f.id === editor.id)?.memo || '';
-      await db.updateFriend(editor.id, { nickname, groupId, ...(editor.memo.trim() !== prevMemo ? { memo: editor.memo } : {}) });
-      closeModal(); load();
-    } catch (e) { setErr(e.message); } finally { setBusy(false); }
-  };
+  // 친구 카드를 누르면 친구 정보 수정 페이지로
+  const openEdit = (f) => nav(`/settings/friends/${f.id}/edit`);
 
   const remove = async (f) => {
     if (!confirm(`'${f.nickname}'을(를) 친구 목록에서 삭제할까요?`)) return;
@@ -169,58 +125,6 @@ export default function FriendManage() {
         </div>
       ))}
 
-      {editor && (
-        <div className="catmodal-overlay" onClick={closeModal}>
-          <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '88%', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>친구 수정</div>
-              <button aria-label="닫기" onClick={closeModal} className="catmodal-icon-btn">
-                <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
-              </button>
-            </div>
-
-            {editor.foundProfile && (
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-8b8798)' }}>가캣부 아이디</span>
-                <input value={`@${editor.username}`} disabled className="catmodal-name-input" />
-              </label>
-            )}
-
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-8b8798)' }}>이름 <span style={{ color: '#FF3B5C' }}>*</span></span>
-              <input value={editor.nickname} onChange={(e) => setEditor({ ...editor, nickname: e.target.value })} placeholder="친구 목록에 표시될 이름" className="catmodal-name-input" />
-            </label>
-
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-8b8798)' }}>메모</span>
-              <textarea value={editor.memo} onChange={(e) => setEditor({ ...editor, memo: e.target.value })} placeholder="친구에 대한 메모" rows={3} className="catmodal-name-input" style={{ resize: 'none', lineHeight: 1.5 }} />
-            </label>
-
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-8b8798)' }}>친구 그룹</span>
-              <select value={editor.groupId} onChange={(e) => onGroupSelect(e.target.value)} className="catmodal-name-input">
-                <option value="">그룹 없음</option>
-                {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-                <option value={NEW_GROUP}>+ 새 친구 그룹 추가</option>
-              </select>
-              {newGroupName !== null && (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), saveNewGroup())}
-                    placeholder="새 친구 그룹 이름(예: 직장, 가족)" autoFocus className="catmodal-name-input" style={{ flex: 1 }}
-                  />
-                  <button type="button" className="inline-cancel-btn" onClick={() => setNewGroupName(null)}>취소</button>
-                  <button type="button" className="inline-save-btn" onClick={saveNewGroup}>추가</button>
-                </div>
-              )}
-            </label>
-
-            {err && <p className="error" style={{ margin: 0 }}>{err}</p>}
-            <button className="btn-ink-pill" disabled={busy} onClick={save}>{busy ? '저장 중…' : '저장'}</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

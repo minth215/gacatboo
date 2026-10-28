@@ -985,8 +985,12 @@ export const db = {
       ...(memo && memo.trim() ? { memo: memo.trim() } : {}),
     }).select('*, friend:profiles!friends_friend_user_id_fkey(username, display_name)').single());
   },
-  async updateFriend(id, { nickname, groupId = null, memo }) {
-    return unwrap(await supabase.from('friends').update({ nickname: nickname.trim(), group_id: groupId, ...(memo !== undefined ? { memo: memo.trim() } : {}) })
+  async updateFriend(id, { nickname, groupId = null, memo, friendUserId }) {
+    return unwrap(await supabase.from('friends').update({
+      nickname: nickname.trim(), group_id: groupId,
+      ...(memo !== undefined ? { memo: memo.trim() } : {}),
+      ...(friendUserId !== undefined ? { friend_user_id: friendUserId } : {}), // 비회원 친구 → 회원 연결
+    })
       .eq('id', id).select('*, friend:profiles!friends_friend_user_id_fkey(username, display_name)').single());
   },
   async deleteFriend(id) {
