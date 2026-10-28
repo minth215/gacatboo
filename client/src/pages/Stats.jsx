@@ -98,6 +98,7 @@ export default function Stats() {
 
   const [periodMode, setPeriodMode] = useState(() => restoreRef.current?.periodMode ?? 'month'); // week | month | year | range
   const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
+  const [catMenuOpen, setCatMenuOpen] = useState(false); // 분류별 보기 톱니바퀴 메뉴(정산 반영/예산)
   const [month, setMonth] = useState(() => restoreRef.current?.month ?? currentMonth());
   const [week, setWeek] = useState(() => restoreRef.current?.week ?? weekStartOf(today()));
   const [year, setYear] = useState(() => restoreRef.current?.year ?? currentYear());
@@ -117,6 +118,7 @@ export default function Stats() {
   // 기본값: 설정 > 가계부 커스터마이즈(분류별 통계 정산 반영 / 기본 뷰 / 예산 바 보기)
   const [prefs] = useState(() => loadPrefs(user?.id));
   const [settleReflect, setSettleReflect] = useState(prefs.statsSettle);
+  const [showBudget, setShowBudget] = useState(prefs.statsBudget); // 분류별 예산 게이지 보기
   const [chartMode, setChartMode] = useState(prefs.statsView === 'table' ? 'table' : 'donut'); // donut | table
   const [sort, setSort] = useState({ key: 'amount', dir: 'desc' });
   const [hoverIdx, setHoverIdx] = useState(null);
@@ -225,7 +227,7 @@ export default function Stats() {
 
   // 분류 카드의 예산: 그 달 재정의 ?? 그 해 기본(월=0). 연 기간은 12개월 예산의 합(설정된 달만).
   const budgetOf = (name) => {
-    if (!prefs.statsBudget || statView !== 'category' || budgetYear == null || !budgetRows.length) return null;
+    if (!showBudget || statView !== 'category' || budgetYear == null || !budgetRows.length) return null;
     const cat = allCats.find((c) => c.type === tab && c.name === name);
     if (!cat) return null;
     const monthBudget = (m) => {
@@ -602,16 +604,38 @@ export default function Stats() {
         {/* "정산 반영" 토글은 제 자리를 차지하지 않고 그 아래(원형 그래프 위쪽)에 겹쳐서 뜬다.
             분류별/원천별/항목별 모두 원형 그래프 시작 높이가 같아지도록. */}
         {statView === 'category' && (
-          <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, zIndex: 3 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', flex: 'none' }}>정산 반영</span>
+          // 분류별 보기: 오른쪽 끝 회색 톱니바퀴 버튼 → 드롭다운에서 정산 반영 / 예산 토글
+          <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, zIndex: 3 }}>
             <button
-              type="button" role="switch" aria-checked={settleReflect} aria-label="정산 반영"
-              className={`ios-toggle${settleReflect ? ' on' : ''}`}
-              onClick={() => setSettleReflect((v) => !v)}
-              style={{ flex: 'none' }}
+              type="button" aria-label="분류별 통계 설정" onClick={() => setCatMenuOpen((o) => !o)}
+              style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-8b8798)', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              <span className="ios-toggle-knob" />
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
             </button>
+            {catMenuOpen && (
+              <>
+                <div onClick={() => setCatMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
+                <div style={{
+                  position: 'absolute', top: 36, right: 0, background: 'var(--k-bg-fff)', borderRadius: 14,
+                  boxShadow: '0 10px 30px rgb(var(--k-sh) / calc(.15 * var(--k-sha)))', padding: '6px 12px', zIndex: 20, minWidth: 140,
+                }}>
+                  {[['정산 반영', settleReflect, setSettleReflect], ['예산', showBudget, setShowBudget]].map(([label, on, set], i) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--k-divider)' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--k-tx-4a4640)', whiteSpace: 'nowrap' }}>{label}</span>
+                      <button
+                        type="button" role="switch" aria-checked={on} aria-label={label}
+                        className={`ios-toggle${on ? ' on' : ''}`} onClick={() => set((v) => !v)} style={{ flex: 'none' }}
+                      >
+                        <span className="ios-toggle-knob" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
