@@ -5,7 +5,8 @@ import { useAuth } from '../lib/auth.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 
 // 설정 > 친구 관리 > 친구 추가. 상단 탭으로 회원/비회원 구분(기본 회원).
-//  · 회원: 가캣부 아이디 검색(정확히 일치하는 승인된 회원만) → 회원 정보 카드에서 친구 그룹 고르고 추가
+//  · 회원: 가캣부 아이디 검색(검색 버튼/엔터를 눌렀을 때, 정확히 일치하는 승인된 회원만) → 회원 카드 아래에서
+//    메모/친구 그룹 입력 후 추가
 //  · 비회원: 이름(필수)/메모/친구 그룹 입력 후 추가
 // ?group=<id> 로 들어오면(친구 그룹 줄의 "+") 그 친구 그룹이 미리 선택된다.
 const NEW_GROUP = '__new_group__';
@@ -66,7 +67,9 @@ export default function FriendAdd() {
 
   // 회원 탭
   const [query, setQuery] = useState('');
-  const [found, setFound] = useState(undefined); // undefined(검색 전/중) | null(없음) | profile
+  const [found, setFound] = useState(undefined); // undefined(검색 전) | null(없음) | profile
+  const [searching, setSearching] = useState(false);
+  const [memberMemo, setMemberMemo] = useState('');
   const [memberGroupId, setMemberGroupId] = useState(params.get('group') || '');
 
   // 비회원 탭
@@ -79,17 +82,16 @@ export default function FriendAdd() {
     db.listFriends().then(setFriends).catch(() => setFriends([]));
   }, []);
 
-  // 아이디 검색: 입력을 멈추면 자동으로 정확히 일치하는 회원을 찾는다(승인된 회원만)
-  useEffect(() => {
+  // 아이디 검색: 키패드의 검색 버튼(엔터)이나 검색 아이콘을 눌렀을 때만 정확히 일치하는 회원을 찾는다(승인된 회원만)
+  const search = async (e) => {
+    e?.preventDefault();
     const q = query.trim();
-    if (!q) { setFound(undefined); return; }
-    setFound(undefined);
-    let alive = true;
-    const t = setTimeout(() => {
-      db.findProfileByUsername(q).then((p) => { if (alive) setFound(p); }).catch(() => { if (alive) setFound(null); });
-    }, 350);
-    return () => { alive = false; clearTimeout(t); };
-  }, [query]);
+    if (!q || searching) return;
+    setSearching(true);
+    try { setFound(await db.findProfileByUsername(q)); }
+    catch { setFound(null); }
+    finally { setSearching(false); }
+  };
 
   const isSelf = found && found.id === user.id;
   const already = found && friends.some((f) => f.friend_user_id === found.id);
@@ -98,7 +100,7 @@ export default function FriendAdd() {
     if (!found || isSelf || already || busy) return;
     setBusy(true);
     try {
-      await db.addFriend(user.id, { friendUserId: found.id, nickname: found.display_name || found.username, groupId: memberGroupId ? Number(memberGroupId) : null });
+      await db.addFriend(user.id, { friendUserId: found.id, nickname: found.display_name || found.username, memo: memberMemo, groupId: memberGroupId ? Number(memberGroupId) : null });
       nav(-1);
     } catch (e) { alert(e.message); } finally { setBusy(false); }
   };
@@ -128,40 +130,51 @@ export default function FriendAdd() {
 
       {tab === 'member' ? (
         <>
-          {/* 그룹 만들기 > 멤버 추가의 친구 닉네임 검색창과 같은 모양 */}
-          <div style={{ position: 'relative', marginTop: 16 }}>
-            <svg width="15" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 15, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+          {/* 그룹 만들기 > 멤버 추가의 친구 닉네임 검색창과 같은 모양. 검색은 엔터/키패드 검색 버튼으로 */}
+          <form onSubmit={search} style={{ position: 'relative', marginTop: 16 }}>
+            <button type="submit" aria-label="검색" style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 32, height: 32, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+            </button>
             <input
-              type="text" placeholder="가캣부 아이디 검색" value={query} autoFocus
-              onChange={(e) => setQuery(e.target.value.replace(/\s/g, ''))}
-              style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 999, padding: '12px 16px 12px 40px', outline: 'none' }}
+              type="search" enterKeyHint="search" className="plain-search" placeholder="가캣부 아이디 검색" value={query} autoFocus
+              onChange={(e) => { const v = e.target.value.replace(/\s/g, ''); setQuery(v); if (!v) setFound(undefined); }}
+              style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 999, padding: '12px 16px 12px 40px', outline: 'none', WebkitAppearance: 'none', appearance: 'none' }}
             />
-          </div>
+          </form>
 
           {found === null ? (
             <div className="empty empty-center" style={{ whiteSpace: 'pre-line', lineHeight: 1.6 }}>
               {'일치하는 회원이 존재하지 않습니다.\n비회원 탭에서 추가해 주세요.'}
             </div>
           ) : found ? (
-            <div style={{ marginTop: 16, background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', padding: '16px 16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
+            <>
+              <div style={{ marginTop: 16, background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', padding: '16px 16px' }}>
                 <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{found.display_name || found.username}</div>
                 <div style={{ marginTop: 3, fontSize: 12, color: 'var(--k-tx-a29ead)' }}>@{found.username}</div>
+                {(isSelf || already) && (
+                  <div style={{ marginTop: 10, fontSize: 12.5, fontWeight: 600, color: 'var(--k-tx-8b8798)' }}>{isSelf ? '본인 아이디입니다.' : '이미 등록된 친구입니다.'}</div>
+                )}
               </div>
-              {isSelf || already ? (
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--k-tx-8b8798)' }}>{isSelf ? '본인 아이디입니다.' : '이미 등록된 친구입니다.'}</div>
-              ) : (
-                <>
+              {!isSelf && !already && (
+                // 메모/친구 그룹은 비회원 탭처럼 카드 바깥에
+                <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 18 }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                    <span style={labelStyle}>메모{optional}</span>
+                    <textarea
+                      placeholder="친구에 대한 메모를 남겨 보세요" rows={3} value={memberMemo} onChange={(e) => setMemberMemo(e.target.value)}
+                      style={{ ...fieldStyle, lineHeight: 1.5, resize: 'none' }}
+                    />
+                  </label>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                     <span style={labelStyle}>친구 그룹{optional}</span>
                     <FriendGroupSelect groups={groups} setGroups={setGroups} value={memberGroupId} onChange={setMemberGroupId} userId={user.id} />
                   </label>
-                  <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 48, fontSize: 14 }} disabled={busy} onClick={addMember}>
+                  <button type="button" className="btn-ink-pill" style={{ marginTop: 6 }} disabled={busy} onClick={addMember}>
                     {busy ? '추가 중…' : '친구 추가'}
                   </button>
-                </>
+                </div>
               )}
-            </div>
+            </>
           ) : null}
         </>
       ) : (
