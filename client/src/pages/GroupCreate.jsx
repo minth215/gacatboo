@@ -41,10 +41,19 @@ export default function GroupCreate() {
   const [friendQuery, setFriendQuery] = useState('');
   const chipsRef = useRef(null);
   const [selectedFriendIds, setSelectedFriendIds] = useState([]);
-  const [customMembers, setCustomMembers] = useState([]); // [{ nickname, username }]
-  const [addingCustom, setAddingCustom] = useState(false);
-  const [customNickname, setCustomNickname] = useState('');
-  const [customUsername, setCustomUsername] = useState('');
+  const [customMembers, setCustomMembers] = useState([]); // [{ nickname, username, memo }] — 회원 탭(username 있음)/비회원 탭(외부 멤버)
+  // 멤버 추가 탭: 친구 목록 | 회원 | 비회원 — 세 탭에서 고른 멤버가 한 목록(selectedChips)으로 합쳐진다
+  const [memberTab, setMemberTab] = useState('friends');
+  // 친구 목록의 회원 친구별 초대 여부(기본 초대). 끄면 초대장 없이 외부 멤버로 추가.
+  const [noInviteFriendIds, setNoInviteFriendIds] = useState([]);
+  // 회원 탭: 아이디 검색(엔터/검색 버튼)
+  const [memberQuery, setMemberQuery] = useState('');
+  const [memberFound, setMemberFound] = useState(undefined); // undefined(검색 전) | null(없음) | profile
+  const [memberSearching, setMemberSearching] = useState(false);
+  const [memberNickname, setMemberNickname] = useState('');
+  // 비회원 탭
+  const [guestName, setGuestName] = useState('');
+  const [guestMemo, setGuestMemo] = useState('');
 
   useEffect(() => {
     db.listGroupCategories().then((cs) => {
@@ -72,12 +81,33 @@ export default function GroupCreate() {
   const removeFriend = (id) => setSelectedFriendIds((ids) => ids.filter((x) => x !== id));
   const removeCustom = (idx) => setCustomMembers((ms) => ms.filter((_, i) => i !== idx));
 
-  const openAddCustom = () => { setCustomNickname(''); setCustomUsername(''); setAddingCustom(true); };
-  const saveAddCustom = () => {
-    const nn = customNickname.trim();
+  const toggleInvite = (id) => setNoInviteFriendIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+
+  const searchMember = async (e) => {
+    e?.preventDefault();
+    const q = memberQuery.trim();
+    if (!q || memberSearching) return;
+    setMemberSearching(true);
+    try { const p = await db.findProfileByUsername(q); setMemberFound(p); setMemberNickname(p.display_name || p.username); }
+    catch { setMemberFound(null); }
+    finally { setMemberSearching(false); }
+  };
+  // 이미 고른 멤버(친구 목록에서 고른 회원 친구 포함)와 같은 계정인지
+  const memberAlreadyAdded = (prof) => !!prof && (
+    customMembers.some((m) => m.username && m.username === prof.username)
+    || selectedFriendIds.some((id) => friends.find((f) => f.id === id)?.friend_user_id === prof.id)
+  );
+  const addFoundMember = () => {
+    const nn = memberNickname.trim();
+    if (!memberFound || !nn) return;
+    setCustomMembers((ms) => [...ms, { nickname: nn, username: memberFound.username, memo: '' }]);
+    setMemberQuery(''); setMemberFound(undefined); setMemberNickname('');
+  };
+  const addGuest = () => {
+    const nn = guestName.trim();
     if (!nn) return;
-    setCustomMembers((ms) => [...ms, { nickname: nn, username: customUsername.trim() }]);
-    setAddingCustom(false);
+    setCustomMembers((ms) => [...ms, { nickname: nn, username: '', memo: guestMemo.trim() }]);
+    setGuestName(''); setGuestMemo('');
   };
 
   const submit = async () => {
@@ -97,12 +127,14 @@ export default function GroupCreate() {
         const f = friends.find((x) => x.id === fid);
         if (!f) continue;
         try {
-          await db.addMember(g.id, { nickname: f.nickname, username: f.friend?.username || '', start_date: startDate, end_date: '', contact: '', memo: '' });
+          // 초대 토글을 끈 회원 친구는 아이디 없이(외부 멤버로) 추가
+          const invite = f.friend_user_id && !noInviteFriendIds.includes(f.id);
+          await db.addMember(g.id, { nickname: f.nickname, username: invite ? (f.friend?.username || '') : '', start_date: startDate, end_date: '', contact: '', memo: '' });
         } catch (e) { memberErrors.push(`${f.nickname}: ${e.message}`); }
       }
       for (const cm of customMembers) {
         try {
-          await db.addMember(g.id, { nickname: cm.nickname, username: cm.username || '', start_date: startDate, end_date: '', contact: '', memo: '' });
+          await db.addMember(g.id, { nickname: cm.nickname, username: cm.username || '', start_date: startDate, end_date: '', contact: '', memo: cm.memo || '' });
         } catch (e) { memberErrors.push(`${cm.nickname}: ${e.message}`); }
       }
       if (memberErrors.length) alert('일부 멤버를 추가하지 못했습니다.\n' + memberErrors.join('\n'));
@@ -330,6 +362,17 @@ export default function GroupCreate() {
               </div>
             )}
 
+            <div style={{ display: 'flex', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: 4, marginBottom: 14 }}>
+              {[['friends', '친구 목록'], ['member', '회원'], ['guest', '비회원']].map(([t, label]) => (
+                <button key={t} type="button" onClick={() => setMemberTab(t)} style={{
+                  flex: 1, border: 'none', borderRadius: 999, padding: '10px 0', fontFamily: 'inherit',
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  background: memberTab === t ? 'var(--k-bg-fff)' : 'transparent', color: memberTab === t ? 'var(--k-tx-191722)' : 'var(--k-tx-8b8798)',
+                }}>{label}</button>
+              ))}
+            </div>
+
+            {memberTab === 'friends' && (<>
             <div style={{ position: 'relative', marginBottom: 14 }}>
               <svg width="15" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 15, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
               <input
@@ -352,9 +395,27 @@ export default function GroupCreate() {
                 const selected = selectedFriendIds.includes(f.id);
                 return (
                   <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.25, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{f.nickname}</div>
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                      <span style={{ fontSize: 13.25, fontWeight: 600, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.nickname}</span>
+                      {f.friend_user_id && f.friend?.username && (
+                        <span style={{ flex: 'none', fontSize: 11.5, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>@{f.friend.username}</span>
+                      )}
                     </div>
+                    {f.friend_user_id && (() => {
+                      // 초대 여부 토글(편지지 아이콘): 켜짐 = 그룹 초대장 전송, 꺼짐 = 외부 멤버로 추가
+                      const invite = !noInviteFriendIds.includes(f.id);
+                      return (
+                        <button
+                          aria-label={invite ? '초대함' : '초대 안 함'} aria-pressed={invite} onClick={() => toggleInvite(f.id)}
+                          style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: invite ? '#FFF1DC' : 'var(--k-bg-f4f2f0)', color: invite ? '#FF8A00' : 'var(--k-tx-b6b2c0)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none', padding: 0 }}
+                        >
+                          <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="5" width="18" height="14" rx="2" /><polyline points="3 7 12 13 21 7" />
+                            {!invite && <line x1="4" y1="20" x2="20" y2="4" />}
+                          </svg>
+                        </button>
+                      );
+                    })()}
                     <button
                       aria-label={selected ? '추가됨' : '추가'} onClick={() => toggleFriend(f.id)}
                       style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: selected ? '#d9f1ec' : 'var(--k-bg-f4f2f0)', color: selected ? '#2e9e85' : 'var(--k-tx-8b8798)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none', padding: 0 }}
@@ -372,13 +433,66 @@ export default function GroupCreate() {
               </div>
             ))}
 
-            <button
-              type="button" onClick={openAddCustom}
-              style={{ width: '100%', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, border: '1.5px dashed var(--k-bd-c7c3cc)', borderRadius: 14, background: 'transparent', color: 'var(--k-tx-6c6779)', fontSize: 12.75, fontWeight: 700, cursor: 'pointer' }}
-            >
-              <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-              친구 목록에 없는 멤버 추가
-            </button>
+            </>)}
+
+            {memberTab === 'member' && (
+              <>
+                {/* 친구 추가 페이지의 회원 검색과 같은 방식(엔터/검색 버튼으로 검색, 아이디 정확히 일치) */}
+                <form onSubmit={searchMember} style={{ position: 'relative' }}>
+                  <button type="submit" aria-label="검색" style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 32, height: 32, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="15" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                  </button>
+                  <input
+                    type="search" enterKeyHint="search" className="plain-search" placeholder="가캣부 아이디 검색" value={memberQuery}
+                    onChange={(e) => { const v = e.target.value.replace(/\s/g, ''); setMemberQuery(v); if (!v) setMemberFound(undefined); }}
+                    style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 999, padding: '12px 16px 12px 40px', outline: 'none', WebkitAppearance: 'none', appearance: 'none' }}
+                  />
+                </form>
+                {memberFound === null ? (
+                  <div style={{ padding: '60px 0', textAlign: 'center', whiteSpace: 'pre-line', lineHeight: 1.6, fontSize: 13, color: 'var(--k-tx-a29ead)' }}>
+                    {'일치하는 회원이 존재하지 않습니다.\n비회원 탭에서 추가해 주세요.'}
+                  </div>
+                ) : memberFound ? (() => {
+                  const isSelf = memberFound.id === user.id;
+                  const added = memberAlreadyAdded(memberFound);
+                  return (
+                    <>
+                      <div style={{ marginTop: 16, background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', padding: 16 }}>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{memberFound.display_name || memberFound.username}</div>
+                        <div style={{ marginTop: 3, fontSize: 12, color: 'var(--k-tx-a29ead)' }}>@{memberFound.username}</div>
+                        {(isSelf || added) && (
+                          <div style={{ marginTop: 10, fontSize: 12.5, fontWeight: 600, color: 'var(--k-tx-8b8798)' }}>{isSelf ? '본인 아이디입니다.' : '이미 추가된 멤버입니다.'}</div>
+                        )}
+                      </div>
+                      {!isSelf && !added && (
+                        <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                          <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>그룹 닉네임</span>
+                            <input type="text" value={memberNickname} onChange={(e) => setMemberNickname(e.target.value)} placeholder="그룹 내에서 보일 닉네임" style={fieldStyle} />
+                          </label>
+                          <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 48, fontSize: 14 }} disabled={!memberNickname.trim()} onClick={addFoundMember}>멤버 추가</button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })() : null}
+              </>
+            )}
+
+            {memberTab === 'guest' && (
+              // 비회원 = 외부 멤버(초대장 없음)
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>이름 <span style={{ color: '#FF3B5C' }}>*</span></span>
+                  <input type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="그룹 내에서 보일 이름" style={fieldStyle} />
+                </label>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>메모<span style={{ fontSize: 11, fontWeight: 600, color: 'var(--k-tx-b0b0b8)', marginLeft: 2 }}> 선택</span></span>
+                  <textarea value={guestMemo} onChange={(e) => setGuestMemo(e.target.value)} placeholder="총무만 볼 수 있는 메모" rows={3} style={{ ...fieldStyle, lineHeight: 1.5, resize: 'none' }} />
+                </label>
+                <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 48, fontSize: 14 }} disabled={!guestName.trim()} onClick={addGuest}>멤버 추가</button>
+              </div>
+            )}
           </div>
         )}
 
@@ -399,29 +513,6 @@ export default function GroupCreate() {
         </button>
       </div>
 
-      {addingCustom && (
-        <div className="catmodal-overlay" onClick={() => setAddingCustom(false)}>
-          <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>외부 멤버 추가</div>
-              <button aria-label="닫기" onClick={() => setAddingCustom(false)} className="catmodal-icon-btn">
-                <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
-              </button>
-            </div>
-            <input
-              type="text" placeholder="닉네임" value={customNickname} onChange={(e) => setCustomNickname(e.target.value)} autoFocus
-              className="catmodal-name-input"
-            />
-            <input
-              type="text" placeholder="아이디 입력 시 그룹에 초대됩니다" value={customUsername} onChange={(e) => setCustomUsername(e.target.value.replace(/\s/g, ''))}
-              className="catmodal-name-input"
-            />
-            <button type="button" className="btn-ink-pill" style={{ marginTop: 0 }} disabled={!customNickname.trim()} onClick={saveAddCustom}>
-              멤버 추가
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
