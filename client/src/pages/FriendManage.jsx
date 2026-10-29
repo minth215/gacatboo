@@ -65,9 +65,10 @@ export default function FriendManage() {
       isOpen={openId === f.id} onOpenChange={(open) => setOpenId(open ? f.id : null)}
       onTap={() => openEdit(f)} onDelete={() => remove(f)}
     >
-      <div style={{ flex: 1, minWidth: 0, padding: '1px 0 1px 2px' }}>
-        <div style={{ fontSize: 13.25, fontWeight: 500, color: 'var(--k-tx-191722)' }}>{f.nickname}</div>
-        {f.friend_user_id && <div style={{ marginTop: 2, fontSize: 10.5, color: 'var(--k-tx-a29ead)' }}>@{f.friend?.username}</div>}
+      {/* 닉네임 바로 오른쪽에 (회원 친구) @아이디 */}
+      <div style={{ flex: 1, minWidth: 0, padding: '1px 0 1px 2px', display: 'flex', alignItems: 'baseline', gap: 6 }}>
+        <span style={{ fontSize: 13.25, fontWeight: 500, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.nickname}</span>
+        {f.friend_user_id && f.friend?.username && <span style={{ flex: 'none', fontSize: 11.5, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>@{f.friend.username}</span>}
       </div>
     </DayCardRow>
   );
