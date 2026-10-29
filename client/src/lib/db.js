@@ -1135,12 +1135,18 @@ export const db = {
     if (error) {
       // supabase-js 는 Edge Function이 2xx가 아니면 data 를 비우고 실제 응답 본문을
       // error.context(Response) 안에 읽지 않은 채로 둔다 — 여기서 꺼내야 진짜 에러 메시지가 보임.
+      // 함수가 직접 보낸 오류는 { error }, Supabase 게이트웨이 오류(시간·자원 초과, 토큰 등)는
+      // { message | msg | code } 형태라 둘 다 꺼내고, 그래도 없으면 상태 코드라도 함께 보여준다.
       let msg = error.message;
-      if (error.context && typeof error.context.json === 'function') {
-        try {
-          const body = await error.context.clone().json();
-          if (body?.error) msg = body.error;
-        } catch {}
+      const res = error.context;
+      if (res && typeof res.clone === 'function') {
+        let text = '';
+        try { text = await res.clone().text(); } catch {}
+        let body = null;
+        try { body = text ? JSON.parse(text) : null; } catch {}
+        const detail = body?.error || body?.message || body?.msg || body?.code || (text && text.length < 200 ? text : '');
+        if (body?.error) msg = body.error;
+        else msg = `영수증 인식 서버 오류(${res.status || '?'}${detail ? `: ${detail}` : ''}). 잠시 후 다시 시도해 주세요.`;
       }
       throw new Error(msg);
     }
