@@ -28,7 +28,7 @@ export default function FriendEdit() {
     if (!friend || form) return;
     setForm({
       nickname: friend.nickname || '', memo: friend.memo || '', groupId: friend.group_id ? String(friend.group_id) : '',
-      link: friend.friend_user_id ? { id: friend.friend_user_id, username: friend.friend?.username || '' } : null,
+      link: friend.friend_user_id ? { id: friend.friend_user_id, username: friend.friend?.username || '', displayName: friend.friend?.display_name || '' } : null,
     });
   }, [friend, form]);
 
@@ -36,8 +36,10 @@ export default function FriendEdit() {
   if (!friend) return <div className="empty empty-center">친구를 찾을 수 없습니다.</div>;
 
   const linkedBefore = !!friend.friend_user_id;
+  // 회원 연결된 친구는 이름을 비워 두면 친구가 직접 설정한 닉네임으로 저장
+  const memberNickname = form.link?.displayName || '';
   const save = async () => {
-    const nickname = form.nickname.trim();
+    const nickname = form.nickname.trim() || memberNickname;
     if (!nickname) return alert('이름을 입력하세요.');
     if (busy) return;
     setBusy(true);
@@ -61,7 +63,7 @@ export default function FriendEdit() {
           {/* 이름 + (회원) @아이디 / (비회원) "회원 연결" 배지 */}
           <div style={{ ...fieldStyle, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px 0 16px' }}>
             <input
-              type="text" value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} placeholder="친구 목록에 표시될 이름"
+              type="text" value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} placeholder={memberNickname || '친구 목록에 표시될 이름'}
               style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', outline: 'none', padding: '14px 0' }}
             />
             {form.link ? (
@@ -85,7 +87,7 @@ export default function FriendEdit() {
           <span style={labelStyle}>친구 그룹{optional}</span>
           <FriendGroupSelect groups={groups} setGroups={setGroups} value={form.groupId} onChange={(v) => setForm((f) => ({ ...f, groupId: v }))} userId={user.id} />
         </label>
-        <button type="button" className="btn-ink-pill" style={{ marginTop: 6 }} disabled={busy || !form.nickname.trim()} onClick={save}>
+        <button type="button" className="btn-ink-pill" style={{ marginTop: 6 }} disabled={busy || !(form.nickname.trim() || memberNickname)} onClick={save}>
           {busy ? '저장 중…' : '저장'}
         </button>
       </div>
@@ -94,7 +96,7 @@ export default function FriendEdit() {
         <MemberSearchModal
           userId={user.id} friends={friends} selfFriendId={friend.id}
           onClose={() => setSearchOpen(false)}
-          onPick={(p) => { setForm((f) => ({ ...f, link: { id: p.id, username: p.username } })); setSearchOpen(false); }}
+          onPick={(p) => { setForm((f) => ({ ...f, link: { id: p.id, username: p.username, displayName: p.display_name || '' } })); setSearchOpen(false); }}
         />
       )}
     </div>
