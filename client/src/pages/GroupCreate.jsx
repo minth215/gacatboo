@@ -209,12 +209,13 @@ export default function GroupCreate() {
   }, [selectedChips.length]);
 
   return (
-    <div style={{ padding: '44px 0 12px', minHeight: 'calc(100vh - 44px)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: '44px 0 0', display: 'flex', flexDirection: 'column' }}>
       <PageHeader title="그룹 만들기" flat onBack={onBack} right={(
         // 단계 이동은 상단바 오른쪽 버튼(이전 단계는 "<")
         <button
           type="button" onClick={goNext} disabled={nextDisabled || busy}
-          style={{ height: 32, padding: '0 14px', fontFamily: 'inherit', border: 'none', borderRadius: 999, background: (nextDisabled || busy) ? 'var(--k-bg-f0eef1)' : 'var(--k-bg-191722)', color: (nextDisabled || busy) ? 'var(--k-tx-b6b2c0)' : 'var(--k-onink-fff)', fontSize: 13, fontWeight: 700, cursor: (nextDisabled || busy) ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+          // 텍스트 버튼: 비활성 회색, 활성 코랄 핑크
+          style={{ height: 32, padding: '0 4px', fontFamily: 'inherit', border: 'none', background: 'transparent', color: (nextDisabled || busy) ? 'var(--k-tx-b6b2c0)' : '#FF3B5C', fontSize: 14.5, fontWeight: 800, cursor: (nextDisabled || busy) ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
         >
           {busy ? '만드는 중…' : step < 3 ? '다음' : '만들기'}
         </button>
@@ -297,7 +298,7 @@ export default function GroupCreate() {
           )}
       </div>
 
-      <div ref={bodyRef} style={{ flex: 1, padding: '6px 0 24px' }}>
+      <div ref={bodyRef} style={{ flex: 1, padding: '6px 0 8px' }}>
         {step === 1 && (
           <div>
             <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', padding: '24px 20px 22px', marginBottom: 18 }}>
@@ -322,7 +323,6 @@ export default function GroupCreate() {
 
               <div style={{ height: 1, background: '#f0eee9', margin: '0 0 20px' }} />
 
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', textAlign: 'center', marginBottom: 11 }}>배경 색</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'nowrap', gap: 8 }}>
                 <button
                   type="button" onClick={() => setColor('')}
