@@ -13,8 +13,12 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
   const [openId, setOpenId] = useState(null); // 한 번에 하나의 카드만 스와이프로 열려 있도록
   // 내 친구로 등록된 회원(user id) — 이 회원들과 나 자신은 닉네임 옆에 @아이디 표시
   const [friendUserIds, setFriendUserIds] = useState([]);
+  const [friendUsernames, setFriendUsernames] = useState([]);
   useEffect(() => {
-    db.listFriends().then((fs) => setFriendUserIds(fs.map((f) => f.friend_user_id).filter(Boolean))).catch(() => {});
+    db.listFriends().then((fs) => {
+      setFriendUserIds(fs.map((f) => f.friend_user_id).filter(Boolean));
+      setFriendUsernames(fs.map((f) => f.friend?.username).filter(Boolean));
+    }).catch(() => {});
   }, []);
 
   const openAdd = () => { setErr(''); setEditor({ nickname: '', start_date: today(), end_date: '', contact: '', memo: '', username: '' }); };
@@ -53,7 +57,10 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
       {/* 멤버 카드: 총무는 카드를 눌러 수정, 왼쪽으로 밀면 내보내기(가계부 카드와 같은 스와이프) */}
       <div className="tx-daygroup" style={{ marginTop: 14 }}>
         {visibleMembers.map((m, i) => {
-          const showId = m.is_account && m.username && (m.user_id === user?.id || friendUserIds.includes(m.user_id));
+          // 본인·내 친구인 회원은 @아이디(초대하지 않아 외부 멤버로 추가된 회원은 표시용 아이디)
+          const idText = m.is_account
+            ? (m.username && (m.user_id === user?.id || friendUserIds.includes(m.user_id)) ? m.username : null)
+            : (m.external_username && friendUsernames.includes(m.external_username) ? m.external_username : null);
           const canRemove = isOwner && m.role !== 'owner';
           return (
             <DayCardRow
@@ -62,20 +69,23 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
               onTap={isOwner ? () => openEdit(m) : undefined} onDelete={canRemove ? () => remove(m) : undefined}
             >
               <div style={{ flex: 1, minWidth: 0, padding: '1px 0 1px 2px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{m.nickname}</span>
-                  {showId && <span style={{ fontSize: 11.5, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>@{m.username}</span>}
-                  {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 6px' }}>{leaderName}</span>}
-                  {m.role !== 'owner' && m.pending && <span style={{ fontSize: 9, fontWeight: 700, color: '#B8860B', background: '#FBF1D3', borderRadius: 999, padding: '2px 6px' }}>초대중</span>}
-                  {m.role !== 'owner' && !m.pending && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--k-tx-8b8798)', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
-                </div>
-                {/* {시작일자} ~ {종료일자(없으면 생략)} */}
-                {m.start_date && (
-                  <div style={{ marginTop: 3, fontSize: 10.5, color: 'var(--k-tx-a29ead)' }}>
-                    {dotDate(m.start_date)} ~{m.end_date ? ` ${dotDate(m.end_date)}` : ''}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{m.nickname}</span>
+                    {idText && <span style={{ fontSize: 11.5, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>@{idText}</span>}
+                    {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 6px' }}>{leaderName}</span>}
+                    {m.role !== 'owner' && m.pending && <span style={{ fontSize: 9, fontWeight: 700, color: '#B8860B', background: '#FBF1D3', borderRadius: 999, padding: '2px 6px' }}>초대중</span>}
+                    {m.role !== 'owner' && !m.pending && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--k-tx-8b8798)', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
                   </div>
-                )}
-                {isOwner && m.memo && <div style={{ marginTop: 4, fontSize: 10.75, color: 'var(--k-tx-8b8798)' }}>📝 {m.memo}</div>}
+                  {/* 같은 줄 오른쪽 끝: {시작일자} ~ {종료일자(없으면 생략)} */}
+                  {m.start_date && (
+                    <span style={{ flex: 'none', fontSize: 10.5, color: 'var(--k-tx-a29ead)', whiteSpace: 'nowrap' }}>
+                      {dotDate(m.start_date)} ~{m.end_date ? ` ${dotDate(m.end_date)}` : ''}
+                    </span>
+                  )}
+                </div>
+                {/* 두 번째 줄: 메모(총무만 열람) */}
+                {isOwner && m.memo && <div style={{ marginTop: 3, fontSize: 10.75, color: 'var(--k-tx-8b8798)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.memo}</div>}
               </div>
             </DayCardRow>
           );

@@ -224,13 +224,13 @@ export default function GroupCreate() {
           // 초대 토글을 끈 회원 친구는 아이디 없이(외부 멤버로) 추가
           const invite = friendInvites(f);
           // 친구의 메모를 그룹 멤버 메모로 그대로
-          await db.addMember(g.id, { nickname: f.nickname, username: invite ? (f.friend?.username || '') : '', start_date: startDate, end_date: '', contact: '', memo: f.memo || '' });
+          await db.addMember(g.id, { nickname: f.nickname, username: invite ? (f.friend?.username || '') : '', externalUsername: !invite ? (f.friend?.username || '') : '', start_date: startDate, end_date: '', contact: '', memo: f.memo || '' });
         } catch (e) { memberErrors.push(`${f.nickname}: ${e.message}`); }
       }
       for (const cm of customMembers) {
         try {
           // 초대를 끈 회원은 아이디 없이(외부 멤버로)
-          await db.addMember(g.id, { nickname: cm.nickname, username: cm.username && cm.invite ? cm.username : '', start_date: startDate, end_date: '', contact: '', memo: cm.memo || '' });
+          await db.addMember(g.id, { nickname: cm.nickname, username: cm.username && cm.invite ? cm.username : '', externalUsername: cm.username && !cm.invite ? cm.username : '', start_date: startDate, end_date: '', contact: '', memo: cm.memo || '' });
         } catch (e) { memberErrors.push(`${cm.nickname}: ${e.message}`); }
       }
       if (memberErrors.length) alert('일부 멤버를 추가하지 못했습니다.\n' + memberErrors.join('\n'));

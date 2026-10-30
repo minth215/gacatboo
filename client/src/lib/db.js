@@ -523,7 +523,8 @@ export const db = {
       start_date: start_date || null, end_date: end_date || null,
     }).select().single());
     unwrap(await supabase.from('group_members').insert({
-      group_id: g.id, user_id: userId, role: 'owner', nickname: (nickname || '').trim(), end_date: end_date || null,
+      // 총무/총대 본인의 시작일자도 그룹 시작일자와 같게
+      group_id: g.id, user_id: userId, role: 'owner', nickname: (nickname || '').trim(), start_date: start_date || null, end_date: end_date || null,
     }));
     return g;
   },
@@ -568,7 +569,7 @@ export const db = {
   async getGroup(id) {
     const group = unwrap(await supabase.from('groups').select('*, owner:profiles!groups_owner_id_fkey(display_name)').eq('id', id).single());
     const rows = unwrap(await supabase.from('group_members')
-      .select('id, user_id, role, nickname, start_date, end_date, contact, next_due_override, settlement_override, status, profiles(username, display_name)')
+      .select('*, profiles(username, display_name)') // *: external_username(0074) 이전 DB에서도 동작
       .eq('group_id', id));
     // 메모는 총무/총대만 조회 가능(RLS). 아니면 빈 결과.
     const notes = {};
@@ -578,6 +579,7 @@ export const db = {
       id: m.id, user_id: m.user_id, role: m.role,
       nickname: m.nickname || m.profiles?.display_name || '멤버',
       username: m.profiles?.username || null,
+      external_username: m.external_username || null, // 외부 멤버로 추가된 회원의 표시용 아이디
       is_account: !!m.user_id,
       pending: m.status === 'pending', // 아이디를 연결해 초대했지만 아직 수락 전
       start_date: m.start_date, end_date: m.end_date, contact: m.contact,
@@ -586,15 +588,18 @@ export const db = {
     })).sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : (a.nickname || '').localeCompare(b.nickname || '')));
     return { group: { ...group, owner_name: group.owner?.display_name || '' }, members };
   },
-  async addMember(groupId, { nickname, start_date, end_date, contact, memo, username }) {
+  // externalUsername: 회원이지만 초대하지 않고 외부 멤버로 추가할 때 카드에 보여줄 아이디(표시용)
+  async addMember(groupId, { nickname, start_date, end_date, contact, memo, username, externalUsername }) {
     let user_id = null;
+    let extUsername = (externalUsername || '').trim() || null;
     if (username && username.trim()) {
       // select('*'): 그룹 초대 허용(allow_group_invite) 칸이 없던 DB(0073 이전)에서도 동작하도록
       const prof = unwrap(await supabase.from('profiles').select('*').eq('username', username.trim()).maybeSingle());
       if (!prof) throw new Error('해당 아이디의 사용자를 찾을 수 없습니다.');
       if (prof.status !== 'approved') throw new Error('승인된 사용자만 연결할 수 있습니다.');
       // 그룹 초대를 허용하지 않은 회원은 초대장 없이 외부 멤버로 추가(이미 친구여도 동일)
-      if (prof.allow_group_invite !== false) {
+      if (prof.allow_group_invite === false) extUsername = prof.username;
+      else {
         const exists = unwrap(await supabase.from('group_members').select('id').eq('group_id', groupId).eq('user_id', prof.id).maybeSingle());
         if (exists) throw new Error('이미 멤버로 추가된 계정입니다.');
         user_id = prof.id;
@@ -607,6 +612,7 @@ export const db = {
       contact: (contact || '').trim() || null,
       // 아이디를 연결한 초대는 받은 사람이 수락해야 실제 멤버가 됨(알림에서 수락/거절).
       status: user_id ? 'pending' : 'active',
+      ...(!user_id && extUsername ? { external_username: extUsername } : {}),
     }).select('id').single());
     if (memo && memo.trim()) {
       unwrap(await supabase.from('group_member_notes').insert({ member_id: row.id, group_id: groupId, memo: memo.trim() }));
