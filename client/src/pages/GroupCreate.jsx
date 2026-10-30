@@ -40,6 +40,7 @@ export default function GroupCreate() {
   // 스텝 3: 멤버 추가
   const [friendQuery, setFriendQuery] = useState('');
   const chipsRef = useRef(null);
+  const bodyRef = useRef(null); // 단계 본문 스크롤 영역
   const [selectedFriendIds, setSelectedFriendIds] = useState([]);
   const [customMembers, setCustomMembers] = useState([]); // [{ nickname, username, memo }] — 회원 탭(username 있음)/비회원 탭(외부 멤버)
   // 멤버 추가 탭: 친구 목록 | 회원 | 비회원 — 세 탭에서 고른 멤버가 한 목록(selectedChips)으로 합쳐진다
@@ -68,6 +69,12 @@ export default function GroupCreate() {
     db.listFriends().then(setFriends).catch(() => {});
     db.listFriendGroups().then(setFriendGroups).catch(() => {});
   }, []);
+
+  // 단계가 바뀌면 이전 단계의 스크롤 위치를 이어받지 않도록 맨 위로
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [step]);
 
   const step1Invalid = !name.trim() || !category;
   const nextDisabled = step === 1 && step1Invalid;
@@ -211,7 +218,7 @@ export default function GroupCreate() {
         })}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 6px 24px', margin: '0 -6px' }}>
+      <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 6px 24px', margin: '0 -6px' }}>
         {step === 1 && (
           <div>
             <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', padding: '24px 20px 22px', marginBottom: 18 }}>
