@@ -99,9 +99,8 @@ export default function MemberDetail() {
         <div className="divider" />
         <div className="col"><div className="lbl">다음 입금일</div><div className="val">{nextDue ? dotDate(nextDue) : '-'}</div></div>
       </div>
-      {(member.contact || (isOwner && member.memo)) && (
+      {isOwner && member.memo && (
         <div className="small muted" style={{ margin: '10px 4px 0' }}>
-          {member.contact && <div>📞 {member.contact}</div>}
           {isOwner && member.memo && <div style={{ marginTop: 2 }}>📝 {member.memo}</div>}
         </div>
       )}
@@ -165,7 +164,6 @@ export default function MemberDetail() {
             <input type="date" value={editor.next_due_override} onChange={(e) => setEditor({ ...editor, next_due_override: e.target.value })} />
             <p className="small muted" style={{ margin: '4px 2px 0' }}>자동 계산: {autoNext || '-'}</p>
           </div>
-          <div className="field"><label>연락처</label><input value={editor.contact} onChange={(e) => setEditor({ ...editor, contact: e.target.value })} /></div>
           <div className="field"><label>메모 <span className="small muted">(총무만 열람)</span></label>
             <textarea value={editor.memo} onChange={(e) => setEditor({ ...editor, memo: e.target.value })} />
           </div>

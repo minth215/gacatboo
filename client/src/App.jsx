@@ -28,6 +28,8 @@ import SettingsStyle from './pages/SettingsStyle.jsx';
 import SettingsCustomize from './pages/SettingsCustomize.jsx';
 import FriendAdd from './pages/FriendAdd.jsx';
 import FriendEdit from './pages/FriendEdit.jsx';
+import GroupMemberAdd from './pages/GroupMemberAdd.jsx';
+import GroupMemberEdit from './pages/GroupMemberEdit.jsx';
 import SettingsExport from './pages/SettingsExport.jsx';
 import SettingsImport from './pages/SettingsImport.jsx';
 import Notifications from './pages/Notifications.jsx';
@@ -71,6 +73,8 @@ export default function App() {
         <Route path="/groups/:id" element={<GroupDetail />} />
         <Route path="/groups/:id/edit" element={<GroupEdit />} />
         <Route path="/groups/:id/member/:memberId" element={<MemberDetail />} />
+        <Route path="/groups/:id/members/add" element={<GroupMemberAdd />} />
+        <Route path="/groups/:id/members/:memberId/edit" element={<GroupMemberEdit />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/profile" element={<ProfileEdit />} />
         <Route path="/settings/profile/edit" element={<ProfileInfoEdit />} />

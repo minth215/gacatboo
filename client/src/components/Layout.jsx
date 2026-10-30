@@ -35,7 +35,7 @@ const HIDE_BOTTOMNAV_PREFIXES = ['/settings/profile', '/settings/categories', '/
 
 // 그룹 상세의 "그룹 정보" 수정 페이지(/groups/:id/edit)도 하단 탭바를 숨김. id가 경로 중간에
 // 오는 동적 라우트라 접두사만으로는 매칭할 수 없어 별도로 검사한다.
-const isGroupEditPath = (pathname) => /^\/groups\/[^/]+\/edit$/.test(pathname);
+const isGroupEditPath = (pathname) => /^\/groups\/[^/]+\/(edit|members\/.+)$/.test(pathname);
 
 export default function Layout() {
   const { user, logout } = useAuth();
