@@ -88,6 +88,15 @@ export default function GroupCreate() {
     db.listFriendGroups().then(setFriendGroups).catch(() => {});
   }, []);
 
+  // 위로 당겼을 때(오버스크롤) 고정된 스텝 바가 같이 끌려 내려오지 않도록 이 화면에서는 바운스 끔
+  useEffect(() => {
+    const el = document.documentElement;
+    const prev = el.style.overscrollBehaviorY;
+    el.style.overscrollBehaviorY = 'none';
+    document.body.style.overscrollBehaviorY = 'none';
+    return () => { el.style.overscrollBehaviorY = prev; document.body.style.overscrollBehaviorY = ''; };
+  }, []);
+
   // 단계가 바뀌면 이전 단계의 스크롤 위치를 이어받지 않도록 맨 위로
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -222,7 +231,8 @@ export default function GroupCreate() {
       )} />
 
       {/* 스텝 표시(+ 멤버 추가 단계의 선택 목록·탭·검색창): 스크롤해도 상단바 아래에 고정 */}
-      <div style={{ position: 'sticky', top: 44, zIndex: 20, background: 'var(--bg)', margin: '0 -16px', padding: '14px 16px 14px' }}>
+      {/* 처음 자리(페이지 위 여백 44 + 컨테이너 16 - 4 = 56)와 고정 자리(top 56, 상단바 바로 아래)를 같게 해서 스크롤해도 움직이지 않음 */}
+      <div style={{ position: 'sticky', top: 56, zIndex: 20, background: 'var(--bg)', margin: '-4px -16px 0', padding: '6px 16px 14px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
         {STEP_LABELS.map((label, i) => {
           const num = i + 1;
