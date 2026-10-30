@@ -13,6 +13,25 @@ const fieldStyle = {
   border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 14, padding: '14px 16px', outline: 'none', width: '100%', boxSizing: 'border-box',
 };
 
+// 초대장 토글 버튼: 켜짐 = 검은 원 + 흰 편지지, 꺼짐 = 회색 원 + 원 끝까지 닿는 빗금
+function InviteButton({ on, onClick }) {
+  return (
+    <button
+      type="button" aria-label={on ? '초대함' : '초대 안 함'} aria-pressed={on} onClick={onClick}
+      style={{ position: 'relative', overflow: 'hidden', width: 30, height: 30, borderRadius: '50%', border: 'none', background: on ? 'var(--k-bg-191722)' : 'var(--k-bg-f4f2f0)', color: on ? 'var(--k-onink-fff)' : 'var(--k-tx-b6b2c0)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none', padding: 0 }}
+    >
+      <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="5" width="18" height="14" rx="2" /><polyline points="3 7 12 13 21 7" />
+      </svg>
+      {!on && (
+        <svg width="30" height="30" viewBox="0 0 30 30" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <line x1="0" y1="30" x2="30" y2="0" stroke="currentColor" strokeWidth="1.6" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 export default function GroupCreate() {
   const { user } = useAuth();
   const nav = useNavigate();
@@ -42,7 +61,8 @@ export default function GroupCreate() {
   const chipsRef = useRef(null);
   const bodyRef = useRef(null); // 단계 본문 스크롤 영역
   const [selectedFriendIds, setSelectedFriendIds] = useState([]);
-  const [customMembers, setCustomMembers] = useState([]); // [{ nickname, username, memo }] — 회원 탭(username 있음)/비회원 탭(외부 멤버)
+  const [customMembers, setCustomMembers] = useState([]); // [{ nickname, username, memo, invite, blocked }] — 회원 탭(username 있음)/비회원 탭(외부 멤버)
+  const [confirmOpen, setConfirmOpen] = useState(false); // 만들기 전 초대장 발송 확인 모달
   // 멤버 추가 탭: 친구 목록 | 회원 | 비회원 — 세 탭에서 고른 멤버가 한 목록(selectedChips)으로 합쳐진다
   const [memberTab, setMemberTab] = useState('friends');
   // 친구 목록의 회원 친구별 초대 여부(기본 초대). 끄면 초대장 없이 외부 멤버로 추가.
@@ -88,6 +108,36 @@ export default function GroupCreate() {
     db.listFriendGroups().then(setFriendGroups).catch(() => {});
   }, []);
 
+  // 스텝 바는 항상 고정: 이 화면에서는 문서(페이지) 자체의 바운스를 끄고, 본문 스크롤 영역만
+  // 내용이 넘칠 때(실제로 스크롤될 때) 그 안에서 바운스되게 한다.
+  useEffect(() => {
+    const el = document.documentElement;
+    const prevHtml = el.style.overscrollBehaviorY;
+    const prevBody = document.body.style.overscrollBehaviorY;
+    el.style.overscrollBehaviorY = 'none';
+    document.body.style.overscrollBehaviorY = 'none';
+    return () => { el.style.overscrollBehaviorY = prevHtml; document.body.style.overscrollBehaviorY = prevBody; };
+  }, []);
+
+  // 본문이 화면 안에 다 들어오면 스크롤(=바운스) 자체를 끔. 작은 화면 등 넘칠 때만 스크롤.
+  const [bodyScrollable, setBodyScrollable] = useState(true);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const check = () => {
+      const inner = el.firstElementChild;
+      const contentH = inner ? inner.getBoundingClientRect().height : el.scrollHeight;
+      const cs = getComputedStyle(el);
+      const avail = el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      setBodyScrollable(contentH > avail + 1);
+    };
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    check();
+    return () => ro.disconnect();
+  }, [step]);
+
   // 단계가 바뀌면 이전 단계의 스크롤 위치를 이어받지 않도록 맨 위로
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -109,6 +159,21 @@ export default function GroupCreate() {
     if (inviteBlockedIds.includes(f.id)) { showToast(`${f.nickname} 님은 그룹 초대 비허용 상태입니다`); return; }
     setNoInviteFriendIds((ids) => (ids.includes(f.id) ? ids.filter((x) => x !== f.id) : [...ids, f.id]));
   };
+  const friendInvites = (f) => !!f?.friend_user_id && !noInviteFriendIds.includes(f.id) && !inviteBlockedIds.includes(f.id);
+  // 회원 탭으로 추가한 멤버의 초대 토글
+  const toggleCustomInvite = (idx) => {
+    const m = customMembers[idx];
+    if (!m?.username) return;
+    if (m.blocked) { showToast(`${m.nickname} 님은 그룹 초대 비허용 상태입니다`); return; }
+    setCustomMembers((ms) => ms.map((x, i) => (i === idx ? { ...x, invite: !x.invite } : x)));
+  };
+  // 초대장을 받을 멤버(확인 모달·알약 색에 사용)
+  const invitees = [
+    ...selectedFriendIds.map((id) => friends.find((f) => f.id === id)).filter((f) => f?.friend_user_id && !inviteBlockedIds.includes(f.id))
+      .map((f) => ({ key: `f${f.id}`, nickname: f.nickname, on: friendInvites(f), toggle: () => toggleInvite(f) })),
+    ...customMembers.map((m, idx) => ({ m, idx })).filter(({ m }) => m.username && !m.blocked)
+      .map(({ m, idx }) => ({ key: `c${idx}`, nickname: m.nickname, on: !!m.invite, toggle: () => toggleCustomInvite(idx) })),
+  ];
 
   const searchMember = async (e) => {
     e?.preventDefault();
@@ -127,13 +192,15 @@ export default function GroupCreate() {
   const addFoundMember = () => {
     const nn = memberNickname.trim();
     if (!memberFound || !nn) return;
-    setCustomMembers((ms) => [...ms, { nickname: nn, username: memberFound.username, memo: '' }]);
+    const blocked = memberFound.allow_group_invite === false;
+    if (blocked) showToast(`${nn} 님은 그룹 초대 비허용 상태입니다`);
+    setCustomMembers((ms) => [...ms, { nickname: nn, username: memberFound.username, memo: '', invite: !blocked, blocked }]);
     setMemberQuery(''); setMemberFound(undefined); setMemberNickname('');
   };
   const addGuest = () => {
     const nn = guestName.trim();
     if (!nn) return;
-    setCustomMembers((ms) => [...ms, { nickname: nn, username: '', memo: guestMemo.trim() }]);
+    setCustomMembers((ms) => [...ms, { nickname: nn, username: '', memo: guestMemo.trim(), invite: false, blocked: false }]);
     setGuestName(''); setGuestMemo('');
   };
 
@@ -155,13 +222,14 @@ export default function GroupCreate() {
         if (!f) continue;
         try {
           // 초대 토글을 끈 회원 친구는 아이디 없이(외부 멤버로) 추가
-          const invite = f.friend_user_id && !noInviteFriendIds.includes(f.id) && !inviteBlockedIds.includes(f.id);
+          const invite = friendInvites(f);
           await db.addMember(g.id, { nickname: f.nickname, username: invite ? (f.friend?.username || '') : '', start_date: startDate, end_date: '', contact: '', memo: '' });
         } catch (e) { memberErrors.push(`${f.nickname}: ${e.message}`); }
       }
       for (const cm of customMembers) {
         try {
-          await db.addMember(g.id, { nickname: cm.nickname, username: cm.username || '', start_date: startDate, end_date: '', contact: '', memo: cm.memo || '' });
+          // 초대를 끈 회원은 아이디 없이(외부 멤버로)
+          await db.addMember(g.id, { nickname: cm.nickname, username: cm.username && cm.invite ? cm.username : '', start_date: startDate, end_date: '', contact: '', memo: cm.memo || '' });
         } catch (e) { memberErrors.push(`${cm.nickname}: ${e.message}`); }
       }
       if (memberErrors.length) alert('일부 멤버를 추가하지 못했습니다.\n' + memberErrors.join('\n'));
@@ -176,6 +244,8 @@ export default function GroupCreate() {
   const goNext = () => {
     if (nextDisabled) return;
     if (step < 3) { setStep(step + 1); return; }
+    // 초대장을 보낼 멤버가 있으면 한 번 더 확인
+    if (invitees.some((x) => x.on)) { setConfirmOpen(true); return; }
     submit();
   };
 
@@ -196,8 +266,11 @@ export default function GroupCreate() {
     return list;
   })();
   const selectedChips = [
-    ...selectedFriendIds.map((id) => ({ key: `f${id}`, name: friends.find((f) => f.id === id)?.nickname || '', onRemove: () => removeFriend(id) })),
-    ...customMembers.map((m, idx) => ({ key: `c${idx}`, name: m.nickname, onRemove: () => removeCustom(idx) })),
+    ...selectedFriendIds.map((id) => {
+      const f = friends.find((x) => x.id === id);
+      return { key: `f${id}`, name: f?.nickname || '', invite: friendInvites(f), onRemove: () => removeFriend(id) };
+    }),
+    ...customMembers.map((m, idx) => ({ key: `c${idx}`, name: m.nickname, invite: !!(m.username && m.invite), onRemove: () => removeCustom(idx) })),
   ];
 
   // 멤버를 새로 추가하면 선택 목록을 오른쪽 끝(방금 추가한 멤버)으로 스크롤
@@ -256,7 +329,8 @@ export default function GroupCreate() {
             // 선택한 멤버는 한 줄로 고정하고 좌우로 스크롤(새로 추가하면 끝으로 자동 스크롤)
             <div ref={chipsRef} className="hscroll-chips" style={{ display: 'flex', flexWrap: 'nowrap', gap: 7, marginBottom: 14, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
               {selectedChips.map((chip) => (
-                <span key={chip.key} style={{ flex: 'none', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 8px 7px 12px', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, fontSize: 12, fontWeight: 700, color: 'var(--k-tx-191722)' }}>
+                // 초대장을 받는 멤버는 옅은 코랄 핑크→주황 그라데이션
+                <span key={chip.key} style={{ flex: 'none', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 8px 7px 12px', background: chip.invite ? 'linear-gradient(90deg, #FDE2E8, #FFE9D6)' : 'var(--k-bg-f4f2f0)', borderRadius: 999, fontSize: 12, fontWeight: 700, color: 'var(--k-tx-191722)' }}>
                   {chip.name}
                   <button aria-label="제거" onClick={chip.onRemove} style={{ width: 17, height: 17, borderRadius: '50%', border: 'none', background: 'rgba(25,23,34,.08)', color: 'var(--k-tx-6c6779)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flex: 'none' }}>
                     <svg width="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
@@ -301,7 +375,7 @@ export default function GroupCreate() {
           )}
       </div>
 
-      <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehaviorY: 'contain', WebkitOverflowScrolling: 'touch', margin: '0 -16px', padding: '6px 16px 16px' }}>
+      <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: bodyScrollable ? 'auto' : 'hidden', overscrollBehaviorY: 'contain', WebkitOverflowScrolling: 'touch', margin: '0 -16px', padding: '6px 16px 16px' }}>
         {step === 1 && (
           <div>
             <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', padding: '24px 20px 22px', marginBottom: 18 }}>
@@ -463,21 +537,10 @@ export default function GroupCreate() {
                         <span style={{ flex: 'none', fontSize: 11.5, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>@{f.friend.username}</span>
                       )}
                     </div>
-                    {f.friend_user_id && (() => {
-                      // 초대 여부 토글(편지지 아이콘): 켜짐 = 그룹 초대장 전송, 꺼짐 = 외부 멤버로 추가
-                      const invite = !noInviteFriendIds.includes(f.id) && !inviteBlockedIds.includes(f.id);
-                      return (
-                        <button
-                          aria-label={invite ? '초대함' : '초대 안 함'} aria-pressed={invite} onClick={() => toggleInvite(f)}
-                          style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: invite ? '#FFF1DC' : 'var(--k-bg-f4f2f0)', color: invite ? '#FF8A00' : 'var(--k-tx-b6b2c0)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none', padding: 0 }}
-                        >
-                          <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="5" width="18" height="14" rx="2" /><polyline points="3 7 12 13 21 7" />
-                            {!invite && <line x1="4" y1="20" x2="20" y2="4" />}
-                          </svg>
-                        </button>
-                      );
-                    })()}
+                    {f.friend_user_id && (
+                      // 초대 여부 토글: 켜짐 = 그룹 초대장 전송, 꺼짐 = 외부 멤버로 추가
+                      <InviteButton on={friendInvites(f)} onClick={() => toggleInvite(f)} />
+                    )}
                     <button
                       aria-label={selected ? '추가됨' : '추가'} onClick={() => toggleFriend(f.id)}
                       style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: selected ? '#d9f1ec' : 'var(--k-bg-f4f2f0)', color: selected ? '#2e9e85' : 'var(--k-tx-8b8798)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none', padding: 0 }}
@@ -551,6 +614,25 @@ export default function GroupCreate() {
       </div>
 
       {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
+      {confirmOpen && (
+        // 헤더 없는 확인 모달: 초대장 받을 멤버 목록(여기서도 초대 해제 가능)
+        <div className="catmodal-overlay" onClick={() => setConfirmOpen(false)}>
+          <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--k-tx-191722)', textAlign: 'center', padding: '6px 0 2px' }}>다음 멤버에게 초대장이 발송됩니다.</div>
+            <div style={{ background: 'var(--k-bg-faf9f8)', borderRadius: 14, maxHeight: '45vh', overflowY: 'auto' }}>
+              {invitees.map((x, i) => (
+                <div key={x.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px 10px 16px', borderTop: i === 0 ? 'none' : '1px solid var(--k-divider)' }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13.25, fontWeight: 600, color: x.on ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.nickname}</span>
+                  <InviteButton on={x.on} onClick={x.toggle} />
+                </div>
+              ))}
+            </div>
+            <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 46, fontSize: 14 }} disabled={busy} onClick={() => { setConfirmOpen(false); submit(); }}>
+              {busy ? '만드는 중…' : '만들기'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
