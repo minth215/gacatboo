@@ -60,7 +60,7 @@ export default function GroupMemberAdd() {
       ) : (
         <>
           {/* 선택 목록·탭·검색창: 스크롤 영역 밖이라 움직이지 않음 */}
-          <div style={{ flex: 'none', margin: '-4px -16px 0', padding: '18px 16px 14px' }}>{picker.header}</div>
+          <div style={{ flex: 'none', margin: '-4px -16px 0', padding: '8px 16px 14px' }}>{picker.header}</div>
           <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: bodyScrollable ? 'auto' : 'hidden', overscrollBehaviorY: 'contain', WebkitOverflowScrolling: 'touch', margin: '0 -16px', padding: '6px 16px 16px' }}>
             {picker.body}
           </div>
