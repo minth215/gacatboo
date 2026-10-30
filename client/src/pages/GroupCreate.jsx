@@ -81,7 +81,6 @@ export default function GroupCreate() {
   const nextDisabled = step === 1 && step1Invalid;
 
   const onBack = () => { if (step > 1) setStep(step - 1); else nav('/groups'); };
-  const goPrev = () => setStep((s) => Math.max(1, s - 1));
 
   const toggleFriend = (id) => {
     setSelectedFriendIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
@@ -191,10 +190,19 @@ export default function GroupCreate() {
 
   return (
     <div style={{ padding: '44px 0 12px', minHeight: 'calc(100vh - 44px)', display: 'flex', flexDirection: 'column' }}>
-      <PageHeader title="그룹 만들기" flat onBack={onBack} />
+      <PageHeader title="그룹 만들기" flat onBack={onBack} right={(
+        // 단계 이동은 상단바 오른쪽 버튼(이전 단계는 "<")
+        <button
+          type="button" onClick={goNext} disabled={nextDisabled || busy}
+          style={{ height: 32, padding: '0 14px', fontFamily: 'inherit', border: 'none', borderRadius: 999, background: (nextDisabled || busy) ? 'var(--k-bg-f0eef1)' : 'var(--k-bg-191722)', color: (nextDisabled || busy) ? 'var(--k-tx-b6b2c0)' : 'var(--k-onink-fff)', fontSize: 13, fontWeight: 700, cursor: (nextDisabled || busy) ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+        >
+          {busy ? '만드는 중…' : step < 3 ? '다음' : '만들기'}
+        </button>
+      )} />
 
-      {/* 스텝 표시 */}
-      <div style={{ flex: 'none', padding: '14px 0 20px', display: 'flex', alignItems: 'flex-start' }}>
+      {/* 스텝 표시(+ 멤버 추가 단계의 선택 목록·탭·검색창): 스크롤해도 상단바 아래에 고정 */}
+      <div style={{ position: 'sticky', top: 44, zIndex: 20, background: 'var(--bg)', margin: '0 -16px', padding: '14px 16px 14px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
         {STEP_LABELS.map((label, i) => {
           const num = i + 1;
           const done = step > num;
@@ -218,8 +226,58 @@ export default function GroupCreate() {
           );
         })}
       </div>
+          {step === 3 && (
+            <div style={{ marginTop: 18 }}>
+          {selectedChips.length > 0 && (
+            // 선택한 멤버는 한 줄로 고정하고 좌우로 스크롤(새로 추가하면 끝으로 자동 스크롤)
+            <div ref={chipsRef} className="hscroll-chips" style={{ display: 'flex', flexWrap: 'nowrap', gap: 7, marginBottom: 14, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              {selectedChips.map((chip) => (
+                <span key={chip.key} style={{ flex: 'none', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 8px 7px 12px', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, fontSize: 12, fontWeight: 700, color: 'var(--k-tx-191722)' }}>
+                  {chip.name}
+                  <button aria-label="제거" onClick={chip.onRemove} style={{ width: 17, height: 17, borderRadius: '50%', border: 'none', background: 'rgba(25,23,34,.08)', color: 'var(--k-tx-6c6779)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flex: 'none' }}>
+                    <svg width="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
 
-      <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 6px 24px', margin: '0 -6px' }}>
+          <div style={{ display: 'flex', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: 4, marginBottom: 14 }}>
+            {[['friends', '친구 목록'], ['member', '회원'], ['guest', '비회원']].map(([t, label]) => (
+              <button key={t} type="button" onClick={() => setMemberTab(t)} style={{
+                flex: 1, border: 'none', borderRadius: 999, padding: '10px 0', fontFamily: 'inherit',
+                fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                background: memberTab === t ? 'var(--k-bg-fff)' : 'transparent', color: memberTab === t ? 'var(--k-tx-191722)' : 'var(--k-tx-8b8798)',
+              }}>{label}</button>
+            ))}
+          </div>
+              {memberTab === 'friends' && (
+            <div style={{ position: 'relative' }}>
+              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 15, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+              <input
+                type="text" placeholder="친구 닉네임 검색" value={friendQuery} onChange={(e) => setFriendQuery(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 999, padding: '12px 16px 12px 40px', outline: 'none' }}
+              />
+            </div>
+              )}
+              {/* 회원 탭: 친구 추가 페이지의 회원 검색과 같은 방식(엔터/검색 버튼으로 검색, 아이디 정확히 일치) */}
+              {memberTab === 'member' && (
+              <form onSubmit={searchMember} style={{ position: 'relative', marginBottom: 2 }}>
+                <button type="submit" aria-label="검색" style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 32, height: 32, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="15" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                </button>
+                <input
+                  type="search" enterKeyHint="search" className="plain-search" placeholder="가캣부 아이디 검색" value={memberQuery}
+                  onChange={(e) => { const v = e.target.value.replace(/\s/g, ''); setMemberQuery(v); if (!v) setMemberFound(undefined); }}
+                  style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 999, padding: '12px 16px 12px 40px', outline: 'none', WebkitAppearance: 'none', appearance: 'none' }}
+                />
+              </form>
+              )}
+            </div>
+          )}
+      </div>
+
+      <div ref={bodyRef} style={{ flex: 1, padding: '6px 0 24px' }}>
         {step === 1 && (
           <div>
             <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', padding: '24px 20px 22px', marginBottom: 18 }}>
@@ -361,39 +419,7 @@ export default function GroupCreate() {
 
         {step === 3 && (
           <div>
-            {selectedChips.length > 0 && (
-              // 선택한 멤버는 한 줄로 고정하고 좌우로 스크롤(새로 추가하면 끝으로 자동 스크롤)
-              <div ref={chipsRef} className="hscroll-chips" style={{ display: 'flex', flexWrap: 'nowrap', gap: 7, marginBottom: 14, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                {selectedChips.map((chip) => (
-                  <span key={chip.key} style={{ flex: 'none', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 8px 7px 12px', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, fontSize: 12, fontWeight: 700, color: 'var(--k-tx-191722)' }}>
-                    {chip.name}
-                    <button aria-label="제거" onClick={chip.onRemove} style={{ width: 17, height: 17, borderRadius: '50%', border: 'none', background: 'rgba(25,23,34,.08)', color: 'var(--k-tx-6c6779)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flex: 'none' }}>
-                      <svg width="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: 4, marginBottom: 14 }}>
-              {[['friends', '친구 목록'], ['member', '회원'], ['guest', '비회원']].map(([t, label]) => (
-                <button key={t} type="button" onClick={() => setMemberTab(t)} style={{
-                  flex: 1, border: 'none', borderRadius: 999, padding: '10px 0', fontFamily: 'inherit',
-                  fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                  background: memberTab === t ? 'var(--k-bg-fff)' : 'transparent', color: memberTab === t ? 'var(--k-tx-191722)' : 'var(--k-tx-8b8798)',
-                }}>{label}</button>
-              ))}
-            </div>
-
             {memberTab === 'friends' && (<>
-            <div style={{ position: 'relative', marginBottom: 14 }}>
-              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 15, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-              <input
-                type="text" placeholder="친구 닉네임 검색" value={friendQuery} onChange={(e) => setFriendQuery(e.target.value)}
-                style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 999, padding: '12px 16px 12px 40px', outline: 'none' }}
-              />
-            </div>
-
             {friendSections.length === 0 ? (
               <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', marginBottom: 16, padding: '20px 14px', textAlign: 'center', fontSize: 12.5, color: 'var(--k-tx-a29ead)' }}>
                 {friends.length ? '검색 결과가 없어요' : '등록된 친구가 없어요'}
@@ -450,17 +476,6 @@ export default function GroupCreate() {
 
             {memberTab === 'member' && (
               <>
-                {/* 친구 추가 페이지의 회원 검색과 같은 방식(엔터/검색 버튼으로 검색, 아이디 정확히 일치) */}
-                <form onSubmit={searchMember} style={{ position: 'relative' }}>
-                  <button type="submit" aria-label="검색" style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 32, height: 32, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="15" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                  </button>
-                  <input
-                    type="search" enterKeyHint="search" className="plain-search" placeholder="가캣부 아이디 검색" value={memberQuery}
-                    onChange={(e) => { const v = e.target.value.replace(/\s/g, ''); setMemberQuery(v); if (!v) setMemberFound(undefined); }}
-                    style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 999, padding: '12px 16px 12px 40px', outline: 'none', WebkitAppearance: 'none', appearance: 'none' }}
-                  />
-                </form>
                 {memberFound === null ? (
                   <div style={{ padding: '60px 0', textAlign: 'center', whiteSpace: 'pre-line', lineHeight: 1.6, fontSize: 13, color: 'var(--k-tx-a29ead)' }}>
                     {'일치하는 회원이 존재하지 않습니다.\n비회원 탭에서 추가해 주세요.'}
@@ -510,20 +525,6 @@ export default function GroupCreate() {
         )}
 
         {error && <p className="error" style={{ marginTop: 14 }}>{error}</p>}
-      </div>
-
-      <div style={{ flex: 'none', padding: '14px 0 22px', display: 'flex', gap: 10 }}>
-        {step > 1 && (
-          <button type="button" onClick={goPrev} disabled={busy} style={{ flex: 'none', fontFamily: 'inherit', height: 52, padding: '0 20px', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 999, background: 'var(--k-bg-fff)', color: 'var(--k-tx-6c6779)', fontSize: 14, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>
-            이전
-          </button>
-        )}
-        <button
-          type="button" onClick={goNext} disabled={nextDisabled || busy}
-          style={{ flex: 1, fontFamily: 'inherit', height: 52, border: 'none', borderRadius: 999, background: (nextDisabled || busy) ? 'var(--k-bg-f0eef1)' : 'var(--k-bg-191722)', color: (nextDisabled || busy) ? 'var(--k-tx-b6b2c0)' : 'var(--k-onink-fff)', fontSize: 14.5, fontWeight: 700, cursor: (nextDisabled || busy) ? 'not-allowed' : 'pointer' }}
-        >
-          {busy ? '만드는 중…' : step < 3 ? '다음' : '만들기'}
-        </button>
       </div>
 
     </div>
