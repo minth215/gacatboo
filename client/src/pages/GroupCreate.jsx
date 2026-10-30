@@ -63,7 +63,8 @@ export default function GroupCreate() {
     }).catch(() => {});
     db.listSources().then((s) => {
       setSources(s);
-      const primary = s.flat.find((x) => x.is_primary_deposit);
+      // 주입금수단이 세부 항목을 가진 원천 그룹이면(그룹 자체는 선택 불가) 기본값으로 쓰지 않음
+      const primary = s.flat.find((x) => x.is_primary_deposit && !s.tree.find((t) => t.id === x.id)?.children?.length);
       if (primary) setDepositSourceId(String(primary.id));
     }).catch(() => {});
     db.listFriends().then(setFriends).catch(() => {});
@@ -339,7 +340,12 @@ export default function GroupCreate() {
                   );
                   return (
                     <div key={top.id} style={{ borderTop: gi === 0 ? 'none' : '1.5px solid var(--k-divider)' }}>
-                      <SourceRow src={top} selected={topSelected} indent={0} />
+                      {top.children?.length ? (
+                        // 세부 항목이 있는 원천 그룹은 기록 페이지 원천 셀렉트처럼 선택 불가(제목만)
+                        <div style={{ padding: '13px 16px', fontSize: 13.25, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{top.name}</div>
+                      ) : (
+                        <SourceRow src={top} selected={topSelected} indent={0} />
+                      )}
                       {top.children?.map((c) => (
                         <div key={c.id} style={{ borderTop: '1.5px solid var(--k-divider)' }}>
                           <SourceRow src={c} selected={String(depositSourceId) === String(c.id)} indent={16} />
