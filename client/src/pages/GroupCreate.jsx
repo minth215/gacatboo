@@ -47,6 +47,16 @@ export default function GroupCreate() {
   const [memberTab, setMemberTab] = useState('friends');
   // 친구 목록의 회원 친구별 초대 여부(기본 초대). 끄면 초대장 없이 외부 멤버로 추가.
   const [noInviteFriendIds, setNoInviteFriendIds] = useState([]);
+  // 그룹 초대를 허용하지 않은 회원 친구(초대 토글을 켤 수 없음)
+  const [inviteBlockedIds, setInviteBlockedIds] = useState([]);
+  const [toast, setToast] = useState('');
+  const [toastKey, setToastKey] = useState(0);
+  const toastTimer = useRef(null);
+  const showToast = (msg) => {
+    setToast(msg); setToastKey((k) => k + 1);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(''), 2200);
+  };
   // 회원 탭: 아이디 검색(엔터/검색 버튼)
   const [memberQuery, setMemberQuery] = useState('');
   const [memberFound, setMemberFound] = useState(undefined); // undefined(검색 전) | null(없음) | profile
@@ -67,7 +77,14 @@ export default function GroupCreate() {
       const primary = s.flat.find((x) => x.is_primary_deposit && !s.tree.find((t) => t.id === x.id)?.children?.length);
       if (primary) setDepositSourceId(String(primary.id));
     }).catch(() => {});
-    db.listFriends().then(setFriends).catch(() => {});
+    db.listFriends().then((fs) => {
+      setFriends(fs);
+      const ids = [...new Set(fs.map((f) => f.friend_user_id).filter(Boolean))];
+      db.listProfilesByIds(ids).then((ps) => {
+        const blocked = new Set(ps.filter((p) => p.allow_group_invite === false).map((p) => p.id));
+        setInviteBlockedIds(fs.filter((f) => blocked.has(f.friend_user_id)).map((f) => f.id));
+      }).catch(() => {});
+    }).catch(() => {});
     db.listFriendGroups().then(setFriendGroups).catch(() => {});
   }, []);
 
@@ -88,7 +105,10 @@ export default function GroupCreate() {
   const removeFriend = (id) => setSelectedFriendIds((ids) => ids.filter((x) => x !== id));
   const removeCustom = (idx) => setCustomMembers((ms) => ms.filter((_, i) => i !== idx));
 
-  const toggleInvite = (id) => setNoInviteFriendIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  const toggleInvite = (f) => {
+    if (inviteBlockedIds.includes(f.id)) { showToast(`${f.nickname} 님은 그룹 초대 비허용 상태입니다`); return; }
+    setNoInviteFriendIds((ids) => (ids.includes(f.id) ? ids.filter((x) => x !== f.id) : [...ids, f.id]));
+  };
 
   const searchMember = async (e) => {
     e?.preventDefault();
@@ -135,7 +155,7 @@ export default function GroupCreate() {
         if (!f) continue;
         try {
           // 초대 토글을 끈 회원 친구는 아이디 없이(외부 멤버로) 추가
-          const invite = f.friend_user_id && !noInviteFriendIds.includes(f.id);
+          const invite = f.friend_user_id && !noInviteFriendIds.includes(f.id) && !inviteBlockedIds.includes(f.id);
           await db.addMember(g.id, { nickname: f.nickname, username: invite ? (f.friend?.username || '') : '', start_date: startDate, end_date: '', contact: '', memo: '' });
         } catch (e) { memberErrors.push(`${f.nickname}: ${e.message}`); }
       }
@@ -442,10 +462,10 @@ export default function GroupCreate() {
                     </div>
                     {f.friend_user_id && (() => {
                       // 초대 여부 토글(편지지 아이콘): 켜짐 = 그룹 초대장 전송, 꺼짐 = 외부 멤버로 추가
-                      const invite = !noInviteFriendIds.includes(f.id);
+                      const invite = !noInviteFriendIds.includes(f.id) && !inviteBlockedIds.includes(f.id);
                       return (
                         <button
-                          aria-label={invite ? '초대함' : '초대 안 함'} aria-pressed={invite} onClick={() => toggleInvite(f.id)}
+                          aria-label={invite ? '초대함' : '초대 안 함'} aria-pressed={invite} onClick={() => toggleInvite(f)}
                           style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: invite ? '#FFF1DC' : 'var(--k-bg-f4f2f0)', color: invite ? '#FF8A00' : 'var(--k-tx-b6b2c0)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flex: 'none', padding: 0 }}
                         >
                           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
@@ -527,6 +547,7 @@ export default function GroupCreate() {
         {error && <p className="error" style={{ marginTop: 14 }}>{error}</p>}
       </div>
 
+      {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
     </div>
   );
 }

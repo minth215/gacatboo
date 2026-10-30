@@ -972,6 +972,11 @@ export const db = {
     if (prof.status !== 'approved') throw new Error('승인된 사용자만 등록할 수 있습니다.');
     return prof;
   },
+  // 회원 친구들의 공개 설정(그룹 초대 허용 등) 조회. select('*'): 0073 이전 DB에서도 동작하도록
+  async listProfilesByIds(ids) {
+    if (!ids?.length) return [];
+    return unwrap(await supabase.from('profiles').select('*').in('id', ids));
+  },
   async addFriend(userId, { friendUserId = null, nickname, groupId = null, memo = '' }) {
     if (friendUserId === userId) throw new Error('자기 자신은 친구로 등록할 수 없습니다.');
     if (friendUserId) {

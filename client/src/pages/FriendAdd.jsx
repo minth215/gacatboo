@@ -143,7 +143,8 @@ export default function FriendAdd() {
           </form>
 
           {found === null ? (
-            <div className="empty empty-center" style={{ whiteSpace: 'pre-line', lineHeight: 1.6 }}>
+            // 탭·검색창 아래 남은 높이 안에서 가운데(페이지에 스크롤이 생기지 않게)
+            <div className="empty" style={{ whiteSpace: 'pre-line', lineHeight: 1.6, padding: 0, minHeight: 'calc(100vh - 280px - var(--safe-bottom))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {'일치하는 회원이 존재하지 않습니다.\n비회원 탭에서 추가해 주세요.'}
             </div>
           ) : found ? (
