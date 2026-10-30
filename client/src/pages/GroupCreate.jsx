@@ -88,15 +88,6 @@ export default function GroupCreate() {
     db.listFriendGroups().then(setFriendGroups).catch(() => {});
   }, []);
 
-  // 위로 당겼을 때(오버스크롤) 고정된 스텝 바가 같이 끌려 내려오지 않도록 이 화면에서는 바운스 끔
-  useEffect(() => {
-    const el = document.documentElement;
-    const prev = el.style.overscrollBehaviorY;
-    el.style.overscrollBehaviorY = 'none';
-    document.body.style.overscrollBehaviorY = 'none';
-    return () => { el.style.overscrollBehaviorY = prev; document.body.style.overscrollBehaviorY = ''; };
-  }, []);
-
   // 단계가 바뀌면 이전 단계의 스크롤 위치를 이어받지 않도록 맨 위로
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -218,7 +209,9 @@ export default function GroupCreate() {
   }, [selectedChips.length]);
 
   return (
-    <div style={{ padding: '44px 0 0', display: 'flex', flexDirection: 'column' }}>
+    // 페이지 자체는 화면 높이에 맞춰 스크롤하지 않고, 스텝 바 아래 본문만 스크롤(바운스도 본문 안에서만)
+    // 높이 = 화면 - 컨테이너 위아래 여백(16×2). 위 여백 44 는 고정 상단바 자리.
+    <div style={{ padding: '44px 0 0', boxSizing: 'border-box', height: 'calc(100dvh - 32px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <PageHeader title="그룹 만들기" flat onBack={onBack} right={(
         // 단계 이동은 상단바 오른쪽 버튼(이전 단계는 "<")
         <button
@@ -231,8 +224,8 @@ export default function GroupCreate() {
       )} />
 
       {/* 스텝 표시(+ 멤버 추가 단계의 선택 목록·탭·검색창): 스크롤해도 상단바 아래에 고정 */}
-      {/* 처음 자리(페이지 위 여백 44 + 컨테이너 16 - 4 = 56)와 고정 자리(top 56, 상단바 바로 아래)를 같게 해서 스크롤해도 움직이지 않음 */}
-      <div style={{ position: 'sticky', top: 56, zIndex: 20, background: 'var(--bg)', margin: '-4px -16px 0', padding: '6px 16px 14px' }}>
+      {/* 스텝 바(+ 멤버 추가 단계의 선택 목록·탭·검색창): 스크롤 영역 밖이라 움직이지 않음. 상단바 바로 아래(56px) */}
+      <div style={{ flex: 'none', margin: '-4px -16px 0', padding: '6px 16px 14px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
         {STEP_LABELS.map((label, i) => {
           const num = i + 1;
@@ -308,7 +301,7 @@ export default function GroupCreate() {
           )}
       </div>
 
-      <div ref={bodyRef} style={{ flex: 1, padding: '6px 0 8px' }}>
+      <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehaviorY: 'contain', WebkitOverflowScrolling: 'touch', margin: '0 -16px', padding: '6px 16px 16px' }}>
         {step === 1 && (
           <div>
             <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', padding: '24px 20px 22px', marginBottom: 18 }}>
