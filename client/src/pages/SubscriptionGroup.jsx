@@ -149,10 +149,12 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   // 금액 일괄 수정 모드(우측 하단 편집 버튼). 직접 입력한 금액은 고정(민트)되고, 나머지 멤버가
   // 남은 금액을 똑같이 나눠 가지며(1원 자투리는 짤짤이) 하단 "저장"으로 한 번에 저장한다.
   const [editMode, setEditMode] = useState(false);
-  const [fixedAmts, setFixedAmts] = useState({}); // memberId -> 직접 입력해 고정한 금액
+  const [editAmts, setEditAmts] = useState({}); // memberId -> 편집 중 지금 보이는 금액(고정 여부와 무관)
+  const [editLeftover, setEditLeftover] = useState(0); // 편집 중 짤짤이 금액
+  const [pinned, setPinned] = useState([]); // 직접 입력해 고정(민트)한 멤버
+  const [editDirty, setEditDirty] = useState(false); // 편집 중 바뀐 금액이 있는지
   const [focusId, setFocusId] = useState(null); // 지금 입력 중인 멤버
   const [draft, setDraft] = useState(''); // 입력 중인 글자(비어 있으면 자동 계산 금액이 placeholder)
-  const focusPrevRef = useRef(undefined); // 포커스 전에 고정돼 있던 금액(빈 채로 나가면 복원)
   const [toast, setToast] = useState('');
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -256,39 +258,32 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     return { others, share, rest };
   };
 
-  // 편집 중 고정 금액: 이미 고정한 멤버들 + 지금 입력 중인 멤버(글자가 있을 때). 입력할 때마다 바로 재계산.
-  const effectiveFixed = (() => {
-    if (!editMode) return {};
-    const f = { ...fixedAmts };
-    if (focusId != null) {
-      delete f[focusId];
-      if (draft !== '') f[focusId] = Number(draft) || 0;
-    }
-    return f;
-  })();
-  const fixedIds = Object.keys(effectiveFixed).map(Number);
-  // 고정된 금액을 뺀 나머지를 고정되지 않은 멤버 전원(총무 포함)이 내림으로 똑같이 나누고, 1원 자투리는 짤짤이.
-  const calcAuto = (fixed) => {
-    const ids = Object.keys(fixed).map(Number);
+  // 편집 중 금액 재계산은 누군가 금액을 입력할 때만: 고정(민트)된 금액을 뺀 나머지를 고정되지 않은 멤버
+  // 전원(총무 포함)이 내림으로 똑같이 나누고, 1원 자투리는 짤짤이. 고정을 푼 멤버도 이때 다시 자동 계산된다.
+  const recalc = (pinnedVals) => {
+    const ids = Object.keys(pinnedVals).map(Number);
     const others = realMembers.filter((o) => !ids.includes(o.id));
-    const pool = totalPaid - Object.values(fixed).reduce((a, b) => a + b, 0);
+    const pool = totalPaid - Object.values(pinnedVals).reduce((a, b) => a + b, 0);
     const share = others.length ? Math.max(0, Math.floor(pool / others.length)) : 0;
     const rest = others.length ? Math.max(0, pool - share * others.length) : Math.max(0, pool);
-    return { others, share, rest };
+    const amts = {};
+    realMembers.forEach((m) => { amts[m.id] = pinnedVals[m.id] != null ? pinnedVals[m.id] : share; });
+    return { amts, rest };
   };
-  // 아직 아무것도 고정하지 않았으면 저장된 금액 그대로 보여준다.
-  const auto = editMode && fixedIds.length ? calcAuto(effectiveFixed) : null;
-  const owedOf = (m) => {
-    if (!auto) return baseOwedOf(m);
-    return effectiveFixed[m.id] != null ? effectiveFixed[m.id] : auto.share;
-  };
-  const leftover = auto ? auto.rest : baseLeftover;
-  // 입력 중인 칸의 placeholder: 그 멤버를 고정에서 뺀 상태의 자동 계산 금액
-  const placeholderOf = (m) => {
-    const others = { ...effectiveFixed };
-    delete others[m.id];
-    return Object.keys(others).length ? calcAuto(others).share : baseOwedOf(m);
-  };
+  // 지금 입력 중이면(글자 있음) 그 값을 고정으로 보고 바로 재계산한 미리보기, 아니면 편집 상태 그대로.
+  const typing = editMode && focusId != null && draft !== '';
+  const live = (() => {
+    if (!editMode) return null;
+    if (!typing) return { amts: editAmts, rest: editLeftover };
+    const vals = {};
+    pinned.filter((id) => id !== focusId).forEach((id) => { vals[id] = editAmts[id]; });
+    vals[focusId] = Number(draft) || 0;
+    return recalc(vals);
+  })();
+  const owedOf = (m) => (live && live.amts[m.id] != null ? live.amts[m.id] : baseOwedOf(m));
+  const leftover = live ? live.rest : baseLeftover;
+  const auto = editMode && (editDirty || typing) ? live : null; // 편집으로 바뀐 금액이 있는지(짤짤이 표시·저장 판단)
+  const isPinned = (id) => (focusId === id ? draft !== '' : pinned.includes(id));
 
   const paidOf = (id) => deposits.filter((d) => d.member_id === id).reduce((s, d) => s + Number(d.amount), 0);
   const rows = realMembers.map((m) => {
@@ -341,20 +336,29 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const dividerIdx = sortedRows.findIndex((r) => r.role !== 'owner' && !r.sortSettled);
   const showDivider = dividerIdx !== -1;
 
-  function exitEdit() { setEditMode(false); setFixedAmts({}); setFocusId(null); setDraft(''); }
-  const startEditAll = () => { setFixedAmts({}); setFocusId(null); setDraft(''); setEditMode(true); };
-  const onAmountFocus = (m) => {
-    focusPrevRef.current = fixedAmts[m.id];
-    setFocusId(m.id); setDraft('');
+  function exitEdit() { setEditMode(false); setPinned([]); setFocusId(null); setDraft(''); setEditDirty(false); }
+  const startEditAll = () => {
+    const amts = {};
+    realMembers.forEach((m) => { amts[m.id] = baseOwedOf(m); });
+    setEditAmts(amts); setEditLeftover(baseLeftover); setPinned([]); setFocusId(null); setDraft(''); setEditDirty(false); setEditMode(true);
   };
+  // 금액 칸을 누르면 지금 금액(마지막으로 입력한 값 또는 자동 계산 값)이 placeholder 가 되고 새로 입력
+  const onAmountFocus = (m) => { setFocusId(m.id); setDraft(''); };
   const onAmountBlur = (m) => {
-    setFixedAmts((prev) => {
-      const next = { ...prev };
-      if (draft !== '') next[m.id] = Number(draft) || 0;
-      else if (focusPrevRef.current != null) next[m.id] = focusPrevRef.current; // 빈 채로 나가면 이전 고정값 복원
-      else delete next[m.id]; // 고정된 적 없으면 다시 자동 계산 금액
-      return next;
-    });
+    if (draft !== '') {
+      // 입력한 값으로 확정: 이 멤버는 고정(민트), 나머지는 재계산된 금액으로
+      const v = Number(draft) || 0;
+      const vals = {};
+      pinned.filter((id) => id !== m.id).forEach((id) => { vals[id] = editAmts[id]; });
+      vals[m.id] = v;
+      const { amts, rest } = recalc(vals);
+      setEditAmts(amts); setEditLeftover(rest);
+      setPinned((p) => [...p.filter((id) => id !== m.id), m.id]);
+      setEditDirty(true);
+    } else {
+      // 아무것도 입력하지 않고 나가면 금액은 그대로 두고 고정만 해제(먹색). 다른 멤버를 수정할 때 다시 자동 계산된다.
+      setPinned((p) => p.filter((id) => id !== m.id));
+    }
     setFocusId(null); setDraft('');
   };
   // 하단 "저장": 고정 금액 + 자동 계산 금액을 전원 한 번에 저장(자투리는 짤짤이)
@@ -363,11 +367,9 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     if (!auto) { exitEdit(); return; } // 바꾼 게 없으면 그냥 닫기
     setSaving(true);
     try {
-      const { others, share, rest } = auto;
-      await Promise.all([
-        ...Object.entries(effectiveFixed).map(([id, v]) => db.updateMemberSettlementOverride(Number(id), v)),
-        ...others.map((o) => db.updateMemberSettlementOverride(o.id, share)),
-      ]);
+      // 입력 중인 값까지 반영된 지금 화면의 금액(live)을 전원 한 번에 저장
+      const { amts, rest } = live;
+      await Promise.all(realMembers.map((m) => db.updateMemberSettlementOverride(m.id, amts[m.id] ?? baseOwedOf(m))));
       if (leftoverMember) {
         await db.updateMemberSettlementOverride(leftoverMember.id, rest);
       } else if (rest !== defaultLeftover) {
@@ -815,12 +817,12 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                 // 편집 모드: 밑줄 입력칸. 누르면 자동 계산 금액이 placeholder 가 되고 새로 입력. 직접 입력한 금액은 민트.
                 <input
                   value={focusId === m.id ? (draft === '' ? '' : fmtNum(draft)) : fmtNum(m.owed)}
-                  placeholder={focusId === m.id ? fmtNum(placeholderOf(m)) : undefined}
+                  placeholder={focusId === m.id ? fmtNum(editAmts[m.id] ?? m.owed) : undefined}
                   onFocus={() => onAmountFocus(m)} onBlur={() => onAmountBlur(m)}
                   onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ''))}
                   onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                   className="settle-edit-input" inputMode="numeric"
-                  style={(fixedIds.includes(m.id) || (focusId === m.id && draft !== '')) ? { color: 'var(--income)', fontWeight: 700 } : undefined}
+                  style={isPinned(m.id) ? { color: 'var(--income)', fontWeight: 700 } : undefined}
                 />
               ) : (
                 <span key={m.owed} style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(m.owed)}</span>
