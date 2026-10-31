@@ -146,8 +146,13 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const nav = useNavigate();
   const [incomeCats, setIncomeCats] = useState([]);
   useEffect(() => { db.listCategories('income').then(setIncomeCats).catch(() => {}); }, []);
-  const [editingId, setEditingId] = useState(null);
-  const [editDraft, setEditDraft] = useState('');
+  // 금액 일괄 수정 모드(우측 하단 편집 버튼). 직접 입력한 금액은 고정(민트)되고, 나머지 멤버가
+  // 남은 금액을 똑같이 나눠 가지며(1원 자투리는 짤짤이) 하단 "저장"으로 한 번에 저장한다.
+  const [editMode, setEditMode] = useState(false);
+  const [fixedAmts, setFixedAmts] = useState({}); // memberId -> 직접 입력해 고정한 금액
+  const [focusId, setFocusId] = useState(null); // 지금 입력 중인 멤버
+  const [draft, setDraft] = useState(''); // 입력 중인 글자(비어 있으면 자동 계산 금액이 placeholder)
+  const focusPrevRef = useRef(undefined); // 포커스 전에 고정돼 있던 금액(빈 채로 나가면 복원)
   const [toast, setToast] = useState('');
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -164,8 +169,6 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   // 짤짤이를 미정산 상태(입금 내역 없음)에서 삭제하면 DB 에는 지울 게 없어 화면에서만
   // 감춘다. 총 결제 금액이 바뀌어 자투리 상황 자체가 달라지면 다시 보여준다.
   const [leftoverDismissed, setLeftoverDismissed] = useState(false);
-  // 금액 수정 중 "자동 계산" 토글. 켜져 있으면 나머지 멤버가 남은 금액을 똑같이 나눠 갖는다.
-  const [autoCalc, setAutoCalc] = useState(true);
   const [saving, setSaving] = useState(false);
   // 저장 후 새 멤버 목록이 도착할 때까지 미리보기를 유지해, 옛 금액이 잠깐 비치지 않게 한다.
   const commitPendingRef = useRef(false);
@@ -239,7 +242,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   useEffect(() => {
     if (!commitPendingRef.current) return;
     commitPendingRef.current = false;
-    setEditingId(null);
+    exitEdit();
     setSaving(false);
   }, [members]);
 
@@ -253,16 +256,39 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     return { others, share, rest };
   };
 
-  // 수정 중에는 입력값을 바로바로 반영한 미리보기 금액으로 화면을 그린다.
-  const previewing = editingId != null && editDraft !== '';
-  const draftValue = Number(editDraft) || 0;
-  const auto = previewing && autoCalc ? redistribute(editingId, draftValue) : null;
+  // 편집 중 고정 금액: 이미 고정한 멤버들 + 지금 입력 중인 멤버(글자가 있을 때). 입력할 때마다 바로 재계산.
+  const effectiveFixed = (() => {
+    if (!editMode) return {};
+    const f = { ...fixedAmts };
+    if (focusId != null) {
+      delete f[focusId];
+      if (draft !== '') f[focusId] = Number(draft) || 0;
+    }
+    return f;
+  })();
+  const fixedIds = Object.keys(effectiveFixed).map(Number);
+  // 고정된 금액을 뺀 나머지를 고정되지 않은 멤버 전원(총무 포함)이 내림으로 똑같이 나누고, 1원 자투리는 짤짤이.
+  const calcAuto = (fixed) => {
+    const ids = Object.keys(fixed).map(Number);
+    const others = realMembers.filter((o) => !ids.includes(o.id));
+    const pool = totalPaid - Object.values(fixed).reduce((a, b) => a + b, 0);
+    const share = others.length ? Math.max(0, Math.floor(pool / others.length)) : 0;
+    const rest = others.length ? Math.max(0, pool - share * others.length) : Math.max(0, pool);
+    return { others, share, rest };
+  };
+  // 아직 아무것도 고정하지 않았으면 저장된 금액 그대로 보여준다.
+  const auto = editMode && fixedIds.length ? calcAuto(effectiveFixed) : null;
   const owedOf = (m) => {
-    if (!previewing) return baseOwedOf(m);
-    if (m.id === editingId) return draftValue;
-    return auto ? auto.share : baseOwedOf(m);
+    if (!auto) return baseOwedOf(m);
+    return effectiveFixed[m.id] != null ? effectiveFixed[m.id] : auto.share;
   };
   const leftover = auto ? auto.rest : baseLeftover;
+  // 입력 중인 칸의 placeholder: 그 멤버를 고정에서 뺀 상태의 자동 계산 금액
+  const placeholderOf = (m) => {
+    const others = { ...effectiveFixed };
+    delete others[m.id];
+    return Object.keys(others).length ? calcAuto(others).share : baseOwedOf(m);
+  };
 
   const paidOf = (id) => deposits.filter((d) => d.member_id === id).reduce((s, d) => s + Number(d.amount), 0);
   const rows = realMembers.map((m) => {
@@ -315,38 +341,47 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const dividerIdx = sortedRows.findIndex((r) => r.role !== 'owner' && !r.sortSettled);
   const showDivider = dividerIdx !== -1;
 
-  const startEdit = (m) => { setEditingId(m.id); setEditDraft(String(m.owed)); setAutoCalc(true); };
-  const cancelEdit = () => { if (!saving) setEditingId(null); };
-  const saveEdit = async (m) => {
+  function exitEdit() { setEditMode(false); setFixedAmts({}); setFocusId(null); setDraft(''); }
+  const startEditAll = () => { setFixedAmts({}); setFocusId(null); setDraft(''); setEditMode(true); };
+  const onAmountFocus = (m) => {
+    focusPrevRef.current = fixedAmts[m.id];
+    setFocusId(m.id); setDraft('');
+  };
+  const onAmountBlur = (m) => {
+    setFixedAmts((prev) => {
+      const next = { ...prev };
+      if (draft !== '') next[m.id] = Number(draft) || 0;
+      else if (focusPrevRef.current != null) next[m.id] = focusPrevRef.current; // 빈 채로 나가면 이전 고정값 복원
+      else delete next[m.id]; // 고정된 적 없으면 다시 자동 계산 금액
+      return next;
+    });
+    setFocusId(null); setDraft('');
+  };
+  // 하단 "저장": 고정 금액 + 자동 계산 금액을 전원 한 번에 저장(자투리는 짤짤이)
+  const saveAll = async () => {
     if (saving) return;
+    if (!auto) { exitEdit(); return; } // 바꾼 게 없으면 그냥 닫기
     setSaving(true);
     try {
-      if (editDraft === '') {
-        await db.updateMemberSettlementOverride(m.id, null);
-      } else if (!autoCalc) {
-        await db.updateMemberSettlementOverride(m.id, draftValue);
-      } else {
-        // 자동 계산: 수정한 멤버와 나머지 멤버 전원의 금액을 저장하고, 새 자투리도 짤짤이에 저장한다.
-        const { others, share, rest } = redistribute(m.id, draftValue);
-        await Promise.all([
-          db.updateMemberSettlementOverride(m.id, draftValue),
-          ...others.map((o) => db.updateMemberSettlementOverride(o.id, share)),
-        ]);
-        if (leftoverMember) {
-          await db.updateMemberSettlementOverride(leftoverMember.id, rest);
-        } else if (rest !== defaultLeftover) {
-          const row = await db.addMember(gid, { nickname: LEFTOVER_NAME, start_date: today(), end_date: '', contact: '', memo: '', username: '' });
-          await db.updateMemberSettlementOverride(row.id, rest);
-        }
-        setLeftoverDismissed(false);
+      const { others, share, rest } = auto;
+      await Promise.all([
+        ...Object.entries(effectiveFixed).map(([id, v]) => db.updateMemberSettlementOverride(Number(id), v)),
+        ...others.map((o) => db.updateMemberSettlementOverride(o.id, share)),
+      ]);
+      if (leftoverMember) {
+        await db.updateMemberSettlementOverride(leftoverMember.id, rest);
+      } else if (rest !== defaultLeftover) {
+        const row = await db.addMember(gid, { nickname: LEFTOVER_NAME, start_date: today(), end_date: '', contact: '', memo: '', username: '' });
+        await db.updateMemberSettlementOverride(row.id, rest);
       }
+      setLeftoverDismissed(false);
       commitPendingRef.current = true;
       reloadMembers();
       // 멤버 목록 갱신이 어떤 이유로 오지 않더라도 편집 상태가 영영 남지 않도록 한다.
       setTimeout(() => {
         if (!commitPendingRef.current) return;
         commitPendingRef.current = false;
-        setEditingId(null);
+        exitEdit();
         setSaving(false);
       }, 4000);
     } catch (e) { alert(e.message); setSaving(false); }
@@ -740,7 +775,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                 </div>
               )}
               <div className="settle-swipe-wrap" style={{ marginTop: 10 }}>
-                {isOwner && !m.settled && editingId == null ? (
+                {isOwner && !m.settled && !editMode ? (
                   <SwipeRow
                     actionsWidth={52}
                     actions={(progress) => (
@@ -765,7 +800,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
         // 금액 수정 중에는 모든 카드를 스와이프 틀 없이 일반 카드로 그린다(수정 중엔 스와이프가 필요 없음).
         // 스와이프 틀 안의 글자는 iOS Safari 에서 미리보기 금액이 바뀌어도 다시 그려지지 않는 경우가 있었다.
         // 스와이프 가능 여부는 저장된 금액 기준으로 판단해, 미리보기 중 구조가 흔들리지 않게 한다.
-        const swipeForOwner = isOwner && m.role !== 'owner' && !m.sortSettled && editingId == null;
+        const swipeForOwner = isOwner && m.role !== 'owner' && !m.sortSettled && !editMode;
         const tapForSelf = !isOwner && isMe && m.role !== 'owner' && !m.settled;
 
         const cardInner = (
@@ -776,33 +811,19 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                 {m.role === 'owner' && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '2px 7px' }}>총무</span>}
                 {m.role !== 'owner' && !m.is_account && <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--k-tx-8b8798)', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: '2px 6px' }}>외부</span>}
               </div>
-              {isOwner && editingId === m.id ? (
-                <div className="settle-edit-inline">
-                  <input
-                    value={editDraft === '' ? '' : fmtNum(editDraft)}
-                    onChange={(e) => setEditDraft(e.target.value.replace(/[^0-9]/g, ''))}
-                    className="settle-edit-input" autoFocus inputMode="numeric"
-                    onKeyDown={(e) => e.key === 'Enter' && saveEdit(m)}
-                  />
-                  <button type="button" className="settle-edit-icon-btn" onClick={cancelEdit} aria-label="취소">
-                    <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6 L18 18 M18 6 L6 18" /></svg>
-                  </button>
-                  <button type="button" className="settle-edit-icon-btn settle-edit-icon-btn--save" disabled={saving} onClick={() => saveEdit(m)} aria-label="저장">
-                    <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>
-                  </button>
-                </div>
+              {isOwner && editMode ? (
+                // 편집 모드: 밑줄 입력칸. 누르면 자동 계산 금액이 placeholder 가 되고 새로 입력. 직접 입력한 금액은 민트.
+                <input
+                  value={focusId === m.id ? (draft === '' ? '' : fmtNum(draft)) : fmtNum(m.owed)}
+                  placeholder={focusId === m.id ? fmtNum(placeholderOf(m)) : undefined}
+                  onFocus={() => onAmountFocus(m)} onBlur={() => onAmountBlur(m)}
+                  onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ''))}
+                  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                  className="settle-edit-input" inputMode="numeric"
+                  style={(fixedIds.includes(m.id) || (focusId === m.id && draft !== '')) ? { color: 'var(--income)', fontWeight: 700 } : undefined}
+                />
               ) : (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span key={m.owed} style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(m.owed)}</span>
-                  {isOwner && (
-                    <button type="button" className="settle-pencil-btn" onClick={() => startEdit(m)} aria-label="정산 금액 수정">
-                      <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                      </svg>
-                    </button>
-                  )}
-                </span>
+                <span key={m.owed} style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(m.owed)}</span>
               )}
             </div>
             <div style={{ marginTop: 6, fontSize: 10.75, color: 'var(--k-tx-a29ead)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -824,20 +845,6 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
                   <>{fmtNum(m.paid)} 원 입금 · <span style={{ color: 'var(--expense)' }}>남은 금액 {fmtNum(m.remaining)} 원</span></>
                 )}
               </span>
-              {isOwner && editingId === m.id && (
-                <span className="auto-calc">
-                  자동 계산
-                  <button
-                    type="button" role="switch" aria-checked={autoCalc} aria-label="자동 계산"
-                    className={`ios-toggle${autoCalc ? ' on' : ''}`}
-                    // 토글을 눌러도 입력창 포커스(키패드)가 유지되도록 포커스 이동을 막는다
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setAutoCalc((v) => !v)}
-                  >
-                    <span className="ios-toggle-knob" />
-                  </button>
-                </span>
-              )}
             </div>
           </div>
         );
@@ -890,7 +897,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
         <p style={{ textAlign: 'center', color: 'var(--expense)', fontSize: 12.5, fontWeight: 700, marginTop: 14 }}>
           정산 금액이 총 결제 금액보다 적습니다.
         </p>
-      ) : isOwner && (selectedPayment ? itemAnyUnsettled : anyUnsettled) && (
+      ) : isOwner && !editMode && (selectedPayment ? itemAnyUnsettled : anyUnsettled) && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <button type="button" className="btn-settle-all" style={{ flex: 1, height: 48, marginTop: 0 }} disabled={bulkBusy} onClick={openSettleAll}>
             {bulkBusy ? '처리 중…' : '정산 일괄 완료'}
@@ -900,6 +907,25 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
           )}
         </div>
       )}
+
+      {/* 금액 일괄 수정: 우측 하단 편집 버튼(가계부 + 버튼과 같은 자리) → 편집 중엔 하단 고정 "저장" 알약 */}
+      {isOwner && !selectedPayment && payments.length > 0 && (editMode ? (
+        <>
+          <div style={{ height: 76 }} />
+          <button
+            type="button" className="btn-ink-pill" disabled={saving}
+            onMouseDown={(e) => e.preventDefault()} // 입력칸 포커스가 먼저 풀리며 금액이 확정되도록(키패드 닫힘 방지 겸)
+            onClick={() => { if (document.activeElement?.blur) document.activeElement.blur(); setTimeout(saveAll, 0); }}
+            style={{ position: 'fixed', left: 'max(16px, calc((100vw - 720px) / 2 + 16px))', right: 'max(16px, calc((100vw - 720px) / 2 + 16px))', width: 'auto', bottom: 'calc(94px + var(--safe-bottom))', zIndex: 25, marginTop: 0, height: 52 }}
+          >{saving ? '저장 중…' : '저장'}</button>
+        </>
+      ) : (
+        <button type="button" className="fab" onClick={startEditAll} aria-label="정산 금액 수정">
+          <svg width="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </button>
+      ))}
 
       {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
 
