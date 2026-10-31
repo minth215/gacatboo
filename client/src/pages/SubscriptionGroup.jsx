@@ -912,12 +912,21 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
       {isOwner && !selectedPayment && payments.length > 0 && (editMode ? (
         <>
           <div style={{ height: 76 }} />
-          <button
-            type="button" className="btn-ink-pill" disabled={saving}
-            onMouseDown={(e) => e.preventDefault()} // 입력칸 포커스가 먼저 풀리며 금액이 확정되도록(키패드 닫힘 방지 겸)
-            onClick={() => { if (document.activeElement?.blur) document.activeElement.blur(); setTimeout(saveAll, 0); }}
-            style={{ position: 'fixed', left: 'max(16px, calc((100vw - 720px) / 2 + 16px))', right: 'max(16px, calc((100vw - 720px) / 2 + 16px))', width: 'auto', bottom: 'calc(94px + var(--safe-bottom))', zIndex: 25, marginTop: 0, height: 52 }}
-          >{saving ? '저장 중…' : '저장'}</button>
+          {/* 하단 고정 줄: 왼쪽 작은 "취소"(편집 내용 버리고 닫기) + "저장" */}
+          <div style={{ position: 'fixed', left: 'max(16px, calc((100vw - 720px) / 2 + 16px))', right: 'max(16px, calc((100vw - 720px) / 2 + 16px))', bottom: 'calc(94px + var(--safe-bottom))', zIndex: 25, display: 'flex', gap: 8 }}>
+            <button
+              type="button" disabled={saving}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { if (document.activeElement?.blur) document.activeElement.blur(); setTimeout(exitEdit, 0); }}
+              style={{ flex: 'none', width: 76, height: 52, borderRadius: 999, border: 'none', background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-6c6779)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer' }}
+            >취소</button>
+            <button
+              type="button" className="btn-ink-pill" disabled={saving}
+              onMouseDown={(e) => e.preventDefault()} // 입력칸 포커스가 먼저 풀리며 금액이 확정되도록(키패드 닫힘 방지 겸)
+              onClick={() => { if (document.activeElement?.blur) document.activeElement.blur(); setTimeout(saveAll, 0); }}
+              style={{ flex: 1, width: 'auto', marginTop: 0, height: 52 }}
+            >{saving ? '저장 중…' : '저장'}</button>
+          </div>
         </>
       ) : (
         <button type="button" className="fab" onClick={startEditAll} aria-label="정산 금액 수정">
