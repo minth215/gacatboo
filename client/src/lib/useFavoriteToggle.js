@@ -11,7 +11,7 @@ const sameItems = (a, b) => {
 
 // 날짜를 뺀 나머지(유형/금액/내용/분류/원천/항목)가 완전히 같으면 같은 즐겨찾기로 본다.
 // 분류·원천은 이름으로 비교해, 개인 기록 폼과 그룹 기록 폼이 같은 목록을 공유할 수 있게 함.
-const matches = (f, s) => (
+export const matches = (f, s) => (
   f.type === s.type
   && Number(f.amount) === Number(s.amount)
   && (f.content || '').trim() === (s.content || '').trim()

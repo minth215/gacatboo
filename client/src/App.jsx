@@ -28,6 +28,7 @@ import SettingsStyle from './pages/SettingsStyle.jsx';
 import SettingsCustomize from './pages/SettingsCustomize.jsx';
 import FriendAdd from './pages/FriendAdd.jsx';
 import FriendEdit from './pages/FriendEdit.jsx';
+import FavoriteAdd from './pages/FavoriteAdd.jsx';
 import GroupMemberAdd from './pages/GroupMemberAdd.jsx';
 import GroupMemberEdit from './pages/GroupMemberEdit.jsx';
 import SettingsExport from './pages/SettingsExport.jsx';
@@ -67,6 +68,7 @@ export default function App() {
         <Route path="/new" element={<TransactionEdit key={location.pathname} />} />
         <Route path="/tx/:id" element={<TransactionEdit key={location.pathname} />} />
         <Route path="/favorites" element={<Favorites />} />
+        <Route path="/favorites/add" element={<FavoriteAdd />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/groups" element={<Groups />} />
         <Route path="/groups/new" element={<GroupCreate />} />

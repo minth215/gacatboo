@@ -39,7 +39,7 @@ export default function Favorites() {
       {loading ? (
         <Spinner />
       ) : !rows.length ? (
-        <div className="empty empty-center-notabs">저장된 즐겨찾기가 없습니다.<br />기록 페이지의 별 아이콘으로 등록해 보세요.</div>
+        <div className="empty empty-center-notabs">저장된 즐겨찾기가 없습니다.<br />+ 버튼이나 기록 페이지의 별 아이콘으로 등록해 보세요.</div>
       ) : (
         <div style={{ marginTop: 10 }}>
           {rows.map((f) => {
@@ -69,6 +69,10 @@ export default function Favorites() {
           })}
         </div>
       )}
+      {/* 기록 내역에서 골라 즐겨찾기 추가. 돌아올 때 이 화면의 state(returnTo 등)가 그대로 유지되도록 push */}
+      <button className="fab" onClick={() => nav('/favorites/add')} aria-label="즐겨찾기 추가">
+        <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+      </button>
     </div>
   );
 }
