@@ -24,6 +24,12 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
   const openAdd = () => nav(`/groups/${groupId}/members/add`);
   const openEdit = (m) => nav(`/groups/${groupId}/members/${m.id}/edit`);
 
+  // 초대 없이 외부 멤버로 추가한 회원을 뒤늦게 초대
+  const invite = async (m) => {
+    if (!confirm('멤버를 초대할까요?')) return;
+    try { await db.inviteExternalMember(groupId, m); onReload(); } catch (e) { alert(e.message); }
+  };
+
   const remove = async (m) => {
     if (m.role === 'owner') return;
     if (!confirm(`${m.nickname}님을 그룹에서 제거할까요?`)) return;
@@ -44,11 +50,13 @@ export default function MembersPanel({ groupId, members, isOwner, leaderName, on
             ? (m.username && (m.user_id === user?.id || friendUserIds.includes(m.user_id)) ? m.username : null)
             : (m.external_username && friendUsernames.includes(m.external_username) ? m.external_username : null);
           const canRemove = isOwner && m.role !== 'owner';
+          const canInvite = isOwner && !m.is_account && !!m.external_username;
           return (
             <DayCardRow
               key={m.id} index={i} count={visibleMembers.length} clickable={isOwner}
               isOpen={openId === m.id} onOpenChange={(open) => setOpenId(open ? m.id : null)}
               onTap={isOwner ? () => openEdit(m) : undefined} onDelete={canRemove ? () => remove(m) : undefined}
+              onInvite={canInvite ? () => invite(m) : undefined}
             >
               <div style={{ flex: 1, minWidth: 0, padding: '1px 0 1px 2px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

@@ -627,6 +627,23 @@ export const db = {
     }
     return row;
   },
+  // 초대 없이 외부 멤버로 추가했던 회원(external_username 이 남아 있는 멤버)을 뒤늦게 초대.
+  // 그 아이디의 회원 계정을 연결하고 초대 대기(pending)로 바꾼 뒤 초대 알림을 보낸다.
+  async inviteExternalMember(groupId, member) {
+    const username = (member.external_username || '').trim();
+    if (!username) throw new Error('초대할 회원 아이디가 없습니다.');
+    const prof = unwrap(await supabase.from('profiles').select('*').eq('username', username).maybeSingle());
+    if (!prof || prof.status !== 'approved') throw new Error('해당 아이디의 회원을 찾을 수 없습니다.');
+    if (prof.allow_group_invite === false) throw new Error(`${member.nickname} 님은 그룹 초대 비허용 상태입니다`);
+    const exists = unwrap(await supabase.from('group_members').select('id').eq('group_id', groupId).eq('user_id', prof.id).maybeSingle());
+    if (exists) throw new Error('이미 멤버로 연결된 계정입니다.');
+    unwrap(await supabase.from('group_members').update({ user_id: prof.id, status: 'pending' }).eq('id', member.id));
+    const group = unwrap(await supabase.from('groups').select('name, category').eq('id', groupId).maybeSingle());
+    const vars = { group_name: group?.name || '', group_id: groupId };
+    const link = `/groups/${groupId}`;
+    this.notifyUser(prof.id, 'group_invite', vars, link, { member_id: member.id }).catch(() => {});
+    this.sendPushBestEffort(prof.id, 'group_invite', vars, link);
+  },
   async updateMember(memberId, groupId, patch) {
     const upd = {
       nickname: (patch.nickname || '').trim(),

@@ -56,16 +56,41 @@ export default function GroupMemberEdit() {
     } catch (e) { alert(e.message); setBusy(false); }
   };
 
+  // 회원(계정 연결 또는 초대 없이 외부 멤버로 추가)의 아이디: 닉네임 칸 오른쪽에 고정
+  const memberUsername = member?.username || member?.external_username || '';
+  // 초대 없이 외부 멤버로 추가한 회원은 뒤늦게라도 초대할 수 있다
+  const canInvite = !!member && !member.is_account && !!member.external_username;
+  const invite = async () => {
+    if (!confirm('멤버를 초대할까요?')) return;
+    try {
+      await db.inviteExternalMember(gid, member);
+      setMember((m) => ({ ...m, is_account: true, pending: true, username: m.external_username }));
+      alert('초대장을 보냈습니다.');
+    } catch (e) { alert(e.message); }
+  };
+
   if (!form) return <Spinner />;
   if (group.owner_id !== user.id) return <div className="empty empty-center">총무만 멤버 정보를 수정할 수 있습니다.</div>;
 
   return (
     <div style={{ padding: '44px 0 24px' }}>
-      <PageHeader title="멤버 수정" flat />
+      <PageHeader title="멤버 수정" flat right={canInvite && (
+        <button type="button" className="tb-icon-btn" onClick={invite} aria-label="초대">
+          <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2" /><polyline points="3 7 12 13 21 7" />
+          </svg>
+        </button>
+      )} />
       <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 18 }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           <span style={labelStyle}>이름 <span style={{ color: '#FF3B5C' }}>*</span></span>
-          <input type="text" value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} placeholder="그룹 내에서 보일 이름" style={fieldStyle} />
+          <div style={{ ...fieldStyle, display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px' }}>
+            <input
+              type="text" value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} placeholder="그룹 내에서 보일 이름"
+              style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', outline: 'none', padding: '14px 0' }}
+            />
+            {memberUsername && <span style={{ flex: 'none', fontSize: 12, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>@{memberUsername}</span>}
+          </div>
         </label>
         <div style={{ display: 'flex', gap: 10 }}>
           <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
