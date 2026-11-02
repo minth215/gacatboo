@@ -43,7 +43,7 @@ export default function GroupMemberEdit() {
       const m = members.find((x) => x.id === mid);
       if (!m) { alert('멤버를 찾을 수 없습니다.'); nav(-1); return; }
       setGroup(g); setMember(m); setAllMembers(members);
-      setForm({ nickname: m.nickname || '', start_date: m.start_date || '', end_date: m.end_date || '', memo: m.memo || '', link: '' });
+      setForm({ nickname: m.nickname || '', start_date: m.start_date || '', end_date: m.end_date || '', memo: m.memo || '', ext: m.external_username || '' });
     }).catch((e) => { alert(e.message); nav(-1); });
   }, [gid, mid, nav]);
 
@@ -53,15 +53,20 @@ export default function GroupMemberEdit() {
     if (busy) return;
     setBusy(true);
     try {
-      await db.updateMember(mid, gid, { ...form, contact: member.contact || '', ...(form.link ? { external_username: form.link } : {}) });
+      // 회원 연결/해제(외부 멤버의 표시용 아이디)가 바뀌었을 때만 함께 저장
+      const extChanged = form.ext !== (member.external_username || '');
+      await db.updateMember(mid, gid, { ...form, contact: member.contact || '', ...(extChanged ? { external_username: form.ext } : {}) });
       nav(-1);
     } catch (e) { alert(e.message); setBusy(false); }
   };
 
   // 회원(계정 연결 또는 초대 없이 외부 멤버로 추가)의 아이디: 닉네임 칸 오른쪽에 고정
-  const memberUsername = member?.username || member?.external_username || form?.link || '';
+  // 계정이 연결된(초대됨/수락) 멤버는 그 아이디, 외부 멤버는 연결한 표시용 아이디(해제 가능)
+  const memberUsername = member?.is_account ? (member?.username || '') : (form?.ext || '');
+  const canUnlink = !!member && !member.is_account && !!form?.ext;
+  const unlink = () => { if (confirm('회원 연결을 해제할까요?')) setForm((f) => ({ ...f, ext: '' })); };
   // 초대 없이 외부 멤버로 추가한 회원은 뒤늦게라도 초대할 수 있다
-  const canInvite = !!member && !member.is_account && !!member.external_username;
+  const canInvite = !!member && !member.is_account && !!member.external_username && form?.ext === member.external_username;
   const invite = async () => {
     if (!confirm('멤버를 초대할까요?')) return;
     try {
@@ -92,7 +97,11 @@ export default function GroupMemberEdit() {
               style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', outline: 'none', padding: '14px 0' }}
             />
             {memberUsername ? (
-              <span style={{ flex: 'none', fontSize: 12, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>@{memberUsername}</span>
+              // 외부 멤버에 연결한 아이디는 눌러서 연결 해제(초대된 멤버는 불가)
+              <span
+                onClick={canUnlink ? (e) => { e.preventDefault(); unlink(); } : undefined}
+                style={{ flex: 'none', fontSize: 12, fontWeight: 400, color: 'var(--k-tx-a29ead)', cursor: canUnlink ? 'pointer' : 'default' }}
+              >@{memberUsername}</span>
             ) : (
               // 회원이 아닌 멤버: 친구 정보 수정 페이지처럼 "회원 연결" 배지 → 친구 목록/회원 검색 모달
               <button
@@ -123,7 +132,7 @@ export default function GroupMemberEdit() {
       {linkOpen && (
         <MemberLinkModal
           userId={user.id} members={allMembers} onClose={() => setLinkOpen(false)}
-          onPick={(username) => { setForm((f) => ({ ...f, link: username })); setLinkOpen(false); }}
+          onPick={(username) => { setForm((f) => ({ ...f, ext: username })); setLinkOpen(false); }}
         />
       )}
     </div>

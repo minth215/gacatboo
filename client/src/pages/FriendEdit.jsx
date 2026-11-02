@@ -35,7 +35,6 @@ export default function FriendEdit() {
   if (!friends || (friend && !form)) return <Spinner />;
   if (!friend) return <div className="empty empty-center">친구를 찾을 수 없습니다.</div>;
 
-  const linkedBefore = !!friend.friend_user_id;
   // 회원 연결된 친구는 이름을 비워 두면 친구가 직접 설정한 닉네임으로 저장
   const memberNickname = form.link?.displayName || '';
   const save = async () => {
@@ -47,7 +46,8 @@ export default function FriendEdit() {
       await db.updateFriend(friend.id, {
         nickname, groupId: form.groupId ? Number(form.groupId) : null,
         ...(form.memo.trim() !== (friend.memo || '') ? { memo: form.memo } : {}),
-        ...(!linkedBefore && form.link ? { friendUserId: form.link.id } : {}),
+        // 회원 연결/해제가 바뀌었을 때만(해제는 null)
+        ...((form.link?.id || null) !== (friend.friend_user_id || null) ? { friendUserId: form.link?.id || null } : {}),
       });
       nav(-1);
     } catch (e) { alert(e.message); } finally { setBusy(false); }
@@ -67,7 +67,11 @@ export default function FriendEdit() {
               style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', outline: 'none', padding: '14px 0' }}
             />
             {form.link ? (
-              <span style={{ flex: 'none', fontSize: 12, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>@{form.link.username}</span>
+              // 아이디를 누르면 회원 연결 해제(저장 시 반영)
+              <span
+                onClick={(e) => { e.preventDefault(); if (confirm('회원 연결을 해제할까요?')) setForm((f) => ({ ...f, link: null })); }}
+                style={{ flex: 'none', fontSize: 12, fontWeight: 400, color: 'var(--k-tx-a29ead)', cursor: 'pointer' }}
+              >@{form.link.username}</span>
             ) : (
               <button
                 type="button" onClick={(e) => { e.preventDefault(); setSearchOpen(true); }}

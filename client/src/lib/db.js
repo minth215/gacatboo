@@ -652,7 +652,7 @@ export const db = {
     };
     if ('next_due_override' in patch) upd.next_due_override = patch.next_due_override || null;
     // 회원 연결(외부 멤버에 회원 아이디를 표시용으로 연결 — 이후 초대 가능)
-    if (patch.external_username) upd.external_username = patch.external_username;
+    if ('external_username' in patch) upd.external_username = patch.external_username || null; // 연결 해제는 빈 값
     unwrap(await supabase.from('group_members').update(upd).eq('id', memberId));
     if ('memo' in patch) {
       unwrap(await supabase.from('group_member_notes').upsert({ member_id: memberId, group_id: groupId, memo: (patch.memo || '').trim() }));
