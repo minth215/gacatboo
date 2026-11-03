@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../lib/db.js';
 import { fmtNum, fmtForeign, monthPillLabel } from '../lib/format.js';
+import { getPrimary, fmtP } from '../lib/primaryCurrency.js';
 import SwipeRow from './SwipeRow.jsx';
 
 // 분류명 → 부드러운 타일 배경 (시안의 파스텔 톤)
@@ -124,7 +125,7 @@ export default function TransactionList({
       <div key={date}>
         <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{formatDate(date, dateFormat)}</span>
-          <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--k-tx-8b8798)' }}>{net >= 0 ? '+' : '-'}{fmtNum(Math.abs(net))}</span>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--k-tx-8b8798)' }}>{net >= 0 ? '+' : '-'}{fmtP(Math.abs(net))}</span>
         </div>
         {/* 같은 날짜 항목들은 하나의 흰 박스처럼 보이지만(가운데 행은 각진 모서리) 각 행이 독립된 카드라서
             하나만 밀 수 있다. 박스 자체엔 배경/그림자가 없어 밀린 자리엔 페이지 배경 위에 버튼만 보인다. */}
@@ -182,9 +183,9 @@ export default function TransactionList({
                   </div>
                   <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flex: 'none' }}>
                     <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : t.type === 'transfer' ? 'var(--k-tx-4b4752)' : '#FF4358' }}>
-                      {t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{t.input_currency ? fmtForeign(t.input_amount, t.input_currency) : fmtNum(t.amount)}
+                      {t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{amountMain(t)}
                     </span>
-                    {t.input_currency && <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', marginTop: 1 }}>{t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{fmtNum(t.amount)} KRW</span>}
+                    {amountSub(t) && <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', marginTop: 1 }}>{t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{amountSub(t)}</span>}
                   </span>
               </DayCardRow>
             );
@@ -220,4 +221,18 @@ export function formatDate(d, fmt) {
   const w = `${days[dt.getDay()]}요일`;
   if (fmt === 'full') return `${d.slice(0, 4)} 년 ${Number(d.slice(5, 7))} 월 ${Number(d.slice(8, 10))} 일 ${w}`;
   return `${Number(d.slice(8, 10))} 일 ${w}`;
+}
+
+// 카드 금액: 기록을 입력한 화폐 그대로(주 화폐와 같으면 단위 생략) + 주 화폐와 다르면 주 화폐 환산 금액(회색)
+function amountMain(t) {
+  const P = getPrimary().code;
+  const rc = t.input_currency || 'KRW';
+  if (rc !== 'KRW') return fmtForeign(t.input_amount, rc);
+  return P === 'KRW' ? fmtNum(t.amount) : fmtForeign(t.amount, 'KRW');
+}
+function amountSub(t) {
+  const P = getPrimary().code;
+  const rc = t.input_currency || 'KRW';
+  if (rc === P) return null;
+  return P === 'KRW' ? `${fmtNum(t.amount)} KRW` : `${fmtP(t.amount)} ${P}`;
 }

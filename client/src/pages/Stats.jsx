@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { fmtP, fmtPUnit } from '../lib/primaryCurrency.js';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -257,12 +258,12 @@ export default function Stats() {
         </div>
         {/* 왼쪽: 예산 사용/예산, 오른쪽: 지출은 남은 금액(초과면 음수, 코랄 핑크), 수입은 -남은 금액/+초과(민트) + (비율) */}
         <div style={{ marginTop: 5, display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 10.25, color: 'var(--k-tx-8b8798)' }}>
-          <span>예산 {fmtNum(g.total)}/{fmtNum(budget)}</span>
+          <span>예산 {fmtP(g.total)}/{fmtP(budget)}</span>
           {tab === 'expense' ? (
-            <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: '#FF3B5C', fontWeight: 700 } : {}) }}>{fmtNum(-over)} ({budgetPct} %)</span>
+            <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: '#FF3B5C', fontWeight: 700 } : {}) }}>{fmtP(-over)} ({budgetPct} %)</span>
           ) : (
             // 수입: 예산까지 남은 금액은 -, 예산보다 많아지면 +(민트)
-            <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: 'var(--income)', fontWeight: 700 } : {}) }}>{over > 0 ? '+' : ''}{fmtNum(over)} ({budgetPct} %)</span>
+            <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: 'var(--income)', fontWeight: 700 } : {}) }}>{over > 0 ? '+' : ''}{fmtP(over)} ({budgetPct} %)</span>
           )}
         </div>
       </div>
@@ -682,7 +683,7 @@ export default function Stats() {
                   whiteSpace: 'nowrap', zIndex: 8, boxShadow: '0 6px 16px rgb(var(--k-sh) / calc(.25 * var(--k-sha)))', pointerEvents: 'none',
                 }}>
                   <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: hover.color, marginRight: 6 }} />
-                  {hover.name} · {fmtNum(hover.total)} · {Math.round((hover.total / total) * 100)}%
+                  {hover.name} · {fmtP(hover.total)} · {Math.round((hover.total / total) * 100)}%
                 </div>
               )}
               <div style={{
@@ -690,7 +691,7 @@ export default function Stats() {
                 flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none',
               }}>
                 <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--k-tx-a29ead)' }}>{tab === 'expense' ? '총 지출' : '총 수입'}</span>
-                <span style={{ marginTop: 3, fontSize: 16.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{fmtNum(total)}</span>
+                <span style={{ marginTop: 3, fontSize: 16.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{fmtP(total)}</span>
               </div>
             </div>
           </div>
@@ -707,7 +708,7 @@ export default function Stats() {
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: g.color, flex: 'none' }} />
                     <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
                     <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--k-tx-a29ead)' }}>{total ? Math.round((g.total / total) * 100) : 0}%</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', minWidth: 64, textAlign: 'right' }}>{fmtNum(g.total)}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', minWidth: 64, textAlign: 'right' }}>{fmtP(g.total)}</span>
                   </div>
                   {budgetGauge(g)}
                   {tier && (
@@ -716,7 +717,7 @@ export default function Stats() {
                         <div style={{ height: '100%', borderRadius: 999, background: g.color, width: `${tier.percent}%` }} />
                       </div>
                       <div style={{ marginTop: 5, fontSize: 10.25, color: 'var(--k-tx-8b8798)' }}>
-                        실적 {fmtWon(tier.goal)} 목표 · {tier.percent}% 달성
+                        실적 {fmtPUnit(tier.goal)} 목표 · {tier.percent}% 달성
                         {tier.achieved ? ` · ✅ ${tier.achieved.benefit || '혜택'}` : ''}
                       </div>
                     </div>
@@ -754,7 +755,7 @@ export default function Stats() {
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
                 </div>
                 <span style={{ width: 52, textAlign: 'right', fontSize: 12.5, color: 'var(--k-tx-8b8798)' }}>{fmtNum(g.count)}</span>
-                <span style={{ minWidth: 84, textAlign: 'right', fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(g.total)}</span>
+                <span style={{ minWidth: 84, textAlign: 'right', fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtP(g.total)}</span>
               </div>
               {/* 예산 보기 상태면 테이블 뷰에서도 분류별 예산 게이지 */}
               {budgetGauge(g)}
@@ -868,7 +869,7 @@ function LineChart({ points, color, leftIndex, visibleCount, onScroll, onPick })
                 <circle cx={xs[i]} cy={ys[i]} r={p.active ? 5.5 : 4}
                   fill={p.active ? 'var(--k-bg-fff)' : color} stroke={p.active ? color : 'var(--k-bg-fff)'} strokeWidth={p.active ? 2.5 : 1.5} />
                 <text x={xs[i]} y={ys[i] - 11} textAnchor="middle" fontSize="8"
-                  fontWeight={p.active ? 700 : 500} fill={p.active ? 'var(--k-tx-191722)' : 'var(--k-tx-6c6779)'}>{fmtNum(p.amount)}</text>
+                  fontWeight={p.active ? 700 : 500} fill={p.active ? 'var(--k-tx-191722)' : 'var(--k-tx-6c6779)'}>{fmtP(p.amount)}</text>
                 <text x={xs[i]} y={CHART_AXIS_Y + 17} textAnchor="middle" fontSize="9.5"
                   fontWeight={p.active ? 700 : 600} fill={p.active ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)'}>{p.label}</text>
               </g>

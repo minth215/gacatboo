@@ -105,7 +105,7 @@ const KeyBtn = ({ label, onClick, bg, color, style }) => (
 // ({ input_currency, input_amount, fx_rate } 또는 원화면 null)을 매 확정 시점에 알려준다.
 // compact=true: 영수증형 기록의 좁은 항목 행에 들어갈 때 쓰는 테두리 없는 작은 표시(원 단위
 // 접미사·환산 금액 미리보기 줄은 생략하고, 펼쳐지는 계산기 키패드는 그대로 동작).
-export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange, onCurrencySelect, compact = false, allowNegative = false }) {
+export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange, onCurrencySelect, compact = false, allowNegative = false, defaultCurrency }) {
   const [focused, setFocused] = useState(false);
   const [expr, setExpr] = useState('');
   const justEvaluatedRef = useRef(false);
@@ -113,7 +113,8 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   const rootRef = useRef(null);
 
   const [userCurrencies, setUserCurrencies] = useState([]);
-  const [currency, setCurrency] = useState(initialCurrency || 'KRW');
+  // defaultCurrency: 금액이 비어 있는 새 입력의 기본 화폐(주 화폐)
+  const [currency, setCurrency] = useState(initialCurrency || (!value && defaultCurrency) || 'KRW');
   const [foreignAmount, setForeignAmount] = useState(initialForeignAmount != null ? String(initialForeignAmount) : '');
   const [rate, setRate] = useState(currency === 'KRW' ? 1 : null);
   const [rateLoading, setRateLoading] = useState(false);

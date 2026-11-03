@@ -1049,6 +1049,10 @@ export const db = {
   },
 
   // ---------- 내 프로필 ----------
+  // 주 화폐 변경(0077)
+  async setPrimaryCurrency(code) {
+    return unwrap(await supabase.rpc('set_my_primary_currency', { p_code: code }));
+  },
   async updateMyProfile(username, displayName) {
     return unwrap(await supabase.rpc('update_my_profile', { p_username: username, p_display_name: displayName }));
   },

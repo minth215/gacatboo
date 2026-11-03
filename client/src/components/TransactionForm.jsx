@@ -9,6 +9,7 @@ import { useFavoriteToggle } from '../lib/useFavoriteToggle.js';
 import { loadPrefs } from '../lib/prefs.js';
 import CalcAmountInput from './CalcAmountInput.jsx';
 import RecurrenceModal from './RecurrenceModal.jsx';
+import { getPrimary, fmtP } from '../lib/primaryCurrency.js';
 import { useInstallmentDeleteChoice } from './InstallmentDeleteModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
 
@@ -184,7 +185,7 @@ function transferSources(tree, excludeTypes, selectedId) {
 
 function ItemRow({
   item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, itemNameSuggestions, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource,
-  isSettlement, recentExpenses, onTarget, usedTargetIds, allowNegative, autoFocusAmount, onMemberRestore, onMemberUnpin,
+  isSettlement, recentExpenses, onTarget, usedTargetIds, allowNegative, autoFocusAmount, onMemberRestore, onMemberUnpin, defaultCurrency,
 }) {
   const [nameFocused, setNameFocused] = useState(false);
   // 참여 멤버 금액 입력: 누르면 지금 금액이 placeholder 가 되고 새로 입력(정산 현황 금액 수정과 같은 동작)
@@ -289,7 +290,7 @@ function ItemRow({
         <CalcAmountInput
           compact value={item.amount} onChange={onAmount} allowNegative={allowNegative} autoFocus={autoFocusAmount}
           initialCurrency={item.currencyMeta?.input_currency} initialForeignAmount={item.currencyMeta?.input_amount}
-          onCurrencyChange={onCurrencyChange} onCurrencySelect={setLiveCurrency}
+          onCurrencyChange={onCurrencyChange} onCurrencySelect={setLiveCurrency} defaultCurrency={defaultCurrency}
         />
         {canRemove ? (
           <button type="button" aria-label="행 삭제" onClick={onRemove} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--k-tx-c2bfc6)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -778,6 +779,9 @@ const TransactionForm = forwardRef(function TransactionForm({
 
   // 정산 그룹 결제 내역: 항목 행마다 참여 멤버 펼치기 + 멤버별 분담액(균등분배가 기본, 직접 수정 가능)
   const showMemberSplit = !!settlementMembers?.length && type === 'expense';
+  const primaryCode = getPrimary().code;
+  // 개인 기록 + 주 화폐가 원화가 아니면 합계를 주 화폐로 환산해 표시
+  const personalPrimary = primaryCode !== 'KRW' && !groupId && !onSubmit;
   // 할부는 개인 지출/수입 기록에서만(이체·정산·멤버 분담·그룹 전용 저장·이미 할부인 기록 제외).
   // 기록 수정에서 할부를 걸면 이 기록이 1회차로 바뀌고 나머지 회차가 새로 생긴다.
   const allowInstallment = !initial?.installment_total && !templateMode && !onSubmit && !isTransfer && !isSettlement && !showMemberSplit;
@@ -1289,6 +1293,8 @@ const TransactionForm = forwardRef(function TransactionForm({
             isTransfer={isTransfer} sources={sources}
             isSettlement={isSettlement} recentExpenses={recentExpenses} usedTargetIds={usedSettlementTargetIds}
             allowNegative={type === 'expense' && !isSettlement}
+            // 개인 기록(그룹 제외)의 새 금액은 주 화폐로 입력
+            defaultCurrency={(!groupId && !onSubmit && !isSettlement && primaryCode !== 'KRW') ? primaryCode : undefined}
             onTarget={(v) => onItemTargetChange(idx, v)}
             onName={(v) => onItemNameChange(idx, v)}
             itemNameSuggestions={itemNameSuggestions}
@@ -1343,7 +1349,7 @@ const TransactionForm = forwardRef(function TransactionForm({
               style={{ width: '100%', minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 15.5, fontWeight: 800, color: '#2CDDB9', outline: 'none', textAlign: 'right', padding: 0 }}
             />
           ) : (
-            <span style={{ fontSize: 15.5, fontWeight: 800, color: isTransfer ? 'var(--k-tx-4b4752)' : (type === 'expense' ? '#FF4358' : '#2CDDB9'), textAlign: 'right' }}>{fmtNum(total)}</span>
+            <span style={{ fontSize: 15.5, fontWeight: 800, color: isTransfer ? 'var(--k-tx-4b4752)' : (type === 'expense' ? '#FF4358' : '#2CDDB9'), textAlign: 'right' }}>{personalPrimary ? `${fmtP(total)} ${primaryCode}` : fmtNum(total)}</span>
           )}
           <span />
         </div>

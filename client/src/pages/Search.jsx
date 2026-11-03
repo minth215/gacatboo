@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon } from '../lib/format.js';
+import { fmtPUnit } from '../lib/primaryCurrency.js';
 import TransactionList from '../components/TransactionList.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
@@ -155,7 +155,7 @@ export default function Search() {
         )}
 
         <div className="small muted" style={{ marginTop: 8 }}>
-          결과 {filtered.length}건 · <span style={{ color: 'var(--income)', fontWeight: 700 }}>+{fmtWon(fIncome)}</span> · <span style={{ color: 'var(--expense)', fontWeight: 700 }}>-{fmtWon(fExpense)}</span>
+          결과 {filtered.length}건 · <span style={{ color: 'var(--income)', fontWeight: 700 }}>+{fmtPUnit(fIncome)}</span> · <span style={{ color: 'var(--expense)', fontWeight: 700 }}>-{fmtPUnit(fExpense)}</span>
         </div>
       </div>
 

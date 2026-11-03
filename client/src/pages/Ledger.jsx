@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { db, isSettlementIncome, netSettlementEff } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { loadPrefs } from '../lib/prefs.js';
+import { fmtP } from '../lib/primaryCurrency.js';
 import { currentMonth, shiftMonth, fmtNum, today, shiftDate, weekStartOf, currentYear, periodBounds, periodLabel, shiftPeriod } from '../lib/format.js';
 import TransactionList from '../components/TransactionList.jsx';
 import CatMascot from '../components/CatMascot.jsx';
@@ -508,11 +509,11 @@ export default function Ledger() {
                   </span>
                 </div>
                 <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgb(var(--k-sh) / calc(.07 * var(--k-sha)))', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
-                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtNum(sIncome)}</div></div>
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtP(sIncome)}</div></div>
                   <div style={{ width: 1, height: 30, background: 'var(--k-divider)' }} />
-                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtNum(sExpense)}</div></div>
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtP(sExpense)}</div></div>
                   <div style={{ width: 1, height: 30, background: 'var(--k-divider)' }} />
-                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>이체</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: 'var(--k-tx-4b4752)' }}>{fmtNum(sTransfer)}</div></div>
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>이체</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: 'var(--k-tx-4b4752)' }}>{fmtP(sTransfer)}</div></div>
                 </div>
               </div>
 
@@ -581,11 +582,11 @@ export default function Ledger() {
               <CatMascot width={70} />
             </div>
             <div style={{ background: 'var(--k-bg-fff)', borderRadius: 20, padding: '16px 18px', boxShadow: '0 6px 20px rgb(var(--k-sh) / calc(.07 * var(--k-sha)))', display: 'flex', alignItems: 'center', textAlign: 'center' }}>
-              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtNum(income)}</div></div>
+              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>수입</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#2CDDB9' }}>{fmtP(income)}</div></div>
               <div style={{ width: 1, height: 30, background: 'var(--k-divider)' }} />
-              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtNum(expense)}</div></div>
+              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>지출</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: '#FF4358' }}>{fmtP(expense)}</div></div>
               <div style={{ width: 1, height: 30, background: 'var(--k-divider)' }} />
-              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>합계</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: 'var(--k-tx-191722)' }}>{fmtNum(income - expense)}</div></div>
+              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--k-tx-9a96a5)' }}>합계</div><div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, letterSpacing: '-.3px', whiteSpace: 'nowrap', color: 'var(--k-tx-191722)' }}>{fmtP(income - expense)}</div></div>
             </div>
           </div>
 
@@ -614,8 +615,8 @@ export default function Ledger() {
                             background: sel ? '#FFF0DC' : 'transparent',
                           }}>
                           <div style={{ fontSize: 11, fontWeight: sel ? 800 : 600, color: dayColor }}>{day}</div>
-                          {pd?.expense > 0 && <div style={{ marginTop: 2, fontSize: 8, fontWeight: 700, letterSpacing: '-.3px', color: '#FF4358' }}>-{fmtNum(pd.expense)}</div>}
-                          {pd?.income > 0 && <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '-.3px', color: '#2CDDB9' }}>+{fmtNum(pd.income)}</div>}
+                          {pd?.expense > 0 && <div style={{ marginTop: 2, fontSize: 8, fontWeight: 700, letterSpacing: '-.3px', color: '#FF4358' }}>-{fmtP(pd.expense)}</div>}
+                          {pd?.income > 0 && <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '-.3px', color: '#2CDDB9' }}>+{fmtP(pd.income)}</div>}
                         </div>
                       );
                     })}
