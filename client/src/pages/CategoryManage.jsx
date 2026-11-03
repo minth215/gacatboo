@@ -9,8 +9,10 @@ import { tileBg, DayCardRow } from '../components/TransactionList.jsx';
 // 통계 페이지 원형 그래프 팔레트(Stats.jsx 의 PALETTE)를 흰색 85% 비율로 섞어 훨씬 연하게 만든 색.
 const PALETTE = ['#FFE9EF', '#FDF1E2', '#E6F0F9', '#EEECFC', '#DFFAF5', '#FFFBFB', '#FFF4F1', '#F0F8F6', '#F6F2FC', '#ECF4F9', '#FFF7E4', '#E9F8EB', '#FBEEF6'];
 
-// 정산 로직이 이름으로 찾는 수입 분류 — 삭제 불가(기본값 관리에서는 이름 변경도 불가)
-const LOCKED = (c, type) => (c.type || type) === 'income' && c.name === '정산';
+// 수입 "정산"은 정산 로직이 이름으로 찾는 분류라 항상 고정
+const IS_SETTLE = (c, type) => (c.type || type) === 'income' && c.name === '정산';
+// 고정 항목(0079 locked): 삭제·이름 변경 불가. 관리자는 분류 기본값 관리에서 토글로 지정.
+const LOCKED = (c, type) => !!c.locked || IS_SETTLE(c, type);
 
 // admin=true: 관리자 > 기타 관리 > 분류 기본값 관리(새 가입자에게 만들어 줄 분류). 수입/지출 탭으로 전환.
 export default function CategoryManage({ admin = false }) {
@@ -20,7 +22,7 @@ export default function CategoryManage({ admin = false }) {
   const { user } = useAuth();
   const api = admin ? {
     list: (t) => db.listDefaultCategories(t),
-    add: (t, name, emoji, color) => db.addDefaultCategory(t, name, emoji, color),
+    add: (t, name, emoji, color, locked) => db.addDefaultCategory(t, name, emoji, color, locked),
     update: (id, patch) => db.updateDefaultCategory(id, patch),
     remove: (id) => db.deleteDefaultCategory(id),
     reorder: (ids) => db.reorderDefaultCategories(ids),
@@ -49,16 +51,24 @@ export default function CategoryManage({ admin = false }) {
   }, [type, valid, admin]);
   useEffect(() => { load(); }, [load]);
 
-  const openAdd = () => setEditor({ name: '', emoji: '💰', color: PALETTE[0] });
-  const openEdit = (c) => setEditor({ id: c.id, locked: admin && LOCKED(c, type), name: c.name, emoji: c.emoji || '', color: c.color || tileBg(c.name) });
+  // editor.locked: 고정 항목 여부(관리자: 토글로 변경, 사용자: 이름 수정 불가)
+  // editor.settle: 수입 "정산"(항상 고정, 관리자도 이름·고정 해제 불가)
+  const openAdd = () => setEditor({ name: '', emoji: '💰', color: PALETTE[0], locked: false, settle: false });
+  const openEdit = (c) => setEditor({ id: c.id, locked: LOCKED(c, type), settle: IS_SETTLE(c, type), name: c.name, emoji: c.emoji || '', color: c.color || tileBg(c.name) });
+  // 이름 입력 잠금: 사용자는 고정 항목, 관리자는 "정산"만
+  const nameDisabled = !!editor?.id && (admin ? editor.settle : editor.locked);
   const closeModal = () => setEditor(null);
 
   const save = async () => {
     const name = editor.name.trim();
     if (!name) return closeModal();
     try {
-      if (editor.id) await api.update(editor.id, { name: editor.locked ? undefined : name, emoji: editor.emoji, color: editor.color });
-      else await api.add(type, name, editor.emoji, editor.color);
+      if (editor.id) {
+        await api.update(editor.id, {
+          ...(nameDisabled ? {} : { name }), emoji: editor.emoji, color: editor.color,
+          ...(admin ? { locked: editor.settle || !!editor.locked } : {}),
+        });
+      } else await api.add(type, name, editor.emoji, editor.color, admin && !!editor.locked);
       closeModal(); load();
     } catch (e) { alert(e.message); }
   };
@@ -108,7 +118,7 @@ export default function CategoryManage({ admin = false }) {
                   index={i} count={categories.length} clickable
                   isOpen={openId === c.id} onOpenChange={(o) => setOpenId(o ? c.id : null)}
                   onTap={() => openEdit(c)}
-                  onDelete={locked ? () => showToast('정산 분류는 삭제할 수 없습니다') : () => del(c)} deleteBlocked={locked}
+                  onDelete={locked ? () => showToast(admin && !IS_SETTLE(c, type) ? '고정 항목은 삭제할 수 없습니다' : `${c.name} 분류는 삭제할 수 없습니다`) : () => del(c)} deleteBlocked={locked}
                 >
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ width: 38, height: 38, borderRadius: 12, background: c.color || tileBg(c.name), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16.5, flex: 'none' }}>{c.emoji}</span>
@@ -150,7 +160,7 @@ export default function CategoryManage({ admin = false }) {
                 />
               </div>
               <input
-                type="text" placeholder="분류 이름" value={editor.name} onChange={(e) => setEditor({ ...editor, name: e.target.value })} disabled={editor.locked}
+                type="text" placeholder="분류 이름" value={editor.name} onChange={(e) => setEditor({ ...editor, name: e.target.value })} disabled={nameDisabled}
                 onKeyDown={(e) => e.key === 'Enter' && save()}
                 className="catmodal-name-input"
               />
@@ -169,6 +179,21 @@ export default function CategoryManage({ admin = false }) {
                 <svg width="13" viewBox="0 0 24 24" fill="none" stroke="#a29ead" strokeWidth="2.4" strokeLinecap="round" style={{ pointerEvents: 'none' }}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
               </label>
             </div>
+
+            {admin && (
+              // 고정 항목 토글(삭제·이름 변경 불가 항목). "정산"은 항상 고정.
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: editor.settle ? 'default' : 'pointer' }}>
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--k-tx-191722)' }}>고정 항목</span>
+                  <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)' }}>회원이 삭제하거나 이름을 바꿀 수 없어요</span>
+                </span>
+                <button
+                  type="button" role="switch" aria-checked={!!editor.locked} aria-label="고정 항목" disabled={editor.settle}
+                  className={`ios-toggle${editor.locked ? ' on' : ''}`} onClick={() => setEditor({ ...editor, locked: !editor.locked })}
+                  style={editor.settle ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                ><span className="ios-toggle-knob" /></button>
+              </label>
+            )}
 
             <button className="btn-ink-pill" style={{ marginTop: 4 }} onClick={save}>저장</button>
           </div>

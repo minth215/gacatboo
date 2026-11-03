@@ -181,10 +181,10 @@ export const db = {
     if (type) q = q.eq('type', type);
     return unwrap(await q);
   },
-  async addDefaultCategory(type, name, emoji = '', color = '') {
+  async addDefaultCategory(type, name, emoji = '', color = '', locked = false) {
     const existing = unwrap(await supabase.from('default_categories').select('sort_order').eq('type', type).order('sort_order', { ascending: false }).limit(1));
     const next = (existing[0]?.sort_order ?? -1) + 1;
-    return unwrap(await supabase.from('default_categories').insert({ type, name, emoji, color, sort_order: next }).select().single());
+    return unwrap(await supabase.from('default_categories').insert({ type, name, emoji, color, sort_order: next, ...(locked ? { locked: true } : {}) }).select().single());
   },
   async updateDefaultCategory(id, patch) {
     return unwrap(await supabase.from('default_categories').update(patch).eq('id', id).select().single());
