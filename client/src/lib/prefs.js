@@ -11,6 +11,7 @@ export const PREF_DEFAULTS = {
   statsView: 'donut',        // 통계 기본 뷰: donut | table
   statsSettle: true,         // 분류별 통계 정산 반영
   statsBudget: true,         // 분류별 통계 예산 바 보기
+  travelCurrency: null,      // 여행 중인 보조 화폐(화폐 설정 스와이프) — 기록 페이지 금액 기본 화폐
 };
 
 export function loadPrefs(uid) {

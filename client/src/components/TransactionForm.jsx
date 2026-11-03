@@ -780,6 +780,7 @@ const TransactionForm = forwardRef(function TransactionForm({
   // 정산 그룹 결제 내역: 항목 행마다 참여 멤버 펼치기 + 멤버별 분담액(균등분배가 기본, 직접 수정 가능)
   const showMemberSplit = !!settlementMembers?.length && type === 'expense';
   const primaryCode = getPrimary().code;
+  const [travelCurrency] = useState(() => { const t = loadPrefs(user?.id).travelCurrency; return t && t !== primaryCode ? t : null; });
   // 개인 기록 + 주 화폐가 원화가 아니면 합계를 주 화폐로 환산해 표시
   const personalPrimary = primaryCode !== 'KRW' && !groupId && !onSubmit;
   // 할부는 개인 지출/수입 기록에서만(이체·정산·멤버 분담·그룹 전용 저장·이미 할부인 기록 제외).
@@ -1294,7 +1295,8 @@ const TransactionForm = forwardRef(function TransactionForm({
             isSettlement={isSettlement} recentExpenses={recentExpenses} usedTargetIds={usedSettlementTargetIds}
             allowNegative={type === 'expense' && !isSettlement}
             // 개인 기록(그룹 제외)의 새 금액은 주 화폐로 입력
-            defaultCurrency={(!groupId && !onSubmit && !isSettlement && primaryCode !== 'KRW') ? primaryCode : undefined}
+            // 여행 중인 보조 화폐가 있으면 그 화폐가 기본(주 화폐·환산은 그대로)
+            defaultCurrency={(!groupId && !onSubmit && !isSettlement) ? (travelCurrency || (primaryCode !== 'KRW' ? primaryCode : undefined)) : undefined}
             onTarget={(v) => onItemTargetChange(idx, v)}
             onName={(v) => onItemNameChange(idx, v)}
             itemNameSuggestions={itemNameSuggestions}

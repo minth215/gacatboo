@@ -31,13 +31,13 @@ const marqueeOff = (e) => {
 // 둥글고 가운데는 각짐) 각 행이 흰 배경·그림자를 가진 독립 카드라서 개별로 밀린다. 묶음 자체엔 배경이 없어
 // 밀린 자리엔 페이지 배경 위에 삭제 버튼만 보이고, 밀린 카드는 왼쪽 화면 끝까지 이어진다.
 // onInvite: (그룹 멤버 카드) 삭제 아이콘 왼쪽의 초대 버튼
-export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete, onCopy, onInvite, onLongPress, clickable, background = 'var(--k-bg-fff)', children }) {
+export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete, onCopy, onInvite, onTravel, onLongPress, clickable, background = 'var(--k-bg-fff)', children }) {
   const first = index === 0;
   const last = index === count - 1;
   return (
     <SwipeRow
-      onTap={onTap} onLongPress={onLongPress} isOpen={isOpen} onOpenChange={onOpenChange} actionsWidth={52 * ([onCopy, onInvite, onDelete].filter(Boolean).length || 1)}
-      actions={(onDelete || onCopy || onInvite) ? (progress) => (
+      onTap={onTap} onLongPress={onLongPress} isOpen={isOpen} onOpenChange={onOpenChange} actionsWidth={52 * ([onCopy, onInvite, onTravel, onDelete].filter(Boolean).length || 1)}
+      actions={(onDelete || onCopy || onInvite || onTravel) ? (progress) => (
         <div className="tx-swipe-actions" style={{ opacity: progress }}>
           {onCopy && (
             <button type="button" className="settle-icon-btn" onClick={onCopy} aria-label="복사">
@@ -51,6 +51,14 @@ export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete
             <button type="button" className="settle-icon-btn" onClick={onInvite} aria-label="초대">
               <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="5" width="18" height="14" rx="2" /><polyline points="3 7 12 13 21 7" />
+              </svg>
+            </button>
+          )}
+          {onTravel && (
+            // 여행 중(비행기)
+            <button type="button" className="settle-icon-btn" onClick={onTravel} aria-label="여행 중">
+              <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
               </svg>
             </button>
           )}
