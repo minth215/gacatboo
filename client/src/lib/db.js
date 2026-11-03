@@ -174,6 +174,54 @@ export const db = {
     return unwrap(await supabase.rpc('set_primary_source', { p_source_id: id, p_kind: kind, p_value: value }));
   },
 
+  // ---------- 분류·원천 기본값(관리자 > 기타 관리, 0078) ----------
+  // 새로 가입한 회원에게 처음 만들어 줄 분류·원천. 분류/원천 관리 페이지가 admin 모드에서 이 API 를 쓴다.
+  async listDefaultCategories(type) {
+    let q = supabase.from('default_categories').select('*').order('sort_order').order('id');
+    if (type) q = q.eq('type', type);
+    return unwrap(await q);
+  },
+  async addDefaultCategory(type, name, emoji = '', color = '') {
+    const existing = unwrap(await supabase.from('default_categories').select('sort_order').eq('type', type).order('sort_order', { ascending: false }).limit(1));
+    const next = (existing[0]?.sort_order ?? -1) + 1;
+    return unwrap(await supabase.from('default_categories').insert({ type, name, emoji, color, sort_order: next }).select().single());
+  },
+  async updateDefaultCategory(id, patch) {
+    return unwrap(await supabase.from('default_categories').update(patch).eq('id', id).select().single());
+  },
+  async deleteDefaultCategory(id) {
+    return unwrap(await supabase.from('default_categories').delete().eq('id', id));
+  },
+  async reorderDefaultCategories(orderedIds) {
+    await Promise.all(orderedIds.map((id, i) => supabase.from('default_categories').update({ sort_order: i }).eq('id', id)));
+  },
+  async listDefaultSources() {
+    const flat = unwrap(await supabase.from('default_sources').select('*').order('sort_order').order('id'));
+    const tops = flat.filter((s) => s.parent_id == null).map((t) => ({ ...t, children: flat.filter((c) => c.parent_id === t.id) }));
+    return { tree: tops, flat };
+  },
+  async addDefaultSource(name, parentId = null, groupType = null) {
+    let q = supabase.from('default_sources').select('sort_order').order('sort_order', { ascending: false }).limit(1);
+    q = parentId ? q.eq('parent_id', parentId) : q.is('parent_id', null);
+    const existing = unwrap(await q);
+    const next = (existing[0]?.sort_order ?? -1) + 1;
+    return unwrap(await supabase.from('default_sources').insert({
+      name, parent_id: parentId, sort_order: next, ...(!parentId && groupType ? { group_type: groupType } : {}),
+    }).select().single());
+  },
+  async updateDefaultSource(id, name, groupType) {
+    return unwrap(await supabase.from('default_sources').update({ name, ...(groupType ? { group_type: groupType } : {}) }).eq('id', id).select().single());
+  },
+  async deleteDefaultSource(id) {
+    return unwrap(await supabase.from('default_sources').delete().eq('id', id));
+  },
+  // 주결제/주입금수단 기본값: 같은 종류는 하나만(지정하면 나머지 해제)
+  async setDefaultPrimarySource(id, kind, value) {
+    const col = kind === 'payment' ? 'is_primary_payment' : 'is_primary_deposit';
+    if (value) unwrap(await supabase.from('default_sources').update({ [col]: false }).eq(col, true));
+    return unwrap(await supabase.from('default_sources').update({ [col]: !!value }).eq('id', id));
+  },
+
   // ---------- 화폐 설정(보조 화폐) ----------
   // 주 화폐(원화)는 행이 없고 항상 기본값으로 취급. 여기 목록은 "추가로 쓸 수 있는" 보조 화폐만 담는다.
   async listCurrencies() {

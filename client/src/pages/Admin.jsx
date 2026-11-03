@@ -18,7 +18,7 @@ const Chevron = () => (
 );
 
 export default function Admin() {
-  const [tab, setTab] = useState('members'); // members | notifications | holidays
+  const [tab, setTab] = useState('members'); // members | notifications | holidays | etc
 
   return (
     <div style={{ padding: '32px 0 12px' }}>
@@ -27,9 +27,32 @@ export default function Admin() {
         <button className={tab === 'members' ? 'active' : ''} onClick={() => setTab('members')}>회원 관리</button>
         <button className={tab === 'notifications' ? 'active' : ''} onClick={() => setTab('notifications')}>알림 관리</button>
         <button className={tab === 'holidays' ? 'active' : ''} onClick={() => setTab('holidays')}>공휴일 관리</button>
+        <button className={tab === 'etc' ? 'active' : ''} onClick={() => setTab('etc')}>기타 관리</button>
       </div>
 
-      {tab === 'members' ? <AdminMembers /> : tab === 'notifications' ? <AdminNotifications /> : <AdminHolidays />}
+      {tab === 'members' ? <AdminMembers /> : tab === 'notifications' ? <AdminNotifications /> : tab === 'holidays' ? <AdminHolidays /> : <AdminEtc />}
+    </div>
+  );
+}
+
+// 기타 관리: 메뉴 카드(분류 기본값 관리 / 원천 기본값 관리)
+function AdminEtc() {
+  const nav = useNavigate();
+  const menus = [
+    ['/admin/defaults/categories', '분류 기본값 관리', '새로 가입한 회원의 기본 수입/지출 분류'],
+    ['/admin/defaults/sources', '원천 기본값 관리', '새로 가입한 회원의 기본 원천'],
+  ];
+  return (
+    <div className="ntpl-list" style={{ marginTop: 14 }}>
+      {menus.map(([to, title, body]) => (
+        <button key={to} type="button" className="ntpl-card ntpl-card-btn" onClick={() => nav(to)}>
+          <span className="ntpl-main" style={{ cursor: 'default' }}>
+            <span className="ntpl-title">{title}</span>
+            <span className="ntpl-body">{body}</span>
+          </span>
+          <Chevron />
+        </button>
+      ))}
     </div>
   );
 }

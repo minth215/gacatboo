@@ -109,6 +109,8 @@ export default function App() {
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
         <Route path="/admin/users/:id" element={<Protected adminOnly><AdminUserDetail /></Protected>} />
+        <Route path="/admin/defaults/categories" element={<Protected adminOnly><CategoryManage admin /></Protected>} />
+        <Route path="/admin/defaults/sources" element={<Protected adminOnly><SourceManage admin /></Protected>} />
       </Route>
 
       <Route path="*" element={<Navigate to={loading ? '/login' : '/'} replace />} />

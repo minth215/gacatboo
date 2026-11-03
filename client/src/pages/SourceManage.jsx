@@ -6,8 +6,22 @@ import { DayCardRow } from '../components/TransactionList.jsx';
 
 const isCardGroup = (t) => t === 'credit' || t === 'check';
 
-export default function SourceManage() {
+// admin=true: 관리자 > 기타 관리 > 원천 기본값 관리(새 가입자에게 만들어 줄 원천)
+export default function SourceManage({ admin = false }) {
   const { user } = useAuth();
+  const api = admin ? {
+    list: () => db.listDefaultSources(),
+    add: (name, parentId, groupType) => db.addDefaultSource(name, parentId, groupType),
+    update: (id, name, groupType) => db.updateDefaultSource(id, name, groupType),
+    remove: (id) => db.deleteDefaultSource(id),
+    setPrimary: (id, kind, value) => db.setDefaultPrimarySource(id, kind, value),
+  } : {
+    list: () => db.listSources(),
+    add: (name, parentId, groupType) => db.addSource(user.id, name, parentId, groupType),
+    update: (id, name, groupType) => db.updateSource(id, name, groupType),
+    remove: (id) => db.deleteSource(id),
+    setPrimary: (id, kind, value) => db.setPrimarySource(id, kind, value),
+  };
   const [sources, setSources] = useState([]);
   // 원천 그룹 추가 모달(이름 + 그룹 특성). 수정은 카드를 눌러 여는 수정 모달(editor)에서.
   const [addingCat, setAddingCat] = useState(false);
@@ -20,7 +34,8 @@ export default function SourceManage() {
   const [editor, setEditor] = useState(null);
   const [openId, setOpenId] = useState(null); // 한 번에 하나의 카드만 스와이프로 열려 있도록
 
-  const load = useCallback(() => db.listSources().then(({ tree }) => setSources(tree)).catch((e) => alert(e.message)), []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const load = useCallback(() => api.list().then(({ tree }) => setSources(tree)).catch((e) => alert(e.message)), [admin]);
   useEffect(() => { load(); }, [load]);
 
   const wrap = (p) => p.catch((e) => alert(e.message));
@@ -30,12 +45,12 @@ export default function SourceManage() {
   const saveAddCat = async () => {
     const name = addCatName.trim();
     if (!name) return alert('원천 그룹 이름을 입력하세요.');
-    await wrap(db.addSource(user.id, name, null, addCatType));
+    await wrap(api.add(name, null, addCatType));
     cancelAddCat(); load();
   };
   const delCat = async (s) => {
     if (!confirm(`'${s.name}'${s.children?.length ? ' 및 하위 항목' : ''}을(를) 삭제할까요?`)) return;
-    await wrap(db.deleteSource(s.id)); load();
+    await wrap(api.remove(s.id)); load();
   };
 
   const openAddItem = (catId) => { setAddingItemCatId(catId); setAddItemDraft(''); };
@@ -43,7 +58,7 @@ export default function SourceManage() {
   const saveAddItem = async (catId) => {
     const name = addItemDraft.trim();
     if (!name) { setAddingItemCatId(null); return; }
-    await wrap(db.addSource(user.id, name, catId));
+    await wrap(api.add(name, catId));
     setAddingItemCatId(null); load();
   };
 
@@ -61,22 +76,22 @@ export default function SourceManage() {
     const deposit = depositDisabled ? false : editor.deposit;
     try {
       if (name !== src.name || (editor.isGroup && editor.groupType !== (src.group_type || 'general'))) {
-        await db.updateSource(src.id, name, editor.isGroup ? editor.groupType : undefined);
+        await api.update(src.id, name, editor.isGroup ? editor.groupType : undefined);
       }
-      if (editor.payment !== !!src.is_primary_payment) await db.setPrimarySource(src.id, 'payment', editor.payment);
-      if (deposit !== !!src.is_primary_deposit) await db.setPrimarySource(src.id, 'deposit', deposit);
+      if (editor.payment !== !!src.is_primary_payment) await api.setPrimary(src.id, 'payment', editor.payment);
+      if (deposit !== !!src.is_primary_deposit) await api.setPrimary(src.id, 'deposit', deposit);
       setEditor(null); load();
     } catch (e) { alert(e.message); }
   };
   const delItem = async (it) => {
     if (!confirm(`'${it.name}'을(를) 삭제할까요?`)) return;
-    await wrap(db.deleteSource(it.id)); load();
+    await wrap(api.remove(it.id)); load();
   };
 
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title="원천 관리" flat right={
+      <PageHeader title={admin ? '원천 기본값 관리' : '원천 관리'} flat right={
         <button className="tb-icon-btn" onClick={openAddCat} aria-label="원천 그룹 추가">
           <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
         </button>
