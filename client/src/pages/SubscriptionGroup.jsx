@@ -236,9 +236,13 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     }, 0);
   };
   const defaultLeftover = totalPaid - realMembers.reduce((s, m) => s + defaultShareOf(m), 0);
-  const baseOwedOf = (m) => (m.settlement_override != null ? Number(m.settlement_override) : defaultShareOf(m));
+  // 정산 현황에서 저장한 금액(settlement_override)은 저장 당시의 총 결제 금액에 맞춘 값이라, 그 뒤 결제 내역이
+  // 추가·수정·삭제돼 합계가 지금 총 결제 금액과 달라지면 쓰지 않고 결제 건별 분배(기록 화면에서 나눈 금액)로 계산한다.
+  const overrideSum = realMembers.reduce((s, m) => s + Number(m.settlement_override || 0), 0) + Number(leftoverMember?.settlement_override || 0);
+  const overridesFresh = realMembers.length > 0 && realMembers.every((m) => m.settlement_override != null) && overrideSum === totalPaid;
+  const baseOwedOf = (m) => (overridesFresh ? Number(m.settlement_override) : defaultShareOf(m));
   // 자동 계산으로 저장된 자투리는 짤짤이 멤버 행의 settlement_override 에 보관한다.
-  const baseLeftover = leftoverMember?.settlement_override != null ? Number(leftoverMember.settlement_override) : defaultLeftover;
+  const baseLeftover = overridesFresh && leftoverMember?.settlement_override != null ? Number(leftoverMember.settlement_override) : defaultLeftover;
   // 총 결제 금액·인원이 바뀌면 이전에 감춰둔 짤짤이 카드를 다시 보여준다.
   useEffect(() => { setLeftoverDismissed(false); }, [totalPaid, memberCount]);
   useEffect(() => {

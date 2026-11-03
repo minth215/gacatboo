@@ -322,7 +322,7 @@ function ItemRow({
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                 // 직접 입력한(고정) 금액은 먹색, 자동 계산 금액은 회색
-                style={{ gridColumn: 4, width: '100%', border: 'none', borderBottom: '1px solid var(--k-bd-e4e2e6)', borderRadius: 0, background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, fontWeight: (m.pinned || (memberFocus === m.id && memberDraft !== '')) ? 700 : 400, color: (m.pinned || (memberFocus === m.id && memberDraft !== '')) ? 'var(--k-tx-191722)' : 'var(--k-tx-8b8798)', textAlign: 'right', outline: 'none', minWidth: 0, padding: 0, opacity: m.checked ? 1 : 0.4 }}
+                style={{ gridColumn: 4, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, fontWeight: (m.pinned || (memberFocus === m.id && memberDraft !== '')) ? 700 : 400, color: (m.pinned || (memberFocus === m.id && memberDraft !== '')) ? 'var(--k-tx-191722)' : 'var(--k-tx-8b8798)', textAlign: 'right', outline: 'none', minWidth: 0, padding: 0, opacity: m.checked ? 1 : 0.4 }}
               />
               <input
                 type="checkbox" checked={m.checked} onChange={() => onToggleMember(m.id)}
