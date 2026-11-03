@@ -107,7 +107,7 @@ export default function RecurringManage() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      {/* 검색: 가계부 검색처럼 오른쪽 검색 버튼이 왼쪽 "<" 버튼 앞까지 늘어나 검색창이 됨 */}
+      {/* 검색: 오른쪽 검색 버튼이 왼쪽 "<" 버튼을 덮을 때까지 늘어나 검색창이 됨(닫기는 X) */}
       <PageHeader
         flat
         title={<span style={{ opacity: searchOpen ? 0 : 1, transition: 'opacity 0.26s ease' }}>반복 관리</span>}
