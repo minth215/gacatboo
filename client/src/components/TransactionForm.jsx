@@ -768,8 +768,9 @@ const TransactionForm = forwardRef(function TransactionForm({
 
   // 정산 그룹 결제 내역: 항목 행마다 참여 멤버 펼치기 + 멤버별 분담액(균등분배가 기본, 직접 수정 가능)
   const showMemberSplit = !!settlementMembers?.length && type === 'expense';
-  // 할부는 새 개인 지출/수입 기록에서만(수정·이체·정산·멤버 분담·그룹 전용 저장 제외)
-  const allowInstallment = !editing && !templateMode && !onSubmit && !isTransfer && !isSettlement && !showMemberSplit;
+  // 할부는 개인 지출/수입 기록에서만(이체·정산·멤버 분담·그룹 전용 저장·이미 할부인 기록 제외).
+  // 기록 수정에서 할부를 걸면 이 기록이 1회차로 바뀌고 나머지 회차가 새로 생긴다.
+  const allowInstallment = !initial?.installment_total && !templateMode && !onSubmit && !isTransfer && !isSettlement && !showMemberSplit;
   const splitInitRef = useRef(false);
   useEffect(() => {
     if (splitInitRef.current) return;
@@ -1041,7 +1042,7 @@ const TransactionForm = forwardRef(function TransactionForm({
             input_amount: payload.input_amount != null ? Math.round(payload.input_amount / installment * 100) / 100 : null,
             recurrence: null, backfillPast: false,
           };
-          await db.saveTransaction({ userId: user.id, payload: part, sourcesFlat });
+          await db.saveTransaction({ id: i === 0 ? initial?.id : undefined, userId: user.id, payload: part, sourcesFlat });
         }
       } else if (onSubmit) await onSubmit(payload);
       else {
