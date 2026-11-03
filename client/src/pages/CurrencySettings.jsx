@@ -1,23 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
-import { useAuth } from '../lib/auth.jsx';
 import PageHeader from '../components/PageHeader.jsx';
-import { CURRENCIES, CURRENCY_NAME } from '../lib/currency.js';
+import { CURRENCY_NAME } from '../lib/currency.js';
 
 export default function CurrencySettings() {
-  const { user } = useAuth();
+  const nav = useNavigate();
   const [list, setList] = useState([]);
-  const [picking, setPicking] = useState(false);
 
   const load = useCallback(() => db.listCurrencies().then(setList).catch((e) => alert(e.message)), []);
   useEffect(() => { load(); }, [load]);
 
-  const addedCodes = new Set(list.map((c) => c.code));
-  const available = CURRENCIES.filter((c) => !addedCodes.has(c.code));
-
-  const add = async (code) => {
-    try { await db.addCurrency(user.id, code); setPicking(false); load(); } catch (e) { alert(e.message); }
-  };
   const del = async (row) => {
     if (!confirm(`'${CURRENCY_NAME[row.code] || row.code}'를 삭제할까요?`)) return;
     try { await db.deleteCurrency(row.id); load(); } catch (e) { alert(e.message); }
@@ -26,12 +19,10 @@ export default function CurrencySettings() {
   return (
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="화폐 설정" flat right={
-        <button className="tb-icon-btn" onClick={() => setPicking(true)} aria-label="보조 화폐 추가">
+        <button className="tb-icon-btn" onClick={() => nav('/settings/currency/add')} aria-label="보조 화폐 추가">
           <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
         </button>
       } />
-
-      <p className="small muted" style={{ margin: '14px 2px 0' }}>주 화폐는 원화이며, 기록 페이지의 금액 입력 키패드에서 아래 보조 화폐로 바꿔 입력하면 자동으로 원화 환산 금액을 함께 보여줍니다.</p>
 
       <div className="tx-daycard" style={{ marginTop: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px 12px 16px' }}>
@@ -52,35 +43,6 @@ export default function CurrencySettings() {
         ))}
       </div>
 
-      {picking && (
-        <div className="catmodal-overlay" onClick={() => setPicking(false)}>
-          <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>보조 화폐 추가</div>
-              <button aria-label="닫기" onClick={() => setPicking(false)} className="catmodal-icon-btn">
-                <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
-              </button>
-            </div>
-            <div style={{ maxHeight: '50vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-              {available.length === 0 ? (
-                <p className="small muted" style={{ padding: '8px 2px' }}>추가할 수 있는 화폐가 없습니다.</p>
-              ) : available.map((c, i) => (
-                <button
-                  key={c.code} type="button" onClick={() => add(c.code)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'transparent',
-                    padding: '12px 2px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)', cursor: 'pointer',
-                    textAlign: 'left', fontFamily: 'inherit', width: '100%',
-                  }}
-                >
-                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--k-tx-8b8798)', width: 36, flex: 'none' }}>{c.code}</span>
-                  <span style={{ fontSize: 13.75, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{c.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
