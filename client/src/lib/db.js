@@ -502,15 +502,25 @@ export const db = {
     if (!t?.installment_total) return [];
     return unwrap(await installmentGroupFilter(supabase.from('transactions').select('id, installment_no, amount'), t).order('installment_no', { ascending: true }));
   },
-  // 이후 회차 삭제: 이 회차와 그 뒤 회차를 지우고, 남은 회차의 전체 개월 수를 줄인다
-  // (남은 회차가 1개면 할부 표시를 지워 일반 기록으로).
+  // 할부 선결제(이후 회차 삭제): 이 회차와 그 뒤 회차를 지우고, 지운 금액을 바로 앞 회차에 더한다.
+  // 회차 표시(n/N)와 할부 총 금액은 그대로(예: 30만 원 3개월에서 3/3 삭제 → 2/3 회차가 20만 원).
   async deleteInstallmentAfter(t) {
     if (!t?.installment_total) return this.deleteTransaction(t.id);
     if (t.installment_no <= 1) return this.deleteInstallmentGroup(t);
-    const left = t.installment_no - 1;
-    unwrap(await installmentGroupFilter(supabase.from('transactions').delete(), t).gte('installment_no', t.installment_no));
-    const patch = left === 1 ? { installment_no: null, installment_total: null, installment_group: null } : { installment_total: left };
-    return unwrap(await installmentGroupFilter(supabase.from('transactions').update(patch), t).lt('installment_no', t.installment_no));
+    const parts = unwrap(await installmentGroupFilter(supabase.from('transactions').select('*'), t).order('installment_no', { ascending: true }));
+    const removed = parts.filter((p) => p.installment_no >= t.installment_no);
+    const prev = parts.filter((p) => p.installment_no < t.installment_no).pop();
+    const moved = removed.reduce((s, p) => s + Number(p.amount), 0);
+    if (removed.length) unwrap(await supabase.from('transactions').delete().in('id', removed.map((p) => p.id)));
+    if (prev && moved) {
+      const amt = Number(prev.amount) + moved;
+      const ratio = Number(prev.amount) > 0 ? amt / Number(prev.amount) : 1;
+      unwrap(await supabase.from('transactions').update({
+        amount: amt,
+        ...(Array.isArray(prev.items) && prev.items.length === 1 ? { items: [{ ...prev.items[0], qty: 1, amount: amt, ...(prev.items[0].input_amount != null ? { input_amount: Math.round(prev.items[0].input_amount * ratio * 100) / 100 } : {}) }] } : {}),
+        ...(prev.input_amount != null ? { input_amount: Math.round(prev.input_amount * ratio * 100) / 100 } : {}),
+      }).eq('id', prev.id));
+    }
   },
   // 할부 개월 수 수정: 묶음 전체 금액 합계를 새 개월 수로 다시 나눠(1회차 = 몫 + 나머지) 일괄 수정하고,
   // 늘어난 회차는 마지막 기록을 복사해 한 달씩 추가, 줄어든 회차는 삭제한다.

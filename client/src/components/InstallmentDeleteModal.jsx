@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
-// 할부 기록 삭제 시 선택: "할부 기록 전체 삭제" / "이후 회차 삭제"(이 회차 포함 이후 회차).
+// 할부 기록 삭제 시 선택: "할부 기록 전체 삭제" / "할부 선결제(이후 회차 삭제)" — 이 회차 포함 이후 회차를
+// 지우고 그 금액을 앞 회차에 더함(중도 상환).
 // 1회차는 어차피 전체가 지워지므로 모달 대신 알림 후 전체 삭제.
 // const [askInstallmentDelete, installmentDeleteEl] = useInstallmentDeleteChoice();
 // const choice = await askInstallmentDelete(t) // 'all' | 'after' | null(취소)
@@ -20,7 +21,7 @@ export function useInstallmentDeleteChoice() {
       <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button type="button" style={btn(true)} onClick={() => close('all')}>할부 기록 전체 삭제</button>
-          <button type="button" style={btn(false)} onClick={() => close('after')}>이후 회차 삭제</button>
+          <button type="button" style={btn(false)} onClick={() => close('after')}>할부 선결제(이후 회차 삭제)</button>
         </div>
       </div>
     </div>
