@@ -211,7 +211,8 @@ export default function Stats() {
     const m = {};
     // "실적 제외"로 기록한 지출은 카드 실적 합계에서 뺀다
     rows.filter((r) => r.type === 'expense' && r.source_id != null && !r.exclude_performance)
-      .forEach((r) => { m[r.source_id] = (m[r.source_id] || 0) + Number(r.amount); });
+      // 할부는 첫 달에 전체 금액(perf_amount), 이후 회차는 0
+      .forEach((r) => { m[r.source_id] = (m[r.source_id] || 0) + Number(r.perf_amount ?? r.amount); });
     return m;
   }, [rows]);
   const tierOf = (sourceId) => {

@@ -1148,8 +1148,22 @@ export const db = {
       if (isSettlementIncome(r)) return { ...r, eff: excessMap[r.id] || 0, category_name: '정산' };
       return { ...r, eff: Number(r.amount) };
     }), settleMap);
+    // 카드 실적용 금액(perf_amount): 할부는 1회차에 할부 전체 금액, 나머지 회차는 0
+    // (분류/원천/항목별 통계는 그대로 회차 금액)
+    const instGroups = [...new Set(withEff.filter((r) => r.installment_total && r.installment_no === 1 && r.installment_group).map((r) => r.installment_group))];
+    const instSum = {};
+    if (instGroups.length) {
+      unwrap(await supabase.from('transactions').select('installment_group, amount').in('installment_group', instGroups))
+        .forEach((p) => { instSum[p.installment_group] = (instSum[p.installment_group] || 0) + Number(p.amount); });
+    }
+    const withPerf = withEff.map((r) => (!r.installment_total ? r : {
+      ...r,
+      perf_amount: r.installment_no !== 1 ? 0
+        // 묶음 값이 없는 예전 할부: 1회차 금액 × 개월 수로 근사
+        : (r.installment_group ? (instSum[r.installment_group] ?? Number(r.amount)) : Number(r.amount) * r.installment_total),
+    }));
     // 구독 그룹 결제/입금이 반영된 항목에 회차(몇 회분) 정보를 붙인다(가계부와 동일).
-    return this.attachSubscriptionPeriods(withEff);
+    return this.attachSubscriptionPeriods(withPerf);
   },
 
   async groupStats(groupId, month, members) {
