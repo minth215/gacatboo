@@ -37,21 +37,31 @@ function equalSplitAmounts(count, total) {
   const rem = total - base * count;
   return Array.from({ length: count }, (_, i) => base + (i < rem ? 1 : 0));
 }
-// 항목 하나(행)의 참여 멤버별 금액을 계산(체크 해제된 멤버는 0, 직접 수정한 금액은 그대로 유지)
+// 항목 하나(행)의 참여 멤버별 금액(정산 현황 금액 수정과 같은 방식).
+//  · memberAmountOverride: 직접 입력해 고정한 금액(먹색). 고정되지 않은 체크 멤버는 (항목 금액 - 고정 합계)를 똑같이 나눔.
+//  · memberHeld: 고정을 푼 직후의 금액 스냅샷 { total, amounts } — 다른 멤버를 수정하기 전까지는 금액을 그대로 유지.
+//    (항목 금액이 바뀌거나 다른 입력/체크가 있으면 버려지고 다시 자동 계산)
+// 체크 해제된 멤버는 0.
 function memberRowsFor(item, members, total) {
-  const checkedIds = members.filter((m) => item.memberChecked?.[m.id] !== false).map((m) => m.id);
-  const shares = equalSplitAmounts(checkedIds.length, total);
+  const isChecked = (m) => item.memberChecked?.[m.id] !== false;
+  const pinned = item.memberAmountOverride || {};
+  const held = item.memberHeld && item.memberHeld.total === total ? item.memberHeld.amounts : null;
+  const checked = members.filter(isChecked);
+  const pinnedSum = checked.reduce((s, m) => s + (pinned[m.id] != null ? Number(pinned[m.id]) : 0), 0);
+  const free = checked.filter((m) => pinned[m.id] == null);
+  const shares = equalSplitAmounts(free.length, Math.max(0, total - pinnedSum));
   const shareOf = {};
-  checkedIds.forEach((id, i) => { shareOf[id] = shares[i]; });
+  free.forEach((m, i) => { shareOf[m.id] = shares[i]; });
   return members.map((m) => {
-    const checked = item.memberChecked?.[m.id] !== false;
-    const override = item.memberAmountOverride?.[m.id];
-    return { id: m.id, name: m.nickname, isOwner: m.role === 'owner', checked, amount: checked ? (override ?? (shareOf[m.id] || 0)) : 0 };
+    const on = isChecked(m);
+    const isPinned = on && pinned[m.id] != null;
+    const amount = !on ? 0 : isPinned ? Number(pinned[m.id]) : (held && held[m.id] != null ? Number(held[m.id]) : (shareOf[m.id] || 0));
+    return { id: m.id, name: m.nickname, isOwner: m.role === 'owner', checked: on, pinned: isPinned, amount };
   });
 }
 const itemTotalOf = (it) => (Number(it.amount) || 0) * (Number(it.qty) || 1);
 const emptyItem = () => ({
-  name: '', qty: '1', amount: '', currencyMeta: null, expanded: false, memberChecked: {}, memberAmountOverride: {},
+  name: '', qty: '1', amount: '', currencyMeta: null, expanded: false, memberChecked: {}, memberAmountOverride: {}, memberHeld: null,
   fromSourceId: '', toSourceId: '', // 이체일 때만 사용(항목명 칸 대신 출금/입금 원천 선택)
   targetId: '', // 분류=정산일 때만 사용(항목명 칸 대신 정산 대상 선택)
 });
@@ -173,9 +183,13 @@ function transferSources(tree, excludeTypes, selectedId) {
 
 function ItemRow({
   item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, itemNameSuggestions, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource,
-  isSettlement, recentExpenses, onTarget, usedTargetIds, allowNegative, autoFocusAmount,
+  isSettlement, recentExpenses, onTarget, usedTargetIds, allowNegative, autoFocusAmount, onMemberRestore, onMemberUnpin,
 }) {
   const [nameFocused, setNameFocused] = useState(false);
+  // 참여 멤버 금액 입력: 누르면 지금 금액이 placeholder 가 되고 새로 입력(정산 현황 금액 수정과 같은 동작)
+  const [memberFocus, setMemberFocus] = useState(null);
+  const [memberDraft, setMemberDraft] = useState('');
+  const memberSnapRef = useRef(null); // 포커스 전 고정/보류 상태(입력을 다 지우면 되돌림)
   const [nameSuggestOpen, setNameSuggestOpen] = useState(false);
   // 금액 키패드에서 지금 고른 화폐(확정 전 포함) — 보조 화폐면 환산 줄 높이를 바로 확보
   const [liveCurrency, setLiveCurrency] = useState(item.currencyMeta?.input_currency || 'KRW');
@@ -292,9 +306,23 @@ function ItemRow({
               </span>
               <input
                 type="text" inputMode="numeric" disabled={!m.checked}
-                value={m.checked ? Number(m.amount).toLocaleString('ko-KR') : ''}
-                onChange={(e) => onMemberAmount(m.id, e.target.value.replace(/[^0-9]/g, ''))}
-                style={{ gridColumn: 4, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, color: 'var(--k-tx-8b8798)', textAlign: 'right', outline: 'none', minWidth: 0, padding: 0, opacity: m.checked ? 1 : 0.4 }}
+                value={!m.checked ? '' : memberFocus === m.id ? (memberDraft === '' ? '' : Number(memberDraft).toLocaleString('ko-KR')) : Number(m.amount).toLocaleString('ko-KR')}
+                placeholder={memberFocus === m.id ? Number(m.amount).toLocaleString('ko-KR') : undefined}
+                onFocus={() => { memberSnapRef.current = { override: item.memberAmountOverride || {}, held: item.memberHeld || null }; setMemberFocus(m.id); setMemberDraft(''); }}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9]/g, '');
+                  setMemberDraft(v);
+                  // 입력할 때마다 이 멤버를 그 금액으로 고정하고 나머지 자동 재계산 / 다 지우면 포커스 전 상태로
+                  if (v !== '') onMemberAmount(m.id, v); else onMemberRestore(memberSnapRef.current);
+                }}
+                onBlur={() => {
+                  // 아무것도 입력하지 않고 나가면 금액은 그대로 두고 고정만 해제(다른 멤버를 수정하면 다시 자동 계산)
+                  if (memberDraft === '') onMemberUnpin(m.id, memberRowsFor(item, settlementMembers, itemTotalOf(item)));
+                  setMemberFocus(null); setMemberDraft('');
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                // 직접 입력한(고정) 금액은 먹색, 자동 계산 금액은 회색
+                style={{ gridColumn: 4, width: '100%', border: 'none', borderBottom: '1px solid var(--k-bd-e4e2e6)', borderRadius: 0, background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, fontWeight: (m.pinned || (memberFocus === m.id && memberDraft !== '')) ? 700 : 400, color: (m.pinned || (memberFocus === m.id && memberDraft !== '')) ? 'var(--k-tx-191722)' : 'var(--k-tx-8b8798)', textAlign: 'right', outline: 'none', minWidth: 0, padding: 0, opacity: m.checked ? 1 : 0.4 }}
               />
               <input
                 type="checkbox" checked={m.checked} onChange={() => onToggleMember(m.id)}
@@ -587,11 +615,25 @@ const TransactionForm = forwardRef(function TransactionForm({
     const checked = it.memberChecked?.[memberId] !== false;
     const memberAmountOverride = { ...it.memberAmountOverride };
     delete memberAmountOverride[memberId]; // 체크 상태가 바뀌면 직접 수정한 금액은 초기화(자동 재계산)
-    return { ...it, memberChecked: { ...it.memberChecked, [memberId]: !checked }, memberAmountOverride };
+    return { ...it, memberChecked: { ...it.memberChecked, [memberId]: !checked }, memberAmountOverride, memberHeld: null };
   }));
-  const setItemMemberAmount = (idx, memberId, v) => updateItem(idx, {
-    memberAmountOverride: { ...items[idx].memberAmountOverride, [memberId]: Math.max(0, Number(v) || 0) },
-  });
+  // 멤버 금액 입력: 그 금액으로 고정(먹색), 보류 스냅샷은 버리고 나머지는 자동 재계산
+  const setItemMemberAmount = (idx, memberId, v) => setItems((prev) => prev.map((it, i) => (i !== idx ? it : {
+    ...it, memberAmountOverride: { ...it.memberAmountOverride, [memberId]: Math.max(0, Number(v) || 0) }, memberHeld: null,
+  })));
+  // 입력을 다 지웠을 때: 포커스 전 상태로 되돌림
+  const restoreItemMembers = (idx, snap) => setItems((prev) => prev.map((it, i) => (i !== idx || !snap ? it : {
+    ...it, memberAmountOverride: snap.override, memberHeld: snap.held,
+  })));
+  // 빈 채로 나감: 고정만 풀고 지금 금액 전체를 보류 스냅샷으로 유지
+  const unpinItemMember = (idx, memberId, rows) => setItems((prev) => prev.map((it, i) => {
+    if (i !== idx) return it;
+    const memberAmountOverride = { ...it.memberAmountOverride };
+    delete memberAmountOverride[memberId];
+    const amounts = {};
+    rows.forEach((r) => { if (r.checked) amounts[r.id] = r.amount; });
+    return { ...it, memberAmountOverride, memberHeld: { total: itemTotalOf(it), amounts } };
+  }));
 
   // 영수증 사진(base64) → Gemini 로 날짜/금액/상호명/분류 추출 → 폼에 제안값으로 채움(항상 사용자가
   // 확인 후 저장). 폼 안의 "영수증으로 채우기" 버튼과, 가계부 페이지의 촬영 버튼(아래 자동 실행
@@ -732,21 +774,22 @@ const TransactionForm = forwardRef(function TransactionForm({
       setItems((prev) => prev.map((it, i) => {
         const saved = initial.items[i];
         if (!saved || !Array.isArray(saved.members)) return it;
-        const memberChecked = {}; const memberAmountOverride = {};
+        // 저장된 금액은 고정이 아닌 보류 스냅샷으로 복원(그대로 보이되, 다른 멤버를 수정하면 자동 재계산)
+        const memberChecked = {}; const amounts = {};
         const checkedIds = new Set(saved.members.map((r) => r.member_id));
         for (const m of settlementMembers) memberChecked[m.id] = checkedIds.has(m.id);
-        for (const r of saved.members) memberAmountOverride[r.member_id] = Number(r.amount);
-        return { ...it, memberChecked, memberAmountOverride };
+        for (const r of saved.members) amounts[r.member_id] = Number(r.amount);
+        return { ...it, memberChecked, memberAmountOverride: {}, memberHeld: { total: itemTotalOf(it), amounts } };
       }));
       return;
     }
     if (!initialSettlementSplit?.length) return; // 신규이거나 저장된 분담이 없으면 기본값(전원 체크) 유지
     // 이 기능 이전에 저장된 기록(항목별 체크 정보가 없음): 기존처럼 첫 행에만 전체 분담을 복원
-    const memberChecked = {}; const memberAmountOverride = {};
+    const memberChecked = {}; const amounts = {};
     const checkedIds = new Set(initialSettlementSplit.map((r) => r.member_id));
     for (const m of settlementMembers) memberChecked[m.id] = checkedIds.has(m.id);
-    for (const r of initialSettlementSplit) memberAmountOverride[r.member_id] = Number(r.amount);
-    setItems((prev) => prev.map((it, i) => (i === 0 ? { ...it, memberChecked, memberAmountOverride } : it)));
+    for (const r of initialSettlementSplit) amounts[r.member_id] = Number(r.amount);
+    setItems((prev) => prev.map((it, i) => (i === 0 ? { ...it, memberChecked, memberAmountOverride: {}, memberHeld: { total: itemTotalOf(it), amounts } } : it)));
   }, [showMemberSplit, initialSettlementSplit, editing]);
 
   const rowsTotal = items.reduce((s, it) => s + lineTotal(it), 0);
@@ -1188,6 +1231,8 @@ const TransactionForm = forwardRef(function TransactionForm({
             onToggleExpand={() => toggleItemExpand(idx)}
             onToggleMember={(mid) => toggleItemMember(idx, mid)}
             onMemberAmount={(mid, v) => setItemMemberAmount(idx, mid, v)}
+            onMemberRestore={(snap) => restoreItemMembers(idx, snap)}
+            onMemberUnpin={(mid, rows) => unpinItemMember(idx, mid, rows)}
             onFromSource={(v) => updateItem(idx, { fromSourceId: v })}
             onToSource={(v) => updateItem(idx, { toSourceId: v })}
           />
