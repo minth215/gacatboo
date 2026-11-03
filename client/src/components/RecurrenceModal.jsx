@@ -27,13 +27,18 @@ function BareNumber({ value, onChange }) {
   );
 }
 
-// "반복 등록" 모달(기록/기록 수정 화면의 반복 아이콘). 반복 상세 모달과 같은 셀렉트 방식:
+// "반복 등록" 모달(기록/기록 수정 화면의 반복 아이콘). 상단 탭으로 반복/할부를 고른다.
+//  · 할부(allowInstallment 일 때만): 개월 수 입력 → onSelect({ kind: 'installment', months })
+//    — 저장 시 금액을 개월 수로 나눠 매달 같은 날짜로 한 번에 기록.
+//  · 반복: 반복 상세 모달과 같은 셀렉트 방식:
 // 반복 주기 셀렉트 → 매주/격주·사용자화(주)는 요일 여러 개 선택, 사용자화는 횟수 + 단위,
 // 월/연 반복은 영업일 처리 셀렉트. 확인 시
 //   onSelect({ preset, weekdays?, business_day_rule }) 또는
 //   onSelect({ preset:'custom', interval, unit, weekdays, business_day_rule }).
 // date: 기록 페이지의 날짜(매주/격주 기본 요일 계산용, 없으면 오늘).
-export default function RecurrenceModal({ onClose, onSelect, date }) {
+export default function RecurrenceModal({ onClose, onSelect, date, allowInstallment = false }) {
+  const [kind, setKind] = useState('repeat'); // repeat | installment
+  const [months, setMonths] = useState('');
   const dow = weekdayOf(date);
   const [preset, setPreset] = useState('monthly');
   const [interval, setIntervalVal] = useState('1');
@@ -73,13 +78,26 @@ export default function RecurrenceModal({ onClose, onSelect, date }) {
   return (
     <div className="catmodal-overlay" onClick={onClose}>
       <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>반복 등록</div>
-          <button aria-label="닫기" onClick={onClose} className="catmodal-icon-btn">
-            <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
-          </button>
+        {/* 반복 / 할부 탭(할부는 새 기록에서만) */}
+        <div style={{ display: 'flex', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: 4 }}>
+          {[['repeat', '반복'], ['installment', '할부']].filter(([k]) => k === 'repeat' || allowInstallment).map(([k, label]) => (
+            <button key={k} type="button" onClick={() => setKind(k)} style={{
+              flex: 1, border: 'none', borderRadius: 999, padding: '9px 0', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              background: kind === k ? 'var(--k-bg-fff)' : 'transparent', color: kind === k ? 'var(--k-tx-191722)' : 'var(--k-tx-8b8798)',
+            }}>{label}</button>
+          ))}
         </div>
 
+        {kind === 'installment' ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 14, padding: '0 16px' }}>
+            <input
+              type="text" inputMode="numeric" value={months} autoFocus placeholder="할부 개월 수"
+              onChange={(e) => setMonths(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+              style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 14, color: 'var(--k-tx-191722)', padding: '14px 0' }}
+            />
+            <span style={{ flex: 'none', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-6c6779)' }}>개월</span>
+          </div>
+        ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={rowStyle}>
             <span style={labelStyle}>반복 주기</span>
@@ -130,7 +148,13 @@ export default function RecurrenceModal({ onClose, onSelect, date }) {
           )}
         </div>
 
-        <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 44, fontSize: 14 }} onClick={confirm}>확인</button>
+        )}
+
+        <button
+          type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 44, fontSize: 14 }}
+          disabled={kind === 'installment' && !(Number(months) >= 2)}
+          onClick={kind === 'installment' ? () => onSelect({ kind: 'installment', months: Number(months) }) : confirm}
+        >확인</button>
       </div>
     </div>
   );

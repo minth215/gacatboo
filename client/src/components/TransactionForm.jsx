@@ -761,6 +761,8 @@ const TransactionForm = forwardRef(function TransactionForm({
 
   // 정산 그룹 결제 내역: 항목 행마다 참여 멤버 펼치기 + 멤버별 분담액(균등분배가 기본, 직접 수정 가능)
   const showMemberSplit = !!settlementMembers?.length && type === 'expense';
+  // 할부는 새 개인 지출/수입 기록에서만(수정·이체·정산·멤버 분담·그룹 전용 저장 제외)
+  const allowInstallment = !editing && !templateMode && !onSubmit && !isTransfer && !isSettlement && !showMemberSplit;
   const splitInitRef = useRef(false);
   useEffect(() => {
     if (splitInitRef.current) return;
@@ -961,7 +963,9 @@ const TransactionForm = forwardRef(function TransactionForm({
       : [];
     const settleItems = (isSettlement && (settleRows.length > 1 || Math.round(total) !== Math.round(rowsTotal))) ? settleRows : null;
 
-    const recurrence = (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, date) : null;
+    // 할부: 반복 대신 금액을 개월 수로 나눠 매달 같은 날짜로 한 번에 기록(아래 저장 단계)
+    const installment = (!recurringId && pendingRecurrence?.kind === 'installment' && allowInstallment) ? Math.max(Number(pendingRecurrence.months) || 0, 0) : 0;
+    const recurrence = (!recurringId && pendingRecurrence && pendingRecurrence.kind !== 'installment') ? resolveRecurrence(pendingRecurrence, date) : null;
     // 과거 날짜로 반복을 새로 걸면, 그동안 밀린 회차를 한 번에 생성할지 물어봄
     let backfillPast = false;
     if (recurrence && (recurrence.start_date || date) < today()) {
@@ -1013,7 +1017,24 @@ const TransactionForm = forwardRef(function TransactionForm({
       ...((showPerformance || initial?.exclude_performance) ? { exclude_performance: showPerformance && excludePerformance } : {}),
     };
     try {
-      if (onSubmit) await onSubmit(payload);
+      if (installment >= 2) {
+        // 할부: 1회차 = 몫 + 나머지, 이후 회차 = 몫. 날짜는 한 달씩(말일 보정). 내용 뒤에 (회차/개월)
+        const totalAmt = Math.round(total);
+        const per = Math.floor(totalAmt / installment);
+        const baseContent = payload.content;
+        for (let i = 0; i < installment; i++) {
+          const amt = i === 0 ? totalAmt - per * (installment - 1) : per;
+          const part = {
+            ...payload, date: addMonthsClamped(date, i), amount: amt,
+            content: `${baseContent || category_name || '할부'} (${i + 1}/${installment})`,
+            // 항목이 하나면 그 항목 금액을 회차 금액으로, 여러 개면 항목 없이 저장
+            items: savedItems?.length === 1 ? [{ ...savedItems[0], qty: 1, amount: amt, ...(savedItems[0].input_amount != null ? { input_amount: Math.round(savedItems[0].input_amount / installment * 100) / 100 } : {}) }] : null,
+            input_amount: payload.input_amount != null ? Math.round(payload.input_amount / installment * 100) / 100 : null,
+            recurrence: null, backfillPast: false,
+          };
+          await db.saveTransaction({ userId: user.id, payload: part, sourcesFlat });
+        }
+      } else if (onSubmit) await onSubmit(payload);
       else {
         const saved = await db.saveTransaction({ id: initial?.id, userId: user.id, payload, sourcesFlat });
         if (aggregateSplit) await db.saveSettlementSplit(saved.id, aggregateSplit);
@@ -1064,7 +1085,7 @@ const TransactionForm = forwardRef(function TransactionForm({
       )}
 
       {showRecurrenceModal && (
-        <RecurrenceModal date={date} onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
+        <RecurrenceModal date={date} allowInstallment={allowInstallment} onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
       )}
       {backfillPrompt && (
         <ConfirmModal
@@ -1308,3 +1329,12 @@ const TransactionForm = forwardRef(function TransactionForm({
 });
 
 export default TransactionForm;
+
+// 'YYYY-MM-DD' 에 n개월 더하기. 그 달에 같은 날이 없으면 말일로(1/31 + 1개월 → 2/28)
+function addMonthsClamped(ymd, n) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const t = new Date(y, m - 1 + n, 1);
+  const last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+  const pad = (v) => String(v).padStart(2, '0');
+  return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(Math.min(d, last))}`;
+}
