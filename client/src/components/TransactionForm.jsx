@@ -9,6 +9,7 @@ import { useFavoriteToggle } from '../lib/useFavoriteToggle.js';
 import { loadPrefs } from '../lib/prefs.js';
 import CalcAmountInput from './CalcAmountInput.jsx';
 import RecurrenceModal from './RecurrenceModal.jsx';
+import { useInstallmentDeleteChoice } from './InstallmentDeleteModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
 
 // "반복 관리" 메뉴와 동일한 반복 아이콘(채워진 순환 화살표)
@@ -490,12 +491,18 @@ const TransactionForm = forwardRef(function TransactionForm({
   }, []);
   const [busy, setBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [askInstallmentDelete, installmentDeleteEl] = useInstallmentDeleteChoice();
   const handleDelete = async () => {
     if (deleteBusy || !onDelete) return;
-    if (!confirm('이 기록을 삭제할까요?')) return;
+    // 할부 기록: 전체/단건 선택, 그 외: 일반 확인
+    let choice = 'one';
+    if (initial?.installment_total) {
+      choice = await askInstallmentDelete(initial);
+      if (!choice) return;
+    } else if (!confirm('이 기록을 삭제할까요?')) return;
     setDeleteBusy(true);
     try {
-      await onDelete();
+      await onDelete(choice);
     } catch (err) {
       setError(err.message);
       setDeleteBusy(false);
@@ -1022,11 +1029,13 @@ const TransactionForm = forwardRef(function TransactionForm({
         // 회차는 installment_no/total 로 저장(수정 화면 반복 아이콘 자리에 (회차/개월) 표시)
         const totalAmt = Math.round(total);
         const per = Math.floor(totalAmt / installment);
+        const installment_group = globalThis.crypto?.randomUUID?.()
+          || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
         for (let i = 0; i < installment; i++) {
           const amt = i === 0 ? totalAmt - per * (installment - 1) : per;
           const part = {
             ...payload, date: addMonthsClamped(date, i), amount: amt,
-            installment_no: i + 1, installment_total: installment,
+            installment_no: i + 1, installment_total: installment, installment_group,
             // 항목이 하나면 그 항목 금액을 회차 금액으로, 여러 개면 항목 없이 저장
             items: savedItems?.length === 1 ? [{ ...savedItems[0], qty: 1, amount: amt, ...(savedItems[0].input_amount != null ? { input_amount: Math.round(savedItems[0].input_amount / installment * 100) / 100 } : {}) }] : null,
             input_amount: payload.input_amount != null ? Math.round(payload.input_amount / installment * 100) / 100 : null,
@@ -1322,6 +1331,7 @@ const TransactionForm = forwardRef(function TransactionForm({
 
       {error && <p className="error" style={{ marginTop: 14 }}>{error}</p>}
       {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
+      {installmentDeleteEl}
       <button className="btn-ink-pill" style={{ marginTop: 26 }} disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
       {editing && onDelete && (
         <button

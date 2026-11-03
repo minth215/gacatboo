@@ -153,9 +153,10 @@ export default function TransactionEdit() {
   const done = () => nav(location.state?.closeTo ?? -1);
 
   // 순수 개인 기록(그룹과 무관) 삭제 — 이체면 연결된 수수료 지출도 함께 지움.
-  const deleteTx = async () => {
+  const deleteTx = async (choice) => {
     if (initial?.type === 'transfer' && initialLinkedFee?.id) await db.deleteLinkedFee(initialLinkedFee.id);
-    await db.deleteTransaction(initial.id);
+    if (choice === 'all' && initial?.installment_total) await db.deleteInstallmentGroup(initial);
+    else await db.deleteTransaction(initial.id);
     nav(location.state?.closeTo ?? -1);
   };
 

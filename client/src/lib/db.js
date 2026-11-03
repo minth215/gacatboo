@@ -421,7 +421,7 @@ export const db = {
       // 카드 실적 제외(0068) — 폼이 값을 보낼 때만 저장
       ...(payload.exclude_performance !== undefined ? { exclude_performance: !!payload.exclude_performance } : {}),
       // 할부 회차(0075) — 할부로 새로 만들 때만
-      ...(payload.installment_total ? { installment_no: payload.installment_no, installment_total: payload.installment_total } : {}),
+      ...(payload.installment_total ? { installment_no: payload.installment_no, installment_total: payload.installment_total, installment_group: payload.installment_group || null } : {}),
     };
 
     // 반복 설정을 새로 켠 경우: 규칙을 먼저 만들고 이 거래에 연결(규칙의 시작일 = 이 거래의 날짜)
@@ -481,6 +481,18 @@ export const db = {
 
   async deleteTransaction(id) {
     return unwrap(await supabase.from('transactions').delete().eq('id', id));
+  },
+  // 할부 기록 전체 삭제: 같은 묶음(installment_group)의 기록을 모두 지운다.
+  // 묶음 값이 없는 예전 할부 기록은 같은 개월 수·내용·분류·원천의 할부 기록을 한 묶음으로 본다.
+  async deleteInstallmentGroup(t) {
+    if (!t?.installment_total) return this.deleteTransaction(t.id);
+    let q = supabase.from('transactions').delete().eq('user_id', t.user_id);
+    if (t.installment_group) q = q.eq('installment_group', t.installment_group);
+    else {
+      q = q.is('installment_group', null).eq('installment_total', t.installment_total).eq('type', t.type)
+        .eq('content', t.content || '').eq('category_name', t.category_name || '').eq('source_name', t.source_name || '');
+    }
+    return unwrap(await q);
   },
   // 가계부 선택 모드의 일괄 수정(내용/날짜/분류/원천): 그룹 결제·입금 미러 항목 여부와 무관하게
   // transactions 테이블 자체만 직접 갱신한다(일괄 수정은 단순 표시값 변경이라 원본 구독/정산 데이터와

@@ -7,6 +7,7 @@ import { currentMonth, shiftMonth, fmtNum, today, shiftDate, weekStartOf, curren
 import TransactionList from '../components/TransactionList.jsx';
 import CatMascot from '../components/CatMascot.jsx';
 import Spinner from '../components/Spinner.jsx';
+import { useInstallmentDeleteChoice } from '../components/InstallmentDeleteModal.jsx';
 import BulkEditModal from '../components/BulkEditModal.jsx';
 import { fileToResizedBase64 } from '../components/TransactionForm.jsx';
 import LedgerFilterSheet, { DateField } from '../components/LedgerFilterSheet.jsx';
@@ -275,14 +276,21 @@ export default function Ledger() {
     else if (t.origin_type) nav(`/groups/${t.origin_group_id}?edit=${t.origin_type}:${t.origin_id}`);
     else nav(`/tx/${t.id}`);
   };
+  const [askInstallmentDelete, installmentDeleteEl] = useInstallmentDeleteChoice();
   const remove = async (t) => {
     const msg = t.origin_type
       ? '이 항목을 삭제하면 그룹의 결제/입금 내역과 연결된 다른 가계부 항목도 함께 삭제됩니다. 계속할까요?'
       : '이 항목을 삭제할까요?';
-    if (!confirm(msg)) return;
+    // 할부 기록은 "할부 기록 전체 삭제 / 단건 삭제" 선택
+    let choice = 'one';
+    if (!t.origin_type && t.installment_total) {
+      choice = await askInstallmentDelete(t);
+      if (!choice) return;
+    } else if (!confirm(msg)) return;
     try {
       if (t.origin_type === 'payment') await db.deletePayment(t.origin_id);
       else if (t.origin_type === 'deposit') await db.deleteDeposit(t.origin_id);
+      else if (choice === 'all') await db.deleteInstallmentGroup(t);
       else await db.deleteTransaction(t.id);
       load();
       if (searchOpen && submittedQ != null) loadSearch();
@@ -333,6 +341,7 @@ export default function Ledger() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
+      {installmentDeleteEl}
       {/* 상단바 (가계부 · 검색 · 필터, 선택 모드일 때는 완전히 다른 구성) — 스크롤 무관 고정 */}
       {selectionMode ? (
         <div className="simple-topbar flat">
