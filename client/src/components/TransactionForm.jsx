@@ -434,6 +434,13 @@ const TransactionForm = forwardRef(function TransactionForm({
   // 할부 기록의 개월 수 수정(수정 버튼을 눌러 저장할 때 묶음 전체에 반영)
   const [installmentResize, setInstallmentResize] = useState(null); // 새 개월 수 | null
   const [showInstallmentModal, setShowInstallmentModal] = useState(false);
+  // 할부 기록: 같은 묶음의 다른 회차 금액(누적 결제/총 금액 표시용)
+  const [installmentParts, setInstallmentParts] = useState(null);
+  useEffect(() => {
+    if (!initial?.installment_total) return;
+    db.listInstallmentParts(initial).then(setInstallmentParts).catch(() => setInstallmentParts(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial?.id]);
   const [backfillPrompt, setBackfillPrompt] = useState(null); // { n, resolve } | null
   const askBackfill = (n) => new Promise((resolve) => setBackfillPrompt({ n, resolve }));
 
@@ -1340,6 +1347,17 @@ const TransactionForm = forwardRef(function TransactionForm({
           )}
           <span />
         </div>
+        {/* 할부 기록: 합계 밑에 "{누적 결제 금액}/{총 금액} 원 결제"(이 회차는 지금 입력 중인 합계로 계산) */}
+        {initial?.installment_total && installmentParts?.length ? (() => {
+          const others = installmentParts.filter((p) => p.id !== initial.id);
+          const paid = others.filter((p) => p.installment_no < initial.installment_no).reduce((s, p) => s + Number(p.amount), 0) + Math.round(total);
+          const whole = others.reduce((s, p) => s + Number(p.amount), 0) + Math.round(total);
+          return (
+            <div style={{ marginTop: 4, textAlign: 'right', fontSize: 11.5, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>
+              {fmtNum(paid)}/{fmtNum(whole)} 원 결제
+            </div>
+          );
+        })() : null}
 
         <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="rcpt-dots" />

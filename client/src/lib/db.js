@@ -497,6 +497,11 @@ export const db = {
     if (!t?.installment_total) return this.deleteTransaction(t.id);
     return unwrap(await installmentGroupFilter(supabase.from('transactions').delete(), t));
   },
+  // 같은 할부 묶음의 회차들(회차 순) — 기록 수정 화면의 누적 결제 금액 표시용
+  async listInstallmentParts(t) {
+    if (!t?.installment_total) return [];
+    return unwrap(await installmentGroupFilter(supabase.from('transactions').select('id, installment_no, amount'), t).order('installment_no', { ascending: true }));
+  },
   // 이후 회차 삭제: 이 회차와 그 뒤 회차를 지우고, 남은 회차의 전체 개월 수를 줄인다
   // (남은 회차가 1개면 할부 표시를 지워 일반 기록으로).
   async deleteInstallmentAfter(t) {
