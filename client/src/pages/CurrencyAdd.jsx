@@ -4,6 +4,7 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import { CURRENCIES } from '../lib/currency.js';
+import { getPrimary } from '../lib/primaryCurrency.js';
 
 // 설정 > 화폐 설정 > 보조 화폐 추가. 상단 검색창 고정, 아래 목록만 스크롤.
 // 여러 화폐를 골라 하단 "추가" 버튼으로 한 번에 추가.
@@ -20,7 +21,9 @@ export default function CurrencyAdd() {
   }, []);
 
   const q = query.trim().toLowerCase();
-  const available = CURRENCIES.filter((c) => !added?.has(c.code))
+  // 주 화폐가 원화가 아니면 KRW 도 보조 화폐로 다시 추가할 수 있음
+  const all = getPrimary().code !== 'KRW' ? [{ code: 'KRW', name: '대한민국 원' }, ...CURRENCIES] : CURRENCIES;
+  const available = all.filter((c) => !added?.has(c.code) && c.code !== getPrimary().code)
     .filter((c) => !q || c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
   const toggle = (code) => setSelected((s) => { const n = new Set(s); if (n.has(code)) n.delete(code); else n.add(code); return n; });
 
@@ -29,7 +32,7 @@ export default function CurrencyAdd() {
     setBusy(true);
     try {
       // 목록 순서대로 추가
-      for (const c of CURRENCIES) if (selected.has(c.code)) await db.addCurrency(user.id, c.code);
+      for (const c of all) if (selected.has(c.code)) await db.addCurrency(user.id, c.code);
       nav(-1);
     } catch (e) { alert(e.message); setBusy(false); }
   };

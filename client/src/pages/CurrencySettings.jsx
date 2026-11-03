@@ -25,11 +25,8 @@ export default function CurrencySettings() {
   const load = useCallback(() => db.listCurrencies().then(setList).catch((e) => alert(e.message)), []);
   useEffect(() => { load(); }, [load]);
 
-  // 보조 화폐: 원화(주 화폐가 아니면) + 추가한 화폐 중 주 화폐 제외
-  const secondary = [
-    ...(primary !== 'KRW' ? [{ id: 'KRW', code: 'KRW', fixed: true }] : []),
-    ...list.filter((c) => c.code !== primary),
-  ];
+  // 보조 화폐: 추가한 화폐 중 주 화폐 제외(주 화폐가 원화가 아니면 KRW 도 일반 보조 화폐처럼 삭제 가능)
+  const secondary = list.filter((c) => c.code !== primary);
 
   const makePrimary = async (code) => {
     if (code === primary) return;
@@ -38,6 +35,8 @@ export default function CurrencySettings() {
       await db.setPrimaryCurrency(code);
       // 원화가 아닌 화폐를 주 화폐로 바꾸면 보조 화폐 목록에도 남아 있게(키패드 화폐 선택용)
       if (code !== 'KRW' && !list.some((c) => c.code === code)) await db.addCurrency(user.id, code);
+      // 원화에서 다른 화폐로 바꾸면 KRW 를 보조 화폐로 추가(이후 삭제 가능)
+      if (primary === 'KRW' && !list.some((c) => c.code === 'KRW')) await db.addCurrency(user.id, 'KRW');
       if (travel === code) setTravel(null); // 주 화폐가 된 화폐는 여행 중 해제
       setUser((u) => ({ ...u, primary_currency: code }));
       applyPrimaryCurrency(code);
@@ -86,7 +85,7 @@ export default function CurrencySettings() {
               isOpen={openId === c.id} onOpenChange={(o) => setOpenId(o ? c.id : null)}
               onTap={() => makePrimary(c.code)}
               onTravel={() => toggleTravel(c.code)}
-              onDelete={c.fixed ? undefined : () => del(c)}
+              onDelete={() => del(c)}
             >
               <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
                 {codeBadge(c.code, '#fde8ee')}

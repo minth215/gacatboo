@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { getPrimary } from '../lib/primaryCurrency.js';
 import { db } from '../lib/db.js';
 import { CURRENCY_NAME, fetchKrwRate } from '../lib/currency.js';
 
@@ -124,6 +125,8 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   const [krwDraft, setKrwDraft] = useState('');
 
   useEffect(() => { db.listCurrencies().then(setUserCurrencies).catch(() => {}); }, []);
+  // 화폐 선택 칩: 주 화폐 + 보조 화폐(KRW 는 주 화폐이거나 보조 화폐에 있을 때만) + 지금 고른 화폐(예전 기록 복원용)
+  const chipCodes = [...new Set([getPrimary().code, ...userCurrencies.map((c) => c.code), currency])];
   // 키패드에서 화폐를 고르는 즉시(확정 전에도) 부모에 알림 — 항목 행이 환산 줄 높이를 바로 확보하도록
   useEffect(() => { onCurrencySelect?.(currency); }, [currency]);
 
@@ -327,9 +330,9 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
               </button>
             </div>
 
-            {userCurrencies.length > 0 && (
+            {chipCodes.length > 1 && (
               <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 2px 10px' }}>
-                {['KRW', ...userCurrencies.map((c) => c.code)].map((code) => (
+                {chipCodes.map((code) => (
                   <button
                     key={code} type="button" className="calc-key"
                     onPointerDown={(e) => { e.preventDefault(); setCurrency(code); }}
