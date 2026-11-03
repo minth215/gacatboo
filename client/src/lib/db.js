@@ -420,6 +420,8 @@ export const db = {
       fx_rate: payload.input_currency ? payload.fx_rate ?? null : null,
       // 카드 실적 제외(0068) — 폼이 값을 보낼 때만 저장
       ...(payload.exclude_performance !== undefined ? { exclude_performance: !!payload.exclude_performance } : {}),
+      // 할부 회차(0075) — 할부로 새로 만들 때만
+      ...(payload.installment_total ? { installment_no: payload.installment_no, installment_total: payload.installment_total } : {}),
     };
 
     // 반복 설정을 새로 켠 경우: 규칙을 먼저 만들고 이 거래에 연결(규칙의 시작일 = 이 거래의 날짜)

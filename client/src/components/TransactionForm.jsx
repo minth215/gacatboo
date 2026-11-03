@@ -1018,15 +1018,15 @@ const TransactionForm = forwardRef(function TransactionForm({
     };
     try {
       if (installment >= 2) {
-        // 할부: 1회차 = 몫 + 나머지, 이후 회차 = 몫. 날짜는 한 달씩(말일 보정). 내용 뒤에 (회차/개월)
+        // 할부: 1회차 = 몫 + 나머지, 이후 회차 = 몫. 날짜는 한 달씩(말일 보정). 내용은 입력 그대로,
+        // 회차는 installment_no/total 로 저장(수정 화면 반복 아이콘 자리에 (회차/개월) 표시)
         const totalAmt = Math.round(total);
         const per = Math.floor(totalAmt / installment);
-        const baseContent = payload.content;
         for (let i = 0; i < installment; i++) {
           const amt = i === 0 ? totalAmt - per * (installment - 1) : per;
           const part = {
             ...payload, date: addMonthsClamped(date, i), amount: amt,
-            content: `${baseContent || category_name || '할부'} (${i + 1}/${installment})`,
+            installment_no: i + 1, installment_total: installment,
             // 항목이 하나면 그 항목 금액을 회차 금액으로, 여러 개면 항목 없이 저장
             items: savedItems?.length === 1 ? [{ ...savedItems[0], qty: 1, amount: amt, ...(savedItems[0].input_amount != null ? { input_amount: Math.round(savedItems[0].input_amount / installment * 100) / 100 } : {}) }] : null,
             input_amount: payload.input_amount != null ? Math.round(payload.input_amount / installment * 100) / 100 : null,
@@ -1117,12 +1117,22 @@ const TransactionForm = forwardRef(function TransactionForm({
                 <StarIcon filled={favorited} />
               </button>
             )}
-            {!templateMode && (
+            {!templateMode && initial?.installment_total ? (
+              // 할부로 만든 기록: 반복 아이콘 대신 회차 표시
+              <span style={{ flex: 'none', padding: 2, fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', whiteSpace: 'nowrap' }}>
+                ({initial.installment_no}/{initial.installment_total})
+              </span>
+            ) : !templateMode && (
             <button
               type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
               style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
             >
-              <RepeatIcon color={!(recurringId || pendingRecurrence) ? 'var(--k-tx-c7c3cc)' : 'var(--k-tx-191722)'} />
+              {pendingRecurrence?.kind === 'installment' && allowInstallment && !recurringId ? (
+                // 할부 선택 시: 아이콘 대신 "N 개월"(누르면 해제)
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', whiteSpace: 'nowrap' }}>{pendingRecurrence.months} 개월</span>
+              ) : (
+                <RepeatIcon color={!(recurringId || pendingRecurrence) ? 'var(--k-tx-c7c3cc)' : 'var(--k-tx-191722)'} />
+              )}
             </button>
             )}
           </div>
