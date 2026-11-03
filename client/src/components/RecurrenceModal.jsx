@@ -157,7 +157,8 @@ export default function RecurrenceModal({ onClose, onSelect, date, allowInstallm
 
         <button
           type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 44, fontSize: 14 }}
-          disabled={kind === 'installment' && !(Number(months) >= 2)}
+          // 새 할부는 2개월 이상, 개월 수 수정에서는 1(= 일시불로 되돌리기)도 가능
+          disabled={kind === 'installment' && !(Number(months) >= (installmentOnly ? 1 : 2))}
           onClick={kind === 'installment' ? () => onSelect({ kind: 'installment', months: Number(months) }) : confirm}
         >확인</button>
       </div>

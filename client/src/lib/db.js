@@ -500,6 +500,7 @@ export const db = {
   // 할부 개월 수 수정: 묶음 전체 금액 합계를 새 개월 수로 다시 나눠(1회차 = 몫 + 나머지) 일괄 수정하고,
   // 늘어난 회차는 마지막 기록을 복사해 한 달씩 추가, 줄어든 회차는 삭제한다.
   // t: 방금 저장한 회차 기록(수정 화면의 값). 1회차 날짜를 기준으로 새 회차 날짜를 정한다.
+  // newTotal = 1 이면 1회차 기록에 전체 금액을 담아 일시불(일반 기록)로 되돌린다.
   async resizeInstallment(t, newTotal) {
     const parts = unwrap(await installmentGroupFilter(supabase.from('transactions').select('*'), t).order('installment_no', { ascending: true }));
     if (!parts.length) return;
@@ -526,11 +527,14 @@ export const db = {
       const amt = amtOf(no);
       const p = byNo.get(no);
       if (p) {
-        unwrap(await supabase.from('transactions').update(scaled(p, amt)).eq('id', p.id));
+        // 1개월로 바꾸면 일시불: 할부 표시(회차·묶음)를 지워 일반 기록으로
+        const patch = newTotal === 1 ? { ...scaled(p, amt), installment_no: null, installment_total: null, installment_group: null } : scaled(p, amt);
+        unwrap(await supabase.from('transactions').update(patch).eq('id', p.id));
       } else {
         const { id: _id, created_at: _c, updated_at: _u, recurring_id: _r, linked_transaction_id: _l, ...rest } = template;
         unwrap(await supabase.from('transactions').insert({
           ...rest, ...scaled(template, amt), date: addMonthsClamped(baseDate, no - 1), installment_no: no,
+          ...(newTotal === 1 ? { installment_no: null, installment_total: null, installment_group: null } : {}),
         }));
       }
     }

@@ -1152,7 +1152,7 @@ const TransactionForm = forwardRef(function TransactionForm({
                 type="button" onClick={() => setShowInstallmentModal(true)} aria-label="할부 개월 수 수정"
                 style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', whiteSpace: 'nowrap' }}
               >
-                ({initial.installment_no}/{installmentResize || initial.installment_total})
+                {installmentResize === 1 ? '일시불' : `(${initial.installment_no}/${installmentResize || initial.installment_total})`}
               </button>
             ) : !templateMode && (
             <button
