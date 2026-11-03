@@ -52,7 +52,7 @@ export default function BudgetManage() {
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="예산 관리" flat />
 
-      <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+      <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         <button aria-label="이전" onClick={() => setMonth(shiftPeriod('month', month, -1))} style={roundBtn}>{arrow('15 6 9 12 15 18')}</button>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 88 }}>
           <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>
