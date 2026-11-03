@@ -497,6 +497,16 @@ export const db = {
     if (!t?.installment_total) return this.deleteTransaction(t.id);
     return unwrap(await installmentGroupFilter(supabase.from('transactions').delete(), t));
   },
+  // 이후 회차 삭제: 이 회차와 그 뒤 회차를 지우고, 남은 회차의 전체 개월 수를 줄인다
+  // (남은 회차가 1개면 할부 표시를 지워 일반 기록으로).
+  async deleteInstallmentAfter(t) {
+    if (!t?.installment_total) return this.deleteTransaction(t.id);
+    if (t.installment_no <= 1) return this.deleteInstallmentGroup(t);
+    const left = t.installment_no - 1;
+    unwrap(await installmentGroupFilter(supabase.from('transactions').delete(), t).gte('installment_no', t.installment_no));
+    const patch = left === 1 ? { installment_no: null, installment_total: null, installment_group: null } : { installment_total: left };
+    return unwrap(await installmentGroupFilter(supabase.from('transactions').update(patch), t).lt('installment_no', t.installment_no));
+  },
   // 할부 개월 수 수정: 묶음 전체 금액 합계를 새 개월 수로 다시 나눠(1회차 = 몫 + 나머지) 일괄 수정하고,
   // 늘어난 회차는 마지막 기록을 복사해 한 달씩 추가, 줄어든 회차는 삭제한다.
   // t: 방금 저장한 회차 기록(수정 화면의 값). 1회차 날짜를 기준으로 새 회차 날짜를 정한다.

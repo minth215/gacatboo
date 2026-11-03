@@ -291,6 +291,7 @@ export default function Ledger() {
       if (t.origin_type === 'payment') await db.deletePayment(t.origin_id);
       else if (t.origin_type === 'deposit') await db.deleteDeposit(t.origin_id);
       else if (choice === 'all') await db.deleteInstallmentGroup(t);
+      else if (choice === 'after') await db.deleteInstallmentAfter(t);
       else await db.deleteTransaction(t.id);
       load();
       if (searchOpen && submittedQ != null) loadSearch();

@@ -156,6 +156,7 @@ export default function TransactionEdit() {
   const deleteTx = async (choice) => {
     if (initial?.type === 'transfer' && initialLinkedFee?.id) await db.deleteLinkedFee(initialLinkedFee.id);
     if (choice === 'all' && initial?.installment_total) await db.deleteInstallmentGroup(initial);
+    else if (choice === 'after' && initial?.installment_total) await db.deleteInstallmentAfter(initial);
     else await db.deleteTransaction(initial.id);
     nav(location.state?.closeTo ?? -1);
   };

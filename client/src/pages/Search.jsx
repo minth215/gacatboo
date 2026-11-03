@@ -100,6 +100,7 @@ export default function Search() {
       if (t.origin_type === 'payment') await db.deletePayment(t.origin_id);
       else if (t.origin_type === 'deposit') await db.deleteDeposit(t.origin_id);
       else if (choice === 'all') await db.deleteInstallmentGroup(t);
+      else if (choice === 'after') await db.deleteInstallmentAfter(t);
       else await db.deleteTransaction(t.id);
       load();
     } catch (e) { alert(e.message); }

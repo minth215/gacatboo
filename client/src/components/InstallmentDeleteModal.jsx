@@ -1,11 +1,15 @@
 import { useState } from 'react';
 
-// 할부 기록 삭제 시 "할부 기록 전체 삭제 / 단건 삭제" 선택 모달.
+// 할부 기록 삭제 시 선택: "할부 기록 전체 삭제" / "이후 회차 삭제"(이 회차 포함 이후 회차).
+// 1회차는 어차피 전체가 지워지므로 모달 대신 알림 후 전체 삭제.
 // const [askInstallmentDelete, installmentDeleteEl] = useInstallmentDeleteChoice();
-// const choice = await askInstallmentDelete(t) // 'all' | 'one' | null(취소)
+// const choice = await askInstallmentDelete(t) // 'all' | 'after' | null(취소)
 export function useInstallmentDeleteChoice() {
-  const [req, setReq] = useState(null); // { t, resolve }
-  const ask = (t) => new Promise((resolve) => setReq({ t, resolve }));
+  const [req, setReq] = useState(null); // { resolve }
+  const ask = (t) => {
+    if (t?.installment_no === 1) return Promise.resolve(confirm('할부 기록 전체가 삭제됩니다.') ? 'all' : null);
+    return new Promise((resolve) => setReq({ resolve }));
+  };
   const close = (v) => { req?.resolve(v); setReq(null); };
   const btn = (primary) => ({
     width: '100%', height: 44, border: 'none', borderRadius: 999, fontFamily: 'inherit', fontWeight: 700, fontSize: 14, cursor: 'pointer',
@@ -14,12 +18,9 @@ export function useInstallmentDeleteChoice() {
   const el = req ? (
     <div className="catmodal-overlay" onClick={() => close(null)}>
       <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
-        <p style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--k-tx-191722)', margin: '4px 2px 18px' }}>
-          할부 기록을 삭제할까요?{req.t?.installment_total ? ` (${req.t.installment_no}/${req.t.installment_total})` : ''}
-        </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button type="button" style={btn(true)} onClick={() => close('all')}>할부 기록 전체 삭제</button>
-          <button type="button" style={btn(false)} onClick={() => close('one')}>단건 삭제</button>
+          <button type="button" style={btn(false)} onClick={() => close('after')}>이후 회차 삭제</button>
         </div>
       </div>
     </div>
