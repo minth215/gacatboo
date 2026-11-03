@@ -27,8 +27,6 @@ export default function SourceManage({ admin = false }) {
   const [addingCat, setAddingCat] = useState(false);
   const [addCatName, setAddCatName] = useState('');
   const [addCatType, setAddCatType] = useState('general');
-  const [addingItemCatId, setAddingItemCatId] = useState(null);
-  const [addItemDraft, setAddItemDraft] = useState('');
   // 원천 그룹·세부 항목 수정 모달: 이름(+그룹 특성) + 주결제/주입금수단 지정. "저장"을 눌러야 반영.
   // { src, isGroup, parentType, name, groupType, payment, deposit }
   const [editor, setEditor] = useState(null);
@@ -53,14 +51,11 @@ export default function SourceManage({ admin = false }) {
     await wrap(api.remove(s.id)); load();
   };
 
-  const openAddItem = (catId) => { setAddingItemCatId(catId); setAddItemDraft(''); };
-  const cancelAddItem = () => setAddingItemCatId(null);
-  const saveAddItem = async (catId) => {
-    const name = addItemDraft.trim();
-    if (!name) { setAddingItemCatId(null); return; }
-    await wrap(api.add(name, catId));
-    setAddingItemCatId(null); load();
-  };
+  // 세부 항목 추가: 수정과 같은 모달(헤더 "세부 항목 추가")
+  const openAddItem = (top) => setEditor({
+    src: null, isNew: true, parentId: top.id, isGroup: false, parentType: top.group_type || 'general',
+    name: '', groupType: 'general', payment: false, deposit: false,
+  });
 
   const openEditor = (src, parentType) => setEditor({
     src, isGroup: parentType === undefined, parentType: parentType || null,
@@ -74,6 +69,15 @@ export default function SourceManage({ admin = false }) {
     if (!name) return alert('이름을 입력하세요.');
     const { src } = editor;
     const deposit = depositDisabled ? false : editor.deposit;
+    if (editor.isNew) {
+      try {
+        const row = await api.add(name, editor.parentId);
+        if (editor.payment) await api.setPrimary(row.id, 'payment', true);
+        if (deposit) await api.setPrimary(row.id, 'deposit', true);
+        setEditor(null); load();
+      } catch (e) { alert(e.message); }
+      return;
+    }
     try {
       if (name !== src.name || (editor.isGroup && editor.groupType !== (src.group_type || 'general'))) {
         await api.update(src.id, name, editor.isGroup ? editor.groupType : undefined);
@@ -131,7 +135,7 @@ export default function SourceManage({ admin = false }) {
         // 그룹 카드 + 세부 항목 카드(+ 세부 항목 추가 줄)를 가계부 같은 날짜 카드처럼 이어 붙임.
         // 각 카드는 누르면 수정 모달, 왼쪽으로 밀면 삭제 버튼.
         const children = top.children || [];
-        const count = 1 + children.length + (addingItemCatId === top.id ? 1 : 0);
+        const count = 1 + children.length;
         return (
           <div className="tx-daygroup" style={{ marginTop: 14 }} key={top.id}>
             <DayCardRow
@@ -149,7 +153,7 @@ export default function SourceManage({ admin = false }) {
                 </span>
                 <PrimaryBadges src={top} />
               </span>
-              <button aria-label="세부 항목 추가" onClick={(e) => { e.stopPropagation(); openAddItem(top.id); }} className="row-icon-btn">
+              <button aria-label="세부 항목 추가" onClick={(e) => { e.stopPropagation(); openAddItem(top); }} className="row-icon-btn">
                 <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
               </button>
             </DayCardRow>
@@ -167,18 +171,6 @@ export default function SourceManage({ admin = false }) {
               </DayCardRow>
             ))}
 
-            {addingItemCatId === top.id && (
-              <DayCardRow index={count - 1} count={count}>
-                <div className="inline-edit-row" style={{ flex: 1, minWidth: 0, padding: '0 0 0 16px' }}>
-                  <input
-                    type="text" placeholder="세부 항목 이름" value={addItemDraft} onChange={(e) => setAddItemDraft(e.target.value)}
-                    autoFocus onKeyDown={(e) => e.key === 'Enter' && saveAddItem(top.id)} className="inline-edit-input"
-                  />
-                  <button className="inline-cancel-btn" onClick={cancelAddItem}>취소</button>
-                  <button className="inline-save-btn" onClick={() => saveAddItem(top.id)}>저장</button>
-                </div>
-              </DayCardRow>
-            )}
           </div>
         );
       })}
@@ -187,7 +179,7 @@ export default function SourceManage({ admin = false }) {
         <div className="catmodal-overlay" onClick={() => setEditor(null)}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{editor.isGroup ? '원천 그룹 수정' : '세부 항목 수정'}</div>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{editor.isNew ? '세부 항목 추가' : editor.isGroup ? '원천 그룹 수정' : '세부 항목 수정'}</div>
               <button aria-label="닫기" onClick={() => setEditor(null)} className="catmodal-icon-btn">
                 <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
               </button>
@@ -195,7 +187,7 @@ export default function SourceManage({ admin = false }) {
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 type="text" placeholder={editor.isGroup ? '원천 그룹 이름' : '세부 항목 이름'} value={editor.name}
-                onChange={(e) => setEditor({ ...editor, name: e.target.value })}
+                onChange={(e) => setEditor({ ...editor, name: e.target.value })} autoFocus={editor.isNew}
                 onKeyDown={(e) => e.key === 'Enter' && saveEditor()}
                 style={{ flex: 1, minWidth: 0, boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-fff)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 12, padding: '12px 14px', outline: 'none' }}
               />
@@ -223,7 +215,8 @@ export default function SourceManage({ admin = false }) {
                     style={{
                       flex: 1, height: 40, borderRadius: 999, fontFamily: 'inherit', fontSize: 12.75, fontWeight: 700,
                       cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
-                      border: `1.5px solid ${on ? fg : 'var(--k-bd-efeef2)'}`, background: on ? bg : 'var(--k-bg-fff)', color: on ? fg : 'var(--k-tx-8b8798)',
+                      // 테두리 대신 inset 그림자: 1.5px 테두리가 위아래 두께가 달라 보이던 문제(소수점 픽셀 반올림)
+                      border: 'none', boxShadow: `inset 0 0 0 1.5px ${on ? fg : 'var(--k-bd-efeef2)'}`, background: on ? bg : 'var(--k-bg-fff)', color: on ? fg : 'var(--k-tx-8b8798)',
                     }}
                   >{on ? `✓ ${label}` : label}</button>
                 );
@@ -232,7 +225,7 @@ export default function SourceManage({ admin = false }) {
             {depositDisabled && (
               <div style={{ marginTop: -4, fontSize: 11, color: 'var(--k-tx-a29ead)' }}>신용카드/체크카드 그룹은 주입금수단으로 지정할 수 없어요.</div>
             )}
-            <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 44, fontSize: 14 }} onClick={saveEditor}>저장</button>
+            <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 44, fontSize: 14 }} onClick={saveEditor}>{editor.isNew ? '추가' : '저장'}</button>
           </div>
         </div>
       )}
