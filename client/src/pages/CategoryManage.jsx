@@ -4,13 +4,13 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { useDragReorder } from '../lib/useDragReorder.js';
 import PageHeader from '../components/PageHeader.jsx';
-import { tileBg } from '../components/TransactionList.jsx';
+import { tileBg, DayCardRow } from '../components/TransactionList.jsx';
 
 // 통계 페이지 원형 그래프 팔레트(Stats.jsx 의 PALETTE)를 흰색 85% 비율로 섞어 훨씬 연하게 만든 색.
 const PALETTE = ['#FFE9EF', '#FDF1E2', '#E6F0F9', '#EEECFC', '#DFFAF5', '#FFFBFB', '#FFF4F1', '#F0F8F6', '#F6F2FC', '#ECF4F9', '#FFF7E4', '#E9F8EB', '#FBEEF6'];
 
-// 정산 로직이 이름으로 찾는 분류 — 기본값 관리에서는 이름 변경·삭제 불가
-const LOCKED_DEFAULT = (c) => c.type === 'income' && c.name === '정산';
+// 정산 로직이 이름으로 찾는 수입 분류 — 삭제 불가(기본값 관리에서는 이름 변경도 불가)
+const LOCKED = (c, type) => (c.type || type) === 'income' && c.name === '정산';
 
 // admin=true: 관리자 > 기타 관리 > 분류 기본값 관리(새 가입자에게 만들어 줄 분류). 수입/지출 탭으로 전환.
 export default function CategoryManage({ admin = false }) {
@@ -33,6 +33,11 @@ export default function CategoryManage({ admin = false }) {
   };
   const [categories, setCategories] = useState([]);
   const [editor, setEditor] = useState(null); // null | {id?, name, emoji, color}
+  const [openId, setOpenId] = useState(null); // 스와이프로 열린 카드(하나만)
+  const [toast, setToast] = useState('');
+  const [toastKey, setToastKey] = useState(0);
+  const showToast = (m) => { setToast(m); setToastKey((k) => k + 1); setOpenId(null); };
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 2000); return () => clearTimeout(t); }, [toast, toastKey]);
 
   const kind = type === 'income' ? '수입' : '지출';
   const valid = type === 'income' || type === 'expense';
@@ -45,7 +50,7 @@ export default function CategoryManage({ admin = false }) {
   useEffect(() => { load(); }, [load]);
 
   const openAdd = () => setEditor({ name: '', emoji: '💰', color: PALETTE[0] });
-  const openEdit = (c) => setEditor({ id: c.id, locked: admin && LOCKED_DEFAULT(c), name: c.name, emoji: c.emoji || '', color: c.color || tileBg(c.name) });
+  const openEdit = (c) => setEditor({ id: c.id, locked: admin && LOCKED(c, type), name: c.name, emoji: c.emoji || '', color: c.color || tileBg(c.name) });
   const closeModal = () => setEditor(null);
 
   const save = async () => {
@@ -59,7 +64,7 @@ export default function CategoryManage({ admin = false }) {
   };
   const del = async (c) => {
     if (!confirm(`'${c.name}' 분류를 삭제할까요?`)) return;
-    try { await api.remove(c.id); load(); } catch (e) { alert(e.message); }
+    try { await api.remove(c.id); setOpenId(null); load(); } catch (e) { alert(e.message); }
   };
 
   const { dragId, setRowRef, startDrag } = useDragReorder(categories, setCategories, async (ids) => {
@@ -88,33 +93,42 @@ export default function CategoryManage({ admin = false }) {
         </div>
       )}
 
-      <div className="tx-daycard" style={{ marginTop: 14 }}>
-        {categories.length === 0 ? (
+      {categories.length === 0 ? (
+        <div className="tx-daycard" style={{ marginTop: 14 }}>
           <div className="empty" style={{ padding: '20px 0' }}>분류가 없습니다.</div>
-        ) : categories.map((c, i) => (
-          <div
-            key={c.id} ref={setRowRef(c.id)}
-            className={dragId === c.id ? 'drag-lift' : ''}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px 12px 16px', background: 'var(--k-bg-fff)',
-              borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)',
-            }}
-          >
-            <button onClick={() => openEdit(c)} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', minWidth: 0 }}>
-              <span style={{ width: 38, height: 38, borderRadius: 12, background: c.color || tileBg(c.name), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16.5, flex: 'none' }}>{c.emoji}</span>
-              <span style={{ fontSize: 13.75, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{c.name}</span>
-            </button>
-            {admin && LOCKED_DEFAULT(c) ? <span style={{ width: 30, flex: 'none' }} /> : (
-            <button aria-label="삭제" onClick={() => del(c)} className="cat-del-btn">
-              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
-            </button>
-            )}
-            <span className="cat-drag-handle" aria-label="순서 변경" onPointerDown={startDrag(c.id)} style={{ touchAction: 'none', cursor: dragId === c.id ? 'grabbing' : 'grab' }}>
-              <svg width="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6" /><circle cx="9" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle cx="15" cy="12" r="1.6" /><circle cx="15" cy="18" r="1.6" /></svg>
-            </span>
-          </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        // 카드를 누르면 수정, 왼쪽으로 밀면 삭제(수입 "정산"은 삭제 불가 — 빗금 버튼 + 토스트)
+        <div className="tx-daygroup" style={{ marginTop: 14 }}>
+          {categories.map((c, i) => {
+            const locked = LOCKED(c, type);
+            return (
+              <div key={c.id} ref={setRowRef(c.id)} className={dragId === c.id ? 'drag-lift' : ''}>
+                <DayCardRow
+                  index={i} count={categories.length} clickable
+                  isOpen={openId === c.id} onOpenChange={(o) => setOpenId(o ? c.id : null)}
+                  onTap={() => openEdit(c)}
+                  onDelete={locked ? () => showToast('정산 분류는 삭제할 수 없습니다') : () => del(c)} deleteBlocked={locked}
+                >
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ width: 38, height: 38, borderRadius: 12, background: c.color || tileBg(c.name), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16.5, flex: 'none' }}>{c.emoji}</span>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 13.75, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{c.name}</span>
+                    <span
+                      className="cat-drag-handle" aria-label="순서 변경"
+                      onPointerDown={(e) => { e.stopPropagation(); startDrag(c.id)(e); }} onClick={(e) => e.stopPropagation()}
+                      style={{ touchAction: 'none', cursor: dragId === c.id ? 'grabbing' : 'grab' }}
+                    >
+                      <svg width="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6" /><circle cx="9" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle cx="15" cy="12" r="1.6" /><circle cx="15" cy="18" r="1.6" /></svg>
+                    </span>
+                  </div>
+                </DayCardRow>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
 
       {editor && (
         <div className="catmodal-overlay" onClick={closeModal}>

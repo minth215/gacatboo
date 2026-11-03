@@ -31,7 +31,8 @@ const marqueeOff = (e) => {
 // 둥글고 가운데는 각짐) 각 행이 흰 배경·그림자를 가진 독립 카드라서 개별로 밀린다. 묶음 자체엔 배경이 없어
 // 밀린 자리엔 페이지 배경 위에 삭제 버튼만 보이고, 밀린 카드는 왼쪽 화면 끝까지 이어진다.
 // onInvite: (그룹 멤버 카드) 삭제 아이콘 왼쪽의 초대 버튼
-export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete, onCopy, onInvite, onTravel, onLongPress, clickable, background = 'var(--k-bg-fff)', children }) {
+// deleteBlocked: 삭제할 수 없는 카드 — 휴지통 버튼에 빗금(누르면 onDelete 로 안내만)
+export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete, deleteBlocked = false, onCopy, onInvite, onTravel, onLongPress, clickable, background = 'var(--k-bg-fff)', children }) {
   const first = index === 0;
   const last = index === count - 1;
   return (
@@ -63,7 +64,7 @@ export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete
             </button>
           )}
           {onDelete && (
-            <button type="button" className="settle-icon-btn danger" onClick={onDelete} aria-label="삭제">
+            <button type="button" className={`settle-icon-btn danger${deleteBlocked ? ' blocked' : ''}`} onClick={onDelete} aria-label={deleteBlocked ? '삭제할 수 없음' : '삭제'}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 6h18" />
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />

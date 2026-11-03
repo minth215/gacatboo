@@ -443,6 +443,12 @@ html.theme-dark .btn-ink-pill:hover { background: #E2DFE8; }
 .swipe-del .settle-icon-btn.mint { color: var(--income); }
 .swipe-del .settle-icon-btn.danger { color: var(--expense); }
 .swipe-del .settle-icon-btn.is-disabled { opacity: .35; }
+/* 삭제할 수 없는 카드: 원형 버튼 끝에서 끝까지 빗금 */
+.swipe-del .settle-icon-btn.blocked { position: relative; color: var(--k-tx-b6b2c0); }
+.swipe-del .settle-icon-btn.blocked::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px;
+  background: currentColor; border-radius: 2px; transform: rotate(-45deg);
+}
 .settle-icon-btn svg { display: block; }
 
 /* 정산 금액 인라인 수정: 연필 아이콘, 밑줄만 있는 입력창, X/체크 아이콘 버튼 */
