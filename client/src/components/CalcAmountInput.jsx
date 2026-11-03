@@ -6,9 +6,12 @@ import { CURRENCY_NAME, fetchKrwRate } from '../lib/currency.js';
 const OP_CHARS = '+-×÷';
 const OP_SYMBOL = { '+': '+', '-': '−', '×': '×', '÷': '÷' };
 
-// "%"가 붙은 숫자는 100으로 나눈 값으로 취급(예: 10000×10% = 10000×0.1 = 1000)
+// "%" 처리: "a%b" = a의 b%(예: 100%5 = 5), 끝의 "%"는 100으로 나눈 값(예: 10000×10% = 1000)
 function numToken(tok) {
-  return tok.endsWith('%') ? Number(tok.slice(0, -1)) / 100 : Number(tok);
+  const parts = tok.split('%');
+  let v = Number(parts[0]) || 0;
+  for (const p of parts.slice(1)) v = p === '' ? v / 100 : v * (Number(p) || 0) / 100;
+  return v;
 }
 
 // "12000×10%" 같은 수식 문자열을 계산(×÷ 우선순위 적용). 끝에 연산자가 남아 있으면 무시.
@@ -46,6 +49,8 @@ function evaluate(expr, { round = true, allowNegative = false } = {}) {
 // 숫자 토큰(정수부만 천 단위 콤마, 소수점 이하·% 는 입력한 그대로 유지)
 function formatNumberToken(numStr) {
   if (numStr === '') return '';
+  // "100%5" → 각 숫자를 따로 포맷("1,000%5")
+  if (numStr.slice(0, -1).includes('%')) return numStr.split('%').map((p, i, a) => (p === '' && i === a.length - 1 ? '' : formatNumberToken(p))).join('%');
   const pct = numStr.endsWith('%');
   const core = pct ? numStr.slice(0, -1) : numStr;
   const dotIdx = core.indexOf('.');
@@ -207,14 +212,14 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
 
   const pressDigit = (d) => setExpr((prev) => {
     if (justEvaluatedRef.current) { justEvaluatedRef.current = false; return d; }
-    if (currentSegment(prev).endsWith('%')) return prev; // % 뒤엔 연산자를 눌러야 새 숫자를 시작할 수 있음
+    // % 뒤 숫자: "100%5" = 100의 5%
     if (prev === '0') return d;
     return prev + d;
   });
   const pressDot = () => setExpr((prev) => {
     if (justEvaluatedRef.current) { justEvaluatedRef.current = false; return '0.'; }
-    const seg = currentSegment(prev);
-    if (seg.includes('.') || seg.endsWith('%')) return prev;
+    const seg = currentSegment(prev).split('%').pop(); // % 뒤 숫자 기준
+    if (seg.includes('.')) return prev;
     return prev + (seg === '' ? '0.' : '.');
   });
   const pressPercent = () => setExpr((prev) => {
