@@ -954,3 +954,8 @@ html.theme-dark .rcpt-card {
   color: #1f2430;
 }
 
+
+/* 원형 알약 토글 버튼 테두리: 기기 픽셀 기준 정수 두께(2배율 1.5px=3px, 3배율 4/3px=4px)로 맞춰
+   위아래 두께가 달라 보이지 않게 한다. 색은 인라인 borderColor. */
+.pill-toggle { border-style: solid; border-width: 1.5px; box-sizing: border-box; -webkit-appearance: none; appearance: none; }
+@media (min-resolution: 2.5dppx), (-webkit-min-device-pixel-ratio: 2.5) { .pill-toggle { border-width: calc(4px / 3); } }

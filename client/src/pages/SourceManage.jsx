@@ -210,13 +210,14 @@ export default function SourceManage({ admin = false }) {
                 const on = !disabled && editor[key];
                 return (
                   <button
-                    key={key} type="button" disabled={disabled} aria-pressed={on}
+                    key={key} type="button" disabled={disabled} aria-pressed={on} className="pill-toggle"
                     onClick={() => setEditor({ ...editor, [key]: !editor[key] })}
                     style={{
                       flex: 1, height: 40, borderRadius: 999, fontFamily: 'inherit', fontSize: 12.75, fontWeight: 700,
                       cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
-                      // 테두리 대신 inset 그림자: 1.5px 테두리가 위아래 두께가 달라 보이던 문제(소수점 픽셀 반올림)
-                      border: 'none', boxShadow: `inset 0 0 0 1.5px ${on ? fg : 'var(--k-bd-efeef2)'}`, background: on ? bg : 'var(--k-bg-fff)', color: on ? fg : 'var(--k-tx-8b8798)',
+                      // 테두리 두께는 .pill-toggle(기기 픽셀 단위로 정수가 되게 — 1.5px 가 3배율 화면에서 4.5픽셀로
+                      // 반올림되며 위아래 두께가 달라 보이던 문제)
+                      borderColor: on ? fg : 'var(--k-bd-efeef2)', background: on ? bg : 'var(--k-bg-fff)', color: on ? fg : 'var(--k-tx-8b8798)',
                     }}
                   >{on ? `✓ ${label}` : label}</button>
                 );
