@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -30,6 +30,7 @@ export default function RecurringManage() {
   // 상단바 검색: 내용·분류·원천·반복 주기 글자로 카드 걸러 보기
   const [searchOpen, setSearchOpen] = useState(false);
   const [q, setQ] = useState('');
+  const searchRef = useRef(null);
   const subLineOf = (r) => {
     const { dispName, dispSource } = viewOf(r, user.id);
     return [dispName, dispSource, periodDetailLabel(r)].filter(Boolean).join(' · ');
@@ -106,26 +107,29 @@ export default function RecurringManage() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
+      {/* 검색: 가계부 검색처럼 오른쪽 검색 버튼이 왼쪽 "<" 버튼 앞까지 늘어나 검색창이 됨 */}
       <PageHeader
         flat
-        title={searchOpen ? (
-          <input
-            autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="검색어 입력" type="text" enterKeyHint="search"
-            onKeyDown={(e) => { if (e.key === 'Escape') { setSearchOpen(false); setQ(''); } }}
-            style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 15, fontWeight: 500, color: 'var(--k-tx-191722)', padding: 0, letterSpacing: 0 }}
-          />
-        ) : '반복 관리'}
+        title={<span style={{ opacity: searchOpen ? 0 : 1, transition: 'opacity 0.26s ease' }}>반복 관리</span>}
         right={(
-          <button
-            type="button" className="tb-icon-btn" aria-label={searchOpen ? '검색 닫기' : '검색'}
-            onClick={() => { if (searchOpen) { setSearchOpen(false); setQ(''); } else setSearchOpen(true); }}
-          >
-            {searchOpen ? (
-              <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
-            ) : (
+          <div className={`pg-search${searchOpen ? ' open' : ''}`}>
+            <button
+              type="button" className="pg-search-icon" aria-label="검색"
+              onClick={() => { if (searchOpen) searchRef.current?.focus(); else { setSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 260); } }}
+            >
               <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="16.2" y1="16.2" x2="21" y2="21" /></svg>
+            </button>
+            <input
+              ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="검색어 입력" type="text" enterKeyHint="search"
+              tabIndex={searchOpen ? 0 : -1}
+              onKeyDown={(e) => { if (e.key === 'Escape') { setSearchOpen(false); setQ(''); } }}
+            />
+            {searchOpen && (
+              <button type="button" className="pg-search-close" aria-label="검색 닫기" onClick={() => { setSearchOpen(false); setQ(''); }}>
+                <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6 L18 18 M18 6 L6 18" /></svg>
+              </button>
             )}
-          </button>
+          </div>
         )}
       />
 
@@ -171,9 +175,12 @@ export default function RecurringManage() {
         ))
       )}
 
-      <button className="fab" onClick={() => setPicking(true)} aria-label="반복 추가">
-        <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-      </button>
+{/* 검색창이 열려 있을 때는 + 버튼을 숨김 */}
+      {!searchOpen && (
+              <button className="fab" onClick={() => setPicking(true)} aria-label="반복 추가">
+          <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
+      )}
 
       {picking && <RecurrenceModal onClose={() => setPicking(false)} onSelect={onSelectPeriod} />}
 

@@ -140,6 +140,30 @@ a { color: inherit; text-decoration: none; }
   flex: none; width: 36px; height: 40px; border: none; background: transparent;
   color: var(--k-tx-8b8798); display: flex; align-items: center; justify-content: center; padding: 0;
 }
+.pg-search-icon:focus, .pg-search-close:focus, .pg-search-icon:active, .pg-search-close:active { outline: none; background: transparent; }
+/* 납작 상단바(flat)용 검색: 오른쪽 끝 검색 버튼이 왼쪽 "<" 버튼 바로 앞까지 늘어남(반복 관리 등) */
+.pg-search {
+  position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+  height: 32px; width: 32px; border-radius: 999px; background: var(--k-bg-f4f2f0);
+  display: flex; align-items: center; overflow: hidden;
+  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pg-search.open { width: calc(100% - 32px - 32px - 10px); }
+.pg-search-icon {
+  flex: none; width: 32px; height: 32px; border: none; background: transparent;
+  color: var(--k-tx-6c6779); display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.pg-search input {
+  flex: 1; min-width: 0; border: none; background: transparent; outline: none; font-family: inherit;
+  font-size: 14px; color: var(--k-tx-191722); padding: 0;
+  opacity: 0; transition: opacity 0.18s ease 0.08s;
+}
+.pg-search:not(.open) input { pointer-events: none; }
+.pg-search.open input { opacity: 1; }
+.pg-search-close {
+  flex: none; width: 32px; height: 32px; border: none; background: transparent;
+  color: var(--k-tx-8b8798); display: flex; align-items: center; justify-content: center; padding: 0;
+}
 .lt-search-icon:focus, .lt-search-close:focus, .lt-filter:focus,
 .lt-search-icon:active, .lt-search-close:active, .lt-filter:active { outline: none; background: transparent; }
 .lt-filter:active { background: var(--k-bg-fff); }
