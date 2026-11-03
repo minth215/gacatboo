@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { addMonthsClamped, newUuid } from './format.js';
 
 // supabase 쿼리 에러를 통일된 형태로 던짐
 function unwrap({ data, error }) {
@@ -20,6 +21,14 @@ function sourceName(flat, id) {
   if (!id) return '';
   const s = flat.find((x) => x.id === id);
   return s ? s.name : ''; // 세부 항목명만(상위 항목 표기 없이)
+}
+
+// 같은 할부 묶음(installment_group, 없으면 같은 개월 수·내용·분류·원천의 예전 할부 기록)
+function installmentGroupFilter(q, t) {
+  q = q.eq('user_id', t.user_id);
+  if (t.installment_group) return q.eq('installment_group', t.installment_group);
+  return q.is('installment_group', null).eq('installment_total', t.installment_total).eq('type', t.type)
+    .eq('content', t.content || '').eq('category_name', t.category_name || '').eq('source_name', t.source_name || '');
 }
 
 const TX_SELECT = '*, group:groups(name, category), recurring:recurring_rules(id, label, freq_unit, freq_interval, weekdays)';
@@ -486,13 +495,45 @@ export const db = {
   // 묶음 값이 없는 예전 할부 기록은 같은 개월 수·내용·분류·원천의 할부 기록을 한 묶음으로 본다.
   async deleteInstallmentGroup(t) {
     if (!t?.installment_total) return this.deleteTransaction(t.id);
-    let q = supabase.from('transactions').delete().eq('user_id', t.user_id);
-    if (t.installment_group) q = q.eq('installment_group', t.installment_group);
-    else {
-      q = q.is('installment_group', null).eq('installment_total', t.installment_total).eq('type', t.type)
-        .eq('content', t.content || '').eq('category_name', t.category_name || '').eq('source_name', t.source_name || '');
+    return unwrap(await installmentGroupFilter(supabase.from('transactions').delete(), t));
+  },
+  // 할부 개월 수 수정: 묶음 전체 금액 합계를 새 개월 수로 다시 나눠(1회차 = 몫 + 나머지) 일괄 수정하고,
+  // 늘어난 회차는 마지막 기록을 복사해 한 달씩 추가, 줄어든 회차는 삭제한다.
+  // t: 방금 저장한 회차 기록(수정 화면의 값). 1회차 날짜를 기준으로 새 회차 날짜를 정한다.
+  async resizeInstallment(t, newTotal) {
+    const parts = unwrap(await installmentGroupFilter(supabase.from('transactions').select('*'), t).order('installment_no', { ascending: true }));
+    if (!parts.length) return;
+    const group = t.installment_group || newUuid();
+    const total = parts.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    const per = Math.floor(total / newTotal);
+    const amtOf = (no) => (no === 1 ? total - per * (newTotal - 1) : per);
+    const first = parts.find((p) => p.installment_no === 1);
+    const baseDate = first ? first.date : addMonthsClamped(t.date, -(t.installment_no - 1));
+    const scaled = (p, amt) => {
+      const ratio = Number(p.amount) > 0 ? amt / Number(p.amount) : 1;
+      return {
+        amount: amt, installment_total: newTotal, installment_group: group,
+        ...(Array.isArray(p.items) && p.items.length === 1 ? { items: [{ ...p.items[0], qty: 1, amount: amt, ...(p.items[0].input_amount != null ? { input_amount: Math.round(p.items[0].input_amount * ratio * 100) / 100 } : {}) }] } : {}),
+        ...(p.input_amount != null ? { input_amount: Math.round(p.input_amount * ratio * 100) / 100 } : {}),
+      };
+    };
+    const byNo = new Map(parts.map((p) => [p.installment_no, p]));
+    // 줄어든 회차 삭제
+    const removeIds = parts.filter((p) => p.installment_no > newTotal).map((p) => p.id);
+    if (removeIds.length) unwrap(await supabase.from('transactions').delete().in('id', removeIds));
+    const template = parts.filter((p) => p.installment_no <= newTotal).pop() || t;
+    for (let no = 1; no <= newTotal; no++) {
+      const amt = amtOf(no);
+      const p = byNo.get(no);
+      if (p) {
+        unwrap(await supabase.from('transactions').update(scaled(p, amt)).eq('id', p.id));
+      } else {
+        const { id: _id, created_at: _c, updated_at: _u, recurring_id: _r, linked_transaction_id: _l, ...rest } = template;
+        unwrap(await supabase.from('transactions').insert({
+          ...rest, ...scaled(template, amt), date: addMonthsClamped(baseDate, no - 1), installment_no: no,
+        }));
+      }
     }
-    return unwrap(await q);
   },
   // 가계부 선택 모드의 일괄 수정(내용/날짜/분류/원천): 그룹 결제·입금 미러 항목 여부와 무관하게
   // transactions 테이블 자체만 직접 갱신한다(일괄 수정은 단순 표시값 변경이라 원본 구독/정산 데이터와

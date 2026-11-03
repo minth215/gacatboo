@@ -170,6 +170,8 @@ export default function TransactionList({
                     <div className="tx-row-title" onMouseEnter={marqueeOn} onMouseLeave={marqueeOff}>
                       <span className="ttext">
                         {t.content || t.category_name || (t.type === 'income' ? '수입' : t.type === 'transfer' ? '이체' : '지출')}
+                        {/* 할부 회차 */}
+                        {t.installment_total ? ` (${t.installment_no}/${t.installment_total})` : ''}
                         {/* 구독 그룹 결제/입금이 반영된 항목: 몇 회분인지 배지(그룹 화면과 동일) */}
                         {t.periods != null && (
                           <>{' '}<span className="tag-periods" style={isGroup ? { background: 'var(--k-bg-fff)' } : undefined}>{t.periods} 회분</span></>

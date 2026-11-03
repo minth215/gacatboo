@@ -36,9 +36,10 @@ function BareNumber({ value, onChange }) {
 //   onSelect({ preset, weekdays?, business_day_rule }) 또는
 //   onSelect({ preset:'custom', interval, unit, weekdays, business_day_rule }).
 // date: 기록 페이지의 날짜(매주/격주 기본 요일 계산용, 없으면 오늘).
-export default function RecurrenceModal({ onClose, onSelect, date, allowInstallment = false }) {
-  const [kind, setKind] = useState('repeat'); // repeat | installment
-  const [months, setMonths] = useState('');
+// installmentOnly: 할부 기록의 개월 수 수정(탭 없이 할부 입력만, initialMonths 로 채움)
+export default function RecurrenceModal({ onClose, onSelect, date, allowInstallment = false, installmentOnly = false, initialMonths }) {
+  const [kind, setKind] = useState(installmentOnly ? 'installment' : 'repeat'); // repeat | installment
+  const [months, setMonths] = useState(initialMonths ? String(initialMonths) : '');
   const dow = weekdayOf(date);
   const [preset, setPreset] = useState('monthly');
   const [interval, setIntervalVal] = useState('1');
@@ -79,6 +80,9 @@ export default function RecurrenceModal({ onClose, onSelect, date, allowInstallm
     <div className="catmodal-overlay" onClick={onClose}>
       <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
         {/* 반복 / 할부 탭(할부는 새 기록에서만) */}
+        {installmentOnly ? (
+          <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>할부 개월 수 수정</div>
+        ) : (
         <div style={{ display: 'flex', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: 4 }}>
           {[['repeat', '반복'], ['installment', '할부']].filter(([k]) => k === 'repeat' || allowInstallment).map(([k, label]) => (
             <button key={k} type="button" onClick={() => setKind(k)} style={{
@@ -87,6 +91,7 @@ export default function RecurrenceModal({ onClose, onSelect, date, allowInstallm
             }}>{label}</button>
           ))}
         </div>
+        )}
 
         {kind === 'installment' ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 14, padding: '0 16px' }}>

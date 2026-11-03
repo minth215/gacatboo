@@ -112,6 +112,17 @@ export function addInterval(dateStr, unit, count, n = 1) {
   return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
 }
 
+// 'YYYY-MM-DD' 에 n개월 더하기. 그 달에 같은 날이 없으면 말일로(1/31 + 1개월 → 2/28)
+export function addMonthsClamped(ymd, n) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const t = new Date(y, m - 1 + n, 1);
+  const last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+  const pad = (v) => String(v).padStart(2, '0');
+  return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(Math.min(d, last))}`;
+}
+export const newUuid = () => globalThis.crypto?.randomUUID?.()
+  || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+
 export const PERIOD_LABEL = { day: '일', week: '주', month: '개월', year: '년' };
 
 // "내용" 기본값 템플릿의 날짜 변수 치환: {연}/{월}/{일} (날짜: YYYY-MM-DD)

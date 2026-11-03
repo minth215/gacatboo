@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { today, dotDate, dotDateWithWeekday, fmtWon, fmtNum, renderTemplate } from '../lib/format.js';
+import { today, dotDate, dotDateWithWeekday, fmtWon, fmtNum, renderTemplate, addMonthsClamped, newUuid } from '../lib/format.js';
 import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
 import { saveTxDraft, takeTxDraft } from '../lib/txDraft.js';
 import { useFavoriteToggle } from '../lib/useFavoriteToggle.js';
@@ -431,6 +431,9 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [recurringLabel, setRecurringLabel] = useState(initial?.recurring?.label || '');
   const [pendingRecurrence, setPendingRecurrence] = useState(initialPendingRecurrence || null);
   const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
+  // 할부 기록의 개월 수 수정(수정 버튼을 눌러 저장할 때 묶음 전체에 반영)
+  const [installmentResize, setInstallmentResize] = useState(null); // 새 개월 수 | null
+  const [showInstallmentModal, setShowInstallmentModal] = useState(false);
   const [backfillPrompt, setBackfillPrompt] = useState(null); // { n, resolve } | null
   const askBackfill = (n) => new Promise((resolve) => setBackfillPrompt({ n, resolve }));
 
@@ -1030,8 +1033,7 @@ const TransactionForm = forwardRef(function TransactionForm({
         // 회차는 installment_no/total 로 저장(수정 화면 반복 아이콘 자리에 (회차/개월) 표시)
         const totalAmt = Math.round(total);
         const per = Math.floor(totalAmt / installment);
-        const installment_group = globalThis.crypto?.randomUUID?.()
-          || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+        const installment_group = newUuid();
         for (let i = 0; i < installment; i++) {
           const amt = i === 0 ? totalAmt - per * (installment - 1) : per;
           const part = {
@@ -1047,6 +1049,15 @@ const TransactionForm = forwardRef(function TransactionForm({
       } else if (onSubmit) await onSubmit(payload);
       else {
         const saved = await db.saveTransaction({ id: initial?.id, userId: user.id, payload, sourcesFlat });
+        // 할부 개월 수를 바꿨으면 묶음 전체 금액을 다시 나누고 회차를 추가/삭제
+        // (묶음 값이 없는 예전 기록은 수정 전 내용·분류·원천으로 같은 묶음을 찾음)
+        if (installmentResize && initial?.installment_total) {
+          await db.resizeInstallment({
+            ...saved, user_id: saved.user_id || initial.user_id,
+            installment_no: initial.installment_no, installment_total: initial.installment_total, installment_group: initial.installment_group,
+            ...(initial.installment_group ? {} : { content: initial.content, category_name: initial.category_name, source_name: initial.source_name }),
+          }, installmentResize);
+        }
         if (aggregateSplit) await db.saveSettlementSplit(saved.id, aggregateSplit);
         // 이체 수수료: 켜져 있으면 연결된 지출 기록을 생성/수정(분류=수수료, 원천=출금 원천과 동일),
         // 꺼져 있는데 기존에 연결된 기록이 있었으면 삭제
@@ -1094,6 +1105,13 @@ const TransactionForm = forwardRef(function TransactionForm({
         </div>
       )}
 
+      {showInstallmentModal && (
+        <RecurrenceModal
+          date={date} installmentOnly initialMonths={installmentResize || initial?.installment_total}
+          onClose={() => setShowInstallmentModal(false)}
+          onSelect={(p) => { setInstallmentResize(p.months === initial?.installment_total ? null : p.months); setShowInstallmentModal(false); }}
+        />
+      )}
       {showRecurrenceModal && (
         <RecurrenceModal date={date} allowInstallment={allowInstallment} onClose={() => setShowRecurrenceModal(false)} onSelect={(p) => { setPendingRecurrence(p); setShowRecurrenceModal(false); }} />
       )}
@@ -1129,9 +1147,13 @@ const TransactionForm = forwardRef(function TransactionForm({
             )}
             {!templateMode && initial?.installment_total ? (
               // 할부로 만든 기록: 반복 아이콘 대신 회차 표시
-              <span style={{ flex: 'none', padding: 2, fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', whiteSpace: 'nowrap' }}>
-                ({initial.installment_no}/{initial.installment_total})
-              </span>
+              // 누르면 할부 개월 수 수정
+              <button
+                type="button" onClick={() => setShowInstallmentModal(true)} aria-label="할부 개월 수 수정"
+                style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', whiteSpace: 'nowrap' }}
+              >
+                ({initial.installment_no}/{installmentResize || initial.installment_total})
+              </button>
             ) : !templateMode && (
             <button
               type="button" onClick={onRecurrenceIconClick} aria-label="반복 설정"
@@ -1351,11 +1373,3 @@ const TransactionForm = forwardRef(function TransactionForm({
 
 export default TransactionForm;
 
-// 'YYYY-MM-DD' 에 n개월 더하기. 그 달에 같은 날이 없으면 말일로(1/31 + 1개월 → 2/28)
-function addMonthsClamped(ymd, n) {
-  const [y, m, d] = ymd.split('-').map(Number);
-  const t = new Date(y, m - 1 + n, 1);
-  const last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
-  const pad = (v) => String(v).padStart(2, '0');
-  return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(Math.min(d, last))}`;
-}
