@@ -393,7 +393,7 @@ export const db = {
       all.push(...rows);
       if (rows.length < PAGE || all.length >= 20000) break;
     }
-    return this.attachOnnuri(await this.attachSubscriptionPeriods(flattenTx(hideOthersSettlementPayments(all, userId))));
+    return this.attachExcluded(await this.attachOnnuri(await this.attachSubscriptionPeriods(flattenTx(hideOthersSettlementPayments(all, userId)))));
   },
 
   // 대표 "내용" 입력창의 자동완성 후보: 과거에 쓴 내용(중복 제거, 최신순)
