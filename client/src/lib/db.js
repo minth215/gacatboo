@@ -1145,9 +1145,20 @@ export const db = {
       const top = it && (it.parent_id != null ? byId.get(it.parent_id) : it);
       return top?.group_type === 'credit' ? (top.expense_timing || 'usage') : null;
     };
+    // 직접 입력한 "결제 대금" 기록: 내용에 신용카드 세부 항목명이 들어 있으면 그 카드 그룹 기준,
+    // 없으면 신용카드 그룹 기준(그룹이 여러 개면 하나라도 "대금 납부일"이면 그 기준)
+    const creditItems = list.filter((x) => x.parent_id != null && byId.get(x.parent_id)?.group_type === 'credit')
+      .sort((a, b) => (b.name || '').length - (a.name || '').length);
+    const creditTops = list.filter((x) => x.parent_id == null && x.group_type === 'credit');
+    const defaultTiming = creditTops.some((t) => t.expense_timing === 'payment') ? 'payment' : 'usage';
+    const billTiming = (r) => {
+      if (r.card_bill_source_id != null) return timingOf(r.card_bill_source_id) || 'usage';
+      const hit = creditItems.find((c) => c.name && (r.content || '').includes(c.name));
+      return hit ? timingOf(hit.id) : defaultTiming;
+    };
     return rows.map((r) => {
-      const bill = r.card_bill_source_id != null;
-      const billExcluded = bill && timingOf(r.card_bill_source_id) !== 'payment';
+      const bill = r.type === 'expense' && isCardBill(r);
+      const billExcluded = bill && billTiming(r) !== 'payment';
       const deferred = !bill && r.type === 'expense' && timingOf(r.source_id) === 'payment';
       const excluded = (r.source_id != null && ex.has(r.source_id)) || billExcluded;
       return {
