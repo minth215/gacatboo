@@ -116,7 +116,7 @@ function SourceSelect({ sources, value, onChange, keepLabel, style, placeholder 
             {String(value) === String(top.id) && <option value={top.id}>{top.name}</option>}
             {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </optgroup>
-        ) : <option key={top.id} value={top.id}>{top.name}</option>
+        ) : null /* 원천 그룹은 선택 불가(세부 항목만) */
       ))}
       {onEdit && <option value={EDIT_OPTION}>편집</option>}
     </select>

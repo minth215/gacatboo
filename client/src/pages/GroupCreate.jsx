@@ -247,7 +247,6 @@ export default function GroupCreate() {
             ) : (
               <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', overflow: 'hidden' }}>
                 {sources.tree.map((top, gi) => {
-                  const topSelected = String(depositSourceId) === String(top.id);
                   const SourceRow = ({ src, selected, indent }) => (
                     <button
                       type="button" onClick={() => setDepositSourceId(String(src.id))}
@@ -263,12 +262,8 @@ export default function GroupCreate() {
                   );
                   return (
                     <div key={top.id} style={{ borderTop: gi === 0 ? 'none' : '1.5px solid var(--k-divider)' }}>
-                      {top.children?.length ? (
-                        // 세부 항목이 있는 원천 그룹은 기록 페이지 원천 셀렉트처럼 선택 불가(제목만)
-                        <div style={{ padding: '13px 16px', fontSize: 13.25, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{top.name}</div>
-                      ) : (
-                        <SourceRow src={top} selected={topSelected} indent={0} />
-                      )}
+                      {/* 원천 그룹은 선택 불가(제목만) — 세부 항목만 선택 */}
+                      <div style={{ padding: '13px 16px', fontSize: 13.25, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{top.name}</div>
                       {top.children?.map((c) => (
                         <div key={c.id} style={{ borderTop: '1.5px solid var(--k-divider)' }}>
                           <SourceRow src={c} selected={String(depositSourceId) === String(c.id)} indent={16} />

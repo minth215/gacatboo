@@ -73,8 +73,8 @@ export default function SourceManage({ admin = false }) {
                 {/* 그룹명 + 그룹 특성(일반 제외, 회색 가는 작은 글씨) — 글자 아래쪽(기준선) 맞춤 */}
                 <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
                   {top.name}
-                  {isCardGroup(top.group_type) && (
-                    <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>{top.group_type === 'credit' ? '신용카드' : '체크카드'}</span>
+                  {(isCardGroup(top.group_type) || top.group_type === 'onnuri') && (
+                    <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>{{ credit: '신용카드', check: '체크카드', onnuri: '디지털 온누리' }[top.group_type]}</span>
                   )}
                 </span>
                 <PrimaryBadges src={top} />

@@ -7,7 +7,8 @@ import Spinner from '../components/Spinner.jsx';
 import { fieldStyle, labelStyle, optional } from './FriendAdd.jsx';
 
 const isCardGroup = (t) => t === 'credit' || t === 'check';
-const GROUP_TYPES = [['general', '일반'], ['credit', '신용카드'], ['check', '체크카드']];
+const GROUP_TYPES = [['general', '일반'], ['credit', '신용카드'], ['check', '체크카드'], ['onnuri', '디지털 온누리']];
+const TYPE_LABEL = Object.fromEntries(GROUP_TYPES);
 
 // 설정 > 원천 관리 > 원천 그룹 추가/수정, 세부 항목 추가/수정 페이지.
 //  · /settings/sources/new             원천 그룹 추가
@@ -63,6 +64,7 @@ export default function SourceEdit({ admin = false }) {
       deposit: !!src?.is_primary_deposit,
       balance: src?.balance != null ? String(src.balance) : '',
       linkedId: src?.linked_source_id ? String(src.linked_source_id) : '',
+      onnuri: !!src?.onnuri_linked,
       paymentDay: src?.payment_day ? String(src.payment_day) : '',
       parentId: isNew ? String(parentId || '') : String(src?.parent_id || ''),
     });
@@ -84,7 +86,9 @@ export default function SourceEdit({ admin = false }) {
     if (isCardGroup(isGroup ? next.groupType : nextParentType)) next.deposit = false;
     return next;
   });
-  const typeLabel = (t) => (t === 'credit' ? '신용카드' : '체크카드');
+  const typeLabel = (t) => TYPE_LABEL[t] || '';
+  // 디지털 온누리 그룹이 있으면 카드 세부 항목에 "디지털 온누리 연결" 토글
+  const hasOnnuri = tree.some((t) => t.group_type === 'onnuri');
   const save = async () => {
     const name = form.name.trim();
     if (!name) return alert('이름을 입력하세요.');
@@ -96,6 +100,8 @@ export default function SourceEdit({ admin = false }) {
       if (isNew) {
         const row = await api.add(name, isGroup ? null : Number(form.parentId || parentId), isGroup ? form.groupType : null);
         sid = row.id;
+        // 원천 그룹은 선택할 수 없으므로 같은 이름의 세부 항목을 함께 만들고, 주결제/주입금 지정도 그 항목에
+        if (isGroup) sid = (await api.add(name, row.id)).id;
       } else if (name !== src.name || (isGroup && form.groupType !== (src.group_type || 'general'))) {
         await api.update(sid, name, isGroup ? form.groupType : undefined);
       }
@@ -112,8 +118,10 @@ export default function SourceEdit({ admin = false }) {
           balance: cardItem || form.balance === '' || form.balance === '-' ? null : Number(form.balance),
           linked_source_id: cardItem && form.linkedId ? Number(form.linkedId) : null,
           payment_day: creditItem && form.paymentDay ? Number(form.paymentDay) : null,
+          onnuri_linked: cardItem && hasOnnuri && !!form.onnuri,
         };
-        const changed = details.balance !== (src?.balance ?? null) || details.linked_source_id !== (src?.linked_source_id ?? null) || details.payment_day !== (src?.payment_day ?? null);
+        const changed = details.balance !== (src?.balance ?? null) || details.linked_source_id !== (src?.linked_source_id ?? null)
+          || details.payment_day !== (src?.payment_day ?? null) || details.onnuri_linked !== !!src?.onnuri_linked;
         if (changed) await db.updateSourceDetails(sid, details);
       }
       nav(-1);
@@ -177,15 +185,24 @@ export default function SourceEdit({ admin = false }) {
             <select value={form.linkedId} onChange={(e) => set({ linkedId: e.target.value })} style={{ ...selectStyle, color: form.linkedId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>
               <option value="">카드값이 빠져나갈 원천 선택</option>
               {/* 기록 페이지 원천 셀렉트처럼 원천 그룹 라벨 아래 세부 항목 */}
-              {tree.filter((t) => !isCardGroup(t.group_type)).map((t) => (
-                t.children?.length ? (
-                  <optgroup key={t.id} label={t.name}>
-                    {form.linkedId === String(t.id) && <option value={t.id}>{t.name}</option>}
-                    {t.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </optgroup>
-                ) : <option key={t.id} value={t.id}>{t.name}</option>
+              {/* 카드·디지털 온누리 그룹 제외, 원천 그룹은 선택 불가(세부 항목만) */}
+              {tree.filter((t) => !isCardGroup(t.group_type) && t.group_type !== 'onnuri' && t.children?.length).map((t) => (
+                <optgroup key={t.id} label={t.name}>
+                  {t.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </optgroup>
               ))}
             </select>
+          </label>
+        )}
+
+        {/* 카드 그룹 세부 항목: 디지털 온누리 연결(디지털 온누리 그룹이 있을 때, 기본 OFF) */}
+        {!admin && cardItem && hasOnnuri && (
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
+            <span style={labelStyle}>디지털 온누리 연결</span>
+            <button
+              type="button" role="switch" aria-checked={!!form.onnuri} aria-label="디지털 온누리 연결"
+              className={`ios-toggle${form.onnuri ? ' on' : ''}`} onClick={() => set({ onnuri: !form.onnuri })}
+            ><span className="ios-toggle-knob" /></button>
           </label>
         )}
 

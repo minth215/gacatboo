@@ -214,9 +214,7 @@ function ItemRow({
                     {String(item.fromSourceId) === String(top.id) && <option value={top.id}>{top.name}</option>}
                     {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </optgroup>
-                ) : (
-                  <option key={top.id} value={top.id}>{top.name}</option>
-                )
+                ) : null /* 원천 그룹은 선택 불가(세부 항목만) */
               ))}
             </select>
             <span style={{ flex: 'none', color: 'var(--k-tx-c7c3cc)', display: 'flex' }}><ArrowRightIcon /></span>
@@ -228,9 +226,7 @@ function ItemRow({
                     {String(item.toSourceId) === String(top.id) && <option value={top.id}>{top.name}</option>}
                     {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </optgroup>
-                ) : (
-                  <option key={top.id} value={top.id}>{top.name}</option>
-                )
+                ) : null /* 원천 그룹은 선택 불가(세부 항목만) */
               ))}
             </select>
           </div>
@@ -1260,9 +1256,7 @@ const TransactionForm = forwardRef(function TransactionForm({
                     {String(sourceId) === String(top.id) && <option value={top.id}>{top.name}</option>}
                     {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </optgroup>
-                ) : (
-                  <option key={top.id} value={top.id}>{top.name}</option>
-                )
+                ) : null /* 원천 그룹은 선택 불가(세부 항목만) */
               ))}
               <option value="__edit__">편집</option>
             </select>
