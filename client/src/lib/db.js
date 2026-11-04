@@ -148,7 +148,11 @@ export const db = {
 
   // ---------- 원천 ----------
   async listSources() {
-    const flat = unwrap(await supabase.from('sources').select('*').order('sort_order').order('id'));
+    const raw = unwrap(await supabase.from('sources').select('*').order('sort_order').order('id'));
+    // 현재 금액(0085): 기준 금액 + 기준 시점 이후~오늘 기록 합. 함수가 없으면(마이그레이션 전) 기준 금액 그대로
+    const { data: bal } = await supabase.rpc('my_source_balances');
+    const balMap = new Map((bal || []).map((b) => [b.source_id, Number(b.current_balance)]));
+    const flat = raw.map((s) => ({ ...s, current_balance: balMap.has(s.id) ? balMap.get(s.id) : s.balance }));
     const tops = flat.filter((s) => s.parent_id == null).map((t) => ({ ...t, children: flat.filter((c) => c.parent_id === t.id) }));
     return { tree: tops, flat };
   },

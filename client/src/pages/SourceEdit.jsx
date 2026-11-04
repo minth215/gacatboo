@@ -62,7 +62,8 @@ export default function SourceEdit({ admin = false }) {
       groupType: src?.group_type || 'general',
       payment: !!src?.is_primary_payment,
       deposit: !!src?.is_primary_deposit,
-      balance: src?.balance != null ? String(src.balance) : '',
+      // 현재 금액(기준 금액 + 기록 반영)을 보여 주고, 바꾸면 그 값이 새 기준 금액(수정 시각 기준)
+      balance: src?.current_balance != null ? String(src.current_balance) : '',
       linkedId: src?.linked_source_id ? String(src.linked_source_id) : '',
       onnuri: !!src?.onnuri_linked,
       paymentDay: src?.payment_day ? String(src.payment_day) : '',
@@ -114,13 +115,17 @@ export default function SourceEdit({ admin = false }) {
       if (form.payment !== !!src?.is_primary_payment) await api.setPrimary(sid, 'payment', form.payment);
       if (deposit !== !!src?.is_primary_deposit) await api.setPrimary(sid, 'deposit', deposit);
       if (!admin && !isGroup) {
+        const newBal = cardItem || form.balance === '' || form.balance === '-' ? null : Number(form.balance);
+        // 금액을 직접 바꾸면 그 값이 새 기준 금액, 수정 시각이 기준 시점(그 날짜 이전 기록은 이미 반영된 것으로 봄).
+        // 비우면 기준 없음(모든 기록 반영).
+        const balanceChanged = !cardItem && newBal !== (src?.current_balance ?? null);
         const details = {
-          balance: cardItem || form.balance === '' || form.balance === '-' ? null : Number(form.balance),
           linked_source_id: cardItem && form.linkedId ? Number(form.linkedId) : null,
           payment_day: creditItem && form.paymentDay ? Number(form.paymentDay) : null,
           onnuri_linked: cardItem && hasOnnuri && !!form.onnuri,
+          ...(balanceChanged ? { balance: newBal, balance_set_at: newBal == null ? null : new Date().toISOString() } : {}),
         };
-        const changed = details.balance !== (src?.balance ?? null) || details.linked_source_id !== (src?.linked_source_id ?? null)
+        const changed = balanceChanged || details.linked_source_id !== (src?.linked_source_id ?? null)
           || details.payment_day !== (src?.payment_day ?? null) || details.onnuri_linked !== !!src?.onnuri_linked;
         if (changed) await db.updateSourceDetails(sid, details);
       }

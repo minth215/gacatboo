@@ -101,8 +101,8 @@ export default function SourceManage({ admin = false }) {
                       {[it.linked_source_id ? nameOf(it.linked_source_id) : '', it.payment_day ? `매달 ${it.payment_day}일` : ''].filter(Boolean).join(' · ')}
                     </span>
                   ) : null
-                ) : it.balance != null ? (
-                  <span style={{ flex: 'none', fontSize: 12.5, fontWeight: 600, color: 'var(--k-tx-6c6779)', whiteSpace: 'nowrap' }}>{fmtNum(it.balance)}</span>
+                ) : it.current_balance != null ? (
+                  <span style={{ flex: 'none', fontSize: 12.5, fontWeight: 600, color: 'var(--k-tx-6c6779)', whiteSpace: 'nowrap' }}>{fmtNum(it.current_balance)}</span>
                 ) : null)}
               </DayCardRow>
             ))}
