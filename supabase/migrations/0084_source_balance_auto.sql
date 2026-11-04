@@ -3,8 +3,8 @@
 --   · 가계부 기록(수입/지출/이체)을 저장·수정·삭제하면 선택한 원천 세부 항목의 금액(sources.balance)을 자동으로 +/-.
 --       수입: 원천 +금액 / 지출: 원천 −금액 / 이체: 출금 원천 −금액, 입금 원천 +금액
 --   · 신용카드/체크카드 그룹(의 세부 항목)은 금액 칸이 없으므로 반영하지 않는다.
---   · 이 마이그레이션 이후에 저장된 기록만 반영(transactions.balance_applied). 그 전 기록을 수정·삭제해도
---     예전 금액을 되돌리지 않고, 수정 후 값만 새로 반영한다.
+--   · 이 마이그레이션 이후에 새로 저장된 기록만 반영(transactions.balance_applied). 그 전 기록은 수정·삭제해도
+--     원천 금액에 영향을 주지 않는다(직접 입력한 금액에 이미 들어 있다고 봄).
 --   · 금액을 입력하지 않은 원천은 0원에서 시작.
 -- 0001~0083 이후 실행. 여러 번 실행해도 안전.
 -- =====================================================================
@@ -47,13 +47,17 @@ begin
     return old;
   end if;
   if tg_op = 'UPDATE' then
+    -- 이 마이그레이션 전 기록은 계속 반영하지 않음(직접 입력한 금액에 이미 들어 있다고 봄)
+    if not old.balance_applied then
+      new.balance_applied := false;
+      return new;
+    end if;
     -- 금액에 영향 없는 수정(내용·메모 등)은 건너뜀
-    if old.balance_applied
-       and old.type is not distinct from new.type and old.amount is not distinct from new.amount
+    if old.type is not distinct from new.type and old.amount is not distinct from new.amount
        and old.source_id is not distinct from new.source_id and old.to_source_id is not distinct from new.to_source_id then
       return new;
     end if;
-    if old.balance_applied then perform public.apply_tx_balance(old, -1); end if;
+    perform public.apply_tx_balance(old, -1);
   end if;
   new.balance_applied := true;
   perform public.apply_tx_balance(new, 1);
