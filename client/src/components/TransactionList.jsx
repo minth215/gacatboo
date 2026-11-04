@@ -32,7 +32,8 @@ const marqueeOff = (e) => {
 // 밀린 자리엔 페이지 배경 위에 삭제 버튼만 보이고, 밀린 카드는 왼쪽 화면 끝까지 이어진다.
 // onInvite: (그룹 멤버 카드) 삭제 아이콘 왼쪽의 초대 버튼
 // deleteBlocked: 삭제할 수 없는 카드 — 휴지통 버튼에 빗금(누르면 onDelete 로 안내만)
-export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete, deleteBlocked = false, onCopy, onInvite, onTravel, onLongPress, clickable, background = 'var(--k-bg-fff)', children }) {
+// dimmed: 내용을 옅은 회색으로(지출 합계에 포함되지 않는 기록 등)
+export function DayCardRow({ dimmed = false, index, count, isOpen, onOpenChange, onTap, onDelete, deleteBlocked = false, onCopy, onInvite, onTravel, onLongPress, clickable, background = 'var(--k-bg-fff)', children }) {
   const first = index === 0;
   const last = index === count - 1;
   return (
@@ -78,7 +79,7 @@ export function DayCardRow({ index, count, isOpen, onOpenChange, onTap, onDelete
       ) : undefined}
     >
       <div
-        className="tx-row"
+        className={`tx-row${dimmed ? ' tx-row-dimmed' : ''}`}
         style={{
           borderTop: index > 0 ? '1px solid var(--k-divider)' : 'none',
           cursor: clickable ? 'pointer' : 'default',
@@ -159,6 +160,8 @@ export default function TransactionList({
                 onCopy={!selectionMode && onCopy ? () => onCopy(t) : undefined}
                 onLongPress={!selectionMode && editable && onLongPress ? () => onLongPress(t.id) : undefined}
                 background={isGroup ? 'linear-gradient(135deg, var(--k-bg-fff1f3) 0%, var(--k-bg-fff6ea) 100%)' : 'var(--k-bg-fff)'}
+                // "집계 포함" OFF 원천의 기록(합계에 안 잡힘): 옅은 회색
+                dimmed={!!t.excluded}
               >
                   <span style={{ position: 'relative', flex: 'none', width: 38, height: 38 }}>
                     {selected && <span className="tile-select-ring" />}

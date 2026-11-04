@@ -963,3 +963,6 @@ html.theme-dark .rcpt-card {
   display: inline-flex; align-items: center; justify-content: center; padding: 0 8px; text-align: center; line-height: 1;
 }
 @media (min-resolution: 2.5dppx), (-webkit-min-device-pixel-ratio: 2.5) { .pill-toggle { border-width: calc(4px / 3); } }
+
+/* 합계에 포함되지 않는 기록(집계 포함 OFF 원천): 카드 배경은 그대로, 내용만 회색 글씨보다 옅게 */
+.tx-row.tx-row-dimmed > * { opacity: .38; filter: grayscale(1); }
