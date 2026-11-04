@@ -741,8 +741,12 @@ const TransactionForm = forwardRef(function TransactionForm({
     ? (sourcesFlat.find((s) => s.parent_id != null && s.name === fixedSourceName) || sourcesFlat.find((s) => s.name === fixedSourceName))
     : sourcesFlat.find((s) => String(s.id) === String(sourceId));
   const selectedItemTop = sources.find((top) => top.id === selectedSourceItem?.parent_id);
+  // 디지털 온누리 잔액(첫 세부 항목)이 0원 이하면 표시하지 않음(이미 온누리 가맹점으로 저장된 기록 수정은 예외)
+  const onnuriTopIds = sources.filter((t) => t.group_type === 'onnuri').map((t) => t.id);
+  const onnuriItem = onnuriTopIds.map((tid) => sourcesFlat.find((s) => s.parent_id === tid)).find(Boolean);
   const showOnnuri = type === 'expense' && !isTransfer && !!selectedSourceItem?.onnuri_linked
-    && (selectedItemTop?.group_type === 'credit' || selectedItemTop?.group_type === 'check');
+    && (selectedItemTop?.group_type === 'credit' || selectedItemTop?.group_type === 'check')
+    && (Number(onnuriItem?.current_balance) > 0 || !!initial?.onnuri);
   const transferFromName = sourcesFlat.find((s) => String(s.id) === items[0]?.fromSourceId)?.name || '';
   const transferToName = sourcesFlat.find((s) => String(s.id) === items[0]?.toSourceId)?.name || '';
 

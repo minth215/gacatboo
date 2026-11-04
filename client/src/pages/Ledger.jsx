@@ -238,7 +238,8 @@ export default function Ledger() {
   const filtered = useMemo(() => txs.filter((t) => {
     if (typeFilter !== 'all' && t.type !== typeFilter) return false;
     if (catFilter.length && !catFilter.includes(t.category_name || '')) return false;
-    if (srcFilter.length && !srcFilter.includes(t.source_name || '') && !(t.type === 'transfer' && srcFilter.includes(t.to_source_name || ''))) return false;
+    // 온누리 가맹점 지출은 디지털 온누리로 차감된 금액이 있으면 디지털 온누리 원천으로도 검색
+    if (srcFilter.length && !srcFilter.includes(t.source_name || '') && !(t.type === 'transfer' && srcFilter.includes(t.to_source_name || '')) && !(t.onnuri_deduct_source_name && srcFilter.includes(t.onnuri_deduct_source_name))) return false;
     return true;
   }), [txs, typeFilter, catFilter, srcFilter]);
   // 상단(상단바+연월+요약카드)·하단(하단탭) 영역을 뺀 나머지 화면 정중앙에 빈 상태 문구 배치
@@ -250,7 +251,7 @@ export default function Ledger() {
     const term = submittedQ.toLowerCase();
     return sResults.filter((t) => {
       if (sCat.length && !sCat.includes(t.category_name || '')) return false;
-      if (sSrc.length && !sSrc.includes(t.source_name || '') && !(t.type === 'transfer' && sSrc.includes(t.to_source_name || ''))) return false;
+      if (sSrc.length && !sSrc.includes(t.source_name || '') && !(t.type === 'transfer' && sSrc.includes(t.to_source_name || '')) && !(t.onnuri_deduct_source_name && sSrc.includes(t.onnuri_deduct_source_name))) return false;
       if (!term) return true;
       // 검색어는 내용·메모·세부 항목명(items[].name)만 비교(분류·원천은 필터로)
       const itemNames = Array.isArray(t.items) ? t.items.map((it) => it?.name) : [];
