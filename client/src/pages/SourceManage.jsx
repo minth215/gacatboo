@@ -140,7 +140,8 @@ function ChildRows({ top, items, setItems, count, editMode, admin, openId, setOp
                   <PrimaryBadges src={it} />
                 </span>
                 {/* 상세: 카드 항목은 연결 계좌·납부일(회색 작은 글씨). 금액은 카드에 표시하지 않음 */}
-                {!admin && (isCardGroup(top.group_type) ? (
+                {/* 편집 모드에서는 숨김(핸들 자리) */}
+                {!admin && !editMode && (isCardGroup(top.group_type) ? (
                   (it.linked_source_id || it.payment_day) ? (
                     <span style={{ flex: 'none', fontSize: 11, color: 'var(--k-tx-a29ead)', whiteSpace: 'nowrap' }}>
                       {[it.linked_source_id ? nameOf(it.linked_source_id) : '', it.payment_day ? `매달 ${it.payment_day}일` : ''].filter(Boolean).join(' · ')}
@@ -148,7 +149,7 @@ function ChildRows({ top, items, setItems, count, editMode, admin, openId, setOp
                   ) : null
                 ) : null)}
                 {/* 세부 항목 핸들: 이 항목만 이동 */}
-                {editMode && <DragHandle label="세부 항목 순서 변경" active={dragId === it.id} onStart={startDrag(it.id)} />}
+                {editMode && <DragHandle inline label="세부 항목 순서 변경" active={dragId === it.id} onStart={startDrag(it.id)} />}
               </DayCardRow>
         </div>
       ))}
@@ -158,12 +159,14 @@ function ChildRows({ top, items, setItems, count, editMode, admin, openId, setOp
 }
 
 // 삼선 핸들(잡고 위아래로 끌어 순서 변경). 카드 탭·스와이프로 번지지 않게 이벤트를 막음
-function DragHandle({ label, active, onStart }) {
+// inline: 세부 항목 행처럼 원래 버튼이 없던 자리 — 위아래 음수 여백으로 카드 높이를 바꾸지 않음
+// (그룹 행은 + 버튼과 같은 28px 로 맞춤)
+function DragHandle({ label, active, onStart, inline = false }) {
   return (
     <span
       className="cat-drag-handle" aria-label={label} role="button"
       onPointerDown={(e) => { e.stopPropagation(); onStart(e); }} onClick={(e) => e.stopPropagation()}
-      style={{ touchAction: 'none', cursor: active ? 'grabbing' : 'grab', flex: 'none' }}
+      style={{ touchAction: 'none', cursor: active ? 'grabbing' : 'grab', flex: 'none', ...(inline ? { height: 20, margin: '-4px 0' } : { width: 28, height: 28 }) }}
     >
       <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="5" y1="7" x2="19" y2="7" /><line x1="5" y1="12" x2="19" y2="12" /><line x1="5" y1="17" x2="19" y2="17" /></svg>
     </span>
