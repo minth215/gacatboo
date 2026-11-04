@@ -33,6 +33,20 @@ function installmentGroupFilter(q, t) {
 
 const TX_SELECT = '*, group:groups(name, category), recurring:recurring_rules(id, label, freq_unit, freq_interval, weekdays)';
 
+// 집계용 기록(0089): "집계 포함" OFF 원천 기록은 빼고, 카드 결제 중 집계 제외 디지털 온누리로 차감된 금액은
+// 그만큼 금액(amount, eff)을 줄인다. 가계부 합계·검색 합계·분류별/항목별 통계에서 사용.
+export function countedRows(list) {
+  return list.filter((r) => !r.excluded).flatMap((r) => {
+    const cut = r.onnuri_deduct_excluded ? Number(r.onnuri_deduct) || 0 : 0;
+    if (!cut) return [r];
+    const amt = Number(r.amount) || 0;
+    const left = Math.max(0, amt - cut);
+    if (!left) return [];
+    const ratio = amt > 0 ? left / amt : 0;
+    return [{ ...r, amount: left, ...(r.eff != null ? { eff: Number(r.eff) * ratio } : {}) }];
+  });
+}
+
 // 조회 결과를 평탄화 (group_name)
 function flattenTx(rows) {
   return (rows || []).map((r) => ({

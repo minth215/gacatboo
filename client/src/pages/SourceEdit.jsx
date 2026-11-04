@@ -4,7 +4,7 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
-import { fieldStyle, labelStyle, optional } from './FriendAdd.jsx';
+import { fieldStyle, labelStyle } from './FriendAdd.jsx';
 
 const isCardGroup = (t) => t === 'credit' || t === 'check';
 const GROUP_TYPES = [['general', '일반'], ['credit', '신용카드'], ['check', '체크카드'], ['onnuri', '디지털 온누리']];
@@ -150,7 +150,7 @@ export default function SourceEdit({ admin = false }) {
       <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 18 }}>
         {!isGroup && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <span style={labelStyle}>원천 그룹</span>
+            <span style={labelStyle}>원천 그룹 <span style={{ color: '#FF3B5C' }}>*</span></span>
             <select value={form.parentId} onChange={(e) => set({ parentId: e.target.value })} style={selectStyle}>
               {tree.map((t) => <option key={t.id} value={t.id}>{t.name}{isCardGroup(t.group_type) ? ` (${typeLabel(t.group_type)})` : ''}</option>)}
             </select>
@@ -174,7 +174,7 @@ export default function SourceEdit({ admin = false }) {
         {/* 일반 그룹 세부 항목: 금액 */}
         {!admin && !isGroup && !cardItem && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <span style={labelStyle}>금액{optional}</span>
+            <span style={labelStyle}>금액</span>
             <div style={{ ...fieldStyle, display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px' }}>
               <input
                 type="text" inputMode="decimal" value={fmtBalance(form.balance)} placeholder="0"
@@ -189,7 +189,7 @@ export default function SourceEdit({ admin = false }) {
         {/* 카드 그룹 세부 항목: 연결 계좌 */}
         {!admin && cardItem && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <span style={labelStyle}>연결 계좌{optional}</span>
+            <span style={labelStyle}>연결 계좌</span>
             <select value={form.linkedId} onChange={(e) => set({ linkedId: e.target.value })} style={{ ...selectStyle, color: form.linkedId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>
               <option value="">카드값이 빠져나갈 원천 선택</option>
               {/* 기록 페이지 원천 셀렉트처럼 원천 그룹 라벨 아래 세부 항목 */}
@@ -206,7 +206,7 @@ export default function SourceEdit({ admin = false }) {
         {/* 신용카드 그룹 세부 항목: 대금 납부일 */}
         {!admin && creditItem && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <span style={labelStyle}>대금 납부일{optional}</span>
+            <span style={labelStyle}>대금 납부일</span>
             <select value={form.paymentDay} onChange={(e) => set({ paymentDay: e.target.value })} style={{ ...selectStyle, color: form.paymentDay ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>
               <option value="">납부일 선택</option>
               {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>매달 {d}일</option>)}
@@ -216,7 +216,7 @@ export default function SourceEdit({ admin = false }) {
 
         {/* 주결제/주입금수단 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <span style={labelStyle}>주 수단 지정{optional}</span>
+          <span style={labelStyle}>주 수단 지정</span>
           <div style={{ display: 'flex', gap: 8 }}>
             {[['payment', '주결제수단', '#2CDDB9', '#E5FBF6'], ['deposit', '주입금수단', '#FF8A00', '#FFF1DC']].map(([key, label, fg, bg]) => {
               const disabled = key === 'deposit' && depositDisabled;

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { db, isSettlementIncome, netSettlementEff } from '../lib/db.js';
+import { db, isSettlementIncome, netSettlementEff, countedRows } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { loadPrefs } from '../lib/prefs.js';
 import { fmtP } from '../lib/primaryCurrency.js';
@@ -176,8 +176,8 @@ export default function Ledger() {
     db.listLedger({ month, userId: user.id })
       .then(async (all) => {
         setTxs(all);
-        // 상단 수입/지출/합계: "집계 포함" OFF 원천의 기록은 제외
-        const list = all.filter((t) => !t.excluded);
+        // 상단 수입/지출/합계: "집계 포함" OFF 원천의 기록(·집계 제외 디지털 온누리 차감분)은 제외
+        const list = countedRows(all);
         const exList = list.filter((t) => t.type === 'expense');
         const map = await db.settlementsByTarget(exList.map((t) => t.id));
         // 이 달에 들어온 정산 수입의 초과분(+가 되는 금액)은 대상 지출의 달이 아니라 이 달의 수입으로 계상
@@ -276,9 +276,10 @@ export default function Ledger() {
     return () => io.disconnect();
   }, [sVisible, sFiltered.length, sLoading]);
   // 검색 결과 합계도 "집계 포함" OFF 원천 제외
-  const sIncome = sFiltered.filter((t) => t.type === 'income' && !t.excluded).reduce((s, t) => s + Number(t.amount), 0);
-  const sExpense = sFiltered.filter((t) => t.type === 'expense' && !t.excluded).reduce((s, t) => s + Number(t.amount), 0);
-  const sTransfer = sFiltered.filter((t) => t.type === 'transfer' && !t.excluded).reduce((s, t) => s + Number(t.amount), 0);
+  const sCounted = useMemo(() => countedRows(sFiltered), [sFiltered]);
+  const sIncome = sCounted.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+  const sExpense = sCounted.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+  const sTransfer = sCounted.filter((t) => t.type === 'transfer').reduce((s, t) => s + Number(t.amount), 0);
 
   
   // 검색창 열기: 탭한 순간 바로 포커스(모바일 키보드가 뜨도록) + 펼침 애니메이션 후 한 번 더
@@ -347,9 +348,8 @@ export default function Ledger() {
   }, [month, daysInMonth]);
   const perDay = useMemo(() => {
     const map = {};
-    for (const t of filtered) {
+    for (const t of countedRows(filtered)) { // "집계 포함" OFF 원천 제외
       if (t.type === 'transfer') continue; // 이체는 수입/지출 통계에 안 잡힘
-      if (t.excluded) continue; // "집계 포함" OFF 원천
       const d = Number(t.date.slice(8, 10));
       (map[d] ||= { income: 0, expense: 0 });
       map[d][t.type === 'income' ? 'income' : 'expense'] += Number(t.amount);
