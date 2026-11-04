@@ -86,6 +86,20 @@ const keyOf = (r, view) => {
 //   어느 통장에 얼마가 들어왔는지를 봐야 하므로 정산으로 주고받은 금액을 빼지 않는다.
 // settleReflect: 분류별 보기에서 "정산 반영" 토글 상태. On 이면 정산 상계 반영(eff),
 // Off 면 원천별·항목별과 같은 원금(amount) 기준으로 집계한다.
+// 원천별 통계: 온누리 가맹점 지출은 디지털 온누리 차감액을 디지털 온누리 원천으로, 나머지를 카드로 나눠 집계
+// (카드 실적은 나누지 않은 원래 기록으로 계산 — grossBySource)
+const splitOnnuri = (list) => list.flatMap((r) => {
+  const d = Number(r.onnuri_deduct) || 0;
+  if (r.type !== 'expense' || d <= 0) return [r];
+  const amt = Number(r.amount) || 0;
+  const ratio = amt > 0 ? (amt - d) / amt : 0;
+  return [
+    ...(amt - d > 0 ? [{ ...r, amount: amt - d, eff: Number(r.eff) * ratio }] : []),
+    { ...r, source_id: r.onnuri_deduct_source_id, source_name: r.onnuri_deduct_source_name, amount: d, eff: Number(r.eff) * (1 - ratio), perf_amount: 0, onnuriPart: true },
+  ];
+});
+const rowsForView = (list, view) => (view === 'source' ? splitOnnuri(list) : list);
+
 const statAmount = (r, view, settleReflect = true) => (view === 'category' && settleReflect ? r.eff : Number(r.amount));
 
 export default function Stats() {
@@ -187,7 +201,7 @@ export default function Stats() {
   // ---------- 집계 ----------
   const groups = useMemo(() => {
     const map = new Map();
-    rows.filter((r) => r.type === tab && statAmount(r, statView, settleReflect) > 0).forEach((r) => {
+    rowsForView(rows, statView).filter((r) => r.type === tab && statAmount(r, statView, settleReflect) > 0).forEach((r) => {
       const { key, name } = keyOf(r, statView);
       const cur = map.get(key) || { key, name, total: 0, count: 0, sourceId: r.source_id ?? null };
       cur.total += statAmount(r, statView, settleReflect);
@@ -377,7 +391,7 @@ export default function Stats() {
 
   const chartPoints = useMemo(() => {
     if (!detail || !chartMeta) return [];
-    const mine = chartRows.filter((r) => r.type === tab && statAmount(r, detail.view, settleReflect) > 0 && matchesDetail(r, detail));
+    const mine = rowsForView(chartRows, detail.view).filter((r) => r.type === tab && statAmount(r, detail.view, settleReflect) > 0 && matchesDetail(r, detail));
     return chartMeta.anchors.map((a, i) => {
       const b = periodBounds(chartMeta.unit, a);
       const amount = mine.filter((r) => r.date >= b.start && r.date < b.endExclusive)
@@ -399,7 +413,7 @@ export default function Stats() {
   };
 
   const detailTxs = useMemo(
-    () => (detail ? rows.filter((r) => r.type === tab && statAmount(r, detail.view, settleReflect) > 0 && matchesDetail(r, detail)) : []),
+    () => (detail ? rowsForView(rows, detail.view).filter((r) => r.type === tab && statAmount(r, detail.view, settleReflect) > 0 && matchesDetail(r, detail)) : []),
     [detail, rows, tab, settleReflect],
   );
 

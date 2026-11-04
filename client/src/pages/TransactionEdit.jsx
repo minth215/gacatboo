@@ -195,8 +195,11 @@ export default function TransactionEdit() {
       content: payload.content, memo: payload.memo, items: payload.items,
       splits: payload.aggregateSplit || [], source_name: payload.source_name,
     };
+    let expenseId = id;
     if (editing) await db.updatePooledFundExpense(id, p);
-    else await db.createPooledFundExpense(p);
+    else expenseId = await db.createPooledFundExpense(p);
+    // 온누리 가맹점(공금 통장이 디지털 온누리 연결 카드일 때) — 참여 멤버 미러 지출에도 반영
+    if (payload.onnuri !== undefined && expenseId) await db.setPooledExpenseOnnuri(Number(expenseId), payload.onnuri);
   };
 
   // 공금 그룹 이체 내역 저장은 pooled_fund_transfers 테이블을 사용. 기본값은 입력하는 본인이지만

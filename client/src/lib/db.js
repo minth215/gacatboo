@@ -173,26 +173,19 @@ export const db = {
   async deleteSource(id) {
     return unwrap(await supabase.from('sources').delete().eq('id', id));
   },
-  // 온누리 가맹점 결제(0086): 저장 시점 디지털 온누리 원천 금액에서 먼저 차감할 금액.
-  // prevTxId: 수정 중인 기록(이미 차감했던 금액은 다시 쓸 수 있는 금액으로 돌려놓고 계산)
-  async onnuriFields(on, amount, prevTxId) {
+  // 온누리 가맹점 결제(0086·0087): 차감할 디지털 온누리 원천(첫 세부 항목)만 지정.
+  // 차감액은 저장 시점이 아니라 차감 시점(기록 날짜순) 잔액으로 서버가 계산(my_onnuri_deductions).
+  async onnuriFields(on) {
     if (!on) return { onnuri: false, onnuri_source_id: null, onnuri_amount: null };
-    const { flat } = await this.listSources();
-    const onnuriTops = new Set(flat.filter((s) => s.parent_id == null && s.group_type === 'onnuri').map((s) => s.id));
-    const item = flat.find((s) => onnuriTops.has(s.parent_id));
-    if (!item) return { onnuri: true, onnuri_source_id: null, onnuri_amount: 0 };
-    let avail = Number(item.current_balance ?? 0);
-    if (prevTxId) {
-      const prev = unwrap(await supabase.from('transactions').select('onnuri, onnuri_source_id, onnuri_amount, date').eq('id', prevTxId).maybeSingle());
-      const todayStr = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
-      if (prev?.onnuri && prev.onnuri_source_id === item.id && prev.date <= todayStr) avail += Number(prev.onnuri_amount || 0);
-    }
-    return { onnuri: true, onnuri_source_id: item.id, onnuri_amount: Math.max(0, Math.min(avail, Number(amount) || 0)) };
+    const flat = unwrap(await supabase.from('sources').select('id, parent_id, group_type, sort_order').order('sort_order').order('id'));
+    const onnuriTops = flat.filter((s) => s.parent_id == null && s.group_type === 'onnuri').map((s) => s.id);
+    const item = onnuriTops.map((tid) => flat.find((s) => s.parent_id === tid)).find(Boolean);
+    return { onnuri: true, onnuri_source_id: item?.id ?? null, onnuri_amount: null };
   },
   // 그룹 결제 미러 기록(가계부 지출)에 온누리 가맹점 정보 반영
   async applyOnnuriToTx(txId, on, amount) {
     if (!txId) return;
-    return unwrap(await supabase.from('transactions').update(await this.onnuriFields(on, amount, txId)).eq('id', txId));
+    return unwrap(await supabase.from('transactions').update(await this.onnuriFields(on)).eq('id', txId));
   },
   async getTxOnnuri(txId) {
     if (!txId) return null;
@@ -515,7 +508,7 @@ export const db = {
       // 카드 실적 제외(0068) — 폼이 값을 보낼 때만 저장
       ...(payload.exclude_performance !== undefined ? { exclude_performance: !!payload.exclude_performance } : {}),
       // 온누리 가맹점(0086) — 폼이 값을 보낼 때만(차감액은 아래에서 계산)
-      ...(payload.onnuri !== undefined ? await this.onnuriFields(!!payload.onnuri, payload.amount, id) : {}),
+      ...(payload.onnuri !== undefined ? await this.onnuriFields(!!payload.onnuri) : {}),
       // 할부 회차(0075) — 할부로 새로 만들 때만
       ...(payload.installment_total ? { installment_no: payload.installment_no, installment_total: payload.installment_total, installment_group: payload.installment_group || null } : {}),
     };
@@ -1096,6 +1089,16 @@ export const db = {
     });
     if (error) throw new Error(error.message);
   },
+  // 공금 사용 내역의 온누리 가맹점 여부(0087) — 참여 멤버 미러 지출에도 반영. 저장할 때마다 다시 호출(수정 시 미러를 새로 만듦)
+  async setPooledExpenseOnnuri(id, on) {
+    const { error } = await supabase.rpc('set_pooled_expense_onnuri', { p_id: id, p_on: !!on });
+    if (error) throw new Error(error.message);
+  },
+  // 원천별 통계용: 온누리 가맹점 지출의 디지털 온누리 차감액
+  async onnuriDeductions() {
+    const { data } = await supabase.rpc('my_onnuri_deductions');
+    return new Map((data || []).map((d) => [d.tx_id, { source_id: d.source_id, amount: Number(d.amount) }]));
+  },
   async deletePooledFundExpense(id) {
     const { error } = await supabase.rpc('delete_pooled_fund_expense', { p_id: id });
     if (error) throw new Error(error.message);
@@ -1278,8 +1281,18 @@ export const db = {
         // 묶음 값이 없는 예전 할부: 1회차 금액 × 개월 수로 근사
         : (r.installment_group ? (instSum[r.installment_group] ?? Number(r.amount)) : Number(r.amount) * r.installment_total),
     }));
+    // 온누리 가맹점 지출: 디지털 온누리 차감액·원천(원천별 통계에서 카드/디지털 온누리로 나눠 집계)
+    const ded = withPerf.some((r) => r.onnuri) ? await this.onnuriDeductions() : new Map();
+    let withOnnuri = withPerf;
+    if (ded.size) {
+      const srcNames = new Map(unwrap(await supabase.from('sources').select('id, name').in('id', [...new Set([...ded.values()].map((d) => d.source_id))])).map((x) => [x.id, x.name]));
+      withOnnuri = withPerf.map((r) => {
+        const d = ded.get(r.id);
+        return d && d.amount > 0 ? { ...r, onnuri_deduct: d.amount, onnuri_deduct_source_id: d.source_id, onnuri_deduct_source_name: srcNames.get(d.source_id) || '디지털 온누리' } : r;
+      });
+    }
     // 구독 그룹 결제/입금이 반영된 항목에 회차(몇 회분) 정보를 붙인다(가계부와 동일).
-    return this.attachSubscriptionPeriods(withPerf);
+    return this.attachSubscriptionPeriods(withOnnuri);
   },
 
   async groupStats(groupId, month, members) {

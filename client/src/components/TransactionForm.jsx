@@ -736,8 +736,13 @@ const TransactionForm = forwardRef(function TransactionForm({
   const showPerformance = !isTransfer && !fixedSourceName && (selectedSourceTop?.group_type === 'credit' || selectedSourceTop?.group_type === 'check');
   // 온누리 가맹점: 디지털 온누리 연결 카드로 지출할 때만(기본 OFF). ON 이면 디지털 온누리 금액에서 먼저 차감.
   const [onnuriOn, setOnnuriOn] = useState(!!initial?.onnuri);
-  const selectedSourceItem = sourcesFlat.find((s) => String(s.id) === String(sourceId));
-  const showOnnuri = type === 'expense' && showPerformance && !!selectedSourceItem?.onnuri_linked;
+  // 고정 원천(공금 통장 등)은 이름으로 내 원천에서 찾음(세부 항목 우선)
+  const selectedSourceItem = fixedSourceName
+    ? (sourcesFlat.find((s) => s.parent_id != null && s.name === fixedSourceName) || sourcesFlat.find((s) => s.name === fixedSourceName))
+    : sourcesFlat.find((s) => String(s.id) === String(sourceId));
+  const selectedItemTop = sources.find((top) => top.id === selectedSourceItem?.parent_id);
+  const showOnnuri = type === 'expense' && !isTransfer && !!selectedSourceItem?.onnuri_linked
+    && (selectedItemTop?.group_type === 'credit' || selectedItemTop?.group_type === 'check');
   const transferFromName = sourcesFlat.find((s) => String(s.id) === items[0]?.fromSourceId)?.name || '';
   const transferToName = sourcesFlat.find((s) => String(s.id) === items[0]?.toSourceId)?.name || '';
 
