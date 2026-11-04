@@ -131,7 +131,7 @@ export default function SourceEdit({ admin = false }) {
         const row = await api.add(name, isGroup ? null : Number(form.parentId || parentId), isGroup ? form.groupType : null);
         sid = row.id;
         if (isGroup) groupRowId = row.id;
-        // 원천 그룹은 선택할 수 없으므로 같은 이름의 세부 항목을 함께 만들고, 주결제/주입금 지정도 그 항목에
+        // 원천 그룹은 선택할 수 없으므로 같은 이름의 세부 항목을 함께 만듦
         if (isGroup) sid = (await api.add(name, row.id)).id;
       } else if (name !== src.name || (isGroup && form.groupType !== (src.group_type || 'general'))) {
         await api.update(sid, name, isGroup ? form.groupType : undefined);
@@ -142,8 +142,10 @@ export default function SourceEdit({ admin = false }) {
       }
       // 원천 그룹 변경(세부 항목)
       if (!isNew && !isGroup && Number(form.parentId) !== src.parent_id) await api.move(sid, Number(form.parentId));
-      if (form.payment !== !!src?.is_primary_payment) await api.setPrimary(sid, 'payment', form.payment);
-      if (deposit !== !!src?.is_primary_deposit) await api.setPrimary(sid, 'deposit', deposit);
+      if (!isGroup) {
+        if (form.payment !== !!src?.is_primary_payment) await api.setPrimary(sid, 'payment', form.payment);
+        if (deposit !== !!src?.is_primary_deposit) await api.setPrimary(sid, 'deposit', deposit);
+      }
       if (!admin && !isGroup) {
         const newBal = cardItem || form.balance === '' || form.balance === '-' ? null : Number(form.balance);
         // 금액을 직접 바꾸면 그 값이 새 기준 금액, 수정 시각이 기준 시점(그 날짜 이전 기록은 이미 반영된 것으로 봄).
@@ -334,7 +336,8 @@ export default function SourceEdit({ admin = false }) {
           </div>
         )}
 
-        {/* 주결제/주입금수단 */}
+        {/* 주결제/주입금수단 — 세부 항목만(원천 그룹은 원천으로 고를 수 없음) */}
+        {!isGroup && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           <span style={labelStyle}>주 수단 지정</span>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -358,6 +361,7 @@ export default function SourceEdit({ admin = false }) {
             })}
           </div>
         </div>
+        )}
 
         {/* 카드 그룹 세부 항목: 디지털 온누리 연결(디지털 온누리 그룹이 있을 때, 기본 OFF) */}
         {!admin && cardItem && hasOnnuri && (
