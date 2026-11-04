@@ -702,6 +702,29 @@ const TransactionForm = forwardRef(function TransactionForm({
   const catOptions = useMemo(() => categories.filter((c) => c.type === type), [categories, type]);
   const selCategory = categories.find((c) => String(c.id) === String(categoryId));
   const isSettlement = type === 'income' && selCategory?.name === '정산';
+  // "결제 대금" 분류: 분류 다음에 "카드"(신용카드 세부 항목) 필드. 원천은 카드 그룹 제외, 카드의 연결 계좌·청구 기간 금액 자동 채움
+  const isBillCat = type === 'expense' && (selCategory?.name === '결제 대금' || (categoryId === SNAP && initial?.category_name === '결제 대금'));
+  const [billCardId, setBillCardId] = useState(initial?.card_bill_source_id ? String(initial.card_bill_source_id) : '');
+  const [billPeriod, setBillPeriod] = useState(initial?.card_bill_period_end ? { start: initial.card_bill_period_start || null, end: initial.card_bill_period_end } : null);
+  const billAutoRef = useRef(false); // 사용자가 카드를 고른 뒤에만 금액 자동 채움(기존 기록 열 때는 그대로)
+  useEffect(() => {
+    if (!isBillCat || !billCardId || !billAutoRef.current) return;
+    let alive = true;
+    db.cardBillAmount(billCardId, date).then((r) => {
+      if (!alive) return;
+      setBillPeriod(r ? { start: r.start, end: r.end } : null);
+      // 청구 기간이 입력된 카드면 그 기간 금액으로(항목이 하나일 때)
+      if (r && r.amount > 0) setItems((prev) => (prev.length === 1 ? [{ ...prev[0], amount: String(r.amount), currencyMeta: null }] : prev));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [isBillCat, billCardId, date]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pickBillCard = (cid) => {
+    billAutoRef.current = true;
+    setBillCardId(cid);
+    if (!cid) { setBillPeriod(null); return; }
+    const card = sourcesFlat.find((x) => String(x.id) === String(cid));
+    if (card?.linked_source_id) setSourceId(String(card.linked_source_id));
+  };
   // 이미 다른 행에서 고른 정산 대상은 중복 선택되지 않게 각 행의 선택지에서 뺀다(그 행 자신의
   // 현재 선택값은 예외 — ItemRow 쪽에서 처리).
   const usedSettlementTargetIds = useMemo(
@@ -1047,6 +1070,12 @@ const TransactionForm = forwardRef(function TransactionForm({
       ...(transferMembers ? { transferMemberId } : {}),
       // 카드 실적 제외 여부(카드 원천일 때만 의미. 예전에 제외였던 기록을 카드 아닌 원천으로 바꾸면 해제)
       ...((showPerformance || initial?.exclude_performance) ? { exclude_performance: showPerformance && excludePerformance } : {}),
+      // 결제 대금: 카드·청구 기간(카드를 고른 경우). 분류를 바꾸면 해제
+      ...((isBillCat || initial?.card_bill_source_id) ? {
+        card_bill_source_id: isBillCat && billCardId ? Number(billCardId) : null,
+        card_bill_period_start: isBillCat && billCardId ? (billPeriod?.start || null) : null,
+        card_bill_period_end: isBillCat && billCardId ? (billPeriod?.end || null) : null,
+      } : {}),
       // 온누리 가맹점(연결 카드일 때만 의미. 예전에 ON 이던 기록을 다른 원천으로 바꾸면 해제)
       ...((showOnnuri || initial?.onnuri) ? { onnuri: showOnnuri && onnuriOn } : {}),
     };
@@ -1245,6 +1274,24 @@ const TransactionForm = forwardRef(function TransactionForm({
           </div>
         )}
 
+        {/* 결제 대금 분류: 카드(신용카드 그룹 세부 항목) */}
+        {!isTransfer && isBillCat && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
+            <span style={rowLabelStyle}>카드</span>
+            <select
+              value={billCardId} onChange={(e) => pickBillCard(e.target.value)}
+              style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: billCardId ? 600 : 400, color: billCardId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}
+            >
+              <option value="">카드 선택</option>
+              {sources.filter((t) => t.group_type === 'credit' && t.children?.length).map((t) => (
+                <optgroup key={t.id} label={t.name}>
+                  {t.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+        )}
+
         {!isTransfer && fixedSourceName && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={rowLabelStyle}>원천</span>
@@ -1265,7 +1312,8 @@ const TransactionForm = forwardRef(function TransactionForm({
               <option value="">원천 선택</option>
               {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
               {/* 수입은 신용카드·체크카드 원천 그룹 제외(이미 선택돼 있던 값은 유지) */}
-              {(type === 'income' ? transferSources(sources, ['credit', 'check'], sourceId) : sources).map((top) => (
+              {/* 결제 대금 분류도 카드 그룹 제외(카드값이 빠져나갈 계좌) */}
+              {((type === 'income' || isBillCat) ? transferSources(sources, ['credit', 'check'], sourceId) : sources).map((top) => (
                 top.children?.length ? (
                   <optgroup key={top.id} label={top.name}>
                     {String(sourceId) === String(top.id) && <option value={top.id}>{top.name}</option>}

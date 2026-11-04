@@ -215,6 +215,13 @@ export const db = {
     const { data } = await supabase.from('transactions').select('onnuri').eq('id', txId).maybeSingle();
     return data;
   },
+  // 기록 페이지 "카드" 선택: 납부일(기록 날짜) 기준 청구 기간과 그 기간 카드 사용 금액(온누리 차감 제외)
+  async cardBillAmount(cardId, due) {
+    const { data, error } = await supabase.rpc('card_bill_amount', { p_card: Number(cardId), p_due: due });
+    if (error) throw new Error(error.message);
+    const r = (data || [])[0];
+    return r ? { start: r.period_start, end: r.period_end, amount: Number(r.amount) || 0 } : null;
+  },
   // 신용카드 대금 납부 자동 입력(0090): 이미 도래한 납부일의 결제 대금 기록 생성
   async generateMyCardBills() {
     const { data, error } = await supabase.rpc('generate_my_card_bills');
@@ -546,6 +553,10 @@ export const db = {
       ...(payload.exclude_performance !== undefined ? { exclude_performance: !!payload.exclude_performance } : {}),
       // 온누리 가맹점(0086) — 폼이 값을 보낼 때만(차감액은 아래에서 계산)
       ...(payload.onnuri !== undefined ? await this.onnuriFields(!!payload.onnuri) : {}),
+      // 결제 대금 기록의 카드·청구 기간(0090·0091) — 폼이 값을 보낼 때만
+      ...(payload.card_bill_source_id !== undefined ? {
+        card_bill_source_id: payload.card_bill_source_id, card_bill_period_start: payload.card_bill_period_start ?? null, card_bill_period_end: payload.card_bill_period_end ?? null,
+      } : {}),
       // 할부 회차(0075) — 할부로 새로 만들 때만
       ...(payload.installment_total ? { installment_no: payload.installment_no, installment_total: payload.installment_total, installment_group: payload.installment_group || null } : {}),
     };
