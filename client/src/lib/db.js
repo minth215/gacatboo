@@ -378,14 +378,22 @@ export const db = {
 
   // 전체 기간 검색 (개인+참여그룹, RLS 범위). 구조 필터는 서버, 텍스트는 화면에서.
   async searchTransactions({ from, to, type, category, source, userId } = {}) {
-    let query = supabase.from('transactions').select(TX_SELECT)
-      .order('date', { ascending: false }).order('id', { ascending: false }).limit(2000);
-    if (from) query = query.gte('date', from);
-    if (to) query = query.lte('date', to);
-    if (type === 'income' || type === 'expense' || type === 'transfer') query = query.eq('type', type);
-    if (category) query = query.eq('category_name', category);
-    if (source) query = query.eq('source_name', source);
-    return this.attachOnnuri(await this.attachSubscriptionPeriods(flattenTx(hideOthersSettlementPayments(unwrap(await query), userId))));
+    // 전체 기간 검색도 빠짐없이: 서버 한 번 응답 한도(1000건) 단위로 끝까지 이어서 조회
+    const PAGE = 1000;
+    const all = [];
+    for (let offset = 0; ; offset += PAGE) {
+      let query = supabase.from('transactions').select(TX_SELECT)
+        .order('date', { ascending: false }).order('id', { ascending: false }).range(offset, offset + PAGE - 1);
+      if (from) query = query.gte('date', from);
+      if (to) query = query.lte('date', to);
+      if (type === 'income' || type === 'expense' || type === 'transfer') query = query.eq('type', type);
+      if (category) query = query.eq('category_name', category);
+      if (source) query = query.eq('source_name', source);
+      const rows = unwrap(await query);
+      all.push(...rows);
+      if (rows.length < PAGE || all.length >= 20000) break;
+    }
+    return this.attachOnnuri(await this.attachSubscriptionPeriods(flattenTx(hideOthersSettlementPayments(all, userId))));
   },
 
   // 대표 "내용" 입력창의 자동완성 후보: 과거에 쓴 내용(중복 제거, 최신순)

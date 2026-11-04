@@ -107,9 +107,9 @@ export default function Ledger() {
   const [contentSuggestions, setContentSuggestions] = useState([]);
   useEffect(() => { db.listContentSuggestions(user.id).then(setContentSuggestions).catch(() => {}); }, [user.id]);
   const rankedQSuggestions = (searchOpen && qFocused) ? rankSuggestions(contentSuggestions, q) : [];
+  // 검색어 없이도 검색 가능(빈 검색어 = 필터 조건에 맞는 전체)
   const submitSearch = (value) => {
     const v = (value ?? q).trim();
-    if (!v) return;
     setQ(v);
     setSubmittedQ(v);
     searchRef.current?.blur();
@@ -258,6 +258,21 @@ export default function Ledger() {
       return [t.content, t.memo, ...itemNames].filter(Boolean).join(' ').toLowerCase().includes(term);
     });
   }, [sResults, submittedQ, sCat, sSrc]);
+  // 검색 결과는 20건씩 보여 주고, 목록 끝(sentinel)이 보이면 20건 더
+  const SEARCH_PAGE = 20;
+  const [sVisible, setSVisible] = useState(SEARCH_PAGE);
+  useEffect(() => { setSVisible(SEARCH_PAGE); }, [sResults, submittedQ, sCat, sSrc]);
+  const sShown = useMemo(() => sFiltered.slice(0, sVisible), [sFiltered, sVisible]);
+  const sMoreRef = useRef(null);
+  useEffect(() => {
+    const el = sMoreRef.current;
+    if (!el || sVisible >= sFiltered.length) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) setSVisible((v) => v + SEARCH_PAGE);
+    }, { rootMargin: '200px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [sVisible, sFiltered.length, sLoading]);
   const sIncome = sFiltered.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
   const sExpense = sFiltered.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
   const sTransfer = sFiltered.filter((t) => t.type === 'transfer').reduce((s, t) => s + Number(t.amount), 0);
@@ -521,11 +536,15 @@ export default function Ledger() {
               {sLoading ? (
                 <Spinner />
               ) : (
-                <TransactionList
-                  transactions={sFiltered} canEdit={canEdit} onEdit={openEdit} onDelete={remove} onCopy={copyTx} dateFormat="full"
-                  emptyText="검색 결과가 없습니다." emptyCenter="notabs"
-                  selectionMode={selectionMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} onLongPress={enterSelection}
-                />
+                <>
+                  <TransactionList
+                    transactions={sShown} canEdit={canEdit} onEdit={openEdit} onDelete={remove} onCopy={copyTx} dateFormat="full"
+                    emptyText="검색 결과가 없습니다." emptyCenter="notabs"
+                    selectionMode={selectionMode} selectedIds={selectedIds} onToggleSelect={toggleSelect} onLongPress={enterSelection}
+                  />
+                  {/* 더 불러오기 지점 */}
+                  {sVisible < sFiltered.length && <div ref={sMoreRef} style={{ height: 1 }} />}
+                </>
               )}
             </>
           )}
