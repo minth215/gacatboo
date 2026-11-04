@@ -148,8 +148,8 @@ export default function TransactionList({
               : (t.type === 'expense' && t.origin_type) ? expenseCatColors[t.category_name] : '';
             const sub = t.type === 'transfer'
               ? [t.category_name || '이체', (t.source_name && t.to_source_name) ? `${t.source_name} → ${t.to_source_name}` : ''].filter(Boolean).join(' · ') || '—'
-              // 일부라도 디지털 온누리에서 차감된 온누리 가맹점 결제: 분류 옆에 "(디지털 온누리)"
-              : [t.category_name ? `${t.category_name}${t.onnuri_deduct > 0 ? ' (디지털 온누리)' : ''}` : '', t.source_name ? `${t.source_name}${t.exclude_performance ? ' (실적 제외)' : ''}` : ''].filter(Boolean).join(' · ') || '—';
+              // 일부라도 디지털 온누리에서 차감된 온누리 가맹점 결제: 원천 옆에 "(디지털 온누리)" — 예: 식당 · 롯데카드(디지털 온누리)
+              : [t.category_name, t.source_name ? `${t.source_name}${t.onnuri_deduct > 0 ? '(디지털 온누리)' : ''}${t.exclude_performance ? ' (실적 제외)' : ''}` : ''].filter(Boolean).join(' · ') || '—';
             const selected = selectionMode && selectedIds?.has(t.id);
             return (
               <DayCardRow
