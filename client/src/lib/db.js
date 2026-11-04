@@ -191,7 +191,19 @@ export const db = {
     }).select().single());
   },
   async updateSource(id, name, groupType) {
-    return unwrap(await supabase.from('sources').update({ name, ...(groupType ? { group_type: groupType } : {}) }).eq('id', id).select().single());
+    const before = unwrap(await supabase.from('sources').select('name').eq('id', id).single());
+    const saved = unwrap(await supabase.from('sources').update({ name, ...(groupType ? { group_type: groupType } : {}) }).eq('id', id).select().single());
+    // 이름이 바뀌면 이 원천으로 저장된 기록·반복·즐겨찾기·그룹 결제/입금의 원천 이름(스냅샷)도 함께 변경
+    if (before?.name !== saved.name) {
+      const jobs = [
+        ['transactions', 'source_id', 'source_name'], ['transactions', 'to_source_id', 'to_source_name'],
+        ['recurring_rules', 'source_id', 'source_name'], ['recurring_rules', 'to_source_id', 'to_source_name'],
+        ['favorite_transactions', 'source_id', 'source_name'], ['favorite_transactions', 'to_source_id', 'to_source_name'],
+        ['subscription_payments', 'source_id', 'source_name'], ['subscription_deposits', 'source_id', 'source_name'],
+      ];
+      await Promise.all(jobs.map(([table, idCol, nameCol]) => supabase.from(table).update({ [nameCol]: saved.name }).eq(idCol, id).then(() => {}, () => {})));
+    }
+    return saved;
   },
   async deleteSource(id) {
     return unwrap(await supabase.from('sources').delete().eq('id', id));
