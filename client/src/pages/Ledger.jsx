@@ -275,9 +275,10 @@ export default function Ledger() {
     io.observe(el);
     return () => io.disconnect();
   }, [sVisible, sFiltered.length, sLoading]);
-  const sIncome = sFiltered.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
-  const sExpense = sFiltered.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
-  const sTransfer = sFiltered.filter((t) => t.type === 'transfer').reduce((s, t) => s + Number(t.amount), 0);
+  // 검색 결과 합계도 "집계 포함" OFF 원천 제외
+  const sIncome = sFiltered.filter((t) => t.type === 'income' && !t.excluded).reduce((s, t) => s + Number(t.amount), 0);
+  const sExpense = sFiltered.filter((t) => t.type === 'expense' && !t.excluded).reduce((s, t) => s + Number(t.amount), 0);
+  const sTransfer = sFiltered.filter((t) => t.type === 'transfer' && !t.excluded).reduce((s, t) => s + Number(t.amount), 0);
 
   
   // 검색창 열기: 탭한 순간 바로 포커스(모바일 키보드가 뜨도록) + 펼침 애니메이션 후 한 번 더
