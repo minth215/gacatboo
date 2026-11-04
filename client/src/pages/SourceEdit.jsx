@@ -66,6 +66,7 @@ export default function SourceEdit({ admin = false }) {
       balance: src?.current_balance != null ? String(src.current_balance) : '',
       linkedId: src?.linked_source_id ? String(src.linked_source_id) : '',
       onnuri: !!src?.onnuri_linked,
+      includeTotals: src ? src.include_in_totals !== false : true,
       paymentDay: src?.payment_day ? String(src.payment_day) : '',
       parentId: isNew ? String(parentId || '') : String(src?.parent_id || ''),
     });
@@ -123,10 +124,12 @@ export default function SourceEdit({ admin = false }) {
           linked_source_id: cardItem && form.linkedId ? Number(form.linkedId) : null,
           payment_day: creditItem && form.paymentDay ? Number(form.paymentDay) : null,
           onnuri_linked: cardItem && hasOnnuri && !!form.onnuri,
+          include_in_totals: !!form.includeTotals,
           ...(balanceChanged ? { balance: newBal, balance_set_at: newBal == null ? null : new Date().toISOString() } : {}),
         };
         const changed = balanceChanged || details.linked_source_id !== (src?.linked_source_id ?? null)
-          || details.payment_day !== (src?.payment_day ?? null) || details.onnuri_linked !== !!src?.onnuri_linked;
+          || details.payment_day !== (src?.payment_day ?? null) || details.onnuri_linked !== !!src?.onnuri_linked
+          || details.include_in_totals !== (src ? src.include_in_totals !== false : true);
         if (changed) await db.updateSourceDetails(sid, details);
       }
       nav(-1);
@@ -243,6 +246,20 @@ export default function SourceEdit({ admin = false }) {
             <button
               type="button" role="switch" aria-checked={!!form.onnuri} aria-label="디지털 온누리 연결"
               className={`ios-toggle${form.onnuri ? ' on' : ''}`} onClick={() => set({ onnuri: !form.onnuri })}
+            ><span className="ios-toggle-knob" /></button>
+          </label>
+        )}
+
+        {/* 모든 세부 항목: 집계 포함(기본 ON). OFF 면 가계부 상단 합계·분류별/항목별 통계에서 제외 */}
+        {!admin && !isGroup && (
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={labelStyle}>집계 포함</span>
+              <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)' }}>끄면 가계부 합계와 분류별·항목별 통계에서 빠져요</span>
+            </span>
+            <button
+              type="button" role="switch" aria-checked={!!form.includeTotals} aria-label="집계 포함"
+              className={`ios-toggle${form.includeTotals ? ' on' : ''}`} onClick={() => set({ includeTotals: !form.includeTotals })}
             ><span className="ios-toggle-knob" /></button>
           </label>
         )}

@@ -174,8 +174,10 @@ export default function Ledger() {
   const load = useCallback(() => {
     setLoading(true);
     db.listLedger({ month, userId: user.id })
-      .then(async (list) => {
-        setTxs(list);
+      .then(async (all) => {
+        setTxs(all);
+        // 상단 수입/지출/합계: "집계 포함" OFF 원천의 기록은 제외
+        const list = all.filter((t) => !t.excluded);
         const exList = list.filter((t) => t.type === 'expense');
         const map = await db.settlementsByTarget(exList.map((t) => t.id));
         // 이 달에 들어온 정산 수입의 초과분(+가 되는 금액)은 대상 지출의 달이 아니라 이 달의 수입으로 계상
@@ -346,6 +348,7 @@ export default function Ledger() {
     const map = {};
     for (const t of filtered) {
       if (t.type === 'transfer') continue; // 이체는 수입/지출 통계에 안 잡힘
+      if (t.excluded) continue; // "집계 포함" OFF 원천
       const d = Number(t.date.slice(8, 10));
       (map[d] ||= { income: 0, expense: 0 });
       map[d][t.type === 'income' ? 'income' : 'expense'] += Number(t.amount);

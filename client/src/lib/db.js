@@ -336,7 +336,7 @@ export const db = {
     const rows = unwrap(await supabase.from('transactions').select(TX_SELECT)
       .gte('date', start).lt('date', endExclusive)
       .order('date', { ascending: false }).order('id', { ascending: false }));
-    return this.attachOnnuri(await this.attachSubscriptionPeriods(flattenTx(hideOthersSettlementPayments(rows, userId))));
+    return this.attachExcluded(await this.attachOnnuri(await this.attachSubscriptionPeriods(flattenTx(hideOthersSettlementPayments(rows, userId)))));
   },
   // 구독 그룹의 결제/입금이 가계부에 반영된 항목에 회차(몇 회분) 정보를 붙인다.
   // 가계부 행에는 회차가 없어서 원본(subscription_payments/deposits)에서 가져오며,
@@ -1102,6 +1102,16 @@ export const db = {
     const { error } = await supabase.rpc('set_pooled_expense_onnuri', { p_id: id, p_on: !!on });
     if (error) throw new Error(error.message);
   },
+  // 집계 제외(0089): 원천 세부 항목의 "집계 포함"이 OFF 면 excluded=true(온누리 차감분은 onnuri_deduct_excluded)
+  async attachExcluded(rows) {
+    const { data } = await supabase.from('sources').select('id').eq('include_in_totals', false);
+    const ex = new Set((data || []).map((x) => x.id));
+    if (!ex.size) return rows;
+    return rows.map((r) => ({
+      ...r, excluded: r.source_id != null && ex.has(r.source_id),
+      ...(r.onnuri_deduct_source_id != null ? { onnuri_deduct_excluded: ex.has(r.onnuri_deduct_source_id) } : {}),
+    }));
+  },
   // 온누리 가맹점 지출에 디지털 온누리 차감액·원천 이름을 붙임(onnuri_deduct, onnuri_deduct_source_id/name).
   // 가계부 원천 필터(디지털 온누리로도 검색), 원천별 통계(카드/디지털 온누리 분리)에서 사용.
   async attachOnnuri(rows) {
@@ -1305,7 +1315,7 @@ export const db = {
     // 온누리 가맹점 지출: 디지털 온누리 차감액·원천(원천별 통계에서 카드/디지털 온누리로 나눠 집계)
     const withOnnuri = await this.attachOnnuri(withPerf);
     // 구독 그룹 결제/입금이 반영된 항목에 회차(몇 회분) 정보를 붙인다(가계부와 동일).
-    return this.attachSubscriptionPeriods(withOnnuri);
+    return this.attachExcluded(await this.attachSubscriptionPeriods(withOnnuri));
   },
 
   async groupStats(groupId, month, members) {

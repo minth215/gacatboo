@@ -95,10 +95,11 @@ const splitOnnuri = (list) => list.flatMap((r) => {
   const ratio = amt > 0 ? (amt - d) / amt : 0;
   return [
     ...(amt - d > 0 ? [{ ...r, amount: amt - d, eff: Number(r.eff) * ratio }] : []),
-    { ...r, source_id: r.onnuri_deduct_source_id, source_name: r.onnuri_deduct_source_name, amount: d, eff: Number(r.eff) * (1 - ratio), perf_amount: 0, onnuriPart: true },
+    { ...r, source_id: r.onnuri_deduct_source_id, source_name: r.onnuri_deduct_source_name, amount: d, eff: Number(r.eff) * (1 - ratio), perf_amount: 0, onnuriPart: true, excluded: !!r.onnuri_deduct_excluded },
   ];
 });
-const rowsForView = (list, view) => (view === 'source' ? splitOnnuri(list) : list);
+// "집계 포함" OFF 원천: 분류별/항목별 통계에서 제외, 원천별 통계에는 포함(회색 표시)
+const rowsForView = (list, view) => (view === 'source' ? splitOnnuri(list) : list.filter((r) => !r.excluded));
 
 const statAmount = (r, view, settleReflect = true) => (view === 'category' && settleReflect ? r.eff : Number(r.amount));
 
@@ -203,14 +204,14 @@ export default function Stats() {
     const map = new Map();
     rowsForView(rows, statView).filter((r) => r.type === tab && statAmount(r, statView, settleReflect) > 0).forEach((r) => {
       const { key, name } = keyOf(r, statView);
-      const cur = map.get(key) || { key, name, total: 0, count: 0, sourceId: r.source_id ?? null };
+      const cur = map.get(key) || { key, name, total: 0, count: 0, sourceId: r.source_id ?? null, excluded: statView === 'source' && !!r.excluded };
       cur.total += statAmount(r, statView, settleReflect);
       cur.count += 1;
       map.set(key, cur);
     });
     return [...map.values()]
       .sort((a, b) => b.total - a.total)
-      .map((g, i) => ({ ...g, color: PALETTE[i % PALETTE.length] }));
+      .map((g, i) => ({ ...g, color: g.excluded ? '#C7C3CC' : PALETTE[i % PALETTE.length] }));
   }, [rows, tab, statView, settleReflect]);
 
   const total = groups.reduce((s, g) => s + g.total, 0);
@@ -715,8 +716,10 @@ export default function Stats() {
               const tier = tierOf(g.sourceId);
               return (
                 <div key={g.key} onClick={() => openDetail(g)} style={{
-                  background: 'var(--k-bg-fff)', borderRadius: 16, padding: '12px 14px',
-                  boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', cursor: 'pointer',
+                  // "집계 포함" OFF 원천: 비활성화된 것처럼 회색 카드
+                  background: g.excluded ? 'var(--k-bg-f4f2f0)' : 'var(--k-bg-fff)', borderRadius: 16, padding: '12px 14px',
+                  boxShadow: g.excluded ? 'none' : '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', cursor: 'pointer',
+                  ...(g.excluded ? { filter: 'grayscale(1)', opacity: 0.6 } : {}),
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: g.color, flex: 'none' }} />
