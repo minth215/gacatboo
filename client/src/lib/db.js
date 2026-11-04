@@ -173,6 +173,32 @@ export const db = {
   async deleteSource(id) {
     return unwrap(await supabase.from('sources').delete().eq('id', id));
   },
+  // 온누리 가맹점 결제(0086): 저장 시점 디지털 온누리 원천 금액에서 먼저 차감할 금액.
+  // prevTxId: 수정 중인 기록(이미 차감했던 금액은 다시 쓸 수 있는 금액으로 돌려놓고 계산)
+  async onnuriFields(on, amount, prevTxId) {
+    if (!on) return { onnuri: false, onnuri_source_id: null, onnuri_amount: null };
+    const { flat } = await this.listSources();
+    const onnuriTops = new Set(flat.filter((s) => s.parent_id == null && s.group_type === 'onnuri').map((s) => s.id));
+    const item = flat.find((s) => onnuriTops.has(s.parent_id));
+    if (!item) return { onnuri: true, onnuri_source_id: null, onnuri_amount: 0 };
+    let avail = Number(item.current_balance ?? 0);
+    if (prevTxId) {
+      const prev = unwrap(await supabase.from('transactions').select('onnuri, onnuri_source_id, onnuri_amount, date').eq('id', prevTxId).maybeSingle());
+      const todayStr = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+      if (prev?.onnuri && prev.onnuri_source_id === item.id && prev.date <= todayStr) avail += Number(prev.onnuri_amount || 0);
+    }
+    return { onnuri: true, onnuri_source_id: item.id, onnuri_amount: Math.max(0, Math.min(avail, Number(amount) || 0)) };
+  },
+  // 그룹 결제 미러 기록(가계부 지출)에 온누리 가맹점 정보 반영
+  async applyOnnuriToTx(txId, on, amount) {
+    if (!txId) return;
+    return unwrap(await supabase.from('transactions').update(await this.onnuriFields(on, amount, txId)).eq('id', txId));
+  },
+  async getTxOnnuri(txId) {
+    if (!txId) return null;
+    const { data } = await supabase.from('transactions').select('onnuri').eq('id', txId).maybeSingle();
+    return data;
+  },
   // 세부 항목 상세(0082): { balance, linked_source_id, payment_day }
   async updateSourceDetails(id, patch) {
     return unwrap(await supabase.from('sources').update(patch).eq('id', id));
@@ -488,6 +514,8 @@ export const db = {
       fx_rate: payload.input_currency ? payload.fx_rate ?? null : null,
       // 카드 실적 제외(0068) — 폼이 값을 보낼 때만 저장
       ...(payload.exclude_performance !== undefined ? { exclude_performance: !!payload.exclude_performance } : {}),
+      // 온누리 가맹점(0086) — 폼이 값을 보낼 때만(차감액은 아래에서 계산)
+      ...(payload.onnuri !== undefined ? await this.onnuriFields(!!payload.onnuri, payload.amount, id) : {}),
       // 할부 회차(0075) — 할부로 새로 만들 때만
       ...(payload.installment_total ? { installment_no: payload.installment_no, installment_total: payload.installment_total, installment_group: payload.installment_group || null } : {}),
     };

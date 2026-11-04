@@ -128,7 +128,8 @@ export default function TransactionEdit() {
 
   useEffect(() => {
     if (!editing) return;
-    const fetch = isPayment ? db.getPayment(id)
+    // 결제 내역은 결제자 가계부 미러 기록의 온누리 가맹점 여부도 함께
+    const fetch = isPayment ? db.getPayment(id).then(async (pay) => ({ ...pay, onnuri: !!(await db.getTxOnnuri(pay.tx_id))?.onnuri }))
       : isDeposit ? db.getDeposit(id)
       : isPooledExpense ? db.getPooledFundExpense(id)
       : isPooledTransfer ? db.getPooledFundTransfer(id)
@@ -173,8 +174,11 @@ export default function TransactionEdit() {
       ...(payload.exclude_performance !== undefined ? { exclude_performance: payload.exclude_performance } : {}),
       recurrence: payload.recurrence, backfillPast: payload.backfillPast,
     };
-    if (editing) await db.updatePayment(id, p, user.id);
-    else await db.createPayment(groupId, user.id, p);
+    let txId;
+    if (editing) { await db.updatePayment(id, p, user.id); txId = initial?.tx_id; }
+    else txId = (await db.createPayment(groupId, user.id, p))?.tx_id;
+    // 온누리 가맹점: 결제자 가계부의 미러 지출 기록에 반영
+    if (payload.onnuri !== undefined) await db.applyOnnuriToTx(txId, payload.onnuri, payload.amount);
   };
 
   // 입금 내역 저장은 subscription_deposits 테이블을 사용(RPC로 총대/멤버 미러 tx 동기화)

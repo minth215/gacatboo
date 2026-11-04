@@ -734,6 +734,10 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [excludePerformance, setExcludePerformance] = useState(!!initial?.exclude_performance);
   const selectedSourceTop = sources.find((top) => String(top.id) === String(sourceId) || (top.children || []).some((c) => String(c.id) === String(sourceId)));
   const showPerformance = !isTransfer && !fixedSourceName && (selectedSourceTop?.group_type === 'credit' || selectedSourceTop?.group_type === 'check');
+  // 온누리 가맹점: 디지털 온누리 연결 카드로 지출할 때만(기본 OFF). ON 이면 디지털 온누리 금액에서 먼저 차감.
+  const [onnuriOn, setOnnuriOn] = useState(!!initial?.onnuri);
+  const selectedSourceItem = sourcesFlat.find((s) => String(s.id) === String(sourceId));
+  const showOnnuri = type === 'expense' && showPerformance && !!selectedSourceItem?.onnuri_linked;
   const transferFromName = sourcesFlat.find((s) => String(s.id) === items[0]?.fromSourceId)?.name || '';
   const transferToName = sourcesFlat.find((s) => String(s.id) === items[0]?.toSourceId)?.name || '';
 
@@ -1034,6 +1038,8 @@ const TransactionForm = forwardRef(function TransactionForm({
       ...(transferMembers ? { transferMemberId } : {}),
       // 카드 실적 제외 여부(카드 원천일 때만 의미. 예전에 제외였던 기록을 카드 아닌 원천으로 바꾸면 해제)
       ...((showPerformance || initial?.exclude_performance) ? { exclude_performance: showPerformance && excludePerformance } : {}),
+      // 온누리 가맹점(연결 카드일 때만 의미. 예전에 ON 이던 기록을 다른 원천으로 바꾸면 해제)
+      ...((showOnnuri || initial?.onnuri) ? { onnuri: showOnnuri && onnuriOn } : {}),
     };
     try {
       if (installment >= 2) {
@@ -1269,6 +1275,17 @@ const TransactionForm = forwardRef(function TransactionForm({
                 {excludePerformance ? '실적 제외' : '실적 포함'}
               </button>
             )}
+          </div>
+        )}
+
+        {/* 원천 바로 아래: 온누리 가맹점(디지털 온누리 연결 카드) */}
+        {showOnnuri && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
+            <span style={{ ...rowLabelStyle, width: 'auto', flex: 1 }}>온누리 가맹점</span>
+            <button
+              type="button" role="switch" aria-checked={onnuriOn} aria-label="온누리 가맹점"
+              className={`ios-toggle${onnuriOn ? ' on' : ''}`} onClick={() => setOnnuriOn((v) => !v)}
+            ><span className="ios-toggle-knob" /></button>
           </div>
         )}
 
