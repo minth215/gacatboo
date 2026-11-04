@@ -216,6 +216,9 @@ export const db = {
   async updateDefaultSource(id, name, groupType) {
     return unwrap(await supabase.from('default_sources').update({ name, ...(groupType ? { group_type: groupType } : {}) }).eq('id', id).select().single());
   },
+  async moveDefaultSource(id, parentId) {
+    return unwrap(await supabase.from('default_sources').update({ parent_id: parentId }).eq('id', id));
+  },
   async deleteDefaultSource(id) {
     return unwrap(await supabase.from('default_sources').delete().eq('id', id));
   },

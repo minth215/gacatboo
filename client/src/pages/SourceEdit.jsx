@@ -24,16 +24,21 @@ export default function SourceEdit({ admin = false }) {
     add: (name, pid, groupType) => db.addDefaultSource(name, pid, groupType),
     update: (sid, name, groupType) => db.updateDefaultSource(sid, name, groupType),
     setPrimary: (sid, kind, value) => db.setDefaultPrimarySource(sid, kind, value),
+    move: (sid, pid) => db.moveDefaultSource(sid, pid),
   } : {
     list: () => db.listSources(),
     add: (name, pid, groupType) => db.addSource(user.id, name, pid, groupType),
     update: (sid, name, groupType) => db.updateSource(sid, name, groupType),
     setPrimary: (sid, kind, value) => db.setPrimarySource(sid, kind, value),
+    move: (sid, pid) => db.updateSourceDetails(sid, { parent_id: pid }),
   };
 
   const [tree, setTree] = useState(null);
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState('');
+  const [toastKey, setToastKey] = useState(0);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 2000); return () => clearTimeout(t); }, [toast, toastKey]);
 
   useEffect(() => {
     api.list().then(({ tree: t }) => setTree(t)).catch((e) => { alert(e.message); setTree([]); });
@@ -44,7 +49,8 @@ export default function SourceEdit({ admin = false }) {
   const src = id ? flat.find((s) => s.id === Number(id)) : null;
   const isNew = !id;
   const isGroup = isNew ? !parentId : src?.parent_id == null;
-  const parent = isGroup ? null : tree?.find((t) => t.id === Number(isNew ? parentId : src?.parent_id));
+  // 세부 항목의 원천 그룹: 셀렉트박스로 바꿀 수 있음(form.parentId)
+  const parent = isGroup ? null : tree?.find((t) => t.id === Number(form?.parentId || (isNew ? parentId : src?.parent_id)));
   const parentType = parent?.group_type || 'general';
 
   useEffect(() => {
@@ -58,6 +64,7 @@ export default function SourceEdit({ admin = false }) {
       balance: src?.balance != null ? String(src.balance) : '',
       linkedId: src?.linked_source_id ? String(src.linked_source_id) : '',
       paymentDay: src?.payment_day ? String(src.payment_day) : '',
+      parentId: isNew ? String(parentId || '') : String(src?.parent_id || ''),
     });
   }, [tree, form, isNew, src]);
 
@@ -69,12 +76,15 @@ export default function SourceEdit({ admin = false }) {
   const creditItem = !isGroup && parentType === 'credit';
   // 신용카드/체크카드 그룹(과 그 세부 항목)은 주입금수단으로 지정할 수 없음
   const depositDisabled = isCardGroup(isGroup ? form.groupType : parentType);
-  // 연결 계좌 후보: 카드 그룹을 제외한 원천(세부 항목, 세부 항목이 없는 그룹은 그룹 자체)
-  const linkOptions = tree.filter((t) => !isCardGroup(t.group_type)).flatMap((t) => (
-    t.children?.length ? t.children.map((c) => ({ id: c.id, label: `${t.name} · ${c.name}` })) : [{ id: t.id, label: t.name }]
-  ));
 
-  const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+  // 카드 그룹이 되면 주입금수단 지정은 풀림
+  const set = (patch) => setForm((f) => {
+    const next = { ...f, ...patch };
+    const nextParentType = tree.find((t) => t.id === Number(next.parentId))?.group_type || 'general';
+    if (isCardGroup(isGroup ? next.groupType : nextParentType)) next.deposit = false;
+    return next;
+  });
+  const typeLabel = (t) => (t === 'credit' ? '신용카드' : '체크카드');
   const save = async () => {
     const name = form.name.trim();
     if (!name) return alert('이름을 입력하세요.');
@@ -84,11 +94,17 @@ export default function SourceEdit({ admin = false }) {
     try {
       let sid = src?.id;
       if (isNew) {
-        const row = await api.add(name, isGroup ? null : Number(parentId), isGroup ? form.groupType : null);
+        const row = await api.add(name, isGroup ? null : Number(form.parentId || parentId), isGroup ? form.groupType : null);
         sid = row.id;
       } else if (name !== src.name || (isGroup && form.groupType !== (src.group_type || 'general'))) {
         await api.update(sid, name, isGroup ? form.groupType : undefined);
       }
+      // 그룹을 카드 그룹으로 바꾸면 세부 항목의 주입금수단 지정도 해제
+      if (!isNew && isGroup && isCardGroup(form.groupType)) {
+        for (const c of src.children || []) if (c.is_primary_deposit) await api.setPrimary(c.id, 'deposit', false);
+      }
+      // 원천 그룹 변경(세부 항목)
+      if (!isNew && !isGroup && Number(form.parentId) !== src.parent_id) await api.move(sid, Number(form.parentId));
       if (form.payment !== !!src?.is_primary_payment) await api.setPrimary(sid, 'payment', form.payment);
       if (deposit !== !!src?.is_primary_deposit) await api.setPrimary(sid, 'deposit', deposit);
       if (!admin && !isGroup) {
@@ -116,10 +132,13 @@ export default function SourceEdit({ admin = false }) {
       <PageHeader title={title} flat />
 
       <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 18 }}>
-        {!isGroup && parent && (
-          <div style={{ fontSize: 12, color: 'var(--k-tx-a29ead)', margin: '-6px 2px 0' }}>
-            {parent.name}{isCardGroup(parentType) ? ` · ${parentType === 'credit' ? '신용카드' : '체크카드'}` : ''}
-          </div>
+        {!isGroup && (
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <span style={labelStyle}>원천 그룹</span>
+            <select value={form.parentId} onChange={(e) => set({ parentId: e.target.value })} style={selectStyle}>
+              {tree.map((t) => <option key={t.id} value={t.id}>{t.name}{isCardGroup(t.group_type) ? ` (${typeLabel(t.group_type)})` : ''}</option>)}
+            </select>
+          </label>
         )}
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -157,7 +176,15 @@ export default function SourceEdit({ admin = false }) {
             <span style={labelStyle}>연결 계좌{optional}</span>
             <select value={form.linkedId} onChange={(e) => set({ linkedId: e.target.value })} style={{ ...selectStyle, color: form.linkedId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>
               <option value="">카드값이 빠져나갈 원천 선택</option>
-              {linkOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+              {/* 기록 페이지 원천 셀렉트처럼 원천 그룹 라벨 아래 세부 항목 */}
+              {tree.filter((t) => !isCardGroup(t.group_type)).map((t) => (
+                t.children?.length ? (
+                  <optgroup key={t.id} label={t.name}>
+                    {form.linkedId === String(t.id) && <option value={t.id}>{t.name}</option>}
+                    {t.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </optgroup>
+                ) : <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
             </select>
           </label>
         )}
@@ -182,8 +209,11 @@ export default function SourceEdit({ admin = false }) {
               const on = !disabled && form[key];
               return (
                 <button
-                  key={key} type="button" disabled={disabled} aria-pressed={on} className="pill-toggle"
-                  onClick={() => set({ [key]: !form[key] })}
+                  key={key} type="button" aria-pressed={on} aria-disabled={disabled} className="pill-toggle"
+                  onClick={() => {
+                    if (disabled) { setToast(`${typeLabel(isGroup ? form.groupType : parentType)} 그룹은 주입금수단으로 지정할 수 없어요`); setToastKey((k) => k + 1); return; }
+                    set({ [key]: !form[key] });
+                  }}
                   style={{
                     flex: 1, height: 40, borderRadius: 999, fontFamily: 'inherit', fontSize: 12.75, fontWeight: 700,
                     cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
@@ -193,9 +223,9 @@ export default function SourceEdit({ admin = false }) {
               );
             })}
           </div>
-          {depositDisabled && <div style={{ fontSize: 11, color: 'var(--k-tx-a29ead)' }}>신용카드/체크카드 그룹은 주입금수단으로 지정할 수 없어요.</div>}
         </div>
 
+        {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
         <button type="button" className="btn-ink-pill" style={{ marginTop: 6 }} disabled={busy || !form.name.trim()} onClick={save}>
           {busy ? '저장 중…' : isNew ? '추가' : '저장'}
         </button>
