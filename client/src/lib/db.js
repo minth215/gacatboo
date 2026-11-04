@@ -169,6 +169,10 @@ export const db = {
   async deleteSource(id) {
     return unwrap(await supabase.from('sources').delete().eq('id', id));
   },
+  // 세부 항목 상세(0082): { balance, linked_source_id, payment_day }
+  async updateSourceDetails(id, patch) {
+    return unwrap(await supabase.from('sources').update(patch).eq('id', id));
+  },
   // kind: 'payment' | 'deposit'. value: true 로 지정하면 같은 종류의 기존 지정은 자동 해제됨(사용자당 하나씩).
   async setPrimarySource(id, kind, value) {
     return unwrap(await supabase.rpc('set_primary_source', { p_source_id: id, p_kind: kind, p_value: value }));

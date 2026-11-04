@@ -19,6 +19,7 @@ import FriendManage from './pages/FriendManage.jsx';
 import CategoryManage from './pages/CategoryManage.jsx';
 import BudgetManage from './pages/BudgetManage.jsx';
 import BudgetSet from './pages/BudgetSet.jsx';
+import SourceEdit from './pages/SourceEdit.jsx';
 import SourceManage from './pages/SourceManage.jsx';
 import CardBenefits from './pages/CardBenefits.jsx';
 import GroupCategoryManage from './pages/GroupCategoryManage.jsx';
@@ -95,6 +96,9 @@ export default function App() {
         <Route path="/settings/budget" element={<BudgetManage />} />
         <Route path="/settings/budget/:type/:categoryId" element={<BudgetSet />} />
         <Route path="/settings/sources" element={<SourceManage />} />
+        <Route path="/settings/sources/new" element={<SourceEdit key="new" />} />
+        <Route path="/settings/sources/:parentId/new" element={<SourceEdit key={location.pathname} />} />
+        <Route path="/settings/sources/:id/edit" element={<SourceEdit key={location.pathname} />} />
         <Route path="/settings/card-benefits" element={<CardBenefits />} />
         <Route path="/settings/group-categories" element={<GroupCategoryManage />} />
         <Route path="/settings/currency" element={<CurrencySettings />} />
@@ -111,6 +115,9 @@ export default function App() {
         <Route path="/admin/users/:id" element={<Protected adminOnly><AdminUserDetail /></Protected>} />
         <Route path="/admin/defaults/categories" element={<Protected adminOnly><CategoryManage admin /></Protected>} />
         <Route path="/admin/defaults/sources" element={<Protected adminOnly><SourceManage admin /></Protected>} />
+        <Route path="/admin/defaults/sources/new" element={<Protected adminOnly><SourceEdit admin key="new" /></Protected>} />
+        <Route path="/admin/defaults/sources/:parentId/new" element={<Protected adminOnly><SourceEdit admin key={location.pathname} /></Protected>} />
+        <Route path="/admin/defaults/sources/:id/edit" element={<Protected adminOnly><SourceEdit admin key={location.pathname} /></Protected>} />
       </Route>
 
       <Route path="*" element={<Navigate to={loading ? '/login' : '/'} replace />} />
