@@ -338,7 +338,7 @@ export default function SourceEdit({ admin = false }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           <span style={labelStyle}>주 수단 지정</span>
           <div style={{ display: 'flex', gap: 8 }}>
-            {[['payment', '주결제수단', '#2CDDB9', '#E5FBF6'], ['deposit', '주입금수단', '#FF8A00', '#FFF1DC']].map(([key, label, fg, bg]) => {
+            {[['payment', '주결제수단', '#FF3B5C', '#FDE8EE'], ['deposit', '주입금수단', '#1FB597', '#E5FBF6']].map(([key, label, fg, bg]) => {
               const disabled = key === 'deposit' && depositDisabled;
               const on = !disabled && form[key];
               return (

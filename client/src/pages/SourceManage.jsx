@@ -112,9 +112,11 @@ export default function SourceManage({ admin = false }) {
   );
 }
 
+// 배지: 주결제(코랄핑크), 주입금(민트), 디지털 온누리 연결 카드(주황 "온누리")
 const PrimaryBadges = ({ src }) => (
   <>
-    {src.is_primary_payment && <span style={{ fontSize: 9, fontWeight: 700, color: '#2CDDB9', background: '#E5FBF6', borderRadius: 999, padding: '2px 6px' }}>주결제</span>}
-    {src.is_primary_deposit && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF8A00', background: '#FFF1DC', borderRadius: 999, padding: '2px 6px' }}>주입금</span>}
+    {src.is_primary_payment && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: '#FDE8EE', borderRadius: 999, padding: '2px 6px' }}>주결제</span>}
+    {src.is_primary_deposit && <span style={{ fontSize: 9, fontWeight: 700, color: '#1FB597', background: '#E5FBF6', borderRadius: 999, padding: '2px 6px' }}>주입금</span>}
+    {src.onnuri_linked && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF8A00', background: '#FFF1DC', borderRadius: 999, padding: '2px 6px' }}>온누리</span>}
   </>
 );
