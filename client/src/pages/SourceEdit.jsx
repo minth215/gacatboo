@@ -200,17 +200,6 @@ export default function SourceEdit({ admin = false }) {
           </label>
         )}
 
-        {/* 카드 그룹 세부 항목: 디지털 온누리 연결(디지털 온누리 그룹이 있을 때, 기본 OFF) */}
-        {!admin && cardItem && hasOnnuri && (
-          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
-            <span style={labelStyle}>디지털 온누리 연결</span>
-            <button
-              type="button" role="switch" aria-checked={!!form.onnuri} aria-label="디지털 온누리 연결"
-              className={`ios-toggle${form.onnuri ? ' on' : ''}`} onClick={() => set({ onnuri: !form.onnuri })}
-            ><span className="ios-toggle-knob" /></button>
-          </label>
-        )}
-
         {/* 신용카드 그룹 세부 항목: 대금 납부일 */}
         {!admin && creditItem && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -246,6 +235,17 @@ export default function SourceEdit({ admin = false }) {
             })}
           </div>
         </div>
+
+        {/* 카드 그룹 세부 항목: 디지털 온누리 연결(디지털 온누리 그룹이 있을 때, 기본 OFF) */}
+        {!admin && cardItem && hasOnnuri && (
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
+            <span style={labelStyle}>디지털 온누리 연결</span>
+            <button
+              type="button" role="switch" aria-checked={!!form.onnuri} aria-label="디지털 온누리 연결"
+              className={`ios-toggle${form.onnuri ? ' on' : ''}`} onClick={() => set({ onnuri: !form.onnuri })}
+            ><span className="ios-toggle-knob" /></button>
+          </label>
+        )}
 
         {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
         <button type="button" className="btn-ink-pill" style={{ marginTop: 6 }} disabled={busy || !form.name.trim()} onClick={save}>
