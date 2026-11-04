@@ -31,7 +31,20 @@ function installmentGroupFilter(q, t) {
     .eq('content', t.content || '').eq('category_name', t.category_name || '').eq('source_name', t.source_name || '');
 }
 
-const TX_SELECT = '*, group:groups(name, category), recurring:recurring_rules(id, label, freq_unit, freq_interval, weekdays)';
+// src/to_src: 원천 이름은 원천 테이블에서 현재 이름을 조인(이름을 바꿔도 바로 반영). 원천이 삭제됐거나
+// 다른 회원의 원천이라 조인되지 않으면 기록에 저장된 이름(source_name 스냅샷)을 그대로 쓴다(currentNames).
+const TX_SELECT = '*, group:groups(name, category), recurring:recurring_rules(id, label, freq_unit, freq_interval, weekdays), src:sources!source_id(name), to_src:sources!to_source_id(name)';
+
+// 조인한 현재 원천 이름으로 source_name/to_source_name 을 덮어씀(없으면 스냅샷 유지)
+function currentNames(r) {
+  if (!r) return r;
+  const { src, to_src: toSrc, ...rest } = r;
+  return {
+    ...rest,
+    source_name: src?.name ?? r.source_name,
+    ...(r.to_source_id != null || r.to_source_name !== undefined ? { to_source_name: toSrc?.name ?? r.to_source_name } : {}),
+  };
+}
 
 // 집계용 기록(0089): "집계 포함" OFF 원천 기록은 빼고, 카드 결제 중 집계 제외 디지털 온누리로 차감된 금액은
 // 그만큼 금액(amount, eff)을 줄인다. 가계부 합계·검색 합계·분류별/항목별 통계에서 사용.
@@ -59,7 +72,7 @@ export const isCardBill = (r) => r.card_bill_source_id != null || r.category_nam
 // 조회 결과를 평탄화 (group_name)
 function flattenTx(rows) {
   return (rows || []).map((r) => ({
-    ...r,
+    ...currentNames(r),
     group_name: r.group?.name || null,
   }));
 }
@@ -421,7 +434,7 @@ export const db = {
   },
 
   async getTransaction(id) {
-    return unwrap(await supabase.from('transactions').select(TX_SELECT).eq('id', id).single());
+    return currentNames(unwrap(await supabase.from('transactions').select(TX_SELECT).eq('id', id).single()));
   },
 
   // 전체 기간 검색 (개인+참여그룹, RLS 범위). 구조 필터는 서버, 텍스트는 화면에서.
