@@ -4,6 +4,7 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import { DayCardRow } from '../components/TransactionList.jsx';
+import { useDragReorder } from '../lib/useDragReorder.js';
 
 const isCardGroup = (t) => t === 'credit' || t === 'check';
 
@@ -16,16 +17,20 @@ export default function SourceManage({ admin = false }) {
     add: (name, parentId, groupType) => db.addDefaultSource(name, parentId, groupType),
     update: (id, name, groupType) => db.updateDefaultSource(id, name, groupType),
     remove: (id) => db.deleteDefaultSource(id),
+    reorder: (ids) => db.reorderDefaultSources(ids),
     setPrimary: (id, kind, value) => db.setDefaultPrimarySource(id, kind, value),
   } : {
     list: () => db.listSources(),
     add: (name, parentId, groupType) => db.addSource(user.id, name, parentId, groupType),
     update: (id, name, groupType) => db.updateSource(id, name, groupType),
     remove: (id) => db.deleteSource(id),
+    reorder: (ids) => db.reorderSources(ids),
     setPrimary: (id, kind, value) => db.setPrimarySource(id, kind, value),
   };
   const [sources, setSources] = useState([]);
   const [openId, setOpenId] = useState(null); // 한 번에 하나의 카드만 스와이프로 열려 있도록
+  // 편집(순서 변경) 모드: 그룹의 + 버튼이 핸들로, 세부 항목 오른쪽 끝에도 핸들
+  const [editMode, setEditMode] = useState(false);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const load = useCallback(() => api.list().then(({ tree }) => setSources(tree)).catch((e) => alert(e.message)), [admin]);
@@ -46,14 +51,30 @@ export default function SourceManage({ admin = false }) {
     if (!confirm(`'${it.name}'을(를) 삭제할까요?`)) return;
     await wrap(api.remove(it.id)); setOpenId(null); load();
   };
+  // 그룹 순서(그룹 전체가 함께 이동)
+  const groupDrag = useDragReorder(sources, setSources, async (ids) => {
+    try { await api.reorder(ids); } catch (e) { alert(e.message); load(); }
+  });
+  // 한 그룹의 세부 항목 순서 갱신(로컬)
+  const setChildren = (topId) => (next) => setSources((prev) => prev.map((t) => (t.id === topId
+    ? { ...t, children: typeof next === 'function' ? next(t.children || []) : next } : t)));
   const nameOf = (sid) => { for (const t of sources) { if (t.id === sid) return t.name; const c = (t.children || []).find((x) => x.id === sid); if (c) return c.name; } return ''; };
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title={admin ? '원천 기본값 관리' : '원천 관리'} flat right={
-        <button className="tb-icon-btn" onClick={openAddCat} aria-label="원천 그룹 추가">
-          <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* 편집(순서 변경) — 켜져 있으면 먹색 */}
+          <button
+            className="tb-icon-btn" onClick={() => { setEditMode((v) => !v); setOpenId(null); }} aria-label={editMode ? '편집 완료' : '편집'} aria-pressed={editMode}
+            style={editMode ? { background: 'var(--k-bg-191722)', color: 'var(--k-onink-fff)' } : undefined}
+          >
+            <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+          </button>
+          <button className="tb-icon-btn" onClick={openAddCat} aria-label="원천 그룹 추가">
+            <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          </button>
+        </div>
       } />
 
       {sources.map((top) => {
@@ -62,7 +83,7 @@ export default function SourceManage({ admin = false }) {
         const children = top.children || [];
         const count = 1 + children.length;
         return (
-          <div className="tx-daygroup" style={{ marginTop: 14 }} key={top.id}>
+          <div className={`tx-daygroup${groupDrag.dragId === top.id ? ' drag-lift' : ''}`} style={{ marginTop: 14 }} key={top.id} ref={groupDrag.setRowRef(top.id)}>
             <DayCardRow
               index={0} count={count} clickable
               isOpen={openId === top.id} onOpenChange={(open) => setOpenId(open ? top.id : null)}
@@ -78,14 +99,39 @@ export default function SourceManage({ admin = false }) {
                 </span>
                 <PrimaryBadges src={top} />
               </span>
-              <button aria-label="세부 항목 추가" onClick={(e) => { e.stopPropagation(); openAddItem(top); }} className="row-icon-btn">
-                <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-              </button>
+              {editMode ? (
+                // 그룹 핸들: 그룹 전체 순서 이동
+                <DragHandle label="원천 그룹 순서 변경" active={groupDrag.dragId === top.id} onStart={groupDrag.startDrag(top.id)} />
+              ) : (
+                <button aria-label="세부 항목 추가" onClick={(e) => { e.stopPropagation(); openAddItem(top); }} className="row-icon-btn">
+                  <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                </button>
+              )}
             </DayCardRow>
 
-            {children.map((it, i) => (
+            <ChildRows
+              top={top} items={children} setItems={setChildren(top.id)} count={count} editMode={editMode} admin={admin}
+              openId={openId} setOpenId={setOpenId} openEditor={openEditor} delItem={delItem} nameOf={nameOf}
+              onReorder={async (ids) => { try { await api.reorder(ids); } catch (e) { alert(e.message); load(); } }}
+            />
+
+          </div>
+        );
+      })}
+
+    </div>
+  );
+}
+
+// 한 원천 그룹의 세부 항목 카드(편집 모드에서 핸들로 그룹 안 순서 변경)
+function ChildRows({ top, items, setItems, count, editMode, admin, openId, setOpenId, openEditor, delItem, nameOf, onReorder }) {
+  const { dragId, setRowRef, startDrag } = useDragReorder(items, setItems, onReorder);
+  return (
+    <>
+      {items.map((it, i) => (
+        <div key={it.id} ref={setRowRef(it.id)} className={dragId === it.id ? 'drag-lift' : ''}>
               <DayCardRow
-                key={it.id} index={i + 1} count={count} clickable
+                index={i + 1} count={count} clickable
                 isOpen={openId === it.id} onOpenChange={(open) => setOpenId(open ? it.id : null)}
                 onTap={() => openEditor(it)} onDelete={() => delItem(it)}
               >
@@ -101,14 +147,26 @@ export default function SourceManage({ admin = false }) {
                     </span>
                   ) : null
                 ) : null)}
+                {/* 세부 항목 핸들: 이 항목만 이동 */}
+                {editMode && <DragHandle label="세부 항목 순서 변경" active={dragId === it.id} onStart={startDrag(it.id)} />}
               </DayCardRow>
-            ))}
+        </div>
+      ))}
 
-          </div>
-        );
-      })}
+    </>
+  );
+}
 
-    </div>
+// 삼선 핸들(잡고 위아래로 끌어 순서 변경). 카드 탭·스와이프로 번지지 않게 이벤트를 막음
+function DragHandle({ label, active, onStart }) {
+  return (
+    <span
+      className="cat-drag-handle" aria-label={label} role="button"
+      onPointerDown={(e) => { e.stopPropagation(); onStart(e); }} onClick={(e) => e.stopPropagation()}
+      style={{ touchAction: 'none', cursor: active ? 'grabbing' : 'grab', flex: 'none' }}
+    >
+      <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="5" y1="7" x2="19" y2="7" /><line x1="5" y1="12" x2="19" y2="12" /><line x1="5" y1="17" x2="19" y2="17" /></svg>
+    </span>
   );
 }
 

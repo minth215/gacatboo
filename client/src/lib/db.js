@@ -218,6 +218,13 @@ export const db = {
     }
     return saved;
   },
+  // 드래그 정렬 후 순서 일괄 반영(같은 부모 안의 원천 id 순서)
+  async reorderSources(orderedIds) {
+    await Promise.all(orderedIds.map((id, i) => supabase.from('sources').update({ sort_order: i }).eq('id', id)));
+  },
+  async reorderDefaultSources(orderedIds) {
+    await Promise.all(orderedIds.map((id, i) => supabase.from('default_sources').update({ sort_order: i }).eq('id', id)));
+  },
   async deleteSource(id) {
     return unwrap(await supabase.from('sources').delete().eq('id', id));
   },
