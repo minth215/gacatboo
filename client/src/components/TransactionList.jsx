@@ -196,7 +196,8 @@ export default function TransactionList({
                     <div className="tx-row-sub">{sub}</div>
                   </div>
                   <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flex: 'none' }}>
-                    <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : t.type === 'transfer' ? 'var(--k-tx-4b4752)' : '#FF4358' }}>
+                    {/* 신용카드 지출 반영 시점 "대금 납부일": 카드 사용 기록 금액은 코랄핑크 대신 먹색 */}
+                    <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : (t.type === 'transfer' || t.deferred) ? 'var(--k-tx-191722)' : '#FF4358', ...(t.type === 'transfer' ? { color: 'var(--k-tx-4b4752)' } : {}) }}>
                       {t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{amountMain(t)}
                     </span>
                     {amountSub(t) && <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', marginTop: 1 }}>{t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{amountSub(t)}</span>}

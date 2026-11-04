@@ -177,7 +177,7 @@ export default function Ledger() {
       .then(async (all) => {
         setTxs(all);
         // 상단 수입/지출/합계: "집계 포함" OFF 원천의 기록(·집계 제외 디지털 온누리 차감분)은 제외
-        const list = countedRows(all);
+        const list = countedRows(all, { ledger: true });
         const exList = list.filter((t) => t.type === 'expense');
         const map = await db.settlementsByTarget(exList.map((t) => t.id));
         // 이 달에 들어온 정산 수입의 초과분(+가 되는 금액)은 대상 지출의 달이 아니라 이 달의 수입으로 계상
@@ -201,6 +201,8 @@ export default function Ledger() {
   }, [month, user.id]);
 
   useEffect(() => { load(); }, [load]);
+  // 신용카드 대금 납부 자동 입력: 접속 시 이미 도래한 납부일 기록을 만들고, 새로 생겼으면 다시 불러옴
+  useEffect(() => { db.generateMyCardBills().then((n) => { if (n > 0) load(); }).catch(() => {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 검색 필터 옵션(전체 분류/원천)
   useEffect(() => {
@@ -276,7 +278,7 @@ export default function Ledger() {
     return () => io.disconnect();
   }, [sVisible, sFiltered.length, sLoading]);
   // 검색 결과 합계도 "집계 포함" OFF 원천 제외
-  const sCounted = useMemo(() => countedRows(sFiltered), [sFiltered]);
+  const sCounted = useMemo(() => countedRows(sFiltered, { ledger: true }), [sFiltered]);
   const sIncome = sCounted.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
   const sExpense = sCounted.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
   const sTransfer = sCounted.filter((t) => t.type === 'transfer').reduce((s, t) => s + Number(t.amount), 0);
@@ -348,7 +350,7 @@ export default function Ledger() {
   }, [month, daysInMonth]);
   const perDay = useMemo(() => {
     const map = {};
-    for (const t of countedRows(filtered)) { // "집계 포함" OFF 원천 제외
+    for (const t of countedRows(filtered, { ledger: true })) { // "집계 포함" OFF 원천 제외
       if (t.type === 'transfer') continue; // 이체는 수입/지출 통계에 안 잡힘
       const d = Number(t.date.slice(8, 10));
       (map[d] ||= { income: 0, expense: 0 });

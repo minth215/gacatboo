@@ -9,6 +9,18 @@ import { fieldStyle, labelStyle } from './FriendAdd.jsx';
 const isCardGroup = (t) => t === 'credit' || t === 'check';
 const GROUP_TYPES = [['general', '일반'], ['credit', '신용카드'], ['check', '체크카드'], ['onnuri', '디지털 온누리']];
 const TYPE_LABEL = Object.fromEntries(GROUP_TYPES);
+const BUSINESS_DAY_LABELS = { none: '없음', before: '전 영업일', after: '후 영업일' };
+const OFFSET_LABELS = [['-2', '전전월'], ['-1', '전월'], ['0', '당월']];
+// 청구 기간 기본값(대금 납부일 기준, 수정 가능): 14일 → 전월 1일~전월 말일,
+// 14일 이후 → 전월 (d-13)일~당월 (d-14)일, 14일 이전 → 전전월 (d+17)일~전월 (d+16)일. 일자 31 = 말일
+function defaultBillPeriod(d) {
+  const n = Number(d);
+  if (!(n >= 1 && n <= 31)) return { so: '-1', sd: '1', eo: '-1', ed: '31' };
+  if (n === 14) return { so: '-1', sd: '1', eo: '-1', ed: '31' };
+  if (n > 14) return { so: '-1', sd: String(n - 13), eo: '0', ed: String(n - 14) };
+  return { so: '-2', sd: String(n + 17), eo: '-1', ed: String(n + 16) };
+}
+const todayKst = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 
 // 설정 > 원천 관리 > 원천 그룹 추가/수정, 세부 항목 추가/수정 페이지.
 //  · /settings/sources/new             원천 그룹 추가
@@ -67,7 +79,15 @@ export default function SourceEdit({ admin = false }) {
       linkedId: src?.linked_source_id ? String(src.linked_source_id) : '',
       onnuri: !!src?.onnuri_linked,
       includeTotals: src ? src.include_in_totals !== false : true,
-      paymentDay: src?.payment_day ? String(src.payment_day) : '',
+      // 대금 납부(신용카드 세부 항목): 납부일 기본 14일, 청구 기간은 납부일 기준 기본값
+      paymentDay: src?.payment_day ? String(src.payment_day) : '14',
+      businessRule: src?.payment_business_rule || 'none',
+      ...(src?.bill_start_offset != null && src?.bill_end_offset != null
+        ? { so: String(src.bill_start_offset), sd: String(src.bill_start_day ?? 1), eo: String(src.bill_end_offset), ed: String(src.bill_end_day ?? 31), periodTouched: true }
+        : { ...defaultBillPeriod(src?.payment_day || 14), periodTouched: false }),
+      autoBill: !!src?.auto_bill,
+      // 신용카드 그룹: 지출 반영 시점
+      expenseTiming: src?.expense_timing || 'usage',
       parentId: isNew ? String(parentId || '') : String(src?.parent_id || ''),
     });
   }, [tree, form, isNew, src]);
@@ -94,14 +114,23 @@ export default function SourceEdit({ admin = false }) {
   const save = async () => {
     const name = form.name.trim();
     if (!name) return alert('이름을 입력하세요.');
+    // 대금 납부 자동 입력 ON: 대금 납부 영역 전체 필수
+    if (!admin && creditItem && form.autoBill) {
+      const d = Number(form.paymentDay);
+      if (!form.linkedId) return alert('연결 계좌를 선택하세요.');
+      if (!(d >= 1 && d <= 31)) return alert('대금 납부일을 입력하세요.');
+      if (![form.so, form.sd, form.eo, form.ed].every((v) => v !== '' && v != null)) return alert('청구 기간을 입력하세요.');
+    }
     if (busy) return;
     setBusy(true);
     const deposit = depositDisabled ? false : form.deposit;
     try {
       let sid = src?.id;
+      let groupRowId = isGroup ? src?.id : null;
       if (isNew) {
         const row = await api.add(name, isGroup ? null : Number(form.parentId || parentId), isGroup ? form.groupType : null);
         sid = row.id;
+        if (isGroup) groupRowId = row.id;
         // 원천 그룹은 선택할 수 없으므로 같은 이름의 세부 항목을 함께 만들고, 주결제/주입금 지정도 그 항목에
         if (isGroup) sid = (await api.add(name, row.id)).id;
       } else if (name !== src.name || (isGroup && form.groupType !== (src.group_type || 'general'))) {
@@ -122,21 +151,38 @@ export default function SourceEdit({ admin = false }) {
         const balanceChanged = !cardItem && newBal !== (src?.current_balance ?? null);
         const details = {
           linked_source_id: cardItem && form.linkedId ? Number(form.linkedId) : null,
-          payment_day: creditItem && form.paymentDay ? Number(form.paymentDay) : null,
+          payment_day: creditItem && Number(form.paymentDay) >= 1 ? Math.min(31, Number(form.paymentDay)) : null,
+          ...(creditItem ? {
+            payment_business_rule: form.businessRule,
+            bill_start_offset: Number(form.so), bill_start_day: Number(form.sd), bill_end_offset: Number(form.eo), bill_end_day: Number(form.ed),
+            auto_bill: !!form.autoBill,
+            // 켠 날짜부터 도래하는 납부일만 자동 입력
+            auto_bill_since: form.autoBill ? (src?.auto_bill ? (src.auto_bill_since || todayKst()) : todayKst()) : null,
+          } : {}),
           onnuri_linked: cardItem && hasOnnuri && !!form.onnuri,
           include_in_totals: !!form.includeTotals,
           ...(balanceChanged ? { balance: newBal, balance_set_at: newBal == null ? null : new Date().toISOString() } : {}),
         };
-        const changed = balanceChanged || details.linked_source_id !== (src?.linked_source_id ?? null)
+        const changed = creditItem || balanceChanged || details.linked_source_id !== (src?.linked_source_id ?? null)
           || details.payment_day !== (src?.payment_day ?? null) || details.onnuri_linked !== !!src?.onnuri_linked
           || details.include_in_totals !== (src ? src.include_in_totals !== false : true);
         if (changed) await db.updateSourceDetails(sid, details);
       }
+      // 신용카드 그룹: 지출 반영 시점
+      if (!admin && isGroup && form.groupType === 'credit' && form.expenseTiming !== (src?.expense_timing || 'usage')) {
+        await db.updateSourceDetails(groupRowId, { expense_timing: form.expenseTiming });
+      }
+      // 자동 입력이 켜져 있으면 이미 도래한 납부일 기록을 바로 생성
+      if (!admin && creditItem && form.autoBill) await db.generateMyCardBills().catch(() => {});
       nav(-1);
     } catch (e) { alert(e.message); setBusy(false); }
   };
 
   const selectStyle = { ...fieldStyle, WebkitAppearance: 'none', appearance: 'none', paddingRight: 40, backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23a29ead%27 stroke-width=%272.4%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpolyline points=%276 9 12 15 18 9%27/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center' };
+  // 대금 납부 영역: 자동 입력 ON 이면 모든 필드 필수(*)
+  const req = form.autoBill ? <span style={{ color: '#FF3B5C' }}> *</span> : null;
+  const subLabel = { fontSize: 12.5, fontWeight: 700, color: 'var(--k-tx-4a4652)' };
+  const fixedText = { flex: 'none', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-6c6779)' };
   const fmtBalance = (v) => {
     if (v === '' || v === '-') return v;
     const neg = v.startsWith('-');
@@ -171,6 +217,17 @@ export default function SourceEdit({ admin = false }) {
           </label>
         )}
 
+        {/* 신용카드 그룹: 지출 반영 시점(카드 사용일 / 대금 납부일) */}
+        {!admin && isGroup && form.groupType === 'credit' && (
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <span style={labelStyle}>지출 반영 시점</span>
+            <select value={form.expenseTiming} onChange={(e) => set({ expenseTiming: e.target.value })} style={selectStyle}>
+              <option value="usage">카드 사용일</option>
+              <option value="payment">대금 납부일</option>
+            </select>
+          </label>
+        )}
+
         {/* 일반 그룹 세부 항목: 금액 */}
         {!admin && !isGroup && !cardItem && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -186,14 +243,13 @@ export default function SourceEdit({ admin = false }) {
           </label>
         )}
 
-        {/* 카드 그룹 세부 항목: 연결 계좌 */}
-        {!admin && cardItem && (
+        {/* 체크카드 세부 항목: 연결 계좌 */}
+        {!admin && cardItem && !creditItem && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             <span style={labelStyle}>연결 계좌</span>
             <select value={form.linkedId} onChange={(e) => set({ linkedId: e.target.value })} style={{ ...selectStyle, color: form.linkedId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>
               <option value="">카드값이 빠져나갈 원천 선택</option>
-              {/* 기록 페이지 원천 셀렉트처럼 원천 그룹 라벨 아래 세부 항목 */}
-              {/* 카드·디지털 온누리 그룹 제외, 원천 그룹은 선택 불가(세부 항목만) */}
+              {/* 기록 페이지 원천 셀렉트처럼 원천 그룹 라벨 아래 세부 항목(카드·디지털 온누리 그룹 제외) */}
               {tree.filter((t) => !isCardGroup(t.group_type) && t.group_type !== 'onnuri' && t.children?.length).map((t) => (
                 <optgroup key={t.id} label={t.name}>
                   {t.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -203,15 +259,79 @@ export default function SourceEdit({ admin = false }) {
           </label>
         )}
 
-        {/* 신용카드 그룹 세부 항목: 대금 납부일 */}
+        {/* 신용카드 세부 항목: "대금 납부" 영역(연결 계좌·납부일·영업일 처리·청구 기간·자동 입력) */}
         {!admin && creditItem && (
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <span style={labelStyle}>대금 납부일</span>
-            <select value={form.paymentDay} onChange={(e) => set({ paymentDay: e.target.value })} style={{ ...selectStyle, color: form.paymentDay ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>
-              <option value="">납부일 선택</option>
-              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>매달 {d}일</option>)}
-            </select>
-          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <span style={labelStyle}>대금 납부</span>
+            <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.07 * var(--k-sha)))', padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <span style={subLabel}>연결 계좌{req}</span>
+            <select value={form.linkedId} onChange={(e) => set({ linkedId: e.target.value })} style={{ ...selectStyle, color: form.linkedId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>
+                  <option value="">카드값이 빠져나갈 원천 선택</option>
+                  {/* 기록 페이지 원천 셀렉트처럼 원천 그룹 라벨 아래 세부 항목(카드·디지털 온누리 그룹 제외) */}
+                  {tree.filter((t) => !isCardGroup(t.group_type) && t.group_type !== 'onnuri' && t.children?.length).map((t) => (
+                    <optgroup key={t.id} label={t.name}>
+                      {t.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <span style={subLabel}>대금 납부일{req}</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {/* "매월 [일자] 일" — 매월/일은 고정 텍스트 */}
+                  <div style={{ ...fieldStyle, flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '0 14px' }}>
+                    <span style={fixedText}>매월</span>
+                    <input
+                      type="text" inputMode="numeric" value={form.paymentDay} placeholder="14"
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
+                        const n = Math.min(31, Number(v) || 0);
+                        const day = v === '' ? '' : String(n || '');
+                        setForm((f) => ({ ...f, paymentDay: day, ...(f.periodTouched || !day ? {} : defaultBillPeriod(day)) }));
+                      }}
+                      style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', padding: '14px 0', textAlign: 'right' }}
+                    />
+                    <span style={fixedText}>일</span>
+                  </div>
+                  {/* 영업일 처리 */}
+                  <select value={form.businessRule} onChange={(e) => set({ businessRule: e.target.value })} aria-label="영업일 처리" style={{ ...selectStyle, flex: 'none', width: 132 }}>
+                    {Object.entries(BUSINESS_DAY_LABELS).map(([v, l]) => <option key={v} value={v}>{v === 'none' ? '영업일 처리 없음' : l}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <span style={subLabel}>청구 기간{req}</span>
+                {/* [전월] [1일] ~ [전월] [말일] — 납부일을 바꾸면 기본값으로(직접 고친 뒤에는 유지) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {[['so', 'sd'], ['eo', 'ed']].map(([ok, dk], i) => (
+                    <div key={ok} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {i === 1 && <span style={{ ...fixedText, flex: 'none' }}>~</span>}
+                      <select value={form[ok]} onChange={(e) => set({ [ok]: e.target.value, periodTouched: true })} aria-label={i ? '청구 기간 끝 월' : '청구 기간 시작 월'} style={{ ...selectStyle, flex: 1, minWidth: 0, padding: '14px 26px 14px 10px', backgroundPosition: 'right 8px center' }}>
+                        {OFFSET_LABELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      </select>
+                      <select value={form[dk]} onChange={(e) => set({ [dk]: e.target.value, periodTouched: true })} aria-label={i ? '청구 기간 끝 일' : '청구 기간 시작 일'} style={{ ...selectStyle, flex: 1, minWidth: 0, padding: '14px 26px 14px 10px', backgroundPosition: 'right 8px center' }}>
+                        {Array.from({ length: 31 }, (_, k) => k + 1).map((d) => <option key={d} value={d}>{d === 31 ? '말일' : `${d}일`}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={subLabel}>대금 납부 자동 입력</span>
+                  <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)' }}>납부일에 청구 기간 사용 금액을 연결 계좌 지출로 기록해요</span>
+                </span>
+                <button
+                  type="button" role="switch" aria-checked={!!form.autoBill} aria-label="대금 납부 자동 입력"
+                  className={`ios-toggle${form.autoBill ? ' on' : ''}`} onClick={() => set({ autoBill: !form.autoBill })}
+                ><span className="ios-toggle-knob" /></button>
+              </label>
+            </div>
+          </div>
         )}
 
         {/* 주결제/주입금수단 */}

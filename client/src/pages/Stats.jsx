@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { fmtP, fmtPUnit } from '../lib/primaryCurrency.js';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { db, countedRows } from '../lib/db.js';
+import { db, countedRows, isCardBill } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { loadPrefs } from '../lib/prefs.js';
 import {
@@ -99,7 +99,11 @@ const splitOnnuri = (list) => list.flatMap((r) => {
   ];
 });
 // "집계 포함" OFF 원천: 분류별/항목별 통계에서 제외, 원천별 통계에는 포함(회색 표시)
-const rowsForView = (list, view) => (view === 'source' ? splitOnnuri(list) : countedRows(list));
+// "결제 대금" 분류 기록(카드 대금 납부)은 지출 반영 시점과 무관하게 통계에서 제외
+const rowsForView = (list, view) => {
+  const base = list.filter((r) => !isCardBill(r));
+  return view === 'source' ? splitOnnuri(base) : countedRows(base);
+};
 
 const statAmount = (r, view, settleReflect = true) => (view === 'category' && settleReflect ? r.eff : Number(r.amount));
 

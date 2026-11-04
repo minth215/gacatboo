@@ -35,17 +35,26 @@ const TX_SELECT = '*, group:groups(name, category), recurring:recurring_rules(id
 
 // 집계용 기록(0089): "집계 포함" OFF 원천 기록은 빼고, 카드 결제 중 집계 제외 디지털 온누리로 차감된 금액은
 // 그만큼 금액(amount, eff)을 줄인다. 가계부 합계·검색 합계·분류별/항목별 통계에서 사용.
-export function countedRows(list) {
+export function countedRows(list, { ledger = false } = {}) {
   return list.filter((r) => !r.excluded).flatMap((r) => {
-    const cut = r.onnuri_deduct_excluded ? Number(r.onnuri_deduct) || 0 : 0;
-    if (!cut) return [r];
     const amt = Number(r.amount) || 0;
+    const deduct = Number(r.onnuri_deduct) || 0;
+    // 가계부 합계: 신용카드 지출 반영 시점이 "대금 납부일"이면 카드 사용 기록은 빼고(대금 납부 기록으로 반영),
+    // 디지털 온누리로 차감된 부분(대금에 안 들어감)만 남김
+    if (ledger && r.deferred) {
+      const keep = r.onnuri_deduct_excluded ? 0 : Math.min(deduct, amt);
+      return keep > 0 ? [{ ...r, amount: keep, ...(r.eff != null ? { eff: Number(r.eff) * (keep / amt) } : {}) }] : [];
+    }
+    const cut = r.onnuri_deduct_excluded ? deduct : 0;
+    if (!cut) return [r];
     const left = Math.max(0, amt - cut);
     if (!left) return [];
     const ratio = amt > 0 ? left / amt : 0;
     return [{ ...r, amount: left, ...(r.eff != null ? { eff: Number(r.eff) * ratio } : {}) }];
   });
 }
+// 카드 결제 대금 기록(대금 납부 자동 입력 또는 "결제 대금" 분류) — 통계에서는 항상 제외
+export const isCardBill = (r) => r.card_bill_source_id != null || r.category_name === '결제 대금';
 
 // 조회 결과를 평탄화 (group_name)
 function flattenTx(rows) {
@@ -205,6 +214,12 @@ export const db = {
     if (!txId) return null;
     const { data } = await supabase.from('transactions').select('onnuri').eq('id', txId).maybeSingle();
     return data;
+  },
+  // 신용카드 대금 납부 자동 입력(0090): 이미 도래한 납부일의 결제 대금 기록 생성
+  async generateMyCardBills() {
+    const { data, error } = await supabase.rpc('generate_my_card_bills');
+    if (error) throw new Error(error.message);
+    return Number(data) || 0;
   },
   // 세부 항목 상세(0082): { balance, linked_source_id, payment_day }
   async updateSourceDetails(id, patch) {
@@ -1117,14 +1132,29 @@ export const db = {
     if (error) throw new Error(error.message);
   },
   // 집계 제외(0089): 원천 세부 항목의 "집계 포함"이 OFF 면 excluded=true(온누리 차감분은 onnuri_deduct_excluded)
+  // 신용카드 지출 반영 시점(0090): 그룹 expense_timing
+  //   'usage'  : 카드 사용 기록이 합계에 반영, 결제 대금 기록은 excluded(회색)
+  //   'payment': 카드 사용 기록은 deferred(가계부 합계 제외·금액 먹색), 결제 대금 기록이 합계에 반영
   async attachExcluded(rows) {
-    const { data } = await supabase.from('sources').select('id').eq('include_in_totals', false);
-    const ex = new Set((data || []).map((x) => x.id));
-    if (!ex.size) return rows;
-    return rows.map((r) => ({
-      ...r, excluded: r.source_id != null && ex.has(r.source_id),
-      ...(r.onnuri_deduct_source_id != null ? { onnuri_deduct_excluded: ex.has(r.onnuri_deduct_source_id) } : {}),
-    }));
+    const { data } = await supabase.from('sources').select('*');
+    const list = data || [];
+    const ex = new Set(list.filter((x) => x.include_in_totals === false).map((x) => x.id));
+    const byId = new Map(list.map((x) => [x.id, x]));
+    const timingOf = (sid) => {
+      const it = byId.get(sid);
+      const top = it && (it.parent_id != null ? byId.get(it.parent_id) : it);
+      return top?.group_type === 'credit' ? (top.expense_timing || 'usage') : null;
+    };
+    return rows.map((r) => {
+      const bill = r.card_bill_source_id != null;
+      const billExcluded = bill && timingOf(r.card_bill_source_id) !== 'payment';
+      const deferred = !bill && r.type === 'expense' && timingOf(r.source_id) === 'payment';
+      const excluded = (r.source_id != null && ex.has(r.source_id)) || billExcluded;
+      return {
+        ...r, excluded, deferred,
+        ...(r.onnuri_deduct_source_id != null ? { onnuri_deduct_excluded: ex.has(r.onnuri_deduct_source_id) } : {}),
+      };
+    });
   },
   // 온누리 가맹점 지출에 디지털 온누리 차감액·원천 이름을 붙임(onnuri_deduct, onnuri_deduct_source_id/name).
   // 가계부 원천 필터(디지털 온누리로도 검색), 원천별 통계(카드/디지털 온누리 분리)에서 사용.
