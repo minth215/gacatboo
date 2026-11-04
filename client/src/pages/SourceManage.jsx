@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
-import { fmtNum } from '../lib/format.js';
 import { useAuth } from '../lib/auth.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import { DayCardRow } from '../components/TransactionList.jsx';
@@ -94,15 +93,13 @@ export default function SourceManage({ admin = false }) {
                   {it.name}
                   <PrimaryBadges src={it} />
                 </span>
-                {/* 상세: 일반 항목은 금액, 카드 항목은 연결 계좌·납부일(회색 작은 글씨) */}
+                {/* 상세: 카드 항목은 연결 계좌·납부일(회색 작은 글씨). 금액은 카드에 표시하지 않음 */}
                 {!admin && (isCardGroup(top.group_type) ? (
                   (it.linked_source_id || it.payment_day) ? (
                     <span style={{ flex: 'none', fontSize: 11, color: 'var(--k-tx-a29ead)', whiteSpace: 'nowrap' }}>
                       {[it.linked_source_id ? nameOf(it.linked_source_id) : '', it.payment_day ? `매달 ${it.payment_day}일` : ''].filter(Boolean).join(' · ')}
                     </span>
                   ) : null
-                ) : it.current_balance != null ? (
-                  <span style={{ flex: 'none', fontSize: 12.5, fontWeight: 600, color: 'var(--k-tx-6c6779)', whiteSpace: 'nowrap' }}>{fmtNum(it.current_balance)}</span>
                 ) : null)}
               </DayCardRow>
             ))}
