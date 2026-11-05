@@ -37,7 +37,7 @@ export default function Ledger() {
   const [loading, setLoading] = useState(true);
   // 설정 > 가계부 커스터마이즈: 기본 뷰 / 퀵 메뉴("+" 왼쪽 버튼) / 요약 정산 반영
   const [prefs] = useState(() => loadPrefs(user?.id));
-  const [summary, setSummary] = useState({ income: 0, expense: 0, grossIncome: 0, grossExpense: 0 });
+  const [settleMaps, setSettleMaps] = useState({ map: {}, excessMap: {} });
   const [view, setView] = useState(() => (prefs.ledgerView === 'calendar' ? 'calendar' : 'list')); // list | calendar
   const [selDay, setSelDay] = useState(null);
   // "+" 버튼 왼쪽의 촬영 버튼: 사진을 리사이즈까지만 미리 해서(용량 절감) 기록 페이지로
@@ -175,28 +175,15 @@ export default function Ledger() {
     setLoading(true);
     db.listLedger({ month, userId: user.id })
       .then(async (all) => {
-        setTxs(all);
-        // 상단 수입/지출/합계: "집계 포함" OFF 원천의 기록(·집계 제외 디지털 온누리 차감분)은 제외
-        const list = countedRows(all, { ledger: true });
-        const exList = list.filter((t) => t.type === 'expense');
+        // 정산 맵(대상 지출별 정산액·정산 초과분)은 한 번 받아 두고, 합계는 필터 결과로 아래에서 계산
+        const exList = all.filter((t) => t.type === 'expense');
         const map = await db.settlementsByTarget(exList.map((t) => t.id));
-        // 이 달에 들어온 정산 수입의 초과분(+가 되는 금액)은 대상 지출의 달이 아니라 이 달의 수입으로 계상
-        const settleIncomeList = list.filter((t) => t.type === 'income' && isSettlementIncome(t));
-        const excessMap = settleIncomeList.length ? await db.settlementExcessByRow() : {};
-        // 정산 반영 금액(eff) → 같은 달 안의 정산 대상 남은 금액과 정산 초과분은 서로 상계(통계와 동일)
-        const effRows = netSettlementEff(list.map((t) => ({
-          ...t,
-          eff: t.type === 'expense' ? Math.max(0, Number(t.amount) - (map[t.id] || 0))
-            : t.type === 'income' ? (isSettlementIncome(t) ? (excessMap[t.id] || 0) : Number(t.amount)) : 0,
-        })), map);
-        const expense = effRows.filter((t) => t.type === 'expense').reduce((s, t) => s + t.eff, 0);
-        const income = effRows.filter((t) => t.type === 'income').reduce((s, t) => s + t.eff, 0);
-        // 정산 반영 OFF 용: 정산 상계 없이 수입/지출 원금 그대로
-        const grossIncome = list.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
-        const grossExpense = list.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
-        setSummary({ income, expense, grossIncome, grossExpense });
+        const hasSettleIncome = all.some((t) => t.type === 'income' && isSettlementIncome(t));
+        const excessMap = hasSettleIncome ? await db.settlementExcessByRow() : {};
+        setSettleMaps({ map, excessMap });
+        setTxs(all);
       })
-      .catch(() => { setTxs([]); setSummary({ income: 0, expense: 0, grossIncome: 0, grossExpense: 0 }); })
+      .catch(() => { setTxs([]); setSettleMaps({ map: {}, excessMap: {} }); })
       .finally(() => setLoading(false));
   }, [month, user.id]);
 
@@ -220,8 +207,6 @@ export default function Ledger() {
 
   useEffect(() => { if (searchOpen && submittedQ != null) loadSearch(); }, [searchOpen, submittedQ, loadSearch]);
 
-  const income = prefs.ledgerSettle ? summary.income : summary.grossIncome;
-  const expense = prefs.ledgerSettle ? summary.expense : summary.grossExpense;
 
   // 필터 모달의 분류 칩: 유형을 수입/지출로 고르면 그 유형의 분류만(같은 이름은 하나로)
   const categoriesFor = useCallback((t) => {
@@ -246,6 +231,26 @@ export default function Ledger() {
     if (srcFilter.length && !srcFilter.includes(t.source_name || '') && !(t.type === 'transfer' && srcFilter.includes(t.to_source_name || '')) && !(t.onnuri_deduct_source_name && srcFilter.includes(t.onnuri_deduct_source_name))) return false;
     return true;
   }), [txs, typeFilter, catFilter, srcFilter]);
+  // 상단 수입/지출/합계: 필터 결과 기준. "집계 포함" OFF 원천의 기록(·집계 제외 디지털 온누리 차감분)은 제외
+  const summary = useMemo(() => {
+    const { map, excessMap } = settleMaps;
+    const list = countedRows(filtered, { ledger: true });
+    // 정산 반영 금액(eff) → 같은 달 안의 정산 대상 남은 금액과 정산 초과분은 서로 상계(통계와 동일)
+    const effRows = netSettlementEff(list.map((t) => ({
+      ...t,
+      eff: t.type === 'expense' ? Math.max(0, Number(t.amount) - (map[t.id] || 0))
+        : t.type === 'income' ? (isSettlementIncome(t) ? (excessMap[t.id] || 0) : Number(t.amount)) : 0,
+    })), map);
+    return {
+      expense: effRows.filter((t) => t.type === 'expense').reduce((x, t) => x + t.eff, 0),
+      income: effRows.filter((t) => t.type === 'income').reduce((x, t) => x + t.eff, 0),
+      // 정산 반영 OFF 용: 정산 상계 없이 수입/지출 원금 그대로
+      grossIncome: list.filter((t) => t.type === 'income').reduce((x, t) => x + Number(t.amount), 0),
+      grossExpense: list.filter((t) => t.type === 'expense').reduce((x, t) => x + Number(t.amount), 0),
+    };
+  }, [filtered, settleMaps]);
+  const income = prefs.ledgerSettle ? summary.income : summary.grossIncome;
+  const expense = prefs.ledgerSettle ? summary.expense : summary.grossExpense;
   // 상단(상단바+연월+요약카드)·하단(하단탭) 영역을 뺀 나머지 화면 정중앙에 빈 상태 문구 배치
   const isEmptyMonthList = !loading && view === 'list' && filtered.length === 0;
 

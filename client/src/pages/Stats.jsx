@@ -425,10 +425,17 @@ export default function Stats() {
     else setMonth(a);
   };
 
-  const detailTxs = useMemo(
-    () => (detail ? rowsForView(rows, detail.view).filter((r) => r.type === tab && statAmount(r, detail.view, settleReflect) > 0 && matchesDetail(r, detail)) : []),
-    [detail, rows, tab, settleReflect],
-  );
+  const detailTxs = useMemo(() => {
+    if (!detail) return [];
+    const list = rowsForView(rows, detail.view).filter((r) => r.type === tab && statAmount(r, detail.view, settleReflect) > 0 && matchesDetail(r, detail));
+    if (detail.view !== 'source') return list;
+    // 원천별 상세: 디지털 온누리로 전액 결제된 카드 결제도 그 카드 목록에 회색으로 함께(그래프 금액엔 미포함)
+    const fullOnnuri = rows.filter((r) => r.type === tab && !isCardBill(r) && Number(r.onnuri_deduct) > 0
+      && Number(r.onnuri_deduct) >= Number(r.amount) && matchesDetail(r, detail))
+      .map((r) => ({ ...r, dimmed: true }));
+    if (!fullOnnuri.length) return list;
+    return [...list, ...fullOnnuri].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (b.id || 0) - (a.id || 0)));
+  }, [detail, rows, tab, settleReflect]);
 
   // 상세 뷰의 항목 카드를 눌러 기록 수정 페이지로 이동. 그룹 결제/입금 건은 가계부와
   // 동일하게 해당 그룹의 수정 화면으로 보낸다. 지금 화면 상태를 현재 history 항목에

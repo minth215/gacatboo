@@ -163,7 +163,7 @@ export default function TransactionList({
                 background={isGroup ? 'linear-gradient(135deg, var(--k-bg-fff1f3) 0%, var(--k-bg-fff6ea) 100%)' : 'var(--k-bg-fff)'}
                 // "집계 포함" OFF 원천의 기록(합계에 안 잡힘): 옅은 회색
                 // 집계 제외 디지털 온누리로 전액 차감된 결제도 같은 회색(일부라도 카드 결제면 그대로)
-                dimmed={!!t.excluded || (!!t.onnuri_deduct_excluded && Number(t.onnuri_deduct) >= Number(t.amount))}
+                dimmed={!!t.dimmed || !!t.excluded || (!!t.onnuri_deduct_excluded && Number(t.onnuri_deduct) >= Number(t.amount))}
               >
                   <span style={{ position: 'relative', flex: 'none', width: 38, height: 38 }}>
                     {selected && <span className="tile-select-ring" />}
