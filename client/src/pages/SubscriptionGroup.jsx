@@ -1352,6 +1352,11 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
       // 멤버: 고른 결제 내역의 내 몫으로 금액 채움
       const share = myShareOf(target);
       updateSettleRow(idx, { targetId, amount: share != null ? String(share) : settleRows[idx].amount });
+      // 분류를 아직 안 골랐으면 첫 번째 행 결제 내역의 분류(같은 이름의 내 지출 분류)로
+      if (idx === 0 && target && !f.mCatId) {
+        const c = cats.find((x) => x.name === target.category_name);
+        if (c) setF((prev) => (prev.mCatId ? prev : { ...prev, mCatId: String(c.id) }));
+      }
       return;
     }
     updateSettleRow(idx, { targetId, amount: (!settleRows[idx].amount && target) ? String(target.amount) : settleRows[idx].amount });
@@ -1505,7 +1510,8 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     setF((prev) => ({ ...prev, amount: String(sub.deposit_amount) }));
   }, [editing, sub]);
   useEffect(() => {
-    if (editing || f.mCatId || !defMemberCat) return;
+    // 멤버 정산 입금은 분류를 비워 두고, 첫 번째 행에서 고른 결제 내역의 분류로 채움(onSettleTargetChange)
+    if (editing || f.mCatId || !defMemberCat || memberSettle) return;
     setF((prev) => ({ ...prev, mCatId: String(defMemberCat.id) }));
   }, [editing, cats]);
   useEffect(() => {
@@ -1516,12 +1522,14 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     if (editing || f.lSourceId || !sub?.deposit_source_id) return;
     setF((prev) => ({ ...prev, lSourceId: String(sub.deposit_source_id) }));
   }, [editing, sub]);
-  // 멤버 본인이 입력할 때 원천 기본값: 멤버 본인의 주결제수단(원천 관리에서 지정한 것)
+  // 멤버 본인이 입력할 때 원천 기본값: 그룹에 지정한 내 출금 수단(없으면 주결제수단)
   useEffect(() => {
     if (editing || isOwner || f.mSourceId) return;
-    const s = sources.flat.find((x) => x.is_primary_payment);
+    const me = members.find((m) => String(m.id) === String(f.memberId)) || members[0];
+    const w = me?.withdraw_source_id ? sources.flat.find((x) => x.id === me.withdraw_source_id) : null;
+    const s = w || sources.flat.find((x) => x.parent_id != null && x.is_primary_payment) || sources.flat.find((x) => x.is_primary_payment);
     if (s) setF((prev) => ({ ...prev, mSourceId: String(s.id) }));
-  }, [editing, isOwner, sources]);
+  }, [editing, isOwner, sources, members]);
   // 정산 대상 지출이 하나뿐이면 자동으로 선택해 둔다.
   useEffect(() => {
     if (editing || !isOwner || f.lSettleId || !isSettleMode || recentExpenses.length !== 1) return;
