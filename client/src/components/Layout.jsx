@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
 import { db } from '../lib/db.js';
@@ -54,6 +54,33 @@ export default function Layout() {
   // 계정이 바뀔 때마다(로그인·계정 전환) 이 기기의 푸시 구독을 그 계정에도 등록 — 한 기기·여러 계정 지원
   useEffect(() => { if (user?.id) syncPushSubscription(db, user.id); }, [user?.id]);
 
+  // iOS Safari: 기록 입력·수정 후 돌아오면 목록 카드가 그려지지 않고(상단바·배경만) 화면을 살짝 쓸어야
+  // 보이는 문제 — 내용 높이가 바뀌거나 페이지를 옮길 때 다시 그리도록 살짝 밀어 준다(스크롤 1px 왕복 +
+  // 투명도 토글. transform 은 position:fixed 자식을 깨뜨려 쓰지 않음).
+  const containerRef = useRef(null);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    let raf1 = 0; let raf2 = 0;
+    const nudge = () => {
+      cancelAnimationFrame(raf1); cancelAnimationFrame(raf2);
+      raf1 = requestAnimationFrame(() => {
+        el.style.opacity = '0.999';
+        // 상대 이동으로 왕복(다른 화면의 스크롤 복원 위치를 덮어쓰지 않도록)
+        const d = window.scrollY > 0 ? -1 : 1;
+        window.scrollBy(0, d);
+        raf2 = requestAnimationFrame(() => {
+          el.style.opacity = '';
+          window.scrollBy(0, -d);
+        });
+      });
+    };
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(nudge) : null;
+    ro?.observe(el);
+    nudge();
+    return () => { ro?.disconnect(); cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+  }, [location.pathname]);
+
   return (
     <div className={`app${hideBottomNav ? ' no-bottomnav' : ''}`}>
       <div className="topbar">
@@ -64,7 +91,7 @@ export default function Layout() {
         </div>
       </div>
 
-      <div className="container">
+      <div className="container" ref={containerRef}>
         <Outlet />
       </div>
 
