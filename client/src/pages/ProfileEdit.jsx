@@ -46,7 +46,7 @@ export default function ProfileEdit() {
           <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--k-tx-191722)', letterSpacing: '-.3px' }}>{user.display_name}</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--k-tx-a29ead)' }}>@{user.username}</span>
-            {user.role === 'admin' && <span className="settings-admin-badge">관리자</span>}
+            {user.role === 'admin' && <span className="settings-admin-badge">관리자</span>}{user.role === 'tester' && <span className="settings-tester-badge">테스터</span>}
           </div>
           <button
             aria-label="내 정보 수정" onClick={() => nav('/settings/profile/edit')} className="profile-edit-pencil-btn"

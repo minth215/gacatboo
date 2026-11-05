@@ -41,7 +41,7 @@ export default function AdminUserDetail() {
 
   const changeRole = async (role) => {
     if (role === target.role) return;
-    if (role === 'user') {
+    if (target.role === 'admin' && role !== 'admin') {
       const all = await db.listUsers().catch(() => []);
       if (all.filter((x) => x.role === 'admin').length <= 1) return alert('최소 한 명의 관리자가 필요합니다.');
     }
@@ -90,7 +90,7 @@ export default function AdminUserDetail() {
           <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--k-tx-191722)', letterSpacing: '-.3px' }}>{target.display_name}</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--k-tx-a29ead)' }}>@{target.username}</span>
-            {target.role === 'admin' && <span className="settings-admin-badge">관리자</span>}
+            {target.role === 'admin' && <span className="settings-admin-badge">관리자</span>}{target.role === 'tester' && <span className="settings-tester-badge">테스터</span>}
           </div>
         </div>
         <div style={{ padding: '0 18px 18px' }}>
@@ -106,6 +106,7 @@ export default function AdminUserDetail() {
             <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)' }}>역할</span>
             <select className="admin-select" value={target.role} disabled={busy || isSelf} onChange={(e) => changeRole(e.target.value)}>
               <option value="user">일반</option>
+              <option value="tester">테스터</option>
               <option value="admin">관리자</option>
             </select>
           </div>

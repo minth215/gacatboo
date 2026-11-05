@@ -599,6 +599,12 @@ html.theme-dark .btn-ink-pill:hover { background: #E2DFE8; }
   background: var(--k-bg-fff); border-radius: 20px; padding: 18px 18px 18px 22px;
   box-shadow: 0 6px 20px rgb(var(--k-sh) / calc(.07 * var(--k-sha))); display: flex; align-items: center; gap: 14px; cursor: pointer;
 }
+/* 테스터 배지(민트) — 관리자 배지와 같은 자리·크기 */
+.settings-tester-badge {
+  display: inline-flex; align-items: center; height: 15px; box-sizing: border-box;
+  font-size: 8.5px; font-weight: 700; color: #fff; background: linear-gradient(90deg, #1FB597, #2CDDB9);
+  border-radius: 999px; padding: 0 6px; line-height: 1;
+}
 .settings-admin-badge {
   display: inline-flex; align-items: center; height: 15px; box-sizing: border-box;
   font-size: 8.5px; font-weight: 700; color: #fff; background: linear-gradient(90deg, #FF3B5C, #FF9142);

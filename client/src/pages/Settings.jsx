@@ -95,17 +95,18 @@ export default function Settings() {
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title="설정" showBack={false} right={canSwitch && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button className="tb-icon-btn" style={{ color: 'var(--k-tx-6c6779)' }} onClick={() => setSwitcherOpen(true)} aria-label="계정 전환">
-            <SwitchIcon />
-          </button>
+          {/* 관리자 페이지(자물쇠) — 계정 전환 버튼 왼쪽 */}
           {user.role === 'admin' && (
             <button className="tb-icon-btn" style={{ color: 'var(--k-tx-6c6779)' }} onClick={() => nav('/admin')} aria-label="관리자 페이지">
               <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2a5 5 0 0 1 5 5v2h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5z" />
-                <circle cx="12" cy="16" r="1.6" fill="currentColor" stroke="none" />
+                <rect x="4" y="11" width="16" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
               </svg>
             </button>
           )}
+          <button className="tb-icon-btn" style={{ color: 'var(--k-tx-6c6779)' }} onClick={() => setSwitcherOpen(true)} aria-label="계정 전환">
+            <SwitchIcon />
+          </button>
         </div>
       )} />
 
@@ -113,7 +114,7 @@ export default function Settings() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--k-tx-191722)', lineHeight: 1 }}>{user.display_name}</span>
-            {user.role === 'admin' && <span className="settings-admin-badge">관리자</span>}
+            {user.role === 'admin' && <span className="settings-admin-badge">관리자</span>}{user.role === 'tester' && <span className="settings-tester-badge">테스터</span>}
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--k-tx-8b8798)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{user.username}</div>
         </div>
@@ -198,7 +199,7 @@ export default function Settings() {
                       <span style={{ flex: 1, minWidth: 0 }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                           <span style={{ fontSize: 13.75, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{acc.display_name}</span>
-                          {acc.role === 'admin' && <span className="settings-admin-badge">관리자</span>}
+                          {acc.role === 'admin' && <span className="settings-admin-badge">관리자</span>}{acc.role === 'tester' && <span className="settings-tester-badge">테스터</span>}
                         </span>
                         <span style={{ display: 'block', fontSize: 11, color: 'var(--k-tx-8b8798)' }}>@{acc.username}</span>
                       </span>

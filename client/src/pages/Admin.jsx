@@ -127,7 +127,7 @@ function AdminMembers() {
               <span className="ntpl-title">
                 {u.display_name}
                 <span className="member-username"> @{u.username}</span>
-                {u.role === 'admin' && <span className="settings-admin-badge" style={{ marginLeft: 6 }}>관리자</span>}
+                {u.role === 'admin' && <span className="settings-admin-badge" style={{ marginLeft: 6 }}>관리자</span>}{u.role === 'tester' && <span className="settings-tester-badge" style={{ marginLeft: 6 }}>테스터</span>}
               </span>
               <span className="ntpl-body">{emails[u.id] || ''}</span>
             </span>
@@ -152,6 +152,7 @@ function AdminMembers() {
             <div className="field"><label>역할</label>
               <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
                 <option value="user">일반 사용자</option>
+                <option value="tester">테스터</option>
                 <option value="admin">관리자</option>
               </select></div>
             {err && <p className="error">{err}</p>}

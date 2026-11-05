@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
 
       const newId = created.user!.id;
       await admin.from('profiles')
-        .update({ status: 'approved', role: role === 'admin' ? 'admin' : 'user', username, display_name })
+        .update({ status: 'approved', role: ['admin', 'tester'].includes(role) ? role : 'user', username, display_name })
         .eq('id', newId);
       return json({ message: '계정이 생성되었습니다.', id: newId });
     }

@@ -86,7 +86,7 @@ export default function Layout() {
       <div className="topbar">
         <div className="brand">가<span>계부</span></div>
         <div className="user">
-          <span>{user?.display_name}님{user?.role === 'admin' ? ' · 관리자' : ''}</span>
+          <span>{user?.display_name}님{user?.role === 'admin' ? ' · 관리자' : user?.role === 'tester' ? ' · 테스터' : ''}</span>
           <button className="btn sm ghost" onClick={logout}>로그아웃</button>
         </div>
       </div>
