@@ -354,6 +354,9 @@ const TransactionForm = forwardRef(function TransactionForm({
   onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence,
   settlementMembers, initialSettlementSplit, qtyLabel = '수량', groupBadge, initialLinkedFee, defaultTransferToName,
   fixedSourceName, transferMembers, defaultTransferMemberId, autoReceiptBase64, autoReceiptMime, autoToast, onDelete,
+  // readOnly: 조회 전용(일반 멤버가 그룹 결제 내역을 볼 때) — 입력 잠금, 원천·행 추가·저장/삭제·아이콘 숨김,
+  // 분류는 기록에 저장된(총무/총대가 정한) 분류 그대로 표시
+  readOnly = false,
   // templateMode: 반복 규칙(반복으로 등록될 내용) 수정 화면 — 즐겨찾기 별·반복 아이콘을 숨김
   templateMode = false,
   // periodField: 날짜 칸 대신 보여줄 노드(반복 수정 화면의 "반복 주기")
@@ -1138,8 +1141,9 @@ const TransactionForm = forwardRef(function TransactionForm({
   const tableCols = (isTransfer || isSettlement) ? '1fr 84px 18px' : showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={readOnly ? (e) => e.preventDefault() : submit}>
       {topNotice}
+      <fieldset disabled={readOnly} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, ...(readOnly ? { pointerEvents: 'none' } : {}) }}>
 
       <input
         ref={receiptInputRef} type="file" accept="image/*"
@@ -1189,7 +1193,7 @@ const TransactionForm = forwardRef(function TransactionForm({
               {contentFocused && contentValue && <ClearButton onClear={clearContent} />}
               <SuggestList items={rankedContentSuggestions} query={contentValue} onPick={pickContentSuggestion} />
             </div>
-            {editing && !templateMode && (
+            {editing && !templateMode && !readOnly && (
               <button
                 type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 등록'}
                 style={{ flex: 'none', border: 'none', background: 'transparent', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
@@ -1197,7 +1201,7 @@ const TransactionForm = forwardRef(function TransactionForm({
                 <StarIcon filled={favorited} />
               </button>
             )}
-            {!templateMode && initial?.installment_total ? (
+            {readOnly ? null : !templateMode && initial?.installment_total ? (
               // 할부로 만든 기록: 반복 아이콘 대신 회차 표시
               // 누르면 할부 개월 수 수정
               <button
@@ -1253,7 +1257,14 @@ const TransactionForm = forwardRef(function TransactionForm({
           </div>
         )}
 
-        {!isTransfer && (
+        {!isTransfer && readOnly && (
+          // 조회 전용: 기록에 저장된(총무/총대가 정한) 분류 그대로
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
+            <span style={rowLabelStyle}>분류</span>
+            <span style={{ ...rowInputStyle }}>{initial?.category_emoji ? `${initial.category_emoji} ` : ''}{initial?.category_name || '—'}</span>
+          </div>
+        )}
+        {!isTransfer && !readOnly && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={rowLabelStyle}>분류</span>
             <select
@@ -1292,13 +1303,13 @@ const TransactionForm = forwardRef(function TransactionForm({
           </div>
         )}
 
-        {!isTransfer && fixedSourceName && (
+        {!isTransfer && fixedSourceName && !readOnly && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={rowLabelStyle}>원천</span>
             <span style={{ flex: 1, textAlign: 'right', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{fixedSourceName}</span>
           </div>
         )}
-        {!isTransfer && !fixedSourceName && (
+        {!isTransfer && !fixedSourceName && !readOnly && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={rowLabelStyle}>원천</span>
             <select
@@ -1336,7 +1347,7 @@ const TransactionForm = forwardRef(function TransactionForm({
         )}
 
         {/* 원천 바로 아래: 온누리 가맹점(디지털 온누리 연결 카드) */}
-        {showOnnuri && (
+        {showOnnuri && !readOnly && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
             <span style={{ ...rowLabelStyle, width: 'auto', flex: 1 }}>온누리 가맹점</span>
             <button
@@ -1384,7 +1395,7 @@ const TransactionForm = forwardRef(function TransactionForm({
           />
         ))}
 
-        {!isTransfer && <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>}
+        {!isTransfer && !readOnly && <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>}
 
         {isTransfer && !onSubmit && feeEnabled && (
           <div style={{ display: 'grid', gridTemplateColumns: tableCols, gap: 8, alignItems: 'center', padding: '5px 0' }}>
@@ -1449,8 +1460,9 @@ const TransactionForm = forwardRef(function TransactionForm({
       {error && <p className="error" style={{ marginTop: 14 }}>{error}</p>}
       {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
       {installmentDeleteEl}
-      <button className="btn-ink-pill" style={{ marginTop: 26 }} disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
-      {editing && onDelete && (
+      </fieldset>
+      {!readOnly && <button className="btn-ink-pill" style={{ marginTop: 26 }} disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>}
+      {!readOnly && editing && onDelete && (
         <button
           type="button" onClick={handleDelete} disabled={deleteBusy}
           style={{

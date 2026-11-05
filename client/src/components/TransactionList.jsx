@@ -97,7 +97,7 @@ export function DayCardRow({ dimmed = false, index, count, isOpen, onOpenChange,
 }
 
 export default function TransactionList({
-  transactions, onEdit, onDelete, onCopy, canEdit, dateFormat, emptyText, groupByMonth, groupTint = true, emptyCenter = false,
+  transactions, onEdit, onDelete, onCopy, canEdit, dateFormat, emptyText, groupByMonth, groupTint = true, emptyCenter = false, hideSource = false,
   selectionMode = false, selectedIds, onToggleSelect, onLongPress,
 }) {
   // 한 번에 하나의 행만 스와이프로 열려 있도록: 새로 열리는 행의 id 를 기록하고,
@@ -149,7 +149,7 @@ export default function TransactionList({
             const sub = t.type === 'transfer'
               ? [t.category_name || '이체', (t.source_name && t.to_source_name) ? `${t.source_name} → ${t.to_source_name}` : ''].filter(Boolean).join(' · ') || '—'
               // 일부라도 디지털 온누리에서 차감된 온누리 가맹점 결제: 원천 옆에 "(디지털 온누리)" — 예: 식당 · 롯데카드(디지털 온누리)
-              : [t.category_name, t.source_name ? `${t.source_name}${t.onnuri_deduct > 0 ? '(디지털 온누리)' : ''}${t.exclude_performance ? ' (실적 제외)' : ''}` : ''].filter(Boolean).join(' · ') || '—';
+              : [t.category_name, (!hideSource && t.source_name) ? `${t.source_name}${t.onnuri_deduct > 0 ? '(디지털 온누리)' : ''}${t.exclude_performance ? ' (실적 제외)' : ''}` : ''].filter(Boolean).join(' · ') || '—';
             const selected = selectionMode && selectedIds?.has(t.id);
             return (
               <DayCardRow

@@ -1193,7 +1193,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                         <DayCardRow
                           key={p.id} index={i} count={items.length}
                           isOpen={openPayId === p.id} onOpenChange={(open) => setOpenPayId(open ? p.id : null)}
-                          clickable={isOwner} onTap={() => isOwner && nav(`/tx/${p.id}?group=${gid}&kind=payment`)}
+                          clickable onTap={() => nav(`/tx/${p.id}?group=${gid}&kind=payment`)} // 일반 멤버는 기록 상세(조회 전용)
                           onDelete={isOwner ? () => delPayment(p) : undefined}
                         >
                             <span className="tx-tile" style={{ background: payCatColors[p.category_name] || (p.category_emoji ? tileBg(p.category_name) : 'var(--k-bg-f2f1f5)') }}>{p.category_emoji || '💳'}</span>
@@ -1201,7 +1201,8 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
                               <div className="tx-row-title">
                                 <span className="ttext">{p.content || p.category_name} <span className="tag-periods">{p.periods} 회분</span></span>
                               </div>
-                              <div className="tx-row-sub">{[p.category_name, p.source_name].filter(Boolean).join(' · ') || '—'}</div>
+                              {/* 원천은 총무/총대에게만 */}
+                              <div className="tx-row-sub">{[p.category_name, isOwner ? p.source_name : ''].filter(Boolean).join(' · ') || '—'}</div>
                             </div>
                             <FxAmount row={p} sign="-" color="var(--expense)" />
                         </DayCardRow>

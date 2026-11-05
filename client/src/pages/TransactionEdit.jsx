@@ -236,9 +236,11 @@ export default function TransactionEdit() {
   const defaultTransferMemberId = isPooledTransfer ? (initial?.member_id || myGroupMember?.id) : undefined;
 
   // 상단바 버튼은 개인/그룹 기록 화면 모두 동일: 영수증으로 채우기 + (신규) 즐겨찾기 / (수정) 복사
-  const showReceiptBtn = true;
-  const showFavoriteBtn = !editing;
-  const showCopyBtn = editing && !!initial;
+  // 일반 멤버가 그룹 결제 내역을 열면 조회 전용(기록 상세): 입력·수정·삭제·복사·영수증 채우기 불가
+  const viewOnly = (isPayment || isGroupExpense) && !!group && group.owner_id !== user.id;
+  const showReceiptBtn = !viewOnly;
+  const showFavoriteBtn = !editing && !viewOnly;
+  const showCopyBtn = editing && !!initial && !viewOnly;
   // 즐겨찾기 목록에서 항목을 고르면 지금 보고 있는 이 기록 화면(그룹 결제/입금 등 URL 그대로)으로
   // 돌아와 채워지도록 현재 경로를 함께 넘긴다.
   const openFavorites = () => nav('/favorites', { state: { returnTo: location.pathname + location.search } });
@@ -283,7 +285,7 @@ export default function TransactionEdit() {
         <button className="tb-icon-btn" onClick={() => nav(location.state?.closeTo ?? -1)} aria-label="닫기">
           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
         </button>
-        <div className="title">{editing ? '기록 수정' : '기록'}</div>
+        <div className="title">{viewOnly ? '기록 상세' : editing ? '기록 수정' : '기록'}</div>
         {(showReceiptBtn || showFavoriteBtn || showCopyBtn) && (
           <div className="topbar-right" style={{ display: 'flex', gap: 8 }}>
             {showFavoriteBtn && (
@@ -365,7 +367,8 @@ export default function TransactionEdit() {
             autoReceiptBase64={autoReceiptBase64}
             autoReceiptMime={autoReceiptMime}
             autoToast={location.state?.toast}
-            onDelete={(!groupId && editing) ? deleteTx : undefined}
+            onDelete={(!groupId && editing && !viewOnly) ? deleteTx : undefined}
+            readOnly={viewOnly}
           />
         )}
       </div>
