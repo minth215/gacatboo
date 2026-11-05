@@ -1549,6 +1549,10 @@ export const db = {
     if (error) throw new Error(error.message);
     return count || 0;
   },
+  // 초대장 카드에 한 응답 기록(0100) — 읽음 처리도 함께
+  async setInviteResponse(id, response) {
+    return unwrap(await supabase.from('notifications').update({ invite_response: response, read_at: new Date().toISOString() }).eq('id', id));
+  },
   async markNotificationRead(id) {
     return unwrap(await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id));
   },

@@ -41,14 +41,13 @@ export default function Notifications() {
   const submitAccept = async () => {
     const { r, memberId, nickname, sourceId } = acceptFor;
     if (!nickname.trim()) return alert('닉네임을 입력하세요.');
+    if (!sourceId) return alert('출금 수단을 선택하세요.');
     setInviteBusy(memberId);
     try {
       await db.acceptGroupInvite(memberId, nickname.trim(), sourceId);
       setInviteStatus((prev) => ({ ...prev, [memberId]: { status: 'active', linked_to_me: true } }));
-      if (!r.read_at) {
-        setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, read_at: new Date().toISOString() } : x)));
-        db.markNotificationRead(r.id).catch(() => {});
-      }
+      setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, invite_response: 'accepted', read_at: x.read_at || new Date().toISOString() } : x)));
+      db.setInviteResponse(r.id, 'accepted').catch(() => {});
       setAcceptFor(null);
     } catch (e) { alert(e.message); }
     finally { setInviteBusy(null); }
@@ -81,6 +80,12 @@ export default function Notifications() {
       }));
   }, [rows]);
 
+  // 멤버(초대) id 별로 아직 응답하지 않은 가장 최근 초대장 카드 id(목록은 최신순)
+  const latestInviteId = {};
+  rows.forEach((r) => {
+    if (r.event_key !== 'group_invite' || !r.data?.member_id || r.invite_response) return;
+    if (!(r.data.member_id in latestInviteId)) latestInviteId[r.data.member_id] = r.id;
+  });
   const hasUnread = rows.some((r) => !r.read_at);
   // 하단 바 알림 점(Layout)에 안 읽은 개수를 바로 알림
   useEffect(() => {
@@ -101,10 +106,9 @@ export default function Notifications() {
     try {
       await db.respondToGroupInvite(memberId, accept);
       setInviteStatus((prev) => ({ ...prev, [memberId]: { status: 'active', linked_to_me: accept } }));
-      if (!r.read_at) {
-        setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, read_at: new Date().toISOString() } : x)));
-        db.markNotificationRead(r.id).catch(() => {});
-      }
+      const resp = accept ? 'accepted' : 'declined';
+      setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, invite_response: resp, read_at: x.read_at || new Date().toISOString() } : x)));
+      db.setInviteResponse(r.id, resp).catch(() => {});
     } catch (e) { alert(e.message); }
     finally { setInviteBusy(null); }
   };
@@ -113,9 +117,14 @@ export default function Notifications() {
     if (r.event_key === 'group_invite') {
       // 수락 전/거절 상태는 눌러도 이동 없음(버튼으로만 응답). 수락한 상태면 그 그룹으로,
       // 그 뒤 그룹에서 나왔거나 그룹이 삭제됐으면 안내 토스트.
+      // 카드별 응답(0100): 수락했던 카드는 지금 그 그룹 멤버면 이동, 탈퇴했거나 재초대 수락 전이면 토스트
       const st = r.data?.member_id ? inviteStatus[r.data.member_id] : null;
-      if (st?.status === 'gone') { showToast('지금 참여 중인 그룹이 아닙니다'); return; }
-      if (!(st?.status === 'active' && st?.linked_to_me)) return;
+      if (r.invite_response === 'accepted') {
+        if (!(st?.status === 'active' && st?.linked_to_me)) { showToast('지금 참여 중인 그룹이 아닙니다'); return; }
+      } else {
+        if (st?.status === 'gone') { showToast('지금 참여 중인 그룹이 아닙니다'); return; }
+        if (r.invite_response || !(st?.status === 'active' && st?.linked_to_me)) return;
+      }
     }
     if (!r.read_at) {
       setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, read_at: new Date().toISOString() } : x)));
@@ -150,6 +159,10 @@ export default function Notifications() {
       ) : (
         rows.map((r, i) => {
           const invite = r.event_key === 'group_invite' && r.data?.member_id ? inviteStatus[r.data.member_id] : null;
+          // 응답 문구: 이 카드에 한 응답(0100). 응답 기록이 없는 예전 카드는 최신 초대장일 때만 현재 상태로 추정
+          const isLatestInvite = r.event_key === 'group_invite' && latestInviteId[r.data?.member_id] === r.id;
+          const responseLabel = r.invite_response === 'accepted' ? '수락했어요' : r.invite_response === 'declined' ? '거절했어요'
+            : (isLatestInvite && invite?.status === 'active') ? (invite.linked_to_me ? '수락했어요' : '거절했어요') : null;
           return (
           // 가계부 카드와 같은 스와이프: 카드 자체가 밀리고 그 자리엔 페이지 배경 위 삭제 버튼만 보임
           <div key={r.id} className="tx-daygroup" style={{ marginTop: i === 0 ? 0 : 10 }}>
@@ -180,9 +193,9 @@ export default function Notifications() {
                     {/* 내용 줄. 초대에 응답했으면 같은 줄 오른쪽 끝에 "수락했어요/거절했어요" */}
                     <div style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
                       <span style={{ minWidth: 0, fontSize: 12, color: 'var(--k-tx-6c6779)', lineHeight: 1.4 }}>{r.body}</span>
-                      {invite && (invite.status === 'active') && (
-                        <span style={{ flex: 'none', whiteSpace: 'nowrap', fontSize: 11, fontWeight: 700, color: invite.linked_to_me ? 'var(--income)' : 'var(--k-tx-a29ead)' }}>
-                          {invite.linked_to_me ? '수락했어요' : '거절했어요'}
+                      {responseLabel && (
+                        <span style={{ flex: 'none', whiteSpace: 'nowrap', fontSize: 11, fontWeight: 700, color: responseLabel === '수락했어요' ? 'var(--income)' : 'var(--k-tx-a29ead)' }}>
+                          {responseLabel}
                         </span>
                       )}
                     </div>
@@ -190,8 +203,9 @@ export default function Notifications() {
                 </div>
                 {r.event_key === 'group_invite' && r.data?.member_id && (() => {
                   const st = inviteStatus[r.data.member_id];
-                  if (st?.status === 'gone') return null;
-                  if (!st || st.status === 'pending') {
+                  if (st?.status === 'gone' || r.invite_response) return null;
+                  // 수락/거절 버튼은 아직 응답하지 않은 가장 최근 초대장 카드에만
+                  if (isLatestInvite && (!st || st.status === 'pending')) {
                     const busy = inviteBusy === r.data.member_id;
                     return (
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
@@ -227,7 +241,7 @@ export default function Notifications() {
               />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>출금 수단</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>출금 수단 <span style={{ color: '#FF3B5C' }}>*</span></span>
               {/* 입금 내역에서 내 쪽 원천으로 들어갈 수단(원천 그룹 아래 세부 항목) */}
               <select
                 value={acceptFor.sourceId} onChange={(e) => setAcceptFor((a) => ({ ...a, sourceId: e.target.value }))}
@@ -241,7 +255,7 @@ export default function Notifications() {
                 ))}
               </select>
             </label>
-            <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 44, fontSize: 14 }} disabled={inviteBusy === acceptFor.memberId || !acceptFor.nickname.trim()} onClick={submitAccept}>
+            <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 44, fontSize: 14 }} disabled={inviteBusy === acceptFor.memberId || !acceptFor.nickname.trim() || !acceptFor.sourceId} onClick={submitAccept}>
               {inviteBusy === acceptFor.memberId ? '입장 중…' : '입장하기'}
             </button>
           </div>
