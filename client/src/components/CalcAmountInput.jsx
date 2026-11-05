@@ -115,6 +115,9 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   const [focused, setFocused] = useState(false);
   const [expr, setExpr] = useState('');
   const justEvaluatedRef = useRef(false);
+  // 이미 금액이 있는 칸을 다시 열었을 때: 숫자를 바로 누르면 기존 값을 지우고 새로 입력,
+  // 소수점·연산자·%·지우기를 먼저 누르면 기존 값에 이어서 동작
+  const freshOpenRef = useRef(false);
   const firstOpenRef = useRef(true);
   const rootRef = useRef(null);
 
@@ -157,6 +160,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
     }
     firstOpenRef.current = false;
     justEvaluatedRef.current = false;
+    freshOpenRef.current = true;
     setFocused(true);
   };
 
@@ -210,33 +214,41 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
     return s.slice(last + 1);
   };
 
-  const pressDigit = (d) => setExpr((prev) => {
+  const pressDigit = (d) => {
+    // 다시 연 직후 첫 숫자: 기존 값을 지우고 새로(업데이터 밖에서 처리해 중복 호출에도 안전)
+    if (freshOpenRef.current) { freshOpenRef.current = false; justEvaluatedRef.current = false; setExpr(d); return; }
+    pressDigitAppend(d);
+  };
+  const pressDigitAppend = (d) => setExpr((prev) => {
     if (justEvaluatedRef.current) { justEvaluatedRef.current = false; return d; }
     // % 뒤 숫자: "100%5" = 100의 5%
     if (prev === '0') return d;
     return prev + d;
   });
   const pressDot = () => setExpr((prev) => {
+    freshOpenRef.current = false;
     if (justEvaluatedRef.current) { justEvaluatedRef.current = false; return '0.'; }
     const seg = currentSegment(prev).split('%').pop(); // % 뒤 숫자 기준
     if (seg.includes('.')) return prev;
     return prev + (seg === '' ? '0.' : '.');
   });
   const pressPercent = () => setExpr((prev) => {
+    freshOpenRef.current = false;
     justEvaluatedRef.current = false;
     const seg = currentSegment(prev);
     if (!seg || seg.endsWith('%')) return prev;
     return prev + '%';
   });
   const pressOp = (op) => setExpr((prev) => {
+    freshOpenRef.current = false;
     justEvaluatedRef.current = false;
     if (!prev) return (allowNegative && op === '-') ? '-' : prev; // 음수 허용 칸은 처음에 "−"로 음수 시작
     if (prev === '-') return prev;
     if (OP_CHARS.includes(prev[prev.length - 1])) return prev.slice(0, -1) + op;
     return prev + op;
   });
-  const pressBackspace = () => setExpr((prev) => prev.slice(0, -1));
-  const pressClear = () => setExpr('');
+  const pressBackspace = () => { freshOpenRef.current = false; justEvaluatedRef.current = false; setExpr((prev) => prev.slice(0, -1)); };
+  const pressClear = () => { freshOpenRef.current = false; setExpr(''); };
   const pressEquals = () => {
     if (currency !== 'KRW' && rateLoading) return; // 환율 로딩 중엔 확정 보류(0원으로 확정되는 것 방지)
     commitAndNotify();
