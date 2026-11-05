@@ -36,6 +36,15 @@ export const isLeftoverName = (name) => name === LEFTOVER_NAME || name === '짤�
 // 두어(항목명 input 과 같은 네이티브 폼 컨트롤이라 높이가 자연스럽게 일치) 글자만 투명하게
 // 지우고 그 위에 라벨을 겹쳐 그린다(옵션 자체는 각각 색을 직접 줘서 select 의 투명 글자색을
 // 상속받지 않게 함).
+// 여러 정산 대상을 한 입금으로 묶을 때 멤버 쪽 분류: 대상들의 분류가 둘 이상이면 "{첫 번째 분류} 등"
+export function combinedTargetCategory(targets) {
+  const list = targets.filter(Boolean);
+  const first = list[0];
+  if (!first) return null;
+  const names = new Set(list.map((t) => t.category_name || ''));
+  return { name: names.size > 1 ? `${first.category_name} 등` : (first.category_name || ''), emoji: first.category_emoji || '' };
+}
+
 function SettleTargetSelect({ value, onChange, options, label, style }) {
   const picked = options.find((x) => String(x.id) === String(value));
   const text = picked ? `${picked.category_emoji ? `${picked.category_emoji} ` : ''}${label(picked)}` : '';
@@ -478,12 +487,12 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     if (!settleRows.length) return;
     const multi = settleRows.length > 1;
     const target = !multi && settleRows[0]?.targetId ? sortedPayments.find((p) => p.id === settleRows[0].targetId) : null;
-    // 입금 분류는 첫 번째 결제 내역의 분류
-    const firstTarget = settleRows[0]?.targetId ? sortedPayments.find((p) => p.id === settleRows[0].targetId) : null;
+    // 입금 분류는 첫 번째 결제 내역의 분류(대상 분류가 여러 가지면 "{첫 번째 분류} 등")
+    const cat = combinedTargetCategory(settleRows.map((r) => (r.targetId ? sortedPayments.find((p) => p.id === r.targetId) : null)));
     const amount = settleRows.reduce((x, r) => x + r.amount, 0);
     await db.createDeposit({
       group_id: gid, member_id: m.id, date, amount, periods: 1,
-      category_name: firstTarget?.category_name || '정산', category_emoji: firstTarget?.category_emoji || '',
+      category_name: cat?.name || '정산', category_emoji: cat?.emoji || '',
       leader_category_name: '정산', leader_category_emoji: settleIncomeCat?.emoji || '',
       leader_settlement_target_id: multi ? null : (settleRows[0]?.targetId || null),
       deposit_source_name: sub?.deposit_source_name || '',
@@ -1311,6 +1320,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   const multiSettle = isOwner && isSettleMode;
   // 일반 멤버의 정산 그룹 입금(+ 버튼·정산 현황 일괄/수정): 결제 내역을 셀렉트박스로 골라 행마다 내 몫 금액
   const memberSettle = !isOwner && isSettleMode;
+  const memberCatTouched = useRef(false); // 멤버가 분류를 직접 바꿨는지("등" 표기 해제)
   // 멤버 입금: 결제 내역에서 내 몫(항목별 참여 금액 합). 참여 정보가 없으면 null(직접 입력)
   const myShareOf = (tx) => {
     const mid = Number(f?.memberId || initial?.member_id);
@@ -1366,6 +1376,9 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   const addSettleRow = () => setSettleRows((prev) => [...prev, { targetId: '', name: '', amount: '' }]);
   const removeSettleRow = (idx) => setSettleRows((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
   const settleTotal = settleRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  // 화면 표시: 직접 고치지 않았고 고른 결제 내역 분류가 여러 가지면 "{첫 번째 분류} 등"
+  const liveCombinedRaw = memberSettle ? combinedTargetCategory(settleRows.filter((r) => r.targetId).map((r) => recentExpenses.find((x) => String(x.id) === String(r.targetId)))) : null;
+  const liveCombined = (memberSettle && !memberCatTouched.current && liveCombinedRaw?.name?.endsWith(' 등')) ? liveCombinedRaw : null;
 
   // 구독 그룹 입금 내역을 새로 등록할 때: 내용/회차/금액 항목 표(여러 건을 한 번에 기록 가능).
   // "회차"는 총 결제 건수 집계를 위한 참고값(금액에 곱해지는 수량이 아니라, 금액을 정기입금액으로
@@ -1725,9 +1738,18 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
         await onSave({
           member_id: Number(f.memberId || initial?.member_id), date: f.date,
           amount: rows.reduce((x, r) => x + Math.round(Number(r.amount)), 0), periods: 1,
-          // 분류는 첫 번째 결제 내역의 분류
-          category_name: first?.category_name || (editing ? initial.category_name : defaultCategoryName),
-          category_emoji: first?.category_emoji || (editing ? initial.category_emoji : ''),
+          // 분류: 멤버가 직접 고쳤으면 그 분류, 아니면 첫 번째 결제 내역 분류(여러 가지면 "… 등")
+          ...(() => {
+            if (memberCatTouched.current && f.mCatId && f.mCatId !== KEEP) {
+              const c = cats.find((x) => String(x.id) === f.mCatId);
+              if (c) return { category_name: c.name, category_emoji: c.emoji || '' };
+            }
+            const cc = combinedTargetCategory(targets);
+            return {
+              category_name: cc?.name || (editing ? initial.category_name : defaultCategoryName),
+              category_emoji: cc?.emoji || (editing ? initial.category_emoji : ''),
+            };
+          })(),
           source_id: null, source_name: m_source,
           deposit_source_name: editing ? (initial.deposit_source_name || '') : (sub?.deposit_source_name || ''),
           leader_category_name: editing ? (initial.leader_category_name || '') : (sub?.deposit_category || '정산'),
@@ -2009,7 +2031,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
           {isOwner ? (
             <CategorySelect cats={incomeCats} value={f.lCatId} onChange={(v) => setF({ ...f, lCatId: v })} keepLabel={initial?.leader_category_name} placeholder="분류 선택" selectRef={categorySelectRef} onEdit={() => goEditSettings('/settings/categories/income')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lCatId ? 600 : 400, color: f.lCatId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }} />
           ) : (
-            <CategorySelect cats={cats} value={f.mCatId} onChange={(v) => setF({ ...f, mCatId: v })} keepLabel={initial?.category_name} placeholder="분류 선택" selectRef={categorySelectRef} onEdit={() => goEditSettings('/settings/categories/expense')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.mCatId ? 600 : 400, color: f.mCatId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }} />
+            <CategorySelect cats={cats} value={liveCombined ? KEEP : f.mCatId} onChange={(v) => { memberCatTouched.current = true; setF({ ...f, mCatId: v }); }} keepLabel={liveCombined ? `${liveCombined.emoji ? `${liveCombined.emoji} ` : ''}${liveCombined.name}` : initial?.category_name} placeholder="분류 선택" selectRef={categorySelectRef} onEdit={() => goEditSettings('/settings/categories/expense')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.mCatId ? 600 : 400, color: f.mCatId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }} />
           )}
         </div>
 
