@@ -468,7 +468,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     leader_settlement_target_id: selectedPayment?.id || null,
     deposit_source_name: sub?.deposit_source_name || '',
     content: selectedPayment ? `${itemLabelOf(selectedPayment)} 정산` : settleContentDefault,
-    items: selectedPayment ? [{ targetId: selectedPayment.id, label: itemLabelOf(selectedPayment), amount: m.remaining }] : null,
+    items: selectedPayment ? [{ targetId: selectedPayment.id, label: itemLabelOf(selectedPayment), emoji: selectedPayment.category_emoji || '', amount: m.remaining }] : null,
   });
 
   // "정산 일괄 완료"·본인 "정산 완료했어요"(전체 보기): 멤버별 입금 내역 한 건으로 묶고, 결제 건별 내 몫을
@@ -478,17 +478,20 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     if (!settleRows.length) return;
     const multi = settleRows.length > 1;
     const target = !multi && settleRows[0]?.targetId ? sortedPayments.find((p) => p.id === settleRows[0].targetId) : null;
+    // 입금 분류는 첫 번째 결제 내역의 분류
+    const firstTarget = settleRows[0]?.targetId ? sortedPayments.find((p) => p.id === settleRows[0].targetId) : null;
     const amount = settleRows.reduce((x, r) => x + r.amount, 0);
     await db.createDeposit({
       group_id: gid, member_id: m.id, date, amount, periods: 1,
-      category_name: target?.category_name || '정산', category_emoji: target?.category_emoji || '',
+      category_name: firstTarget?.category_name || '정산', category_emoji: firstTarget?.category_emoji || '',
       leader_category_name: '정산', leader_category_emoji: settleIncomeCat?.emoji || '',
       leader_settlement_target_id: multi ? null : (settleRows[0]?.targetId || null),
       deposit_source_name: sub?.deposit_source_name || '',
       content: multi ? settleContentDefault : (target ? `${itemLabelOf(target)} 정산` : settleContentDefault),
       items: settleRows.map((r) => {
         const t = r.targetId ? sortedPayments.find((p) => p.id === r.targetId) : null;
-        return { targetId: r.targetId || null, label: t ? itemLabelOf(t) : '정산', amount: r.amount };
+        // 상세 항목: 결제 대표 내용 + 그 결제 분류 이모지
+        return { targetId: r.targetId || null, label: t ? itemLabelOf(t) : '정산', emoji: t?.category_emoji || '', amount: r.amount };
       }),
     });
   };
@@ -1309,9 +1312,19 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   // 멤버 본인의 정산 입금 수정 화면: 입금에 담긴 결제 건별 내 몫(대상 결제 대표 내용 + 금액)을 표로(조회용)
   const shareRows = (!isOwner && isSettleMode && editing)
     ? (Array.isArray(initial?.items) && initial.items.length
-      ? initial.items.map((it) => ({ targetId: it.targetId != null && it.targetId !== '' ? Number(it.targetId) : null, label: it.label || '정산', amount: Number(it.amount) || 0 }))
+      ? initial.items.map((it) => ({ targetId: it.targetId != null && it.targetId !== '' ? Number(it.targetId) : null, label: it.label || '정산', emoji: it.emoji || '', amount: Number(it.amount) || 0 }))
       : (initial?.leader_settlement_target_id ? [{ targetId: Number(initial.leader_settlement_target_id), label: initial.content || '정산', amount: Number(initial.amount) || 0 }] : []))
     : [];
+  // 예전에 저장돼 이모지가 없는 행은 대상 결제 내역의 분류 이모지를 가져와 채움
+  const [targetEmoji, setTargetEmoji] = useState({});
+  const missingIds = shareRows.filter((r) => !r.emoji && r.targetId).map((r) => r.targetId).join(',');
+  useEffect(() => {
+    if (!missingIds) return;
+    let alive = true;
+    Promise.all(missingIds.split(',').map((id) => db.getTransaction(Number(id)).then((t) => [id, t?.category_emoji || '']).catch(() => [id, ''])))
+      .then((pairs) => { if (alive) setTargetEmoji(Object.fromEntries(pairs)); });
+    return () => { alive = false; };
+  }, [missingIds]);
   const settleTargetLabel = (x) => x?.content || x?.category_name || '지출';
   // 행의 "내용" 칸: targetId 가 선택된 행이면 정산 대상, 아니면 name 에 적은 자유 텍스트(분류가 정산이
   // 아닐 때 사용 — isLeaderSettlement 참고)
@@ -1984,7 +1997,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
             {shareRows.map((r, i) => (
               <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 96px', gap: 8, padding: '9px 0', alignItems: 'center' }}>
                 <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(r.emoji || targetEmoji[r.targetId]) ? `${r.emoji || targetEmoji[r.targetId]} ` : ''}{r.label}</span>
                   {r.targetId && (
                     <button
                       type="button" aria-label="결제 내역 보기" onClick={() => nav(`/tx/${r.targetId}`)}
@@ -1997,6 +2010,11 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                 <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', textAlign: 'right' }}>{fmtNum(r.amount)}</span>
               </div>
             ))}
+            {/* 합계(멤버 입장에선 지출이라 코랄핑크) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 96px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)' }}>
+              <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>합계</span>
+              <span style={{ fontSize: 15.5, fontWeight: 800, color: '#FF4358', textAlign: 'right' }}>{fmtNum(shareRows.reduce((x, r) => x + r.amount, 0))}</span>
+            </div>
           </div>
         )}
 
