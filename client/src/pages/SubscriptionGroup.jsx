@@ -471,23 +471,26 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     items: selectedPayment ? [{ targetId: selectedPayment.id, label: itemLabelOf(selectedPayment), amount: m.remaining }] : null,
   });
 
-  // "정산 일괄 완료"·본인 "정산 완료했어요"(전체 보기): 정산 대상 결제 건마다 입금 내역을 하나씩 만든다
-  // (대상이 둘 이상이면 입금 내역도 그만큼). 각 입금은 대상 1건을 items 로 저장해 수정 화면에서 표로 보이게 함.
+  // "정산 일괄 완료"·본인 "정산 완료했어요"(전체 보기): 멤버별 입금 내역 한 건으로 묶고, 결제 건별 내 몫을
+  // items(대상 결제 대표 내용 + 금액)로 저장. 이미 그 건으로 정산된 금액은 빠지므로(buildSettleRows) 남은 건만 행이 됨.
   const createSettleDepositsAll = async (m, date) => {
-    const settleRows = buildSettleRows(m);
-    for (const r of settleRows) {
-      if (!(r.amount > 0)) continue;
-      const t = r.targetId ? sortedPayments.find((p) => p.id === r.targetId) : null;
-      await db.createDeposit({
-        group_id: gid, member_id: m.id, date, amount: r.amount, periods: 1,
-        category_name: t?.category_name || '정산', category_emoji: t?.category_emoji || '',
-        leader_category_name: '정산', leader_category_emoji: settleIncomeCat?.emoji || '',
-        leader_settlement_target_id: r.targetId || null,
-        deposit_source_name: sub?.deposit_source_name || '',
-        content: t ? `${itemLabelOf(t)} 정산` : settleContentDefault,
-        items: [{ targetId: r.targetId || null, label: t ? itemLabelOf(t) : '정산', amount: r.amount }],
-      });
-    }
+    const settleRows = buildSettleRows(m).filter((r) => r.amount > 0);
+    if (!settleRows.length) return;
+    const multi = settleRows.length > 1;
+    const target = !multi && settleRows[0]?.targetId ? sortedPayments.find((p) => p.id === settleRows[0].targetId) : null;
+    const amount = settleRows.reduce((x, r) => x + r.amount, 0);
+    await db.createDeposit({
+      group_id: gid, member_id: m.id, date, amount, periods: 1,
+      category_name: target?.category_name || '정산', category_emoji: target?.category_emoji || '',
+      leader_category_name: '정산', leader_category_emoji: settleIncomeCat?.emoji || '',
+      leader_settlement_target_id: multi ? null : (settleRows[0]?.targetId || null),
+      deposit_source_name: sub?.deposit_source_name || '',
+      content: multi ? settleContentDefault : (target ? `${itemLabelOf(target)} 정산` : settleContentDefault),
+      items: settleRows.map((r) => {
+        const t = r.targetId ? sortedPayments.find((p) => p.id === r.targetId) : null;
+        return { targetId: r.targetId || null, label: t ? itemLabelOf(t) : '정산', amount: r.amount };
+      }),
+    });
   };
 
   // 짤짤이(자투리) 입금 완료: 실제 group_members 행이 아직 없으면 이 시점에 만든다.
@@ -1303,30 +1306,12 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   // 총무의 정산 그룹 입금은 작성/수정 모두 내용/금액 표(정산 대상별 행)로 입력한다
   // (예전의 단일 "정산대상" 셀렉트 필드는 더 이상 쓰지 않음).
   const multiSettle = isOwner && isSettleMode;
-  // 멤버 본인의 정산 입금 수정 화면: 정산 대상 결제 내역의 항목(내용/수량)을 그대로, 금액은 내 몫으로 표시(조회용)
-  const [shareRows, setShareRows] = useState(null);
-  useEffect(() => {
-    if (isOwner || !isSettleMode || !editing || !initial?.member_id) return;
-    const targetIds = [...new Set([
-      ...(Array.isArray(initial.items) ? initial.items.map((it) => it?.targetId).filter((x) => x != null && x !== '') : []),
-      ...(initial.leader_settlement_target_id ? [initial.leader_settlement_target_id] : []),
-    ].map(Number))];
-    if (!targetIds.length) return;
-    let alive = true;
-    Promise.all(targetIds.map((tid) => db.getTransaction(tid).catch(() => null))).then((txs) => {
-      if (!alive) return;
-      const out = [];
-      txs.filter(Boolean).forEach((tx) => {
-        (Array.isArray(tx.items) ? tx.items : []).forEach((it) => {
-          const mine = Array.isArray(it.members) ? it.members.find((x) => Number(x.member_id) === Number(initial.member_id)) : null;
-          if (!mine) return; // 내가 참여하지 않은 항목은 제외
-          out.push({ name: it.name || tx.content || '', qty: it.qty || 1, amount: Number(mine.amount) || 0 });
-        });
-      });
-      setShareRows(out);
-    });
-    return () => { alive = false; };
-  }, [isOwner, isSettleMode, editing, initial]);
+  // 멤버 본인의 정산 입금 수정 화면: 입금에 담긴 결제 건별 내 몫(대상 결제 대표 내용 + 금액)을 표로(조회용)
+  const shareRows = (!isOwner && isSettleMode && editing)
+    ? (Array.isArray(initial?.items) && initial.items.length
+      ? initial.items.map((it) => ({ targetId: it.targetId != null && it.targetId !== '' ? Number(it.targetId) : null, label: it.label || '정산', amount: Number(it.amount) || 0 }))
+      : (initial?.leader_settlement_target_id ? [{ targetId: Number(initial.leader_settlement_target_id), label: initial.content || '정산', amount: Number(initial.amount) || 0 }] : []))
+    : [];
   const settleTargetLabel = (x) => x?.content || x?.category_name || '지출';
   // 행의 "내용" 칸: targetId 가 선택된 행이면 정산 대상, 아니면 name 에 적은 자유 텍스트(분류가 정산이
   // 아닐 때 사용 — isLeaderSettlement 참고)
@@ -1989,18 +1974,26 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
           )}
         </div>
 
-        {/* 멤버 본인 정산 입금: 정산 대상 결제 내역의 항목별 내 몫(내용/수량/금액 표) */}
-        {!isOwner && shareRows?.length > 0 && (
+        {/* 멤버 본인 정산 입금: 결제 건별 내 몫(내용/금액). 내용 오른쪽 ">" 로 그 결제 내역의 기록 상세로 */}
+        {shareRows.length > 0 && (
           <div style={{ padding: '6px 0' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 40px 84px', gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 96px', gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>내용</span>
-              <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'center' }}>수량</span>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'right' }}>금액</span>
             </div>
             {shareRows.map((r, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 40px 84px', gap: 8, padding: '9px 0', alignItems: 'center' }}>
-                <span style={{ minWidth: 0, fontSize: 13.5, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name || '—'}</span>
-                <span style={{ fontSize: 13.5, color: 'var(--k-tx-191722)', textAlign: 'center' }}>{r.qty}</span>
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 96px', gap: 8, padding: '9px 0', alignItems: 'center' }}>
+                <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span>
+                  {r.targetId && (
+                    <button
+                      type="button" aria-label="결제 내역 보기" onClick={() => nav(`/tx/${r.targetId}`)}
+                      style={{ flex: 'none', width: 22, height: 22, border: 'none', background: 'transparent', color: 'var(--k-tx-a29ead)', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
+                    </button>
+                  )}
+                </span>
                 <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', textAlign: 'right' }}>{fmtNum(r.amount)}</span>
               </div>
             ))}
