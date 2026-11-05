@@ -836,9 +836,15 @@ export const db = {
     const notes = {};
     (unwrap(await supabase.from('group_member_notes').select('member_id, memo').eq('group_id', id)) || [])
       .forEach((n) => { notes[n.member_id] = n.memo; });
+    // 멤버가 수락하며 정한 닉네임(self_nickname, 0097)은 총무/총대가 아닌 멤버들에게 보임.
+    // 총무/총대에게는 본인이 정한 닉네임(nickname) 그대로.
+    const { data: sess } = await supabase.auth.getSession();
+    const viewerIsOwner = sess?.session?.user?.id === group.owner_id;
     const members = rows.map((m) => ({
       id: m.id, user_id: m.user_id, role: m.role,
-      nickname: m.nickname || m.profiles?.display_name || '멤버',
+      nickname: (!viewerIsOwner && m.self_nickname) || m.nickname || m.profiles?.display_name || '멤버',
+      owner_nickname: m.nickname || '', self_nickname: m.self_nickname || '',
+      withdraw_source_id: m.withdraw_source_id ?? null,
       username: m.profiles?.username || null,
       external_username: m.external_username || null, // 외부 멤버로 추가된 회원의 표시용 아이디
       is_account: !!m.user_id,
@@ -1555,6 +1561,17 @@ export const db = {
 
   // 그룹 초대 알림 카드의 수락/거절. 수락해야 실제로 그룹 멤버(status='active')가 되고,
   // 거절하면 멤버 행은 남긴 채 user_id만 비워 외부 멤버로 표기된다.
+  // 초대 수락 모달(0097): 그룹 이름·총무가 정한 닉네임
+  async getGroupInviteInfo(memberId) {
+    const { data, error } = await supabase.rpc('get_group_invite_info', { p_member_id: memberId });
+    if (error) throw new Error(error.message);
+    return (data || [])[0] || null;
+  },
+  // 수락 + 내 닉네임·출금 수단 저장(수락 전 입금 내역의 비어 있는 원천도 채움)
+  async acceptGroupInvite(memberId, nickname, sourceId) {
+    const { error } = await supabase.rpc('accept_group_invite', { p_member_id: memberId, p_nickname: nickname || '', p_source_id: sourceId ? Number(sourceId) : null });
+    if (error) throw new Error(error.message);
+  },
   async respondToGroupInvite(memberId, accept) {
     const { error } = await supabase.rpc('respond_to_group_invite', { p_member_id: memberId, p_accept: accept });
     if (error) throw new Error(error.message);

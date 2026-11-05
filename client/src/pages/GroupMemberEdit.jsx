@@ -43,7 +43,7 @@ export default function GroupMemberEdit() {
       const m = members.find((x) => x.id === mid);
       if (!m) { alert('멤버를 찾을 수 없습니다.'); nav(-1); return; }
       setGroup(g); setMember(m); setAllMembers(members);
-      setForm({ nickname: m.nickname || '', start_date: m.start_date || '', end_date: m.end_date || '', memo: m.memo || '', ext: m.external_username || '' });
+      setForm({ nickname: m.owner_nickname || m.nickname || '', start_date: m.start_date || '', end_date: m.end_date || '', memo: m.memo || '', ext: m.external_username || '' });
     }).catch((e) => { alert(e.message); nav(-1); });
   }, [gid, mid, nav]);
 
@@ -110,6 +110,10 @@ export default function GroupMemberEdit() {
               >회원 연결</button>
             )}
           </div>
+          {/* 멤버가 수락하며 정한 닉네임(다른 멤버들에게는 이 이름으로 보임) */}
+          {member?.self_nickname && member.self_nickname !== form.nickname && (
+            <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--k-tx-a29ead)', paddingLeft: 2 }}>멤버가 설정한 닉네임: {member.self_nickname}</span>
+          )}
         </label>
         <div style={{ display: 'flex', gap: 10 }}>
           <label style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>

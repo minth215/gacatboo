@@ -25,6 +25,34 @@ export default function Notifications() {
   // group_members 를 직접 조회할 수 없어 전용 RPC로 받아온다.
   const [inviteStatus, setInviteStatus] = useState({});
   const [inviteBusy, setInviteBusy] = useState(null);
+  // 수락 모달: 그룹 내 닉네임(총무/총대가 정한 이름이 기본)과 출금 수단(주결제수단이 기본)
+  const [acceptFor, setAcceptFor] = useState(null); // { r, memberId, groupName, nickname, sourceId }
+  const [sourceTree, setSourceTree] = useState([]);
+  const openAccept = async (r) => {
+    const memberId = r.data?.member_id;
+    if (!memberId || inviteBusy) return;
+    try {
+      const [info, { tree, flat }] = await Promise.all([db.getGroupInviteInfo(memberId), db.listSources()]);
+      setSourceTree(tree);
+      const primary = flat.find((x) => x.parent_id != null && x.is_primary_payment);
+      setAcceptFor({ r, memberId, groupName: info?.group_name || '', nickname: info?.nickname || '', sourceId: primary ? String(primary.id) : '' });
+    } catch (e) { alert(e.message); }
+  };
+  const submitAccept = async () => {
+    const { r, memberId, nickname, sourceId } = acceptFor;
+    if (!nickname.trim()) return alert('닉네임을 입력하세요.');
+    setInviteBusy(memberId);
+    try {
+      await db.acceptGroupInvite(memberId, nickname.trim(), sourceId);
+      setInviteStatus((prev) => ({ ...prev, [memberId]: { status: 'active', linked_to_me: true } }));
+      if (!r.read_at) {
+        setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, read_at: new Date().toISOString() } : x)));
+        db.markNotificationRead(r.id).catch(() => {});
+      }
+      setAcceptFor(null);
+    } catch (e) { alert(e.message); }
+    finally { setInviteBusy(null); }
+  };
   const [toast, setToast] = useState('');
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -167,7 +195,7 @@ export default function Notifications() {
                     const busy = inviteBusy === r.data.member_id;
                     return (
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
-                        <button type="button" className="btn-ink-pill" style={{ height: 30, width: 72, flex: 'none', marginTop: 0, fontSize: 12 }} disabled={busy} onClick={() => respondInvite(r, true)}>수락</button>
+                        <button type="button" className="btn-ink-pill" style={{ height: 30, width: 72, flex: 'none', marginTop: 0, fontSize: 12 }} disabled={busy} onClick={() => openAccept(r)}>수락</button>
                         <button type="button" className="btn-ink-pill" style={{ height: 30, width: 72, flex: 'none', marginTop: 0, fontSize: 12, background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-6c6779)' }} disabled={busy} onClick={() => respondInvite(r, false)}>거절</button>
                       </div>
                     );
@@ -181,6 +209,44 @@ export default function Notifications() {
         })
       )}
       {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
+      {acceptFor && (
+        <div className="catmodal-overlay" onClick={() => setAcceptFor(null)}>
+          <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>{acceptFor.groupName || '그룹'} 입장</div>
+              <button aria-label="닫기" onClick={() => setAcceptFor(null)} className="catmodal-icon-btn">
+                <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+              </button>
+            </div>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>닉네임</span>
+              <input
+                type="text" value={acceptFor.nickname} placeholder="그룹 내에서 보일 닉네임"
+                onChange={(e) => setAcceptFor((a) => ({ ...a, nickname: e.target.value }))}
+                style={{ fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 14, padding: '14px 16px', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>출금 수단</span>
+              {/* 입금 내역에서 내 쪽 원천으로 들어갈 수단(원천 그룹 아래 세부 항목) */}
+              <select
+                value={acceptFor.sourceId} onChange={(e) => setAcceptFor((a) => ({ ...a, sourceId: e.target.value }))}
+                style={{ ...{ fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', background: 'var(--k-bg-faf9f8)', border: '1.5px solid var(--k-bd-efeef2)', borderRadius: 14, padding: '14px 16px', outline: 'none', width: '100%', boxSizing: 'border-box' }, color: acceptFor.sourceId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}
+              >
+                <option value="">출금 수단 선택</option>
+                {sourceTree.filter((t) => t.children?.length).map((t) => (
+                  <optgroup key={t.id} label={t.name}>
+                    {t.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 44, fontSize: 14 }} disabled={inviteBusy === acceptFor.memberId || !acceptFor.nickname.trim()} onClick={submitAccept}>
+              {inviteBusy === acceptFor.memberId ? '입장 중…' : '입장하기'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
