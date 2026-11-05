@@ -1411,9 +1411,12 @@ export const db = {
   // 기간 내 거래를 정산 반영 금액(eff)과 함께 반환. 분류별/원천별/항목별 집계는 화면에서 수행.
   // 범위는 가계부(listLedger)와 동일: 내 개인 항목 + 내가 속한 그룹 항목(RLS 범위)
   async statsRows({ start, endExclusive }) {
-    const rows = unwrap(await supabase.from('transactions').select(TX_SELECT)
+    // 통계는 내 가계부 탭과 같은 범위: 정산 그룹 결제 내역(그룹 행)은 내가 입력한 것만 — 다른 사람이 입력한 건
+    // 내 가계부에 미러링된 기록으로만 반영
+    const { data: sess } = await supabase.auth.getSession();
+    const rows = hideOthersSettlementPayments(unwrap(await supabase.from('transactions').select(TX_SELECT)
       .gte('date', start).lt('date', endExclusive)
-      .order('date', { ascending: false }).order('id', { ascending: false }).limit(5000));
+      .order('date', { ascending: false }).order('id', { ascending: false }).limit(5000)), sess?.session?.user?.id);
 
     const expenses = rows.filter((r) => r.type === 'expense');
     // 이 기간 지출에 매겨진 정산(수입) 합계 — 정산은 다른 기간일 수도 있으므로 전 기간 조회
