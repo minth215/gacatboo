@@ -151,7 +151,7 @@ function GenericGroup({ gid, group, members, isOwner, leaderName, header, nav, u
       )}
 
       {settlementMode && tab === 'deposits' && (
-        <DepositsTab gid={gid} deposits={deposits} isOwner={isOwner} myMember={myMember} loadDep={loadDep} nav={nav} showPeriods={false} emptyCenter />
+        <DepositsTab gid={gid} deposits={deposits} isOwner={isOwner} myMember={myMember} loadDep={loadDep} nav={nav} showPeriods={false} emptyCenter ownerOnlyAdd={settlementMode} />
       )}
 
       {!settlementMode && tab === 'stats' && (
