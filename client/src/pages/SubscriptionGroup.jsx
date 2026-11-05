@@ -1058,9 +1058,11 @@ export function DepositsTab({ gid, deposits, isOwner, myMember, loadDep, nav, sh
                 <div className="tx-daygroup">
                   {items.map((d, i) => {
                     const mine = isOwner || (myMember && d.member_id === myMember.id);
-                    const tileEmoji = isOwner ? d.leader_category_emoji : d.category_emoji;
                     const tileCat = isOwner ? d.leader_category_name : d.category_name;
-                    const tileColor = (isOwner ? incomeCats : expenseCats).find((c) => c.name === tileCat)?.color || '';
+                    // 보는 사람 본인의 같은 이름 분류 설정(이모지·배경색) 우선 — 멤버가 완료 처리한 입금도 총무/총대 설정대로
+                    const ownCat = (isOwner ? incomeCats : expenseCats).find((c) => c.name === tileCat);
+                    const tileEmoji = ownCat?.emoji || (isOwner ? d.leader_category_emoji : d.category_emoji);
+                    const tileColor = ownCat?.color || '';
                     const tileSource = isOwner ? d.deposit_source_name : d.source_name;
                     return (
                       <DayCardRow
