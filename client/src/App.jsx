@@ -20,6 +20,7 @@ import CategoryManage from './pages/CategoryManage.jsx';
 import BudgetManage from './pages/BudgetManage.jsx';
 import BudgetSet from './pages/BudgetSet.jsx';
 import SourceEdit from './pages/SourceEdit.jsx';
+import GroupMyMember from './pages/GroupMyMember.jsx';
 import SourceManage from './pages/SourceManage.jsx';
 import CardBenefits from './pages/CardBenefits.jsx';
 import GroupCategoryManage from './pages/GroupCategoryManage.jsx';
@@ -81,6 +82,7 @@ export default function App() {
         <Route path="/groups/new" element={<GroupCreate />} />
         <Route path="/groups/:id" element={<GroupDetail />} />
         <Route path="/groups/:id/edit" element={<GroupEdit />} />
+        <Route path="/groups/:id/me" element={<GroupMyMember />} />
         <Route path="/groups/:id/member/:memberId" element={<MemberDetail />} />
         <Route path="/groups/:id/members/add" element={<GroupMemberAdd />} />
         <Route path="/groups/:id/members/:memberId/edit" element={<GroupMemberEdit />} />

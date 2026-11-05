@@ -1067,9 +1067,18 @@ export const db = {
 
   // ---------- 입금 내역 (총대 수입 + 멤버 지출 자동기입, RPC) ----------
   async listDeposits(groupId) {
-    return unwrap(await supabase.from('subscription_deposits')
-      .select('*, member:group_members(nickname), recurring:recurring_rules(id, label)')
-      .eq('group_id', groupId).order('date', { ascending: false }).order('id', { ascending: false }));
+    return this.viewerNicknames(groupId, unwrap(await supabase.from('subscription_deposits')
+      .select('*, member:group_members(nickname, self_nickname), recurring:recurring_rules(id, label)')
+      .eq('group_id', groupId).order('date', { ascending: false }).order('id', { ascending: false })));
+  },
+  // 멤버가 정한 닉네임(0097 self_nickname)은 총무/총대가 아닌 사람에게 보임 — 내역의 member.nickname 을 보는 사람 기준으로
+  async viewerNicknames(groupId, rows) {
+    if (!rows?.some((r) => r.member?.self_nickname)) return rows;
+    const [{ data: sess }, { data: g }] = await Promise.all([
+      supabase.auth.getSession(), supabase.from('groups').select('owner_id').eq('id', groupId).single(),
+    ]);
+    if (sess?.session?.user?.id === g?.owner_id) return rows;
+    return rows.map((r) => (r.member?.self_nickname ? { ...r, member: { ...r.member, nickname: r.member.self_nickname } } : r));
   },
   async getDeposit(id) {
     return unwrap(await supabase.from('subscription_deposits')
@@ -1258,9 +1267,9 @@ export const db = {
 
   // ---------- 공금 그룹: 이체 내역(멤버 본인 가계부에만 미러링) ----------
   async listPooledFundTransfers(groupId) {
-    return unwrap(await supabase.from('pooled_fund_transfers')
-      .select('*, member:group_members(nickname)').eq('group_id', groupId)
-      .order('date', { ascending: false }).order('id', { ascending: false }));
+    return this.viewerNicknames(groupId, unwrap(await supabase.from('pooled_fund_transfers')
+      .select('*, member:group_members(nickname, self_nickname)').eq('group_id', groupId)
+      .order('date', { ascending: false }).order('id', { ascending: false })));
   },
   async getPooledFundTransfer(id) {
     return unwrap(await supabase.from('pooled_fund_transfers').select('*, member:group_members(nickname)').eq('id', id).single());
@@ -1570,6 +1579,16 @@ export const db = {
   // 수락 + 내 닉네임·출금 수단 저장(수락 전 입금 내역의 비어 있는 원천도 채움)
   async acceptGroupInvite(memberId, nickname, sourceId) {
     const { error } = await supabase.rpc('accept_group_invite', { p_member_id: memberId, p_nickname: nickname || '', p_source_id: sourceId ? Number(sourceId) : null });
+    if (error) throw new Error(error.message);
+  },
+  // 일반 멤버의 내 정보 수정(0098): 닉네임·출금 수단(+ 과거 입금 내역 원천 일괄 변경 여부)
+  async updateMyGroupMember(memberId, { nickname, sourceId, applyPast }) {
+    const { error } = await supabase.rpc('update_my_group_member', { p_member_id: memberId, p_nickname: nickname || '', p_source_id: sourceId ? Number(sourceId) : null, p_apply_past: !!applyPast });
+    if (error) throw new Error(error.message);
+  },
+  // 그룹 탈퇴(0098): keep=true 면 내 가계부의 그룹 기록을 분리해 남기고, false 면 삭제
+  async leaveGroup(memberId, keep) {
+    const { error } = await supabase.rpc('leave_group', { p_member_id: memberId, p_keep: !!keep });
     if (error) throw new Error(error.message);
   },
   async respondToGroupInvite(memberId, accept) {
