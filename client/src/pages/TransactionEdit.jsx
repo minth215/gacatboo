@@ -183,7 +183,7 @@ export default function TransactionEdit() {
 
   // 입금 내역 저장은 subscription_deposits 테이블을 사용(RPC로 총대/멤버 미러 tx 동기화)
   const saveDeposit = async (p) => {
-    if (editing) await db.updateDeposit(id, p, user.id);
+    if (editing) { await db.updateDeposit(id, p, user.id); await db.touchGroupRecord('deposit', id); }
     else await db.createDeposit({ ...p, group_id: groupId }, user.id);
   };
 
@@ -196,7 +196,7 @@ export default function TransactionEdit() {
       splits: payload.aggregateSplit || [], source_name: payload.source_name,
     };
     let expenseId = id;
-    if (editing) await db.updatePooledFundExpense(id, p);
+    if (editing) { await db.updatePooledFundExpense(id, p); await db.touchGroupRecord('pooled_expense', id); }
     else expenseId = await db.createPooledFundExpense(p);
     // 온누리 가맹점(공금 통장이 디지털 온누리 연결 카드일 때) — 참여 멤버 미러 지출에도 반영
     if (payload.onnuri !== undefined && expenseId) await db.setPooledExpenseOnnuri(Number(expenseId), payload.onnuri);
@@ -208,7 +208,7 @@ export default function TransactionEdit() {
   const savePooledTransfer = async (payload) => {
     const p = { date: payload.date, amount: payload.amount, from_source_name: payload.source_name, content: payload.content, memo: payload.memo };
     let transferId = id;
-    if (editing) await db.updatePooledFundTransfer(id, p);
+    if (editing) { await db.updatePooledFundTransfer(id, p); await db.touchGroupRecord('pooled_transfer', id); }
     else transferId = await db.createPooledFundTransfer({ group_id: groupId, member_id: Number(payload.transferMemberId), ...p });
     // 보조 화폐로 입력했으면(또는 수정하며 원화로 바꿨으면) 화폐 정보도 저장 — 개인 기록과 동일하게 복원되도록
     if (transferId && (payload.input_currency || editing)) {

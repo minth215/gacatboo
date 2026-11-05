@@ -254,6 +254,10 @@ export const db = {
     if (!txId) return;
     await supabase.from('transactions').update({ touched_at: new Date().toISOString() }).eq('id', txId);
   },
+  // 그룹 입금·공금 내역 수정 시 미러 기록들을 같은 날짜 안에서 맨 위로(0095)
+  async touchGroupRecord(kind, id) {
+    await supabase.rpc('touch_group_record_txs', { p_kind: kind, p_id: Number(id) });
+  },
   async getTxOnnuri(txId) {
     if (!txId) return null;
     const { data } = await supabase.from('transactions').select('onnuri').eq('id', txId).maybeSingle();
