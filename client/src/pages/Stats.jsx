@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { fmtP, fmtPUnit } from '../lib/primaryCurrency.js';
+import { fmtP, fmtPUnit, getPrimary } from '../lib/primaryCurrency.js';
+// 금액 단위(주 화폐가 원화면 "원")
+const unitLabel = () => (getPrimary().code === 'KRW' ? '원' : getPrimary().code);
 import { useNavigate, useLocation } from 'react-router-dom';
 import { db, countedRows, isCardBill } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -243,7 +245,13 @@ export default function Stats() {
     const achieved = [...arr].filter((t) => gross >= Number(t.threshold)).pop();
     const next = arr.find((t) => gross < Number(t.threshold));
     const goal = Number((next || achieved).threshold);
-    return { goal, percent: Math.min(100, Math.round((gross / goal) * 100)), achieved, next };
+    // 문구 줄: 달성한 가장 높은 구간(혜택 표시) + 다음 구간(남은 금액). 아무것도 달성 못 했으면 첫 구간만
+    const lines = [achieved, next].filter(Boolean).map((t) => {
+      const th = Number(t.threshold);
+      const done = gross >= th;
+      return { threshold: th, percent: th > 0 ? Math.floor((gross / th) * 100) : 100, done, benefit: t.benefit || '혜택', left: Math.max(0, th - gross) };
+    });
+    return { goal, gross, percent: Math.min(100, Math.round((gross / goal) * 100)), achieved, next, lines };
   };
 
   // 분류 카드의 예산: 그 달 재정의 ?? 그 해 기본(월=0). 연 기간은 12개월 예산의 합(설정된 달만).
@@ -737,10 +745,15 @@ export default function Stats() {
                       <div style={{ height: 6, borderRadius: 999, background: 'var(--k-bg-f2f1f5)', overflow: 'hidden' }}>
                         <div style={{ height: '100%', borderRadius: 999, background: g.color, width: `${tier.percent}%` }} />
                       </div>
-                      <div style={{ marginTop: 5, fontSize: 10.25, color: 'var(--k-tx-8b8798)' }}>
-                        실적 {fmtPUnit(tier.goal)} 목표 · {tier.percent}% 달성
-                        {tier.achieved ? ` · ✅ ${tier.achieved.benefit || '혜택'}` : ''}
-                      </div>
+                      {/* 좌: 실적 {실적 금액}/{구간 금액} 원 ({%} %), 우: {남은 금액} 원 남음 또는 달성 혜택 */}
+                      {tier.lines.map((ln) => (
+                        <div key={ln.threshold} style={{ marginTop: 5, display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 10.25, color: 'var(--k-tx-8b8798)' }}>
+                          <span style={{ whiteSpace: 'nowrap' }}>실적 {fmtP(tier.gross)}/{fmtP(ln.threshold)} {unitLabel()} ({ln.percent} %)</span>
+                          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...(ln.done ? { color: 'var(--k-tx-191722)', fontWeight: 700 } : {}) }}>
+                            {ln.done ? ln.benefit : `${fmtP(ln.left)} ${unitLabel()} 남음`}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
