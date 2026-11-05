@@ -77,6 +77,13 @@ function flattenTx(rows) {
   }));
 }
 
+// 같은 날짜 안에서는 마지막으로 저장(입력·수정)한 기록이 위로(0094 touched_at, 없으면 입력 시각)
+function sortByTouched(rows) {
+  const t = (r) => r.touched_at || r.created_at || '';
+  return [...rows].sort((a, b) => (a.date !== b.date ? (a.date < b.date ? 1 : -1)
+    : t(a) !== t(b) ? (t(a) < t(b) ? 1 : -1) : (b.id || 0) - (a.id || 0)));
+}
+
 // 개인 가계부(내 가계부/검색) 전용 필터: 정산 그룹의 결제 내역은 그룹 멤버 전원에게 RLS로 노출되지만
 // (그룹 자체의 "결제 내역" 탭에서는 전원이 봐야 함), 각자의 개인 가계부에는 본인이 작성한 항목만 반영한다.
 function hideOthersSettlementPayments(rows, userId) {
@@ -242,6 +249,11 @@ export const db = {
     if (!txId) return;
     return unwrap(await supabase.from('transactions').update(await this.onnuriFields(on)).eq('id', txId));
   },
+  // 수정 저장 시 같은 날짜 안에서 맨 위로(0094)
+  async touchTx(txId) {
+    if (!txId) return;
+    await supabase.from('transactions').update({ touched_at: new Date().toISOString() }).eq('id', txId);
+  },
   async getTxOnnuri(txId) {
     if (!txId) return null;
     const { data } = await supabase.from('transactions').select('onnuri').eq('id', txId).maybeSingle();
@@ -404,7 +416,7 @@ export const db = {
     const rows = unwrap(await supabase.from('transactions').select(TX_SELECT)
       .gte('date', start).lt('date', endExclusive)
       .order('date', { ascending: false }).order('id', { ascending: false }));
-    return this.attachExcluded(await this.attachOnnuri(await this.attachSubscriptionPeriods(flattenTx(hideOthersSettlementPayments(rows, userId)))));
+    return this.attachExcluded(await this.attachOnnuri(await this.attachSubscriptionPeriods(sortByTouched(flattenTx(hideOthersSettlementPayments(rows, userId))))));
   },
   // 구독 그룹의 결제/입금이 가계부에 반영된 항목에 회차(몇 회분) 정보를 붙인다.
   // 가계부 행에는 회차가 없어서 원본(subscription_payments/deposits)에서 가져오며,
@@ -461,7 +473,7 @@ export const db = {
       all.push(...rows);
       if (rows.length < PAGE || all.length >= 20000) break;
     }
-    return this.attachExcluded(await this.attachOnnuri(await this.attachSubscriptionPeriods(flattenTx(hideOthersSettlementPayments(all, userId)))));
+    return this.attachExcluded(await this.attachOnnuri(await this.attachSubscriptionPeriods(sortByTouched(flattenTx(hideOthersSettlementPayments(all, userId))))));
   },
 
   // 대표 "내용" 입력창의 자동완성 후보: 과거에 쓴 내용(중복 제거, 최신순)
@@ -617,7 +629,8 @@ export const db = {
 
     let saved;
     if (id) {
-      const patch = { ...base, ...(recurring_id ? { recurring_id } : {}) };
+      // 수정 화면에서 저장하면(내용이 같아도) 같은 날짜 안에서 맨 위로
+      const patch = { ...base, touched_at: new Date().toISOString(), ...(recurring_id ? { recurring_id } : {}) };
       saved = unwrap(await supabase.from('transactions').update(patch).eq('id', id).select(TX_SELECT).single());
     } else {
       const insert = { ...base, user_id: userId, created_by: userId, group_id: payload.group_id || null, ...(recurring_id ? { recurring_id } : {}) };

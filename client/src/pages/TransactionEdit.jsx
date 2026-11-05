@@ -175,7 +175,7 @@ export default function TransactionEdit() {
       recurrence: payload.recurrence, backfillPast: payload.backfillPast,
     };
     let txId;
-    if (editing) { await db.updatePayment(id, p, user.id); txId = initial?.tx_id; }
+    if (editing) { await db.updatePayment(id, p, user.id); txId = initial?.tx_id; await db.touchTx(txId); }
     else txId = (await db.createPayment(groupId, user.id, p))?.tx_id;
     // 온누리 가맹점: 결제자 가계부의 미러 지출 기록에 반영
     if (payload.onnuri !== undefined) await db.applyOnnuriToTx(txId, payload.onnuri, payload.amount);
