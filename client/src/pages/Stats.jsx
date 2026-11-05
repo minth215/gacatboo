@@ -749,7 +749,7 @@ export default function Stats() {
                       {tier.lines.map((ln) => (
                         <div key={ln.threshold} style={{ marginTop: 5, display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 10.25, color: 'var(--k-tx-8b8798)' }}>
                           <span style={{ whiteSpace: 'nowrap' }}>실적 {fmtP(tier.gross)}/{fmtP(ln.threshold)} {unitLabel()} ({ln.percent} %)</span>
-                          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...(ln.done ? { color: 'var(--k-tx-191722)', fontWeight: 700 } : {}) }}>
+                          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {ln.done ? ln.benefit : `${fmtP(ln.left)} ${unitLabel()} 남음`}
                           </span>
                         </div>
