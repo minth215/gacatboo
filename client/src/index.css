@@ -966,3 +966,8 @@ html.theme-dark .rcpt-card {
 
 /* 합계에 포함되지 않는 기록(집계 포함 OFF 원천): 카드 배경은 그대로, 내용만 회색 글씨보다 옅게 */
 .tx-row.tx-row-dimmed > * { opacity: .38; filter: grayscale(1); }
+
+/* 기록 상세(조회 전용): 입력·선택은 막고 펼치기 버튼만 허용. 키보드 포커스도 막음 */
+.form-readonly * { pointer-events: none; }
+.form-readonly .ro-allow, .form-readonly .ro-allow * { pointer-events: auto; }
+.form-readonly input, .form-readonly select, .form-readonly textarea { caret-color: transparent; }

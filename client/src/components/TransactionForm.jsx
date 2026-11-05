@@ -271,7 +271,7 @@ function ItemRow({
         )}
         {hasSplit && (
           <button
-            type="button" aria-label="참여 멤버 펼치기" onClick={onToggleExpand}
+            type="button" aria-label="참여 멤버 펼치기" onClick={onToggleExpand} className="ro-allow"
             style={{ width: 20, height: 20, border: 'none', background: 'transparent', color: 'var(--k-tx-8b8798)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: item.expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
@@ -1143,7 +1143,8 @@ const TransactionForm = forwardRef(function TransactionForm({
   return (
     <form onSubmit={readOnly ? (e) => e.preventDefault() : submit}>
       {topNotice}
-      <fieldset disabled={readOnly} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, ...(readOnly ? { pointerEvents: 'none' } : {}) }}>
+      {/* 조회 전용: 입력은 막되(포인터 차단) 글자 색은 그대로, 항목별 참여 멤버 펼치기(.ro-allow)만 허용 */}
+      <fieldset className={readOnly ? 'form-readonly' : undefined} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
 
       <input
         ref={receiptInputRef} type="file" accept="image/*"
