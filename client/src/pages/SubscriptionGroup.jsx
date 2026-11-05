@@ -2106,7 +2106,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
               <span />
             </div>
           </div>
-        ) : !multiSettle && (
+        ) : !multiSettle && shareRows.length === 0 && ( // 멤버 정산 입금 표(합계)가 있으면 금액 칸은 중복이라 숨김
           <>
             <div style={{ ...rowStyle, paddingBottom: amountLiveCurrency !== 'KRW' ? 21 : 6 }}>
               <span style={rowLabelStyle}>금액</span>
