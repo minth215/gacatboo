@@ -402,6 +402,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
 
   const poke = async (m) => {
     if (!m.is_account) { showToast('외부 멤버에게는 알림을 보낼 수 없습니다.'); return; }
+    if (!confirm(`${m.nickname} 님에게 정산 요청 알림을 전송합니다.`)) return;
     const vars = { group_name: group?.name || '', amount: fmtNum(m.remaining), group_id: gid };
     const link = `/groups/${gid}?tab=settlement`;
     try {
@@ -533,6 +534,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
   const requestSettlement = async () => {
     const targets = (selectedPayment ? itemNonOwnerRows : nonOwnerRows).filter((r) => r.is_account && !r.settled);
     if (!targets.length) return alert('알림을 보낼 대상이 없습니다.');
+    if (!confirm(`${targets.length} 명에게 정산 요청 알림을 전송합니다.`)) return;
     const link = `/groups/${gid}?tab=settlement`;
     await Promise.all(targets.map((t) => {
       const vars = { group_name: group?.name || '', amount: fmtNum(t.remaining), group_id: gid };
@@ -906,10 +908,21 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
       ) : isOwner && !editMode && (selectedPayment ? itemAnyUnsettled : anyUnsettled) && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <button type="button" className="btn-settle-all" style={{ flex: 1, height: 48, marginTop: 0 }} disabled={bulkBusy} onClick={openSettleAll}>
-            {bulkBusy ? '처리 중…' : '정산 일괄 완료'}
+            {bulkBusy ? '처리 중…' : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                정산 일괄 완료
+                <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 12.5 10 17.5 19 7" /></svg>
+              </span>
+            )}
           </button>
           {(selectedPayment ? itemHasAccountMember : hasAccountMember) && (
-            <button type="button" className="btn-ink-pill" style={{ flex: 1, height: 48, marginTop: 0 }} onClick={requestSettlement}>정산 요청하기</button>
+            <button type="button" className="btn-ink-pill" style={{ flex: 1, height: 48, marginTop: 0 }} onClick={requestSettlement}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                정산 요청하기
+                {/* 손가락(콕 찌르기) */}
+                <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11" /><path d="M12 10.5V9a1.5 1.5 0 0 1 3 0v2" /><path d="M15 10.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-4.6-2.2L4 15.5a1.5 1.5 0 0 1 2.3-1.9L9 16V11" /></svg>
+              </span>
+            </button>
           )}
         </div>
       )}
