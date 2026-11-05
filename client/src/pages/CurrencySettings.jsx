@@ -64,7 +64,7 @@ export default function CurrencySettings() {
       } />
 
       {/* 주 화폐(단독 카드) */}
-      <div className="tx-daycard" style={{ marginTop: 14 }}>
+      <div className="tx-daycard">
         <div style={rowStyle(0)}>
           {codeBadge(primary, '#eef1fb')}
           <span style={{ flex: 1, minWidth: 0, fontSize: 13.75, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{nameOf(primary)}</span>

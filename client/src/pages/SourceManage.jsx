@@ -77,13 +77,13 @@ export default function SourceManage({ admin = false }) {
         </div>
       } />
 
-      {sources.map((top) => {
+      {sources.map((top, gi) => {
         // 그룹 카드 + 세부 항목 카드(+ 세부 항목 추가 줄)를 가계부 같은 날짜 카드처럼 이어 붙임.
         // 각 카드는 누르면 수정 모달, 왼쪽으로 밀면 삭제 버튼.
         const children = top.children || [];
         const count = 1 + children.length;
         return (
-          <div className={`tx-daygroup${groupDrag.dragId === top.id ? ' drag-lift' : ''}`} style={{ marginTop: 14 }} key={top.id} ref={groupDrag.setRowRef(top.id)}>
+          <div className={`tx-daygroup${groupDrag.dragId === top.id ? ' drag-lift' : ''}`} style={{ marginTop: gi === 0 ? 0 : 14 }} key={top.id} ref={groupDrag.setRowRef(top.id)}>
             <DayCardRow
               index={0} count={count} clickable
               isOpen={openId === top.id} onOpenChange={(open) => setOpenId(open ? top.id : null)}

@@ -124,7 +124,7 @@ export default function Notifications() {
           const invite = r.event_key === 'group_invite' && r.data?.member_id ? inviteStatus[r.data.member_id] : null;
           return (
           // 가계부 카드와 같은 스와이프: 카드 자체가 밀리고 그 자리엔 페이지 배경 위 삭제 버튼만 보임
-          <div key={r.id} className="tx-daygroup" style={{ marginTop: i === 0 ? 14 : 10 }}>
+          <div key={r.id} className="tx-daygroup" style={{ marginTop: i === 0 ? 0 : 10 }}>
             <DayCardRow
               index={0} count={1} clickable
               isOpen={openId === r.id} onOpenChange={(open) => setOpenId(open ? r.id : null)}

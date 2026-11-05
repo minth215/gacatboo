@@ -104,12 +104,12 @@ export default function CategoryManage({ admin = false }) {
       )}
 
       {categories.length === 0 ? (
-        <div className="tx-daycard" style={{ marginTop: 14 }}>
+        <div className="tx-daycard">
           <div className="empty" style={{ padding: '20px 0' }}>분류가 없습니다.</div>
         </div>
       ) : (
         // 카드를 누르면 수정, 왼쪽으로 밀면 삭제(수입 "정산"은 삭제 불가 — 빗금 버튼 + 토스트)
-        <div className="tx-daygroup" style={{ marginTop: 14 }}>
+        <div className="tx-daygroup">
           {categories.map((c, i) => {
             const locked = LOCKED(c, type);
             return (
