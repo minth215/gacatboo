@@ -131,6 +131,8 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   const [manualKrw, setManualKrw] = useState(null);
   const [editingKrw, setEditingKrw] = useState(false);
   const [krwDraft, setKrwDraft] = useState('');
+  // 환산 금액(주 화폐) 수정도 키패드와 같게: 열고 바로 숫자를 치면 기존 값을 지우고 새로, 지우기를 먼저 하면 이어서
+  const freshKrwRef = useRef(false);
 
   useEffect(() => { db.listCurrencies().then(setUserCurrencies).catch(() => {}); }, []);
   // 화폐 선택 칩: 주 화폐 + 보조 화폐(KRW 는 주 화폐이거나 보조 화폐에 있을 때만) + 지금 고른 화폐(예전 기록 복원용)
@@ -315,7 +317,19 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
               <input
                 type="text" inputMode="numeric" autoFocus
                 value={krwDraft ? Number(krwDraft).toLocaleString('ko-KR') : ''}
-                onChange={(e) => setKrwDraft(e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, ''))}
+                onChange={(e) => {
+                  const next = e.target.value.replace(/[^0-9]/g, '');
+                  // 연 직후 숫자를 덧붙인 경우: 덧붙인 숫자만 남김(기존 값 대체)
+                  if (freshKrwRef.current && next.length > krwDraft.length && next.startsWith(krwDraft)) {
+                    freshKrwRef.current = false;
+                    setKrwDraft(next.slice(krwDraft.length).replace(/^0+(?=\d)/, ''));
+                    return;
+                  }
+                  freshKrwRef.current = false;
+                  setKrwDraft(next.replace(/^0+(?=\d)/, ''));
+                }}
+                // 커서를 끝에 두어 숫자 덧붙임/뒤에서 지우기가 일정하게 동작
+                onFocus={(e) => { const l = e.target.value.length; try { e.target.setSelectionRange(l, l); } catch {} }}
                 onBlur={() => commitManualKrw(krwDraft || '0')}
                 onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                 size={Math.max(1, (krwDraft ? Number(krwDraft).toLocaleString('ko-KR') : '').length)}
@@ -324,7 +338,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
               <span>KRW</span>
             </span>
           ) : (
-            <span onClick={() => { setKrwDraft(String(previewKrw)); setEditingKrw(true); }} style={{ cursor: 'pointer' }}>
+            <span onClick={() => { setKrwDraft(String(previewKrw)); freshKrwRef.current = true; setEditingKrw(true); }} style={{ cursor: 'pointer' }}>
               {compact ? `${previewKrw.toLocaleString('ko-KR')} KRW` : `≈ ${previewKrw.toLocaleString('ko-KR')} KRW (눌러서 수정)`}
             </span>
           )}
