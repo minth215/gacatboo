@@ -46,7 +46,8 @@ export default function GroupMyMember() {
   // 총무/총대 저장: 닉네임·출금 수단은 내 멤버 행, 입금 수단은 그룹 설정(공금 그룹은 공금 통장)
   const saveOwner = async () => {
     if (!form.nickname.trim()) return alert('닉네임을 입력하세요.');
-    if (!form.depositSourceId) return alert('입금 수단을 선택하세요.');
+    if (!form.depositSourceId) return alert(isPooled ? '공금 통장을 선택하세요.' : '정산 수단을 선택하세요.');
+    if (isPooled && !form.sourceId) return alert('출금 수단을 선택하세요.');
     setBusy(true);
     try {
       await db.updateOwnerMember(gid, user.id, { nickname: form.nickname.trim(), ...(isPooled ? { withdraw_source_id: form.sourceId ? Number(form.sourceId) : null } : {}) });
@@ -103,12 +104,14 @@ export default function GroupMyMember() {
         {isOwner ? (
           <>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <span style={labelStyle}>{isPooled ? '입금 수단(공금 통장)' : '입금 수단'} <span style={{ color: '#FF3B5C' }}>*</span></span>
+              <span style={labelStyle}>{isPooled ? '공금 통장' : '정산 수단'} <span style={{ color: '#FF3B5C' }}>*</span></span>
+              <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)', marginTop: -3 }}>{isPooled ? '초대되는 멤버의 원천에 자동으로 추가됩니다' : '정산 시 입금받을 원천을 선택해 주세요'}</span>
               <SourcePick tree={tree} value={form.depositSourceId} onChange={(v) => setForm({ ...form, depositSourceId: v })} placeholder="입금 수단 선택" />
             </label>
             {isPooled && (
               <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <span style={labelStyle}>출금 수단</span>
+                <span style={labelStyle}>출금 수단 <span style={{ color: '#FF3B5C' }}>*</span></span>
+                <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)', marginTop: -3 }}>공금 통장에 입금 시 사용할 원천을 선택해 주세요</span>
                 <SourcePick tree={tree} value={form.sourceId} onChange={(v) => setForm({ ...form, sourceId: v })} placeholder="출금 수단 선택" />
               </label>
             )}

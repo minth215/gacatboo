@@ -69,7 +69,9 @@ export default function GroupCreate() {
   }, [step]);
 
   const step1Invalid = !name.trim() || !category;
-  const nextDisabled = step === 1 && step1Invalid;
+  // 내 정보 단계: 정산 수단(공금 통장) 필수, 공금 그룹은 출금 수단도 필수
+  const step2Invalid = !nickname.trim() || !depositSourceId || (category === '공금' && !withdrawSourceId);
+  const nextDisabled = (step === 1 && step1Invalid) || (step === 2 && step2Invalid);
 
   const onBack = () => { if (step > 1) setStep(step - 1); else nav('/groups'); };
 
@@ -247,16 +249,16 @@ export default function GroupCreate() {
 
             {/* 입금 수단(공금 그룹은 공금 통장 — 멤버로 참여하면 멤버 원천에도 추가됨). 신용카드/체크카드 그룹 제외 */}
             <label style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 24 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{category === '공금' ? '입금 수단(공금 통장)' : '입금 수단'}<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{category === '공금' ? '공금 통장' : '정산 수단'}<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
               <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)', marginTop: -3 }}>
-                {category === '공금' ? '초대되는 멤버의 원천에 자동으로 추가됩니다' : '다른 멤버가 입금할 때 받을 원천을 선택하세요'}
+                {category === '공금' ? '초대되는 멤버의 원천에 자동으로 추가됩니다' : '정산 시 입금받을 원천을 선택해 주세요'}
               </span>
               <SourcePick tree={sources.tree} value={depositSourceId} onChange={setDepositSourceId} placeholder="입금 수단 선택" />
             </label>
             {category === '공금' && (
               <label style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 18 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>출금 수단</span>
-                <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)', marginTop: -3 }}>공금 통장에 입금할 때 돈이 빠져나갈 원천을 선택하세요</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>출금 수단<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
+                <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)', marginTop: -3 }}>공금 통장에 입금 시 사용할 원천을 선택해 주세요</span>
                 <SourcePick tree={sources.tree} value={withdrawSourceId} onChange={setWithdrawSourceId} placeholder="출금 수단 선택" />
               </label>
             )}
