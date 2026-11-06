@@ -354,6 +354,8 @@ export default function TransactionEdit() {
             defaultAmount={isPayment ? sub?.billing_amount : undefined}
             defaultContentTemplate={isPayment ? sub?.payment_content_template : isPooledTransfer ? `${group?.name || ''} 입금` : undefined}
             defaultTransferToName={isPooledTransfer ? sub?.deposit_source_name : undefined}
+            // 공금 그룹 이체: 출금 원천 기본값 = 그룹에 지정한 내 출금 수단(총무는 "내 정보", 멤버는 수락 시 지정)
+            defaultTransferFromId={isPooledTransfer ? myGroupMember?.withdraw_source_id : undefined}
             fixedSourceName={isPooledExpense ? sub?.deposit_source_name : undefined}
             transferMembers={transferMembers}
             defaultTransferMemberId={defaultTransferMemberId}

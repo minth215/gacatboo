@@ -353,6 +353,8 @@ const TransactionForm = forwardRef(function TransactionForm({
   initial, groupId, onSaved, onClose, fixedType, defaultCategoryName, defaultAmount, defaultContentTemplate,
   onSubmit, topNotice, showPeriods, onScanBusyChange, initialPendingRecurrence,
   settlementMembers, initialSettlementSplit, qtyLabel = '수량', groupBadge, initialLinkedFee, defaultTransferToName,
+  // defaultTransferFromId: 새 이체의 출금 원천 기본값(공금 그룹: 그룹에 지정한 내 출금 수단)
+  defaultTransferFromId,
   fixedSourceName, transferMembers, defaultTransferMemberId, autoReceiptBase64, autoReceiptMime, autoToast, onDelete,
   // readOnly: 조회 전용(일반 멤버가 그룹 결제 내역을 볼 때) — 입력 잠금, 원천·행 추가·저장/삭제·아이콘 숨김,
   // 분류는 기록에 저장된(총무/총대가 정한) 분류 그대로 표시
@@ -792,13 +794,16 @@ const TransactionForm = forwardRef(function TransactionForm({
         const s = sourcesFlat.find((x) => x.name === initial.source_name);
         if (s) patch.fromSourceId = String(s.id);
       }
+      if (!cur.fromSourceId && !patch.fromSourceId && !editing && defaultTransferFromId && sourcesFlat.some((x) => String(x.id) === String(defaultTransferFromId))) {
+        patch.fromSourceId = String(defaultTransferFromId);
+      }
       if (!cur.toSourceId) {
         const name = (restoreTransferFromInitial ? initial?.to_source_name : '') || defaultTransferToName;
         if (name) { const s = sourcesFlat.find((x) => x.name === name); if (s) patch.toSourceId = String(s.id); }
       }
       return Object.keys(patch).length ? [{ ...cur, ...patch }] : prev;
     });
-  }, [isTransfer, sourcesFlat, initial, defaultTransferToName]);
+  }, [isTransfer, sourcesFlat, initial, defaultTransferToName, defaultTransferFromId]);
 
   // 수정 화면: 이체에 연결된 수수료 기록이 이미 있으면 그대로 복원(비동기로 나중에 도착해도 반영)
   useEffect(() => {
