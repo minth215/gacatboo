@@ -240,6 +240,20 @@ export default function SourceEdit({ admin = false }) {
           })}
         </div>
   );
+  // 라벨(+설명) 왼쪽, 토글 오른쪽
+  const toggleRow = (label, desc, on, onClick, lblStyle) => (
+    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
+      <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span style={lblStyle}>{label}</span>
+        {desc && <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)' }}>{desc}</span>}
+      </span>
+      <button type="button" role="switch" aria-checked={on} aria-label={label} className={`ios-toggle${on ? ' on' : ''}`} onClick={onClick}>
+        <span className="ios-toggle-knob" />
+      </button>
+    </label>
+  );
+  // 집계 제외(기본 OFF): ON 이면 가계부 합계·분류별/항목별 통계에서 제외. 저장 값은 include_in_totals 의 반대
+  const excludeRow = (lblStyle) => toggleRow('집계 제외', '가계부 탭 집계와 분류별·항목별 통계에 제외됩니다', !form.includeTotals, () => set({ includeTotals: !form.includeTotals }), lblStyle);
   // 카드 원천: "입출금 설정" 영역(입금 허용 토글 + 입력 자동화(주결제/주입금수단))
   const inOutBox = cardItem && (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -249,7 +263,7 @@ export default function SourceEdit({ admin = false }) {
           <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
             <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span style={subLabel}>입금 허용</span>
-              <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)' }}>켜면 수입·이체 입금과 그룹 입출금 수단으로도 고를 수 있어요</span>
+              <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)' }}>수입 기록 및 그룹 입금 수단에 해당 원천 선택을 허용합니다</span>
             </span>
             <button
               type="button" role="switch" aria-checked={!!form.allowDeposit} aria-label="입금 허용"
@@ -390,7 +404,7 @@ export default function SourceEdit({ admin = false }) {
               <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
                 <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <span style={subLabel}>대금 납부 자동 입력</span>
-                  <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)' }}>납부일에 청구 기간 사용 금액을 연결 계좌 지출로 기록해요</span>
+                  <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)' }}>청구 기간 사용 금액을 연결 계좌 지출로 자동 기록합니다</span>
                 </span>
                 <button
                   type="button" role="switch" aria-checked={!!form.autoBill} aria-label="대금 납부 자동 입력"
@@ -412,30 +426,16 @@ export default function SourceEdit({ admin = false }) {
         </div>
         )}
 
-        {/* 카드 그룹 원천: 디지털 온누리 연결(디지털 온누리 그룹이 있을 때, 기본 OFF) */}
-        {!admin && cardItem && hasOnnuri && (
-          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
-            <span style={labelStyle}>디지털 온누리 연결</span>
-            <button
-              type="button" role="switch" aria-checked={!!form.onnuri} aria-label="디지털 온누리 연결"
-              className={`ios-toggle${form.onnuri ? ' on' : ''}`} onClick={() => set({ onnuri: !form.onnuri })}
-            ><span className="ios-toggle-knob" /></button>
-          </label>
-        )}
-
-        {/* 모든 원천: 집계 포함(기본 ON). OFF 면 가계부 상단 합계·분류별/항목별 통계에서 제외 */}
-        {!admin && !isGroup && (
-          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
-            <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={labelStyle}>집계 포함</span>
-              <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)' }}>끄면 가계부 합계와 분류별·항목별 통계에서 빠져요</span>
-            </span>
-            <button
-              type="button" role="switch" aria-checked={!!form.includeTotals} aria-label="집계 포함"
-              className={`ios-toggle${form.includeTotals ? ' on' : ''}`} onClick={() => set({ includeTotals: !form.includeTotals })}
-            ><span className="ios-toggle-knob" /></button>
-          </label>
-        )}
+        {/* 카드 그룹 원천: "기타 설정" 영역(디지털 온누리 연결 + 집계 제외), 그 외 원천은 집계 제외만 */}
+        {!admin && !isGroup && (cardItem ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <span style={labelStyle}>기타 설정</span>
+            <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.07 * var(--k-sha)))', padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {hasOnnuri && toggleRow('디지털 온누리 연결', '온누리 가맹점 결제 시 디지털 온누리 잔액이 우선 차감됩니다', !!form.onnuri, () => set({ onnuri: !form.onnuri }), subLabel)}
+              {excludeRow(subLabel)}
+            </div>
+          </div>
+        ) : excludeRow(labelStyle))}
 
         {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
         <button type="button" className="btn-ink-pill" style={{ marginTop: 6 }} disabled={busy || !form.name.trim()} onClick={save}>
