@@ -84,7 +84,9 @@ export default function RecurringManage() {
   // 구독 그룹 총대 입장: 멤버만 다르고 나머지(내용·분류·원천·주기·날짜·금액)가 같은 입금 반복은 한 장으로 묶음
   const mergeKey = (r) => ((r.target === 'subscription_deposit' && r.group?.owner_id === user.id && r.group?.category !== '정산')
     ? [r.group_id, r.content, r.leader_category_name, r.deposit_source_name, r.freq_unit, r.freq_interval, (r.weekdays || []).join(','),
-      periodDetailLabel(r), r.business_day_rule || 'none', r.amount, r.input_currency || '', r.input_amount ?? ''].join('|')
+      periodDetailLabel(r), r.business_day_rule || 'none', r.amount, r.input_currency || '', r.input_amount ?? '',
+      // 종료일이 채워진 멤버는 진행 중 묶음에서 빠지고, 종료된 멤버끼리 따로 묶음
+      r.end_date ? 'ended' : 'active'].join('|')
     : null);
   const mergedRules = (() => {
     const out = []; const byKey = {};
@@ -95,8 +97,12 @@ export default function RecurringManage() {
       byKey[k] = { ...r, _members: [r] };
       out.push(byKey[k]);
     }
-    for (const g of out) if (g._members) g._members.sort((a, b) => (a.member?.nickname || '').localeCompare(b.member?.nickname || '', 'ko'));
-    return out;
+    // 멤버는 가나다순, 카드·상세 모달은 첫 번째 멤버의 반복으로
+    return out.map((g) => {
+      if (!g._members) return g;
+      const ms = [...g._members].sort((a, b) => (a.member?.nickname || '').localeCompare(b.member?.nickname || '', 'ko'));
+      return { ...ms[0], _members: ms };
+    });
   })();
   const shownRulesRaw = term
     ? mergedRules.filter((r) => [r.content, subLineOf(r), r.group_name, ...(r._members || []).map((m) => m.member?.nickname)].filter(Boolean).join(' ').toLowerCase().includes(term))
