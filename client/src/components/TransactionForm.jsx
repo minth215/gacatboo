@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
+import { depositableTree } from '../lib/sourceFilter.js';
 import { useAuth } from '../lib/auth.jsx';
 import { today, dotDate, dotDateWithWeekday, fmtWon, fmtNum, renderTemplate, addMonthsClamped, newUuid } from '../lib/format.js';
 import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
@@ -220,7 +221,7 @@ function ItemRow({
             <span style={{ flex: 'none', color: 'var(--k-tx-c7c3cc)', display: 'flex' }}><ArrowRightIcon /></span>
             <select id="transfer-to-source-select" value={item.toSourceId} onChange={(e) => onToSource(e.target.value)} style={sourceSelectStyle}>
               <option value="">입금 수단 선택</option>
-              {transferSources(sources, ['credit', 'check'], item.toSourceId).map((top) => (
+              {depositableTree(sources, item.toSourceId).map((top) => (
                 top.children?.length ? (
                   <optgroup key={top.id} label={top.name}>
                     {String(item.toSourceId) === String(top.id) && <option value={top.id}>{top.name}</option>}
@@ -1365,7 +1366,7 @@ const TransactionForm = forwardRef(function TransactionForm({
               {sourceId === SNAP && <option value={SNAP}>{initial?.source_name} (기존)</option>}
               {/* 수입은 신용카드·체크카드 원천 그룹 제외(이미 선택돼 있던 값은 유지) */}
               {/* 결제 대금 분류도 카드 그룹 제외(카드값이 빠져나갈 계좌) */}
-              {((type === 'income' || isBillCat) ? transferSources(sources, ['credit', 'check'], sourceId) : sources).map((top) => (
+              {(isBillCat ? transferSources(sources, ['credit', 'check'], sourceId) : type === 'income' ? depositableTree(sources, sourceId) : sources).map((top) => (
                 top.children?.length ? (
                   <optgroup key={top.id} label={top.name}>
                     {String(sourceId) === String(top.id) && <option value={top.id}>{top.name}</option>}

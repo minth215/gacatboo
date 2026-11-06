@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef, Fragment, forwardRef, useImperativeHandle } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
+import { depositableTree } from '../lib/sourceFilter.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtWon, fmtNum, today, dotDate, dotDateWithWeekday, monthPillLabel, isSettlement } from '../lib/format.js';
 import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
@@ -1990,7 +1991,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
         <div style={rowStyle}>
           <span style={rowLabelStyle}>원천</span>
           {isOwner ? (
-            <SourceSelect sources={sources.tree} excludeTypes={['credit', 'check']} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lSourceId ? 600 : 400, color: f.lSourceId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }} />
+            <SourceSelect sources={depositableTree(sources.tree, f.lSourceId)} value={f.lSourceId} onChange={(v) => setF({ ...f, lSourceId: v })} keepLabel={initial?.deposit_source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.lSourceId ? 600 : 400, color: f.lSourceId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }} />
           ) : (
             <>
               <SourceSelect sources={sources.tree} value={f.mSourceId} onChange={(v) => setF({ ...f, mSourceId: v })} keepLabel={initial?.source_name} placeholder="원천 선택" selectRef={sourceSelectRef} onEdit={() => goEditSettings('/settings/sources')} style={{ ...rowInputStyle, appearance: 'none', textAlignLast: 'right', fontWeight: f.mSourceId ? 600 : 400, color: f.mSourceId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }} />

@@ -103,7 +103,7 @@ export default function SourceManage({ admin = false }) {
                 // 그룹 핸들: 그룹 전체 순서 이동
                 <DragHandle label="원천 그룹 순서 변경" active={groupDrag.dragId === top.id} onStart={groupDrag.startDrag(top.id)} />
               ) : (
-                <button aria-label="세부 항목 추가" onClick={(e) => { e.stopPropagation(); openAddItem(top); }} className="row-icon-btn">
+                <button aria-label="원천 추가" onClick={(e) => { e.stopPropagation(); openAddItem(top); }} className="row-icon-btn">
                   <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                 </button>
               )}
@@ -149,7 +149,7 @@ function ChildRows({ top, items, setItems, count, editMode, admin, openId, setOp
                   ) : null
                 ) : null)}
                 {/* 세부 항목 핸들: 이 항목만 이동 */}
-                {editMode && <DragHandle inline label="세부 항목 순서 변경" active={dragId === it.id} onStart={startDrag(it.id)} />}
+                {editMode && <DragHandle inline label="원천 순서 변경" active={dragId === it.id} onStart={startDrag(it.id)} />}
               </DayCardRow>
         </div>
       ))}

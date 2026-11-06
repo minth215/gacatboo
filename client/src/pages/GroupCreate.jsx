@@ -51,7 +51,7 @@ export default function GroupCreate() {
     db.listSources().then((s) => {
       setSources(s);
       // 기본값: 주입금수단(입금 수단)·주결제수단(출금 수단) — 세부 항목이고 카드 그룹이 아닐 때만
-      const isCardItem = (x) => ['credit', 'check'].includes(s.tree.find((t) => t.id === x.parent_id)?.group_type);
+      const isCardItem = (x) => !x.allow_deposit && ['credit', 'check'].includes(s.tree.find((t) => t.id === x.parent_id)?.group_type);
       const dep = s.flat.find((x) => x.parent_id != null && x.is_primary_deposit && !isCardItem(x));
       if (dep) setDepositSourceId(String(dep.id));
       const pay = s.flat.find((x) => x.parent_id != null && x.is_primary_payment && !isCardItem(x));

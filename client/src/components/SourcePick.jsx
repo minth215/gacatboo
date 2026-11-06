@@ -1,6 +1,8 @@
-// 원천 셀렉트(세부 항목만, 원천 그룹은 라벨). excludeCards: 신용카드/체크카드 그룹 제외(입금·출금 계좌용)
+import { depositableTree } from '../lib/sourceFilter.js';
+
+// 원천 셀렉트(원천만, 원천 그룹은 라벨). excludeCards: 신용카드/체크카드 그룹은 "입금 허용"을 켠 원천만(입금·출금 계좌용)
 export default function SourcePick({ tree, value, onChange, placeholder = '원천 선택', excludeCards = true, style }) {
-  const groups = (tree || []).filter((t) => t.children?.length && !(excludeCards && (t.group_type === 'credit' || t.group_type === 'check')));
+  const groups = (excludeCards ? depositableTree(tree, value) : (tree || [])).filter((t) => t.children?.length);
   return (
     <select
       value={value || ''} onChange={(e) => onChange(e.target.value)}

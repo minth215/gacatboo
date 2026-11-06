@@ -22,11 +22,11 @@ function defaultBillPeriod(d) {
 }
 const todayKst = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 
-// 설정 > 원천 관리 > 원천 그룹 추가/수정, 세부 항목 추가/수정 페이지.
+// 설정 > 원천 관리 > 원천 그룹 추가/수정, 원천 추가/수정 페이지.
 //  · /settings/sources/new             원천 그룹 추가
-//  · /settings/sources/:parentId/new   세부 항목 추가
-//  · /settings/sources/:id/edit        원천 그룹/세부 항목 수정
-// 세부 항목: 일반 그룹은 금액, 카드 그룹은 연결 계좌(카드 그룹 제외 원천), 신용카드 그룹은 대금 납부일(매달 1~31일).
+//  · /settings/sources/:parentId/new   원천 추가
+//  · /settings/sources/:id/edit        원천 그룹/원천 수정
+// 원천: 일반 그룹은 금액, 카드 그룹은 연결 계좌(카드 그룹 제외 원천), 신용카드 그룹은 대금 납부일(매달 1~31일).
 // admin=true: 관리자 > 원천 기본값 관리(금액·연결 계좌·납부일은 회원별 정보라 없음).
 export default function SourceEdit({ admin = false }) {
   const { id, parentId } = useParams();
@@ -62,7 +62,7 @@ export default function SourceEdit({ admin = false }) {
   const src = id ? flat.find((s) => s.id === Number(id)) : null;
   const isNew = !id;
   const isGroup = isNew ? !parentId : src?.parent_id == null;
-  // 세부 항목의 원천 그룹: 셀렉트박스로 바꿀 수 있음(form.parentId)
+  // 원천의 원천 그룹: 셀렉트박스로 바꿀 수 있음(form.parentId)
   const parent = isGroup ? null : tree?.find((t) => t.id === Number(form?.parentId || (isNew ? parentId : src?.parent_id)));
   const parentType = parent?.group_type || 'general';
 
@@ -78,8 +78,10 @@ export default function SourceEdit({ admin = false }) {
       balance: src?.current_balance != null ? String(src.current_balance) : '',
       linkedId: src?.linked_source_id ? String(src.linked_source_id) : '',
       onnuri: !!src?.onnuri_linked,
+      // 카드 원천 입금 허용(기본 OFF): 켜면 주입금수단 지정·입금 쪽 원천 목록에 포함
+      allowDeposit: !!src?.allow_deposit,
       includeTotals: src ? src.include_in_totals !== false : true,
-      // 대금 납부(신용카드 세부 항목): 납부일 기본 14일, 청구 기간은 납부일 기준 기본값
+      // 대금 납부(신용카드 원천): 납부일 기본 14일, 청구 기간은 납부일 기준 기본값
       paymentDay: src?.payment_day ? String(src.payment_day) : '14',
       businessRule: src?.payment_business_rule || 'none',
       ...(src?.bill_start_offset != null && src?.bill_end_offset != null
@@ -95,21 +97,21 @@ export default function SourceEdit({ admin = false }) {
   if (!tree || (!form && (isNew || src))) return <Spinner />;
   if (!form) return <div className="empty empty-center">원천을 찾을 수 없습니다.</div>;
 
-  const title = isGroup ? (isNew ? '원천 그룹 추가' : '원천 그룹 수정') : (isNew ? '세부 항목 추가' : '세부 항목 수정');
+  const title = isGroup ? (isNew ? '원천 그룹 추가' : '원천 그룹 수정') : (isNew ? '원천 추가' : '원천 수정');
   const cardItem = !isGroup && isCardGroup(parentType);
   const creditItem = !isGroup && parentType === 'credit';
-  // 신용카드/체크카드 그룹(과 그 세부 항목)은 주입금수단으로 지정할 수 없음
-  const depositDisabled = isCardGroup(isGroup ? form.groupType : parentType);
+  // 신용카드/체크카드 그룹의 원천은 "입금 허용"을 켜야 주입금수단으로 지정할 수 있음
+  const depositDisabled = isCardGroup(isGroup ? form.groupType : parentType) && (isGroup || admin || !form.allowDeposit);
 
   // 카드 그룹이 되면 주입금수단 지정은 풀림
   const set = (patch) => setForm((f) => {
     const next = { ...f, ...patch };
     const nextParentType = tree.find((t) => t.id === Number(next.parentId))?.group_type || 'general';
-    if (isCardGroup(isGroup ? next.groupType : nextParentType)) next.deposit = false;
+    if (isCardGroup(isGroup ? next.groupType : nextParentType) && (isGroup || admin || !next.allowDeposit)) next.deposit = false;
     return next;
   });
   const typeLabel = (t) => TYPE_LABEL[t] || '';
-  // 디지털 온누리 그룹이 있으면 카드 세부 항목에 "디지털 온누리 연결" 토글
+  // 디지털 온누리 그룹이 있으면 카드 원천에 "디지털 온누리 연결" 토글
   const hasOnnuri = tree.some((t) => t.group_type === 'onnuri');
   const save = async () => {
     const name = form.name.trim();
@@ -131,16 +133,16 @@ export default function SourceEdit({ admin = false }) {
         const row = await api.add(name, isGroup ? null : Number(form.parentId || parentId), isGroup ? form.groupType : null);
         sid = row.id;
         if (isGroup) groupRowId = row.id;
-        // 원천 그룹은 선택할 수 없으므로 같은 이름의 세부 항목을 함께 만듦
+        // 원천 그룹은 선택할 수 없으므로 같은 이름의 원천을 함께 만듦
         if (isGroup) sid = (await api.add(name, row.id)).id;
       } else if (name !== src.name || (isGroup && form.groupType !== (src.group_type || 'general'))) {
         await api.update(sid, name, isGroup ? form.groupType : undefined);
       }
-      // 그룹을 카드 그룹으로 바꾸면 세부 항목의 주입금수단 지정도 해제
+      // 그룹을 카드 그룹으로 바꾸면 원천의 주입금수단 지정도 해제
       if (!isNew && isGroup && isCardGroup(form.groupType)) {
-        for (const c of src.children || []) if (c.is_primary_deposit) await api.setPrimary(c.id, 'deposit', false);
+        for (const c of src.children || []) if (c.is_primary_deposit && !c.allow_deposit) await api.setPrimary(c.id, 'deposit', false);
       }
-      // 원천 그룹 변경(세부 항목)
+      // 원천 그룹 변경(원천)
       if (!isNew && !isGroup && Number(form.parentId) !== src.parent_id) await api.move(sid, Number(form.parentId));
       if (!isGroup) {
         if (form.payment !== !!src?.is_primary_payment) await api.setPrimary(sid, 'payment', form.payment);
@@ -162,11 +164,13 @@ export default function SourceEdit({ admin = false }) {
             auto_bill_since: form.autoBill ? (src?.auto_bill ? (src.auto_bill_since || todayKst()) : todayKst()) : null,
           } : {}),
           onnuri_linked: cardItem && hasOnnuri && !!form.onnuri,
+          allow_deposit: cardItem && !!form.allowDeposit,
           include_in_totals: !!form.includeTotals,
           ...(balanceChanged ? { balance: newBal, balance_set_at: newBal == null ? null : new Date().toISOString() } : {}),
         };
         const changed = creditItem || balanceChanged || details.linked_source_id !== (src?.linked_source_id ?? null)
           || details.payment_day !== (src?.payment_day ?? null) || details.onnuri_linked !== !!src?.onnuri_linked
+          || details.allow_deposit !== !!src?.allow_deposit
           || details.include_in_totals !== (src ? src.include_in_totals !== false : true);
         if (changed) await db.updateSourceDetails(sid, details);
       }
@@ -191,6 +195,53 @@ export default function SourceEdit({ admin = false }) {
     return (neg ? '-' : '') + Number(v.replace('-', '')).toLocaleString('ko-KR');
   };
 
+  const primaryPills = (
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[['payment', '주결제수단', '#FF3B5C', '#FDE8EE'], ['deposit', '주입금수단', '#1FB597', '#E5FBF6']].map(([key, label, fg, bg]) => {
+            const disabled = key === 'deposit' && depositDisabled;
+            const on = !disabled && form[key];
+            return (
+              <button
+                key={key} type="button" aria-pressed={on} aria-disabled={disabled} className="pill-toggle"
+                onClick={() => {
+                  if (disabled) { setToast(cardItem && !admin ? '입금 허용을 켜면 주입금수단으로 지정할 수 있어요' : `${typeLabel(isGroup ? form.groupType : parentType)} 그룹은 주입금수단으로 지정할 수 없어요`); setToastKey((k) => k + 1); return; }
+                  set({ [key]: !form[key] });
+                }}
+                style={{
+                  flex: 1, height: 40, borderRadius: 999, fontFamily: 'inherit', fontSize: 12.75, fontWeight: 700,
+                  cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
+                  borderColor: on ? fg : 'var(--k-bd-efeef2)', background: on ? bg : 'var(--k-bg-fff)', color: on ? fg : 'var(--k-tx-8b8798)',
+                }}
+              >{on ? `✓ ${label}` : label}</button>
+            );
+          })}
+        </div>
+  );
+  // 카드 원천: "입출금 설정" 영역(입금 허용 토글 + 입력 자동화(주결제/주입금수단))
+  const inOutBox = cardItem && (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+      <span style={labelStyle}>입출금 설정</span>
+      <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.07 * var(--k-sha)))', padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {!admin && (
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={subLabel}>입금 허용</span>
+              <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)' }}>켜면 수입·이체 입금과 그룹 입출금 수단으로도 고를 수 있어요</span>
+            </span>
+            <button
+              type="button" role="switch" aria-checked={!!form.allowDeposit} aria-label="입금 허용"
+              className={`ios-toggle${form.allowDeposit ? ' on' : ''}`} onClick={() => set({ allowDeposit: !form.allowDeposit })}
+            ><span className="ios-toggle-knob" /></button>
+          </label>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <span style={subLabel}>입력 자동화</span>
+          {primaryPills}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ padding: '44px 0 24px' }}>
       <PageHeader title={title} flat />
@@ -206,9 +257,12 @@ export default function SourceEdit({ admin = false }) {
         )}
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <span style={labelStyle}>{isGroup ? '원천 그룹 이름' : '세부 항목 이름'} <span style={{ color: '#FF3B5C' }}>*</span></span>
+          <span style={labelStyle}>{isGroup ? '원천 그룹 이름' : '원천 이름'} <span style={{ color: '#FF3B5C' }}>*</span></span>
           <input type="text" value={form.name} onChange={(e) => set({ name: e.target.value })} autoFocus={isNew} placeholder={isGroup ? '예: 은행' : '예: 우리은행'} style={fieldStyle} />
         </label>
+
+        {/* 체크카드 원천: 원천 이름 아래 입출금 설정 */}
+        {cardItem && !creditItem && inOutBox}
 
         {isGroup && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -230,7 +284,7 @@ export default function SourceEdit({ admin = false }) {
           </label>
         )}
 
-        {/* 일반 그룹 세부 항목: 금액 */}
+        {/* 일반 그룹 원천: 금액 */}
         {!admin && !isGroup && !cardItem && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             <span style={labelStyle}>금액</span>
@@ -245,13 +299,13 @@ export default function SourceEdit({ admin = false }) {
           </label>
         )}
 
-        {/* 체크카드 세부 항목: 연결 계좌 */}
+        {/* 체크카드 원천: 연결 계좌 */}
         {!admin && cardItem && !creditItem && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             <span style={labelStyle}>연결 계좌</span>
             <select value={form.linkedId} onChange={(e) => set({ linkedId: e.target.value })} style={{ ...selectStyle, color: form.linkedId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>
               <option value="">카드값이 빠져나갈 원천 선택</option>
-              {/* 기록 페이지 원천 셀렉트처럼 원천 그룹 라벨 아래 세부 항목(카드·디지털 온누리 그룹 제외) */}
+              {/* 기록 페이지 원천 셀렉트처럼 원천 그룹 라벨 아래 원천(카드·디지털 온누리 그룹 제외) */}
               {tree.filter((t) => !isCardGroup(t.group_type) && t.group_type !== 'onnuri' && t.children?.length).map((t) => (
                 <optgroup key={t.id} label={t.name}>
                   {t.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -261,7 +315,7 @@ export default function SourceEdit({ admin = false }) {
           </label>
         )}
 
-        {/* 신용카드 세부 항목: "대금 납부" 영역(연결 계좌·납부일·영업일 처리·청구 기간·자동 입력) */}
+        {/* 신용카드 원천: "대금 납부" 영역(연결 계좌·납부일·영업일 처리·청구 기간·자동 입력) */}
         {!admin && creditItem && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             <span style={labelStyle}>대금 납부</span>
@@ -270,7 +324,7 @@ export default function SourceEdit({ admin = false }) {
                 <span style={subLabel}>연결 계좌{req}</span>
             <select value={form.linkedId} onChange={(e) => set({ linkedId: e.target.value })} style={{ ...selectStyle, color: form.linkedId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>
                   <option value="">카드값이 빠져나갈 원천 선택</option>
-                  {/* 기록 페이지 원천 셀렉트처럼 원천 그룹 라벨 아래 세부 항목(카드·디지털 온누리 그룹 제외) */}
+                  {/* 기록 페이지 원천 셀렉트처럼 원천 그룹 라벨 아래 원천(카드·디지털 온누리 그룹 제외) */}
                   {tree.filter((t) => !isCardGroup(t.group_type) && t.group_type !== 'onnuri' && t.children?.length).map((t) => (
                     <optgroup key={t.id} label={t.name}>
                       {t.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -336,34 +390,18 @@ export default function SourceEdit({ admin = false }) {
           </div>
         )}
 
-        {/* 주결제/주입금수단 — 세부 항목만(원천 그룹은 원천으로 고를 수 없음) */}
-        {!isGroup && (
+        {/* 신용카드 원천: 대금 납부 영역 아래 입출금 설정 */}
+        {creditItem && inOutBox}
+
+        {/* 주결제/주입금수단 — 일반·디지털 온누리 그룹 원천(카드 원천은 아래 "입출금 설정" 영역의 "입력 자동화") */}
+        {!isGroup && !cardItem && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           <span style={labelStyle}>주 수단 지정</span>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {[['payment', '주결제수단', '#FF3B5C', '#FDE8EE'], ['deposit', '주입금수단', '#1FB597', '#E5FBF6']].map(([key, label, fg, bg]) => {
-              const disabled = key === 'deposit' && depositDisabled;
-              const on = !disabled && form[key];
-              return (
-                <button
-                  key={key} type="button" aria-pressed={on} aria-disabled={disabled} className="pill-toggle"
-                  onClick={() => {
-                    if (disabled) { setToast(`${typeLabel(isGroup ? form.groupType : parentType)} 그룹은 주입금수단으로 지정할 수 없어요`); setToastKey((k) => k + 1); return; }
-                    set({ [key]: !form[key] });
-                  }}
-                  style={{
-                    flex: 1, height: 40, borderRadius: 999, fontFamily: 'inherit', fontSize: 12.75, fontWeight: 700,
-                    cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
-                    borderColor: on ? fg : 'var(--k-bd-efeef2)', background: on ? bg : 'var(--k-bg-fff)', color: on ? fg : 'var(--k-tx-8b8798)',
-                  }}
-                >{on ? `✓ ${label}` : label}</button>
-              );
-            })}
-          </div>
+          {primaryPills}
         </div>
         )}
 
-        {/* 카드 그룹 세부 항목: 디지털 온누리 연결(디지털 온누리 그룹이 있을 때, 기본 OFF) */}
+        {/* 카드 그룹 원천: 디지털 온누리 연결(디지털 온누리 그룹이 있을 때, 기본 OFF) */}
         {!admin && cardItem && hasOnnuri && (
           <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
             <span style={labelStyle}>디지털 온누리 연결</span>
@@ -374,7 +412,7 @@ export default function SourceEdit({ admin = false }) {
           </label>
         )}
 
-        {/* 모든 세부 항목: 집계 포함(기본 ON). OFF 면 가계부 상단 합계·분류별/항목별 통계에서 제외 */}
+        {/* 모든 원천: 집계 포함(기본 ON). OFF 면 가계부 상단 합계·분류별/항목별 통계에서 제외 */}
         {!admin && !isGroup && (
           <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
             <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
