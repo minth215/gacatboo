@@ -355,7 +355,7 @@ export const db = {
   // ---------- 반복 수입/지출 ----------
   // 생성/삭제와 종료일 수정만 지원(그 외 필드 수정은 해제 후 재등록). 실제 거래 생성은 서버 pg_cron이 매일 수행.
   async listRecurringRules() {
-    const rows = unwrap(await supabase.from('recurring_rules').select('*, group:groups(name, owner_id)').eq('active', true).order('created_at', { ascending: false }));
+    const rows = unwrap(await supabase.from('recurring_rules').select('*, group:groups(name, owner_id, category), member:group_members(nickname)').eq('active', true).order('created_at', { ascending: false }));
     return rows.map((r) => ({ ...r, group_name: r.group?.name || null }));
   },
   // 내보내기: 비활성(해제된) 규칙도 포함한 전체 목록

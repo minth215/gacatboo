@@ -21,7 +21,7 @@ function viewOf(r, userId) {
 
 
 // 반복 관리 카드(그룹 멤버 상세의 정기 입금/결제 카드도 같은 모양)
-export function RuleCard({ r, userId, subLine, isOpen, onOpenChange, onTap, onDelete }) {
+export function RuleCard({ r, userId, subLine, isOpen, onOpenChange, onTap, onDelete, badge = null }) {
   const { dispType, dispName, dispEmoji } = viewOf(r, userId);
   return (
       <DayCardRow
@@ -36,6 +36,7 @@ export function RuleCard({ r, userId, subLine, isOpen, onOpenChange, onTap, onDe
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="tx-row-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span className="ttext">{r.content || dispName || (dispType === 'income' ? '수입' : dispType === 'transfer' ? '이체' : '지출')}</span>
+            {badge}
           </div>
           <div className="tx-row-sub">{subLine}</div>
         </div>
@@ -80,9 +81,26 @@ export default function RecurringManage() {
     const [, m, d] = (r.start_date || '0000-00-00').split('-').map(Number);
     return [wd, r.freq_unit === 'year' ? m * 100 + d : d];
   };
+  // 구독 그룹 총대 입장: 멤버만 다르고 나머지(내용·분류·원천·주기·날짜·금액)가 같은 입금 반복은 한 장으로 묶음
+  const mergeKey = (r) => ((r.target === 'subscription_deposit' && r.group?.owner_id === user.id && r.group?.category !== '정산')
+    ? [r.group_id, r.content, r.leader_category_name, r.deposit_source_name, r.freq_unit, r.freq_interval, (r.weekdays || []).join(','),
+      periodDetailLabel(r), r.business_day_rule || 'none', r.amount, r.input_currency || '', r.input_amount ?? ''].join('|')
+    : null);
+  const mergedRules = (() => {
+    const out = []; const byKey = {};
+    for (const r of rules) {
+      const k = mergeKey(r);
+      if (k == null) { out.push(r); continue; }
+      if (byKey[k]) { byKey[k]._members.push(r); continue; }
+      byKey[k] = { ...r, _members: [r] };
+      out.push(byKey[k]);
+    }
+    for (const g of out) if (g._members) g._members.sort((a, b) => (a.member?.nickname || '').localeCompare(b.member?.nickname || '', 'ko'));
+    return out;
+  })();
   const shownRulesRaw = term
-    ? rules.filter((r) => [r.content, subLineOf(r), r.group_name].filter(Boolean).join(' ').toLowerCase().includes(term))
-    : rules;
+    ? mergedRules.filter((r) => [r.content, subLineOf(r), r.group_name, ...(r._members || []).map((m) => m.member?.nickname)].filter(Boolean).join(' ').toLowerCase().includes(term))
+    : mergedRules;
   const ruleSections = PRESET_ORDER
     .map((key) => ({
       key,
@@ -99,8 +117,15 @@ export default function RecurringManage() {
   useEffect(() => { load(); }, [load]);
 
   const del = async (r) => {
-    if (!confirm(`'${r.content || r.category_name || describeRule(r)}' 반복을 해제할까요? (이미 기록된 내역은 그대로 남습니다)`)) return;
-    try { await db.deleteRecurringRule(r.id); load(); } catch (e) { alert(e.message); }
+    const many = (r._members?.length || 0) > 1;
+    const name = r.content || r.category_name || describeRule(r);
+    if (!confirm(many
+      ? `'${name}' 반복(멤버 ${r._members.length}명)을 모두 해제할까요? (이미 기록된 내역은 그대로 남습니다)`
+      : `'${name}' 반복을 해제할까요? (이미 기록된 내역은 그대로 남습니다)`)) return;
+    try {
+      for (const x of (r._members || [r])) await db.deleteRecurringRule(x.id);
+      load();
+    } catch (e) { alert(e.message); }
   };
 
   const onSelectPeriod = (pending) => {
@@ -143,7 +168,7 @@ export default function RecurringManage() {
   };
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '44px 0 104px' }}>
       {/* 검색: 오른쪽 검색 버튼이 왼쪽 "<" 버튼을 덮을 때까지 늘어나 검색창이 됨(닫기는 X) */}
       <PageHeader
         flat
@@ -179,13 +204,24 @@ export default function RecurringManage() {
           <div key={key} style={{ marginTop: si === 0 ? 14 : 22 }}>
             <div style={{ padding: '0 8px 0 18px', marginBottom: 8, fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{label}</div>
             {items.map((r, i) => {
-          return (
-            <div key={r.id} className="tx-daygroup" style={{ marginTop: i === 0 ? 0 : 10 }}>
+          const n = r._members?.length || 0;
+          const card = (
+            <div className="tx-daygroup" style={{ marginTop: n > 1 ? 0 : (i === 0 ? 0 : 10), position: 'relative', zIndex: 1 }}>
               <RuleCard
                 r={r} userId={user.id} subLine={subLineOf(r)}
                 isOpen={openId === r.id} onOpenChange={(open) => setOpenId(open ? r.id : null)}
                 onTap={() => openDetail(r)} onDelete={() => del(r)}
+                badge={n > 1 ? <span className="tag-periods" style={{ flex: 'none' }}>{n}명</span> : null}
               />
+            </div>
+          );
+          if (n <= 1) return <div key={r.id}>{card}</div>;
+          // 여러 멤버가 묶인 카드: 뒤에 카드 두 장이 겹쳐 있는 것처럼
+          return (
+            <div key={r.id} style={{ position: 'relative', marginTop: i === 0 ? 0 : 10, paddingBottom: 10 }}>
+              <div aria-hidden style={{ position: 'absolute', left: 16, right: 16, bottom: 0, height: 30, borderRadius: 16, background: 'var(--k-bg-fff6ea)', boxShadow: '0 2px 8px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', opacity: 0.7 }} />
+              <div aria-hidden style={{ position: 'absolute', left: 8, right: 8, bottom: 5, height: 30, borderRadius: 16, background: 'var(--k-bg-fff1f3)', boxShadow: '0 2px 8px rgb(var(--k-sh) / calc(.06 * var(--k-sha)))' }} />
+              {card}
             </div>
           );
             })}
@@ -240,6 +276,24 @@ export default function RecurringManage() {
               <div style={{ height: 1, background: '#f0eee9' }} />
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* 묶인 입금 반복: 멤버를 골라 그 멤버의 반복을 보고 수정 */}
+                {detail.target === 'subscription_deposit' && detail.member && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', flex: 'none' }}>멤버</span>
+                    {(detail._members?.length || 0) > 1 ? (
+                      <BareSelect
+                        value={String(detail.id)} disabled={saving}
+                        options={detail._members.map((m) => [String(m.id), m.member?.nickname || '멤버'])}
+                        onChange={(k) => {
+                          const next = rules.find((x) => String(x.id) === k);
+                          if (next) setDetail({ ...next, _members: detail._members });
+                        }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: 13.25, color: 'var(--k-tx-191722)' }}>{detail.member?.nickname || '멤버'}</span>
+                    )}
+                  </div>
+                )}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', flex: 'none' }}>반복 기간</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>

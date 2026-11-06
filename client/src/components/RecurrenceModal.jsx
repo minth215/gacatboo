@@ -82,7 +82,8 @@ export default function RecurrenceModal({ onClose, onSelect, date, allowInstallm
         {/* 반복 / 할부 탭(할부는 새 기록에서만) */}
         {installmentOnly ? (
           <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>할부 개월 수 수정</div>
-        ) : (
+        ) : allowInstallment && (
+        // 할부를 고를 수 없으면(반복만 가능) 탭 자체를 표시하지 않음
         <div style={{ display: 'flex', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: 4 }}>
           {[['repeat', '반복'], ['installment', '할부']].filter(([k]) => k === 'repeat' || allowInstallment).map(([k, label]) => (
             <button key={k} type="button" onClick={() => setKind(k)} style={{
