@@ -4,6 +4,7 @@ import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { today } from '../lib/format.js';
 import { alignStartDate } from '../lib/recurrence.js';
+import { primarySettleSource } from '../lib/sourceFilter.js';
 import Spinner from '../components/Spinner.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import TransactionForm from '../components/TransactionForm.jsx';
@@ -109,7 +110,7 @@ export default function MemberDepositRule() {
     } else {
       // 멤버 본인이 설정할 때 원천 기본값 = 그룹에 지정한 내 출금 수단.
       // 총대가 대신 설정하면 멤버 쪽 원천은 비워 두고, 자동 생성 시 멤버의 출금 수단으로 채워진다.
-      const myWithdraw = !isOwner && member.withdraw_source_id ? sources.flat.find((s) => s.id === member.withdraw_source_id) : null;
+      const myWithdraw = isOwner ? null : ((member.withdraw_source_id ? sources.flat.find((s) => s.id === member.withdraw_source_id) : null) || primarySettleSource(sources.flat));
       const settleCat = incomeCats.find((c) => c.name === '정산');
       const initial = {
         id: null, member_id: member.id, member: { nickname: member.nickname },

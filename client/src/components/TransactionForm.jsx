@@ -821,8 +821,9 @@ const TransactionForm = forwardRef(function TransactionForm({
         const s = sourcesFlat.find((x) => x.name === initial.source_name);
         if (s) patch.fromSourceId = String(s.id);
       }
-      if (!cur.fromSourceId && !patch.fromSourceId && !editing && defaultTransferFromId && sourcesFlat.some((x) => String(x.id) === String(defaultTransferFromId))) {
-        patch.fromSourceId = String(defaultTransferFromId);
+      const fromId = defaultTransferFromId === 'settle' ? sourcesFlat.find((x) => x.parent_id != null && x.is_primary_settle)?.id : defaultTransferFromId;
+      if (!cur.fromSourceId && !patch.fromSourceId && !editing && fromId && sourcesFlat.some((x) => String(x.id) === String(fromId))) {
+        patch.fromSourceId = String(fromId);
       }
       if (!cur.toSourceId) {
         const name = (restoreTransferFromInitial ? initial?.to_source_name : '') || defaultTransferToName;

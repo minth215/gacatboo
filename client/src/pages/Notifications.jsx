@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
+import { primarySettleSource } from '../lib/sourceFilter.js';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { DayCardRow } from '../components/TransactionList.jsx';
@@ -34,7 +35,8 @@ export default function Notifications() {
     try {
       const [info, { tree, flat }] = await Promise.all([db.getGroupInviteInfo(memberId), db.listSources()]);
       setSourceTree(tree);
-      const primary = flat.find((x) => x.parent_id != null && x.is_primary_payment);
+      // 출금 수단 기본값: 주 정산 수단 → 없으면 주 결제 수단
+      const primary = primarySettleSource(flat) || flat.find((x) => x.parent_id != null && x.is_primary_payment);
       setAcceptFor({ r, memberId, groupName: info?.group_name || '', nickname: info?.nickname || '', sourceId: primary ? String(primary.id) : '' });
     } catch (e) { alert(e.message); }
   };

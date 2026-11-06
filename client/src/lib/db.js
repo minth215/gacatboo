@@ -331,7 +331,7 @@ export const db = {
   },
   // 주결제/주입금수단 기본값: 같은 종류는 하나만(지정하면 나머지 해제)
   async setDefaultPrimarySource(id, kind, value) {
-    const col = kind === 'payment' ? 'is_primary_payment' : 'is_primary_deposit';
+    const col = kind === 'payment' ? 'is_primary_payment' : kind === 'settle' ? 'is_primary_settle' : 'is_primary_deposit';
     if (value) unwrap(await supabase.from('default_sources').update({ [col]: false }).eq(col, true));
     return unwrap(await supabase.from('default_sources').update({ [col]: !!value }).eq('id', id));
   },

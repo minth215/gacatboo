@@ -96,6 +96,7 @@ export default function SourceEdit({ admin = false }) {
       groupType: src?.group_type || 'general',
       payment: !!src?.is_primary_payment,
       deposit: !!src?.is_primary_deposit,
+      settle: !!src?.is_primary_settle,
       // 현재 금액(기준 금액 + 기록 반영)을 보여 주고, 바꾸면 그 값이 새 기준 금액(수정 시각 기준)
       balance: src?.current_balance != null ? String(src.current_balance) : '',
       linkedId: src?.linked_source_id ? String(src.linked_source_id) : '',
@@ -129,7 +130,7 @@ export default function SourceEdit({ admin = false }) {
   const set = (patch) => setForm((f) => {
     const next = { ...f, ...patch };
     const nextParentType = tree.find((t) => t.id === Number(next.parentId))?.group_type || 'general';
-    if (isCardGroup(isGroup ? next.groupType : nextParentType) && (isGroup || admin || !next.allowDeposit)) next.deposit = false;
+    if (isCardGroup(isGroup ? next.groupType : nextParentType) && (isGroup || admin || !next.allowDeposit)) { next.deposit = false; next.settle = false; }
     return next;
   });
   const typeLabel = (t) => TYPE_LABEL[t] || '';
@@ -148,6 +149,7 @@ export default function SourceEdit({ admin = false }) {
     if (busy) return;
     setBusy(true);
     const deposit = depositDisabled ? false : form.deposit;
+    const settle = depositDisabled ? false : form.settle;
     try {
       let sid = src?.id;
       let groupRowId = isGroup ? src?.id : null;
@@ -162,13 +164,18 @@ export default function SourceEdit({ admin = false }) {
       }
       // 그룹을 카드 그룹으로 바꾸면 원천의 주입금수단 지정도 해제
       if (!isNew && isGroup && isCardGroup(form.groupType)) {
-        for (const c of src.children || []) if (c.is_primary_deposit && !c.allow_deposit) await api.setPrimary(c.id, 'deposit', false);
+        for (const c of src.children || []) {
+          if (c.allow_deposit) continue;
+          if (c.is_primary_deposit) await api.setPrimary(c.id, 'deposit', false);
+          if (c.is_primary_settle) await api.setPrimary(c.id, 'settle', false);
+        }
       }
       // 원천 그룹 변경(원천)
       if (!isNew && !isGroup && Number(form.parentId) !== src.parent_id) await api.move(sid, Number(form.parentId));
       if (!isGroup) {
         if (form.payment !== !!src?.is_primary_payment) await api.setPrimary(sid, 'payment', form.payment);
         if (deposit !== !!src?.is_primary_deposit) await api.setPrimary(sid, 'deposit', deposit);
+        if (settle !== !!src?.is_primary_settle) await api.setPrimary(sid, 'settle', settle);
       }
       if (!admin && !isGroup) {
         const newBal = cardItem || form.balance === '' || form.balance === '-' ? null : Number(form.balance);
@@ -220,18 +227,19 @@ export default function SourceEdit({ admin = false }) {
 
   const primaryPills = (
         <div style={{ display: 'flex', gap: 8 }}>
-          {[['payment', '주결제수단', '#FF3B5C', '#FDE8EE'], ['deposit', '주입금수단', '#1FB597', '#E5FBF6']].map(([key, label, fg, bg]) => {
-            const disabled = key === 'deposit' && depositDisabled;
+          {[['payment', '주 결제 수단', '#FF3B5C', '#FDE8EE'], ['deposit', '주 입금 수단', '#1FB597', '#E5FBF6'], ['settle', '주 정산 수단', '#7B61FF', '#EEEBFE']].map(([key, label, fg, bg]) => {
+            // 카드 원천은 입금 허용을 켜야 주 입금/정산 수단으로 지정 가능
+            const disabled = key !== 'payment' && depositDisabled;
             const on = !disabled && form[key];
             return (
               <button
                 key={key} type="button" aria-pressed={on} aria-disabled={disabled} className="pill-toggle"
                 onClick={() => {
-                  if (disabled) { setToast(cardItem && !admin ? '입금 허용을 켜면 주입금수단으로 지정할 수 있어요' : `${typeLabel(isGroup ? form.groupType : parentType)} 그룹은 주입금수단으로 지정할 수 없어요`); setToastKey((k) => k + 1); return; }
+                  if (disabled) { setToast(cardItem && !admin ? `입금 허용을 켜면 ${label}으로 지정할 수 있어요` : `${typeLabel(isGroup ? form.groupType : parentType)} 그룹은 ${label}으로 지정할 수 없어요`); setToastKey((k) => k + 1); return; }
                   set({ [key]: !form[key] });
                 }}
                 style={{
-                  flex: 1, height: 40, borderRadius: 999, fontFamily: 'inherit', fontSize: 12.75, fontWeight: 700,
+                  flex: 1, minWidth: 0, height: 40, borderRadius: 999, fontFamily: 'inherit', fontSize: 12, padding: '0 6px', whiteSpace: 'nowrap', fontWeight: 700,
                   cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
                   borderColor: on ? fg : 'var(--k-bd-efeef2)', background: on ? bg : 'var(--k-bg-fff)', color: on ? fg : 'var(--k-tx-8b8798)',
                 }}
@@ -421,7 +429,7 @@ export default function SourceEdit({ admin = false }) {
         {/* 주결제/주입금수단 — 일반·디지털 온누리 그룹 원천(카드 원천은 아래 "입출금 설정" 영역의 "입력 자동화") */}
         {!isGroup && !cardItem && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <span style={labelStyle}>주 수단 지정</span>
+          <span style={labelStyle}>입력 자동화</span>
           {primaryPills}
         </div>
         )}

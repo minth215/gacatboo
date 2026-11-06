@@ -16,3 +16,8 @@ export function depositableTree(tree, selectedId, strictTypes = []) {
     return kids.length ? { ...top, children: kids } : null;
   }).filter(Boolean);
 }
+
+// 주 정산 수단(0110): 그룹의 정산 수단·공금 통장·입출금 수단 선택 기본값
+export function primarySettleSource(flat) {
+  return (flat || []).find((x) => x.parent_id != null && x.is_primary_settle) || null;
+}

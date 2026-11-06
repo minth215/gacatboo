@@ -7,6 +7,7 @@ import Spinner from '../components/Spinner.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import { fieldStyle, labelStyle } from './FriendAdd.jsx';
 import SourcePick from '../components/SourcePick.jsx';
+import { primarySettleSource } from '../lib/sourceFilter.js';
 
 // 총무/총대는 톱니바퀴 > "내 정보": 내 닉네임·입금 수단(+ 공금 그룹은 출금 수단). 탈퇴 버튼 없음.
 // 그룹 상세 > (일반 멤버) 톱니바퀴 > 멤버 정보 수정: 그룹 내 내 닉네임·출금 수단. "수정"을 눌러야 반영.
@@ -31,10 +32,12 @@ export default function GroupMyMember() {
       if (!m) { alert('그룹 멤버가 아닙니다.'); nav(-1); return; }
       setGroup(g); setMe(m); setTree(t); setSub(sb);
       const owner = g.owner_id === user.id;
+      // 비어 있으면 주 정산 수단을 기본으로
+      const settle = primarySettleSource(t.flatMap((x) => [x, ...(x.children || [])]));
       setForm({
         nickname: owner ? (m.owner_nickname || m.nickname || '') : (m.self_nickname || m.owner_nickname || m.nickname || ''),
-        sourceId: m.withdraw_source_id ? String(m.withdraw_source_id) : '',
-        depositSourceId: sb?.deposit_source_id ? String(sb.deposit_source_id) : '',
+        sourceId: m.withdraw_source_id ? String(m.withdraw_source_id) : (settle ? String(settle.id) : ''),
+        depositSourceId: sb?.deposit_source_id ? String(sb.deposit_source_id) : (owner && settle ? String(settle.id) : ''),
       });
     }).catch((e) => { alert(e.message); nav(-1); });
   }, [gid, user.id, nav]);

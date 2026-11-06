@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef, Fragment, forwardRef, useImperativeHandle } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
-import { depositableTree } from '../lib/sourceFilter.js';
+import { depositableTree, primarySettleSource } from '../lib/sourceFilter.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtWon, fmtNum, today, dotDate, dotDateWithWeekday, monthPillLabel, isSettlement } from '../lib/format.js';
 import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
@@ -1505,7 +1505,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     if (editing || isOwner || f.mSourceId) return;
     const me = members.find((m) => String(m.id) === String(f.memberId)) || members[0];
     const w = me?.withdraw_source_id ? sources.flat.find((x) => x.id === me.withdraw_source_id) : null;
-    const s = w || sources.flat.find((x) => x.parent_id != null && x.is_primary_payment) || sources.flat.find((x) => x.is_primary_payment);
+    const s = w || primarySettleSource(sources.flat) || sources.flat.find((x) => x.parent_id != null && x.is_primary_payment) || sources.flat.find((x) => x.is_primary_payment);
     if (s) setF((prev) => ({ ...prev, mSourceId: String(s.id) }));
   }, [editing, isOwner, sources, members]);
   // 정산 대상 지출이 하나뿐이면 자동으로 선택해 둔다.
