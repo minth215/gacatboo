@@ -19,6 +19,7 @@ export default function GroupDetail() {
   const { user } = useAuth();
   const [group, setGroup] = useState(null);
   const [members, setMembers] = useState([]);
+  const [gearOpen, setGearOpen] = useState(false); // 총무/총대 톱니바퀴 드롭다운
 
   const loadGroup = useCallback(() => {
     db.getGroup(gid).then(({ group, members }) => { setGroup(group); setMembers(members); })
@@ -34,13 +35,28 @@ export default function GroupDetail() {
 
   const header = (
     <PageHeader title={group.name} flat right={(isOwner || myMember) && (
-      // 총무/총대: 그룹 정보 수정, 일반 멤버: 내 멤버 정보 수정(닉네임·출금 수단·탈퇴)
-      <button className="tb-icon-btn" onClick={() => nav(isOwner ? `/groups/${gid}/edit` : `/groups/${gid}/me`)} aria-label={isOwner ? '그룹 정보 수정' : '멤버 정보 수정'}>
+      // 총무/총대: "내 정보 / 그룹 정보" 드롭다운, 일반 멤버: 바로 내 멤버 정보 수정(닉네임·출금 수단·탈퇴)
+      <div style={{ position: 'relative' }}>
+      <button className="tb-icon-btn" onClick={() => (isOwner ? setGearOpen((v) => !v) : nav(`/groups/${gid}/me`))} aria-label={isOwner ? '설정 메뉴' : '멤버 정보 수정'}>
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       </button>
+      {isOwner && gearOpen && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setGearOpen(false)} />
+          <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 41, minWidth: 120, background: 'var(--k-bg-fff)', borderRadius: 14, boxShadow: '0 8px 24px rgb(var(--k-sh) / calc(.16 * var(--k-sha)))', padding: 6 }}>
+            {[['내 정보', `/groups/${gid}/me`], ['그룹 정보', `/groups/${gid}/edit`]].map(([label, to]) => (
+              <button
+                key={to} type="button" onClick={() => { setGearOpen(false); nav(to); }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', border: 'none', background: 'transparent', borderRadius: 10, padding: '10px 12px', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', cursor: 'pointer' }}
+              >{label}</button>
+            ))}
+          </div>
+        </>
+      )}
+      </div>
     )} />
   );
 

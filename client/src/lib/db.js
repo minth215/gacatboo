@@ -953,6 +953,10 @@ export const db = {
   },
 
   // ---------- 구독 설정 ----------
+  // 총무/총대 본인의 그룹 멤버 행 갱신(닉네임·출금 수단 등)
+  async updateOwnerMember(groupId, userId, patch) {
+    return unwrap(await supabase.from('group_members').update(patch).eq('group_id', groupId).eq('user_id', userId));
+  },
   async getSubscription(groupId) {
     return unwrap(await supabase.from('subscriptions').select('*').eq('group_id', groupId).maybeSingle());
   },

@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, PERIOD_LABEL, isSubscription, isSettlement, dotDate } from '../lib/format.js';
+import { dotDate } from '../lib/format.js';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
-import { SettingsForm } from './SubscriptionGroup.jsx';
 
 const PALETTE = ['#EEEBFE', '#E8F4EC', '#FDEEE6', '#E6EEFD', '#FDE8EE', '#FBF1D3', '#FDE2E2'];
 
@@ -21,13 +20,8 @@ export default function GroupEdit() {
   const { user } = useAuth();
   const [form, setForm] = useState(null);
   const [groupCats, setGroupCats] = useState([]);
-  const [sub, setSub] = useState(null);
-  const [incomeCats, setIncomeCats] = useState([]);
-  const [setModal, setSetModal] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-
-  const loadSub = () => db.getSubscription(gid).then(setSub).catch(() => {});
 
   useEffect(() => {
     db.getGroup(gid).then(({ group }) => {
@@ -40,8 +34,6 @@ export default function GroupEdit() {
       });
     }).catch((e) => { alert(e.message); nav('/groups'); });
     db.listGroupCategories().then(setGroupCats).catch(() => {});
-    loadSub();
-    db.listCategories('income').then(setIncomeCats).catch(() => {});
   }, [gid]);
 
   if (!form) return <Spinner />;
@@ -151,45 +143,10 @@ export default function GroupEdit() {
         />
       </label>
 
-      {isSubscription(form.category) && (
-        <div className="form-section-card" style={{ marginTop: 18 }}>
-          <div className="between" style={{ marginBottom: 8 }}>
-            <div className="form-section-title" style={{ marginBottom: 0 }}>구독 설정</div>
-            <button type="button" className="btn sm" onClick={() => setSetModal(true)}>설정</button>
-          </div>
-          {sub ? (
-            <div className="small muted" style={{ lineHeight: 1.7 }}>
-              방식: <b>{sub.mode === 'common' ? '공통(모임통장)' : '개인'}</b> · 정기결제일: {sub.billing_day ? `${sub.billing_day}일` : '-'}<br />
-              정기결제금액: {sub.billing_amount ? fmtWon(sub.billing_amount) : '-'} · 정기입금액: {sub.deposit_amount ? fmtWon(sub.deposit_amount) : '-'}<br />
-              주기: {sub.period_count}{PERIOD_LABEL[sub.period_unit]} · 입금분류: {sub.deposit_category ? `${sub.deposit_category_emoji || ''} ${sub.deposit_category}` : '-'}
-            </div>
-          ) : <div className="small muted">설정 버튼으로 구독을 설정하세요.</div>}
-        </div>
-      )}
-
-      {isSettlement(form.category) && (
-        <div className="form-section-card" style={{ marginTop: 18 }}>
-          <div className="form-section-title">총무 입금 정보</div>
-          <p className="small muted" style={{ margin: '-2px 0 8px' }}>정산 미완료 멤버가 본인 카드를 누르면 뜨는 송금 안내에 사용됩니다.</p>
-          <div className="field">
-            <label>입금 계좌</label>
-            <input value={form.owner_account} onChange={(e) => setForm({ ...form, owner_account: e.target.value })} placeholder="예: 카카오뱅크 3333-01-1234567" />
-          </div>
-          <div className="field">
-            <label>카카오페이 송금 링크</label>
-            <input value={form.owner_kakaopay_link} onChange={(e) => setForm({ ...form, owner_kakaopay_link: e.target.value })} placeholder="카카오페이 앱에서 만든 송금 링크를 붙여넣으세요" />
-          </div>
-        </div>
-      )}
-
       {err && <p className="error" style={{ marginTop: 14 }}>{err}</p>}
       <button className="btn-ink-pill" disabled={busy} onClick={save} style={{ marginTop: 20 }}>{busy ? '저장 중…' : '저장'}</button>
       <button type="button" onClick={deleteGroup} style={{ display: 'block', margin: '12px auto 0', border: 'none', background: 'transparent', color: 'var(--expense)', fontSize: 12.5, fontWeight: 700, padding: '6px 10px', cursor: 'pointer' }}>그룹 삭제</button>
 
-      {setModal && (
-        <SettingsForm sub={sub} incomeCats={incomeCats} onClose={() => setSetModal(false)}
-          onSave={async (s) => { await db.upsertSubscription(gid, s); setSetModal(false); loadSub(); }} />
-      )}
     </div>
   );
 }

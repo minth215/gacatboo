@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { today, dotDate } from '../lib/format.js';
 import PageHeader from '../components/PageHeader.jsx';
 import { useMemberPicker, useFixedHeaderScroll } from '../components/MemberPicker.jsx';
+import SourcePick from '../components/SourcePick.jsx';
 
 const PALETTE = ['#EEEBFE', '#E8F4EC', '#FDEEE6', '#E6EEFD', '#FDE8EE', '#FBF1D3', '#FDE2E2'];
 const STEP_LABELS = ['그룹 정보', '내 정보', '멤버 추가'];
@@ -35,6 +36,7 @@ export default function GroupCreate() {
   // 스텝 2: 내 정보
   const [nickname, setNickname] = useState(user.display_name || '');
   const [depositSourceId, setDepositSourceId] = useState('');
+  const [withdrawSourceId, setWithdrawSourceId] = useState(''); // 공금 그룹: 공금 통장에 입금할 때 돈이 빠져나갈 원천
 
   // 스텝 3: 멤버 추가(그룹 상세 > 멤버 추가 페이지와 같은 구성)
   const bodyRef = useRef(null); // 단계 본문 스크롤 영역
@@ -48,9 +50,12 @@ export default function GroupCreate() {
     }).catch(() => {});
     db.listSources().then((s) => {
       setSources(s);
-      // 주입금수단이 세부 항목을 가진 원천 그룹이면(그룹 자체는 선택 불가) 기본값으로 쓰지 않음
-      const primary = s.flat.find((x) => x.is_primary_deposit && !s.tree.find((t) => t.id === x.id)?.children?.length);
-      if (primary) setDepositSourceId(String(primary.id));
+      // 기본값: 주입금수단(입금 수단)·주결제수단(출금 수단) — 세부 항목이고 카드 그룹이 아닐 때만
+      const isCardItem = (x) => ['credit', 'check'].includes(s.tree.find((t) => t.id === x.parent_id)?.group_type);
+      const dep = s.flat.find((x) => x.parent_id != null && x.is_primary_deposit && !isCardItem(x));
+      if (dep) setDepositSourceId(String(dep.id));
+      const pay = s.flat.find((x) => x.parent_id != null && x.is_primary_payment && !isCardItem(x));
+      if (pay) setWithdrawSourceId(String(pay.id));
     }).catch(() => {});
   }, []);
 
@@ -79,6 +84,10 @@ export default function GroupCreate() {
       if (depositSourceId) {
         const src = sources.flat.find((s) => String(s.id) === String(depositSourceId));
         try { await db.upsertSubscription(g.id, { deposit_source_id: Number(depositSourceId), deposit_source_name: src?.name || '' }); } catch {}
+      }
+      // 공금 그룹: 총무의 출금 수단(내 멤버 행)
+      if (category === '공금' && withdrawSourceId) {
+        try { await db.updateOwnerMember(g.id, user.id, { withdraw_source_id: Number(withdrawSourceId) }); } catch {}
       }
       const memberErrors = await picker.addAll(g.id, startDate);
       if (memberErrors.length) alert('일부 멤버를 추가하지 못했습니다.\n' + memberErrors.join('\n'));
@@ -236,43 +245,20 @@ export default function GroupCreate() {
               <input type="text" placeholder="그룹 내에서 사용할 닉네임" value={nickname} onChange={(e) => setNickname(e.target.value)} style={fieldStyle} />
             </label>
 
-            <div style={{ marginTop: 24, fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', marginBottom: 3 }}>{category === '공금' ? '공금 관리 수단' : '입금 수단'}<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></div>
-            <div style={{ fontSize: 11, color: 'var(--k-tx-a29ead)', marginBottom: 11 }}>
-              {category === '공금' ? '초대되는 멤버의 원천에 자동으로 추가됩니다' : '다른 멤버가 입금할 때 받을 원천을 선택하세요'}
-            </div>
-            {sources.flat.length === 0 ? (
-              <div className="small muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                등록된 원천이 없습니다. <button type="button" className="edit-link" onClick={() => nav('/settings/sources')}>편집 ›</button>
-              </div>
-            ) : (
-              <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', overflow: 'hidden' }}>
-                {sources.tree.map((top, gi) => {
-                  const SourceRow = ({ src, selected, indent }) => (
-                    <button
-                      type="button" onClick={() => setDepositSourceId(String(src.id))}
-                      style={{ width: '100%', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 12, padding: `13px 16px 13px ${16 + indent}px`, border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer' }}
-                    >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: indent ? 13 : 13.25, fontWeight: indent ? 500 : 600, color: indent ? 'var(--k-tx-4a4652)' : 'var(--k-tx-191722)' }}>{src.name}</div>
-                      </div>
-                      <span style={{ width: 19, height: 19, borderRadius: '50%', border: `1.5px solid ${selected ? 'var(--k-bd-191722)' : 'var(--k-bd-d8d5de)'}`, background: selected ? 'var(--k-bg-191722)' : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
-                        {selected && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--k-bg-fff)' }} />}
-                      </span>
-                    </button>
-                  );
-                  return (
-                    <div key={top.id} style={{ borderTop: gi === 0 ? 'none' : '1.5px solid var(--k-divider)' }}>
-                      {/* 원천 그룹은 선택 불가(제목만) — 세부 항목만 선택 */}
-                      <div style={{ padding: '13px 16px', fontSize: 13.25, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{top.name}</div>
-                      {top.children?.map((c) => (
-                        <div key={c.id} style={{ borderTop: '1.5px solid var(--k-divider)' }}>
-                          <SourceRow src={c} selected={String(depositSourceId) === String(c.id)} indent={16} />
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
+            {/* 입금 수단(공금 그룹은 공금 통장 — 멤버로 참여하면 멤버 원천에도 추가됨). 신용카드/체크카드 그룹 제외 */}
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 24 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{category === '공금' ? '입금 수단(공금 통장)' : '입금 수단'}<span style={{ color: '#FF3B5C', fontWeight: 800 }}> *</span></span>
+              <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)', marginTop: -3 }}>
+                {category === '공금' ? '초대되는 멤버의 원천에 자동으로 추가됩니다' : '다른 멤버가 입금할 때 받을 원천을 선택하세요'}
+              </span>
+              <SourcePick tree={sources.tree} value={depositSourceId} onChange={setDepositSourceId} placeholder="입금 수단 선택" />
+            </label>
+            {category === '공금' && (
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 18 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>출금 수단</span>
+                <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)', marginTop: -3 }}>공금 통장에 입금할 때 돈이 빠져나갈 원천을 선택하세요</span>
+                <SourcePick tree={sources.tree} value={withdrawSourceId} onChange={setWithdrawSourceId} placeholder="출금 수단 선택" />
+              </label>
             )}
           </div>
         )}

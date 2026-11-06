@@ -6,7 +6,9 @@ import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import { fieldStyle, labelStyle } from './FriendAdd.jsx';
+import SourcePick from '../components/SourcePick.jsx';
 
+// 총무/총대는 톱니바퀴 > "내 정보": 내 닉네임·입금 수단(+ 공금 그룹은 출금 수단). 탈퇴 버튼 없음.
 // 그룹 상세 > (일반 멤버) 톱니바퀴 > 멤버 정보 수정: 그룹 내 내 닉네임·출금 수단. "수정"을 눌러야 반영.
 // 출금 수단을 바꾸면 과거 입금 내역 원천도 바꿀지 묻는다. 상단바 오른쪽 나가기 아이콘 = 그룹 탈퇴.
 export default function GroupMyMember() {
@@ -21,17 +23,40 @@ export default function GroupMyMember() {
   const [busy, setBusy] = useState(false);
   const [askPast, setAskPast] = useState(false); // 과거 입금 내역 원천 일괄 변경 확인
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [sub, setSub] = useState(null);
 
   useEffect(() => {
-    Promise.all([db.getGroup(gid), db.listSources()]).then(([{ group: g, members }, { tree: t }]) => {
+    Promise.all([db.getGroup(gid), db.listSources(), db.getSubscription(gid).catch(() => null)]).then(([{ group: g, members }, { tree: t }, sb]) => {
       const m = members.find((x) => x.user_id === user.id);
       if (!m) { alert('그룹 멤버가 아닙니다.'); nav(-1); return; }
-      setGroup(g); setMe(m); setTree(t);
-      setForm({ nickname: m.self_nickname || m.owner_nickname || m.nickname || '', sourceId: m.withdraw_source_id ? String(m.withdraw_source_id) : '' });
+      setGroup(g); setMe(m); setTree(t); setSub(sb);
+      const owner = g.owner_id === user.id;
+      setForm({
+        nickname: owner ? (m.owner_nickname || m.nickname || '') : (m.self_nickname || m.owner_nickname || m.nickname || ''),
+        sourceId: m.withdraw_source_id ? String(m.withdraw_source_id) : '',
+        depositSourceId: sb?.deposit_source_id ? String(sb.deposit_source_id) : '',
+      });
     }).catch((e) => { alert(e.message); nav(-1); });
   }, [gid, user.id, nav]);
 
   if (!form) return <Spinner />;
+  const isOwner = group?.owner_id === user.id;
+  const isPooled = group?.category === '공금';
+  const flatOf = () => tree.flatMap((t) => [t, ...(t.children || [])]);
+  // 총무/총대 저장: 닉네임·출금 수단은 내 멤버 행, 입금 수단은 그룹 설정(공금 그룹은 공금 통장)
+  const saveOwner = async () => {
+    if (!form.nickname.trim()) return alert('닉네임을 입력하세요.');
+    if (!form.depositSourceId) return alert('입금 수단을 선택하세요.');
+    setBusy(true);
+    try {
+      await db.updateOwnerMember(gid, user.id, { nickname: form.nickname.trim(), ...(isPooled ? { withdraw_source_id: form.sourceId ? Number(form.sourceId) : null } : {}) });
+      if (String(sub?.deposit_source_id || '') !== form.depositSourceId) {
+        const src = flatOf().find((x) => String(x.id) === form.depositSourceId);
+        await db.upsertSubscription(gid, { deposit_source_id: Number(form.depositSourceId), deposit_source_name: src?.name || '' });
+      }
+      nav(-1);
+    } catch (e) { alert(e.message); setBusy(false); }
+  };
 
   const sourceChanged = String(me.withdraw_source_id || '') !== form.sourceId;
   const doSave = async (applyPast) => {
@@ -61,7 +86,7 @@ export default function GroupMyMember() {
 
   return (
     <div style={{ padding: '44px 0 24px' }}>
-      <PageHeader title="멤버 정보 수정" flat right={(
+      <PageHeader title={isOwner ? '내 정보' : '멤버 정보 수정'} flat right={!isOwner && (
         // 그룹 탈퇴(나가기)
         <button className="tb-icon-btn" onClick={() => setLeaveOpen(true)} aria-label="그룹 탈퇴" disabled={busy}>
           <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -75,6 +100,20 @@ export default function GroupMyMember() {
           <span style={labelStyle}>닉네임 <span style={{ color: '#FF3B5C' }}>*</span></span>
           <input type="text" value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} placeholder="그룹 내에서 보일 닉네임" style={fieldStyle} />
         </label>
+        {isOwner ? (
+          <>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <span style={labelStyle}>{isPooled ? '입금 수단(공금 통장)' : '입금 수단'} <span style={{ color: '#FF3B5C' }}>*</span></span>
+              <SourcePick tree={tree} value={form.depositSourceId} onChange={(v) => setForm({ ...form, depositSourceId: v })} placeholder="입금 수단 선택" />
+            </label>
+            {isPooled && (
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <span style={labelStyle}>출금 수단</span>
+                <SourcePick tree={tree} value={form.sourceId} onChange={(v) => setForm({ ...form, sourceId: v })} placeholder="출금 수단 선택" />
+              </label>
+            )}
+          </>
+        ) : (
         <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           <span style={labelStyle}>출금 수단</span>
           <select value={form.sourceId} onChange={(e) => setForm({ ...form, sourceId: e.target.value })} style={selectStyle}>
@@ -86,7 +125,8 @@ export default function GroupMyMember() {
             ))}
           </select>
         </label>
-        <button type="button" className="btn-ink-pill" style={{ marginTop: 6 }} disabled={busy || !form.nickname.trim()} onClick={save}>
+        )}
+        <button type="button" className="btn-ink-pill" style={{ marginTop: 6 }} disabled={busy || !form.nickname.trim()} onClick={isOwner ? saveOwner : save}>
           {busy ? '저장 중…' : '수정'}
         </button>
       </div>
