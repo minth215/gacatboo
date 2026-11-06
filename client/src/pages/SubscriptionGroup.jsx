@@ -2,9 +2,8 @@ import { useEffect, useState, useCallback, useRef, Fragment, forwardRef, useImpe
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { fmtWon, fmtNum, today, addInterval, PERIOD_LABEL, renderTemplate, dotDate, dotDateWithWeekday, monthPillLabel, isSettlement } from '../lib/format.js';
-import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
-import Modal from '../components/Modal.jsx';
+import { fmtWon, fmtNum, today, dotDate, dotDateWithWeekday, monthPillLabel, isSettlement } from '../lib/format.js';
+import { resolveRecurrence, countDueDates, nextDueFromRules } from '../lib/recurrence.js';
 import MembersPanel from '../components/MembersPanel.jsx';
 import SwipeRow from '../components/SwipeRow.jsx';
 import RecurrenceModal from '../components/RecurrenceModal.jsx';
@@ -23,7 +22,6 @@ const RepeatIcon = ({ color }) => (
   </svg>
 );
 
-const PERIOD_UNITS = ['day', 'week', 'month', 'year'];
 const KEEP = '__keep__'; // id 없이 이름만 있는 원천/분류(스냅샷) 유지용 센티넬
 // 정산 금액이 인원수로 안 나눠떨어져 남는 자투리(카카오페이 등이 별도로 입금해주는 몫)를
 // 기록하기 위한 가상 멤버의 닉네임. 이 닉네임으로 그룹 멤버를 찾아 식별한다.
@@ -69,29 +67,14 @@ function SettleTargetSelect({ value, onChange, options, label, style }) {
   );
 }
 
-// 날짜(dateStr)가 속한 달의 정기결제일(billingDay)로 날짜를 맞춰줌.
-// 예: dateStr=2026-08-22, billingDay=19 → 2026-08-19 (그 달의 마지막 날짜를 넘지 않도록 보정)
 // 멤버의 다음 입금일(구독 현황 탭·멤버 상세 화면 공용): 직접 지정한 날짜가 있으면 그 날짜,
-// 아니면 멤버 시작일(없으면 첫 입금일)이 속한 달의 정기 입금일 + 지금까지 입금한 회차 합계만큼 주기를
-// 더한 날짜(선입금으로 여러 회차를 미리 낸 경우도 그만큼 뒤로 밀림).
-export function memberNextDepositDate(member, memberDeposits, sub) {
+// 아니면 그 멤버의 정기 입금 설정(반복 규칙) 기준 다음 회차(오늘 이후, 마지막 입금일 이후).
+export function memberNextDepositDate(member, memberDeposits, rules) {
   if (member?.next_due_override) return member.next_due_override;
-  const ds = memberDeposits || [];
-  const firstDate = ds.length ? ds.map((d) => d.date).sort()[0] : null;
-  const start = member?.start_date || firstDate;
-  if (!start) return null;
-  if (!sub) return start;
-  const periods = ds.reduce((t, d) => t + Number(d.periods || 0), 0);
-  return addInterval(billingAlignedDate(start, sub.billing_day), sub.period_unit, sub.period_count, periods);
-}
-
-function billingAlignedDate(dateStr, billingDay) {
-  if (!dateStr) return null;
-  if (!billingDay) return dateStr;
-  const [y, m] = dateStr.slice(0, 7).split('-').map(Number);
-  const daysInMonth = new Date(y, m, 0).getDate();
-  const day = Math.min(billingDay, daysInMonth);
-  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const mine = (rules || []).filter((r) => r.target === 'subscription_deposit' && r.member_id === member?.id && r.active !== false);
+  if (!mine.length) return null;
+  const last = (memberDeposits || []).map((d) => d.date).sort().slice(-1)[0] || null;
+  return nextDueFromRules(mine, today(), last);
 }
 
 // 날짜별로 묶기 (가계부 페이지와 동일한 카드 스타일에 사용)
@@ -618,38 +601,8 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
     setSettleDateOpen(true);
   };
 
-  // 클립보드 복사(iOS 사파리 등 clipboard API 미지원 환경 대비 execCommand 폴백)
-  const copyText = async (text) => {
-    try { await navigator.clipboard.writeText(text); }
-    catch {
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
-        document.body.appendChild(ta); ta.focus(); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
-      } catch { return false; }
-    }
-    return true;
-  };
-  const copyAccount = async () => {
-    const ok = await copyText(group?.owner_account || '');
-    showToast(ok ? '계좌번호가 복사되었습니다.' : '복사에 실패했습니다.');
-  };
-
-  // 토스 앱의 빈 송금 입력 화면(계좌·금액 직접 입력)으로 이동. 토스가 공식 문서화한
-  // 기능이 아니라 비공식적으로 알려진 스킴이라 언제든 동작이 바뀔 수 있음에 유의.
-  // 계좌가 등록돼 있으면 미리 클립보드에 복사해 붙여넣기만 하면 되게 해준다.
-  const openTossBlank = async () => {
-    if (group?.owner_account) {
-      const ok = await copyText(group.owner_account);
-      showToast(ok ? '계좌번호가 복사되었습니다. 토스 계좌 입력란에 붙여넣어 주세요.' : '복사에 실패했습니다.');
-    }
-    window.location.href = 'supertoss://send';
-  };
-
-  // http(s) 스킴이 없으면 붙여서 안전하게 새 탭으로 열리도록 함
-  const withScheme = (v) => (v && !/^https?:\/\//i.test(v) ? `https://${v}` : v);
-  const kakaopayHref = withScheme((group?.owner_kakaopay_link || '').trim());
+  // 토스 앱의 빈 송금 입력 화면으로 이동(비공식 스킴이라 동작이 바뀔 수 있음)
+  const openTossBlank = () => { window.location.href = 'supertoss://send'; };
 
   const summaryTotalPaid = selectedPayment ? Number(selectedPayment.amount) : totalPaid;
   const itemNonOwnerRows = itemRows ? itemRows.filter((r) => r.role !== 'owner') : null;
@@ -992,18 +945,7 @@ export function SettlementTab({ gid, group, members, isOwner, userId, payments, 
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {group?.owner_account && (
-                <button type="button" className="pay-link-btn account" onClick={copyAccount}>
-                  <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                  {group.owner_account} 복사
-                </button>
-              )}
-              <button type="button" className="pay-link-btn toss" onClick={openTossBlank}>
-                {group?.owner_account ? '토스로 보내기 (계좌 복사됨)' : '토스 앱 열기'}
-              </button>
-              {kakaopayHref && (
-                <a className="pay-link-btn kakao" href={kakaopayHref} target="_blank" rel="noreferrer">카카오페이로 보내기</a>
-              )}
+              <button type="button" className="pay-link-btn toss" onClick={openTossBlank}>토스 앱 열기</button>
             </div>
 
             <button type="button" className="btn-settle-all" style={{ marginTop: 0 }} onClick={() => confirmSelfPaid(payOpen)}>정산 완료했어요</button>
@@ -1145,7 +1087,8 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
   const loadSub = useCallback(() => db.getSubscription(gid).then(setSub).catch(() => setSub(null)), [gid]);
   const loadPay = useCallback(() => db.listPayments(gid).then(setPayments).catch(() => setPayments([])), [gid]);
   const loadDep = useCallback(() => db.listDeposits(gid).then(setDeposits).catch(() => setDeposits([])), [gid]);
-  useEffect(() => { loadSub(); loadPay(); loadDep(); }, [loadSub, loadPay, loadDep]);
+  const [groupRules, setGroupRules] = useState([]);
+  useEffect(() => { loadSub(); loadPay(); loadDep(); db.listGroupRecurringSchedule(gid).then(setGroupRules).catch(() => setGroupRules([])); }, [loadSub, loadPay, loadDep, gid]);
 
   const usedAmount = payments.reduce((s, p) => s + Number(p.amount), 0);
   const totalAmount = deposits.reduce((s, d) => s + Number(d.amount), 0);
@@ -1162,9 +1105,8 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
       const periods = payments.reduce((s, p) => s + Number(p.periods || 0), 0);
       const lastPay = payments.length ? [...payments].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)).slice(-1)[0] : null;
       const last = lastPay ? lastPay.date : null;
-      // 다음 결제일 = 마지막 결제일이 속한 달의 정기결제일 + 그 결제가 커버한 기간(회차)만큼 주기 추가
-      const base = billingAlignedDate(last, sub?.billing_day);
-      const auto = base && sub ? addInterval(base, sub.period_unit, sub.period_count, Math.max(Number(lastPay?.periods) || 1, 1)) : null;
+      // 다음 결제일 = 그룹 결제 반복 설정 기준 다음 회차(직접 지정한 날짜가 있으면 그 날짜)
+      const auto = nextDueFromRules(groupRules.filter((r) => r.target === 'subscription_payment' && r.active !== false), todayStr, last);
       const next = m.next_due_override || auto;
       return { id: m.id, nickname: m.nickname, isOwner: true, cum, periods, last, next, lastLabel: '마지막 결제일', nextLabel: '다음 결제일', overdue: !!(next && next < todayStr), dueToday: next === todayStr };
     }
@@ -1172,7 +1114,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
     const cum = ds.reduce((s, d) => s + Number(d.amount), 0);
     const periods = ds.reduce((s, d) => s + Number(d.periods || 0), 0);
     const last = ds.length ? ds[ds.length - 1].date : null;
-    const next = memberNextDepositDate(m, ds, sub);
+    const next = memberNextDepositDate(m, ds, groupRules);
     return { id: m.id, nickname: m.nickname, isOwner: false, cum, periods, last, next, lastLabel: '마지막 입금일', nextLabel: '다음 입금일', overdue: !!(next && next < todayStr), dueToday: next === todayStr };
   });
 
@@ -1291,7 +1233,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
 // 그룹 입금 내역 작성/수정 폼. 화면(내용 줄의 ×·자동완성·즐겨찾기·반복, 분류/원천 선택·편집,
 // 상단바 영수증/즐겨찾기/복사, 삭제 버튼 등)은 개인 기록 폼(TransactionForm)과 같은 조각을 쓰고,
 // 저장 방식(총대 수입 + 멤버 지출 동시 기록, 멤버 선택, 회차, 정산 대상 여러 건)만 입금 전용이다.
-export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, onDelete, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '', groupBadge, presetMemberId = null, presetSettleRows = null, favoritePreset = null, autoToast, onScanBusyChange, templateMode = false, periodField = null }, ref) {
+export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats, incomeCats = [], sources, members, recentExpenses = [], isOwner, onSave, onSaved, onDelete, topNotice, defaultCategoryName = '구독', showPeriods = true, groupName = '', groupBadge, presetMemberId = null, presetSettleRows = null, favoritePreset = null, autoToast, onScanBusyChange, templateMode = false, periodField = null, submitLabel = null }, ref) {
   const editing = !!initial;
   const { user } = useAuth();
   const nav = useNavigate();
@@ -1393,15 +1335,9 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   }] : [{
     name: '', targetId: '', periods: preset?.periods ? String(preset.periods) : '1', amount: preset?.amount ? String(preset.amount) : '',
   }]));
-  useEffect(() => {
-    if (!multiSub || subRows.length !== 1 || subRows[0].amount || !sub?.deposit_amount) return;
-    setSubRows([{ ...subRows[0], amount: String(sub.deposit_amount) }]);
-  }, [multiSub, sub]);
   const updateSubRow = (idx, patch) => setSubRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   const onSubRowAmountChange = (idx, v) => {
-    const amount = v.replace(/[^0-9]/g, '');
-    const defAmt = Number(sub?.deposit_amount) || 0;
-    updateSubRow(idx, { amount, periods: (defAmt > 0 && amount) ? String(Math.round(Number(amount) / defAmt)) : subRows[idx].periods });
+    updateSubRow(idx, { amount: v.replace(/[^0-9]/g, '') });
   };
   const onSubTargetChange = (idx, targetId) => {
     const target = recentExpenses.find((x) => String(x.id) === targetId);
@@ -1411,9 +1347,10 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   const removeSubRow = (idx) => setSubRows((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
   const subTotal = subRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const defMemberCat = cats.find((c) => c.name === defaultCategoryName);     // 멤버 지출 기본(구독/정산 등)
-  // 총대 수입 기본 = 입금분류(구독 설정에서 지정, 없으면 '정산' — 그룹 종류와 무관하게 총대 입장에선
-  // 늘 정산 수입이므로 멤버 지출 기본값(defaultCategoryName)과는 다르게 항상 '정산'으로 떨어진다)
-  const defLeaderCat = incomeCats.find((c) => c.name === (sub?.deposit_category || '정산'));
+  // 총대 수입 분류는 그룹 종류와 무관하게 항상 '정산'
+  const defLeaderCat = incomeCats.find((c) => c.name === '정산');
+  // 구독 그룹의 입금 내용 기본값 = 그룹명
+  const subContentDefault = !isSettleMode ? (groupName || '') : '';
   const [f, setF] = useState(() => draft?.f ? draft.f : editing ? {
     memberId: String(initial.member_id), date: initial.date, amount: String(initial.amount), periods: String(initial.periods || 1),
     // 멤버 영역
@@ -1488,7 +1425,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
   };
   // 신규 기록 화면 진입 시 "내용" 필드에 바로 포커스(수정 화면, 내용이 기본값으로 자동 채워지는 경우는 제외)
   useEffect(() => {
-    if (!editing && !sub?.deposit_content_template && !f.content) contentInputRef.current?.focus({ preventScroll: true });
+    if (!editing && !subContentDefault && !f.content) contentInputRef.current?.focus({ preventScroll: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // 내용 자동완성(이전에 쓴 내용) + × 지우기
@@ -1518,10 +1455,6 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     if (editing || f.memberId || !members[0]) return;
     setF((prev) => ({ ...prev, memberId: String(members[0].id) }));
   }, [editing, members]);
-  useEffect(() => {
-    if (editing || f.amount || !sub?.deposit_amount) return;
-    setF((prev) => ({ ...prev, amount: String(sub.deposit_amount) }));
-  }, [editing, sub]);
   useEffect(() => {
     // 멤버 정산 입금은 분류를 비워 두고, 첫 번째 행에서 고른 결제 내역의 분류로 채움(onSettleTargetChange)
     if (editing || f.mCatId || !defMemberCat || memberSettle) return;
@@ -1581,11 +1514,10 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     lastTplNameRef.current = v;
   };
   useEffect(() => {
-    if (editing || f.content || !sub?.deposit_content_template) return;
-    const v = renderTemplate(sub.deposit_content_template, f.date);
-    setF((prev) => ({ ...prev, content: v }));
-    fillRowNames(v);
-  }, [editing, sub]);
+    if (editing || f.content || !subContentDefault) return;
+    setF((prev) => (prev.content ? prev : { ...prev, content: subContentDefault }));
+    fillRowNames(subContentDefault);
+  }, [editing, subContentDefault]);
   // 즐겨찾기/복사 템플릿의 분류·원천(이름 기준)을 목록이 도착하는 대로 한 번씩 반영 — 위 기본값보다 우선.
   // 보는 사람 입장에 맞춰 총무는 입금(수입) 분류/원천, 멤버는 본인 지출 분류/원천 칸에 들어간다.
   const presetAppliedRef = useRef({ cat: false, source: false, member: false });
@@ -1640,22 +1572,11 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
       setScanBusy(false);
     }
   };
-  // 금액 입력 시 기본 입금액 대비 회차 자동 계산
-  const defaultAmount = Number(sub?.deposit_amount) || 0;
   const onAmountChange = (v) => {
     const amount = v.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
-    setF((prev) => ({
-      ...prev,
-      amount,
-      periods: showPeriods && defaultAmount > 0 && amount ? String(Math.round(Number(amount) / defaultAmount)) : prev.periods,
-    }));
+    setF((prev) => ({ ...prev, amount }));
   };
-  // 신규 작성 시 날짜 변경에 따라 "내용" 기본값 템플릿({연}/{월}/{일}) 재계산
-  const onDateChange = (date) => {
-    const tpl = (!editing && sub?.deposit_content_template) ? renderTemplate(sub.deposit_content_template, date) : null;
-    setF((prev) => ({ ...prev, date, content: tpl ?? prev.content }));
-    if (tpl != null) fillRowNames(tpl);
-  };
+  const onDateChange = (date) => setF((prev) => ({ ...prev, date }));
 
   const leaderCat = f.lCatId === KEEP
     ? { name: initial?.leader_category_name, emoji: initial?.leader_category_emoji }
@@ -1752,8 +1673,8 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
           })(),
           source_id: null, source_name: m_source,
           deposit_source_name: editing ? (initial.deposit_source_name || '') : (sub?.deposit_source_name || ''),
-          leader_category_name: editing ? (initial.leader_category_name || '') : (sub?.deposit_category || '정산'),
-          leader_category_emoji: editing ? (initial.leader_category_emoji || '') : (sub?.deposit_category_emoji || ''),
+          leader_category_name: editing ? (initial.leader_category_name || '') : '정산',
+          leader_category_emoji: editing ? (initial.leader_category_emoji || '') : (defLeaderCat?.emoji || ''),
           leader_settlement_target_id: rows.length === 1 ? Number(rows[0].targetId) : null,
           content: f.content.trim() || autoContent, memo: f.memo,
           items: rows.map((r, i) => ({
@@ -1853,7 +1774,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
         // 멤버가 수정할 때는 총무 쪽 기록(분류/원천)은 기존 값을 그대로 유지
         l_name = initial.leader_category_name; l_emoji = initial.leader_category_emoji; l_source = initial.deposit_source_name;
       } else {
-        l_name = sub?.deposit_category || '정산'; l_emoji = sub?.deposit_category_emoji || ''; l_source = sub?.deposit_source_name || '';
+        l_name = '정산'; l_emoji = defLeaderCat?.emoji || ''; l_source = sub?.deposit_source_name || '';
       }
 
       // 반복 설정은 결과가 한 건일 때만 의미가 있음(여러 건이면 반복 규칙이 중복 생성되므로 생략)
@@ -1916,7 +1837,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
       l_source = f.lSourceId === KEEP ? (initial?.deposit_source_name || '') : sourceNameOf(sources.flat, f.lSourceId);
     } else {
       if (editing) { l_name = initial.leader_category_name; l_emoji = initial.leader_category_emoji; l_settle = initial.leader_settlement_target_id || null; l_source = initial.deposit_source_name; }
-      else { l_name = sub?.deposit_category || '정산'; l_emoji = sub?.deposit_category_emoji || ''; l_settle = null; l_source = sub?.deposit_source_name || ''; }
+      else { l_name = '정산'; l_emoji = defLeaderCat?.emoji || ''; l_settle = null; l_source = sub?.deposit_source_name || ''; }
     }
 
     const recurrence = (!recurringId && pendingRecurrence) ? resolveRecurrence(pendingRecurrence, f.date) : null;
@@ -2218,7 +2139,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
       </div>
 
       {err && <p className="error" style={{ marginTop: 14 }}>{err}</p>}
-      <button className="btn-ink-pill" style={{ marginTop: 26 }} disabled={busy}>{busy ? '저장 중…' : editing ? '수정' : '저장'}</button>
+      <button className="btn-ink-pill" style={{ marginTop: 26 }} disabled={busy}>{busy ? '저장 중…' : submitLabel || (editing ? '수정' : '저장')}</button>
       {editing && onDelete && (
         <button
           type="button" onClick={handleDelete} disabled={deleteBusy}
@@ -2234,107 +2155,3 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     </form>
   );
 });
-
-export function SettingsForm({ sub, incomeCats, onClose, onSave }) {
-  const [f, setF] = useState({
-    mode: sub?.mode || 'personal',
-    billing_day: sub?.billing_day ? String(sub.billing_day) : '',
-    billing_amount: sub?.billing_amount ? String(sub.billing_amount) : '',
-    deposit_amount: sub?.deposit_amount ? String(sub.deposit_amount) : '',
-    period_count: sub?.period_count ? String(sub.period_count) : '1',
-    period_unit: sub?.period_unit || 'month',
-    deposit_source_id: sub?.deposit_source_id ? String(sub.deposit_source_id) : '',
-    deposit_content_template: sub?.deposit_content_template || '',
-    payment_content_template: sub?.payment_content_template || '',
-  });
-  const initCat = incomeCats.find((c) => c.name === sub?.deposit_category);
-  const [depositCatId, setDepositCatId] = useState(initCat ? String(initCat.id) : '');
-  const [sources, setSources] = useState({ tree: [], flat: [] });
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => { db.listSources().then(setSources).catch(() => {}); }, []);
-
-  // 금액 입력 시 천단위 콤마 자동 표시
-  const setAmountField = (key) => (e) => {
-    const v = e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
-    setF((prev) => ({ ...prev, [key]: v }));
-  };
-
-  const submit = async () => {
-    const cat = incomeCats.find((c) => c.id === Number(depositCatId));
-    setBusy(true);
-    try {
-      await onSave({
-        mode: f.mode,
-        billing_day: f.billing_day ? Number(f.billing_day) : null,
-        billing_amount: f.billing_amount ? Math.round(Number(f.billing_amount)) : null,
-        deposit_amount: f.deposit_amount ? Math.round(Number(f.deposit_amount)) : null,
-        period_unit: f.period_unit, period_count: Math.max(Number(f.period_count) || 1, 1),
-        deposit_category: cat?.name || '', deposit_category_emoji: cat?.emoji || '',
-        deposit_source_id: f.deposit_source_id ? Number(f.deposit_source_id) : null,
-        deposit_source_name: sourceNameOf(sources.flat, f.deposit_source_id),
-        deposit_content_template: f.deposit_content_template.trim(),
-        payment_content_template: f.payment_content_template.trim(),
-      });
-    } catch (e) { alert(e.message); setBusy(false); }
-  };
-
-  return (
-    <Modal title="구독 관리 설정" onClose={onClose}>
-      <div className="field"><label>입금 방식</label>
-        <div className="pill-toggle">
-          <button type="button" className={f.mode === 'personal' ? 'active' : ''} onClick={() => setF({ ...f, mode: 'personal' })}>개인</button>
-          <button type="button" className={f.mode === 'common' ? 'active' : ''} onClick={() => setF({ ...f, mode: 'common' })}>공통</button>
-        </div>
-        <p className="small muted" style={{ marginTop: 4 }}>개인: 총대 개인 계좌 / 공통: 모임통장 등 공동 계좌</p>
-      </div>
-      <div className="grid2">
-        <div className="field"><label>정기결제일</label>
-          <div className="with-suffix"><input type="number" min="1" max="31" value={f.billing_day} onChange={(e) => setF({ ...f, billing_day: e.target.value })} /><span className="suffix">일</span></div>
-        </div>
-        <div className="field"><label>정기결제금액</label>
-          <div className="with-suffix">
-            <input type="text" inputMode="numeric" value={f.billing_amount ? Number(f.billing_amount).toLocaleString('ko-KR') : ''} onChange={setAmountField('billing_amount')} />
-            <span className="suffix">원</span>
-          </div>
-        </div>
-      </div>
-      <div className="grid2">
-        <div className="field"><label>정기입금액</label>
-          <div className="with-suffix">
-            <input type="text" inputMode="numeric" value={f.deposit_amount ? Number(f.deposit_amount).toLocaleString('ko-KR') : ''} onChange={setAmountField('deposit_amount')} />
-            <span className="suffix">원</span>
-          </div>
-        </div>
-        <div className="field"><label>주기</label>
-          <div className="row">
-            <input type="number" min="1" value={f.period_count} onChange={(e) => setF({ ...f, period_count: e.target.value })} style={{ width: 64 }} />
-            <select value={f.period_unit} onChange={(e) => setF({ ...f, period_unit: e.target.value })}>
-              {PERIOD_UNITS.map((u) => <option key={u} value={u}>{PERIOD_LABEL[u]}</option>)}
-            </select>
-          </div>
-        </div>
-      </div>
-      <div className="field"><label>입금 분류 <span className="small muted">(총대 수입 분류)</span></label>
-        <select value={depositCatId} onChange={(e) => setDepositCatId(e.target.value)}>
-          <option value="">선택 안 함</option>
-          {incomeCats.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
-        </select>
-      </div>
-      <div className="field"><label>입금 원천 <span className="small muted">(총대 수입 원천 기본값)</span></label>
-        <SourceSelect sources={sources.tree} value={f.deposit_source_id} onChange={(v) => setF({ ...f, deposit_source_id: v })} keepLabel={sub?.deposit_source_name} />
-      </div>
-      <div className="field"><label>입금 내용 기본값</label>
-        <input value={f.deposit_content_template} onChange={(e) => setF({ ...f, deposit_content_template: e.target.value })} placeholder="예: {월}월 회비" />
-      </div>
-      <div className="field"><label>결제 내용 기본값</label>
-        <input value={f.payment_content_template} onChange={(e) => setF({ ...f, payment_content_template: e.target.value })} placeholder="예: {월}월 정기결제" />
-        <p className="small muted" style={{ margin: '4px 2px 0' }}>{'내용에 {연}, {월}, {일} 을 넣으면 입력한 날짜 기준으로 자동 치환됩니다.'}</p>
-      </div>
-      <div className="row" style={{ marginTop: 6 }}>
-        <button className="btn block" onClick={onClose}>취소</button>
-        <button className="btn primary block" disabled={busy} onClick={submit}>{busy ? '저장 중…' : '저장'}</button>
-      </div>
-    </Modal>
-  );
-}

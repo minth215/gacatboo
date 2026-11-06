@@ -8,6 +8,7 @@ import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { tileBg, formatDate, DayCardRow } from '../components/TransactionList.jsx';
 import { groupByMonthThenDate, memberNextDepositDate } from './SubscriptionGroup.jsx';
+import { periodDetailLabel } from '../lib/recurrence.js';
 
 export default function MemberDetail() {
   const { id, memberId } = useParams();
@@ -18,7 +19,8 @@ export default function MemberDetail() {
 
   const [group, setGroup] = useState(null);
   const [member, setMember] = useState(null);
-  const [sub, setSub] = useState(null);
+  const [schedule, setSchedule] = useState([]);   // 그룹 결제/입금 반복 일정(다음 입금일 계산)
+  const [rules, setRules] = useState(null);       // 이 멤버의 정기 입금 설정(총무/본인만)
   const [deposits, setDeposits] = useState([]);
   const [editor, setEditor] = useState(null);    // 카드 수정
   const [openId, setOpenId] = useState(null);    // 입금 내역: 한 번에 하나의 카드만 스와이프로 열려 있도록
@@ -37,7 +39,11 @@ export default function MemberDetail() {
     db.listDeposits(gid).then((all) => setDeposits(all.filter((d) => d.member_id === mid))).catch(() => setDeposits([]));
   }, [gid, mid]);
 
-  useEffect(() => { loadGroup(); loadDeps(); db.getSubscription(gid).then(setSub).catch(() => {}); }, [loadGroup, loadDeps, gid]);
+  useEffect(() => {
+    loadGroup(); loadDeps();
+    db.listGroupRecurringSchedule(gid).then(setSchedule).catch(() => setSchedule([]));
+    db.listMemberDepositRules(mid).then(setRules).catch(() => setRules([]));
+  }, [loadGroup, loadDeps, gid, mid]);
   useEffect(() => {
     db.listCategories('income').then(setIncomeCats).catch(() => {});
     db.listCategories('expense').then(setExpenseCats).catch(() => {});
@@ -51,7 +57,8 @@ export default function MemberDetail() {
   const cum = deposits.reduce((s, d) => s + Number(d.amount), 0);
   const last = deposits.length ? deposits.map((d) => d.date).sort().slice(-1)[0] : null;
   // 구독 현황 탭과 같은 계산(memberNextDepositDate)을 그대로 사용
-  const nextDue = memberNextDepositDate(member, deposits, sub);
+  const nextDue = memberNextDepositDate(member, deposits, schedule);
+  const autoNext = memberNextDepositDate({ ...member, next_due_override: null }, deposits, schedule);
 
   const openEdit = () => setEditor({
     nickname: member.nickname, start_date: member.start_date || '', end_date: member.end_date || '',
@@ -90,6 +97,46 @@ export default function MemberDetail() {
           </svg>
         </button>
       )} />
+
+      {/* 정기 입금 설정(반복) — 총무/총대와 멤버 본인만. 없으면 점선 영역 + 버튼 */}
+      {canEditDep && rules && (rules.length === 0 ? (
+        <div style={{ marginTop: 14, border: '1.5px dashed var(--k-bd-cfccd4)', borderRadius: 18, padding: '20px 16px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <button
+            type="button" aria-label="정기 입금 설정" onClick={() => nav(`/groups/${gid}/member/${mid}/deposit-rule`)}
+            style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'var(--k-bg-efeef2)', color: 'var(--k-tx-a29ead)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}
+          >
+            <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          </button>
+          <div style={{ fontSize: 12, color: 'var(--k-tx-a29ead)', textAlign: 'center', lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+            {'정기 입금 정보를 설정해 주세요.\n설정에 따라 입금 기록이 자동 생성됩니다.'}
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {rules.map((r) => {
+            const mine = r.user_id === user.id;
+            return (
+              <button
+                key={r.id} type="button" disabled={!mine}
+                onClick={() => mine && nav(`/settings/recurring/${r.id}/edit`)}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', border: 'none', borderRadius: 18, background: 'var(--k-bg-fff)', boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', padding: '14px 16px', cursor: mine ? 'pointer' : 'default', fontFamily: 'inherit', color: 'inherit' }}
+              >
+                <span style={{ flex: 'none', width: 34, height: 34, borderRadius: 12, background: 'var(--k-bg-f2f1f5)', color: 'var(--k-tx-6c6779)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg>
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--k-tx-a29ead)' }}>정기 입금</span>
+                  <span style={{ display: 'block', marginTop: 2, fontSize: 14, fontWeight: 700, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {periodDetailLabel(r)}{r.content ? ` · ${r.content}` : ''}
+                  </span>
+                </span>
+                <span style={{ flex: 'none', fontSize: 14.5, fontWeight: 700, color: 'var(--income)' }}>{fmtNum(r.amount)}</span>
+                {mine && <svg width="12" viewBox="0 0 24 24" fill="none" stroke="var(--k-tx-c2bfc6)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}><polyline points="9 6 15 12 9 18" /></svg>}
+              </button>
+            );
+          })}
+        </div>
+      ))}
 
       {/* 요약(구독 현황 탭의 총 금액/사용 금액/잔여 금액 영역과 같은 UI) */}
       <div className="summary-card" style={{ marginTop: 14 }}>

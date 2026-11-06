@@ -45,6 +45,7 @@ import GroupCreate from './pages/GroupCreate.jsx';
 import GroupDetail from './pages/GroupDetail.jsx';
 import GroupEdit from './pages/GroupEdit.jsx';
 import MemberDetail from './pages/MemberDetail.jsx';
+import MemberDepositRule from './pages/MemberDepositRule.jsx';
 import Admin from './pages/Admin.jsx';
 import AdminUserDetail from './pages/AdminUserDetail.jsx';
 import Spinner from './components/Spinner.jsx';
@@ -85,6 +86,7 @@ export default function App() {
         <Route path="/groups/:id/edit" element={<GroupEdit />} />
         <Route path="/groups/:id/me" element={<GroupMyMember />} />
         <Route path="/groups/:id/member/:memberId" element={<MemberDetail />} />
+        <Route path="/groups/:id/member/:memberId/deposit-rule" element={<MemberDepositRule />} />
         <Route path="/groups/:id/members/add" element={<GroupMemberAdd />} />
         <Route path="/groups/:id/members/:memberId/edit" element={<GroupMemberEdit />} />
         <Route path="/settings" element={<Settings />} />

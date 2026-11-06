@@ -794,8 +794,6 @@ export const db = {
       name: patch.name?.trim(), description: (patch.description || '').trim(),
       category: patch.category, category_emoji: patch.category_emoji || '', color: patch.color || '',
       start_date: patch.start_date || null, end_date: patch.end_date || null,
-      owner_account: (patch.owner_account ?? '').trim(),
-      owner_kakaopay_link: (patch.owner_kakaopay_link ?? '').trim(),
     }).eq('id', id).select().single());
     // 그룹 종료일자가 입력되면 멤버들의 종료일자도 함께 맞춤
     if (patch.end_date) {
@@ -959,6 +957,36 @@ export const db = {
   },
   async getSubscription(groupId) {
     return unwrap(await supabase.from('subscriptions').select('*').eq('group_id', groupId).maybeSingle());
+  },
+  // 그룹의 결제/입금 반복 일정(다음 결제일·입금일 계산용) — 멤버 누구나 조회(0103 RPC)
+  async listGroupRecurringSchedule(groupId) {
+    const { data, error } = await supabase.rpc('group_recurring_schedule', { p_group_id: groupId });
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+  // 멤버의 정기 입금 설정(반복 규칙) — 총무/총대와 그 멤버 본인만 보임(0026 RLS)
+  async listMemberDepositRules(memberId) {
+    return unwrap(await supabase.from('recurring_rules').select('*')
+      .eq('member_id', memberId).eq('target', 'subscription_deposit').eq('active', true).order('created_at'));
+  },
+  // 정기 입금 설정(멤버 상세): 입금 기록 없이 반복 규칙만 만든다. 시작일 당일 회차도 자동 생성(generate_on_start).
+  async createMemberDepositRule(p, userId) {
+    const rule = unwrap(await supabase.from('recurring_rules').insert({
+      user_id: userId, group_id: p.group_id, member_id: p.member_id, target: 'subscription_deposit', type: 'income',
+      amount: p.amount,
+      category_name: p.category_name || '', category_emoji: p.category_emoji || '', source_name: p.source_name || '',
+      leader_category_name: p.leader_category_name || '', leader_category_emoji: p.leader_category_emoji || '',
+      deposit_source_name: p.deposit_source_name || '',
+      content: (p.content || '').trim(), memo: (p.memo || '').trim(),
+      ...ruleCurrency(p),
+      ...(p.exclude_performance ? { exclude_performance: true } : {}),
+      start_date: p.start_date, freq_unit: p.freq_unit, freq_interval: p.freq_interval, weekdays: p.weekdays || [],
+      label: p.label, business_day_rule: p.business_day_rule || 'none', generate_on_start: true,
+    }).select().single());
+    // 시작일이 오늘이면 오늘 회차를 바로 생성(오늘 자동 실행이 이미 지났을 수 있으므로)
+    await supabase.rpc('run_recurring_rule_today', { p_rule_id: rule.id });
+    this._notifyRecurringRegistered(p.group_id, p.member_id, userId, p.content || p.label || '');
+    return rule;
   },
   async upsertSubscription(groupId, s) {
     return unwrap(await supabase.from('subscriptions').upsert({ group_id: groupId, ...s }).select().single());

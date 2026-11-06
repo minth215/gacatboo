@@ -30,7 +30,6 @@ export default function GroupEdit() {
         name: group.name, description: group.description || '',
         category: group.category, category_emoji: group.category_emoji || '', color: group.color || '',
         start_date: group.start_date || '', end_date: group.end_date || '',
-        owner_account: group.owner_account || '', owner_kakaopay_link: group.owner_kakaopay_link || '',
       });
     }).catch((e) => { alert(e.message); nav('/groups'); });
     db.listGroupCategories().then(setGroupCats).catch(() => {});

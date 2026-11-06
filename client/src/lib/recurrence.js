@@ -151,3 +151,31 @@ export function periodDetailLabel(rule) {
   }
   return describeRule(rule);
 }
+
+// 규칙의 다음 반복일: fromStr(포함) 이후 처음으로 이 패턴에 해당하는 날짜(시작일 이전·종료일 이후 제외).
+// 영업일 보정은 반영하지 않은 명목상 날짜. 2년 안에 없으면 null.
+export function nextRuleDate(rule, fromStr) {
+  if (!rule?.start_date || !fromStr) return null;
+  const parse = (v) => { const [y, m, d] = v.split('-').map(Number); return new Date(y, m - 1, d); };
+  const start = parse(rule.start_date);
+  const end = rule.end_date ? parse(rule.end_date) : null;
+  const cur = parse(fromStr < rule.start_date ? rule.start_date : fromStr);
+  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  for (let i = 0; i < 800; i++) {
+    if (end && cur > end) return null;
+    if (isDueOn(cur, start, rule.freq_unit, rule.freq_interval, rule.weekdays)) return fmt(cur);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return null;
+}
+
+// 여러 규칙 중 가장 가까운 다음 반복일. 마지막 기록일(lastStr)이 있으면 그다음 날부터, 오늘 이전은 보지 않음.
+export function nextDueFromRules(rules, todayStr, lastStr) {
+  let from = todayStr;
+  if (lastStr && lastStr >= todayStr) {
+    const [y, m, d] = lastStr.split('-').map(Number);
+    const n = new Date(y, m - 1, d + 1);
+    from = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+  }
+  return (rules || []).map((r) => nextRuleDate(r, from)).filter(Boolean).sort()[0] || null;
+}
