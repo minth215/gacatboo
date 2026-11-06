@@ -6,6 +6,7 @@ import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { fieldStyle, labelStyle } from './FriendAdd.jsx';
 import BareSelect from '../components/BareSelect.jsx';
+import HelpTip from '../components/HelpTip.jsx';
 
 const isCardGroup = (t) => t === 'credit' || t === 'check';
 const GROUP_TYPES = [['general', '일반'], ['credit', '신용카드'], ['check', '체크카드'], ['onnuri', '디지털 온누리']];
@@ -42,6 +43,8 @@ function periodOptions(f) {
   return opts;
 }
 
+const HELP_BALANCE = '현재 잔액을 입력하시면 가계부 작성 시 자동으로 동기화됩니다. 금액 수정 시점 이전 날짜의 가계부는 영향을 미치지 않습니다.';
+const HELP_AUTO = '전체 원천 중 하나에만 지정할 수 있습니다.\n주 결제 수단: 지출 항목 입력 시 원천에 자동 세팅됩니다.\n주 입금 수단: 수입 항목 입력 시 원천에 자동 세팅됩니다.\n주 정산 수단: 그룹의 입출금 수단으로 자동 세팅됩니다.';
 const todayKst = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 
 // 설정 > 원천 관리 > 원천 그룹 추가/수정, 원천 추가/수정 페이지.
@@ -281,7 +284,7 @@ export default function SourceEdit({ admin = false }) {
           </label>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <span style={subLabel}>입력 자동화</span>
+          <span style={{ ...subLabel, display: 'inline-flex', alignItems: 'center' }}>입력 자동화<HelpTip text={HELP_AUTO} label="입력 자동화 설명" /></span>
           {primaryPills}
         </div>
       </div>
@@ -333,7 +336,7 @@ export default function SourceEdit({ admin = false }) {
         {/* 일반 그룹 원천: 금액 */}
         {!admin && !isGroup && !cardItem && (
           <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <span style={labelStyle}>금액</span>
+            <span style={{ ...labelStyle, display: 'inline-flex', alignItems: 'center' }}>금액<HelpTip text={HELP_BALANCE} label="금액 설명" /></span>
             <div style={{ ...fieldStyle, display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px' }}>
               <input
                 type="text" inputMode="decimal" value={fmtBalance(form.balance)} placeholder="0"
@@ -430,7 +433,7 @@ export default function SourceEdit({ admin = false }) {
         {/* 주결제/주입금수단 — 일반·디지털 온누리 그룹 원천(카드 원천은 아래 "입출금 설정" 영역의 "입력 자동화") */}
         {!isGroup && !cardItem && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <span style={labelStyle}>입력 자동화</span>
+          <span style={{ ...labelStyle, display: 'inline-flex', alignItems: 'center' }}>입력 자동화<HelpTip text={HELP_AUTO} label="입력 자동화 설명" /></span>
           {primaryPills}
         </div>
         )}
