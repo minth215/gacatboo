@@ -21,6 +21,7 @@ import BudgetManage from './pages/BudgetManage.jsx';
 import BudgetSet from './pages/BudgetSet.jsx';
 import SourceEdit from './pages/SourceEdit.jsx';
 import GroupMyMember from './pages/GroupMyMember.jsx';
+import AdminUserCreate from './pages/AdminUserCreate.jsx';
 import SourceManage from './pages/SourceManage.jsx';
 import CardBenefits from './pages/CardBenefits.jsx';
 import GroupCategoryManage from './pages/GroupCategoryManage.jsx';
@@ -114,6 +115,7 @@ export default function App() {
         <Route path="/settings/import" element={<SettingsImport />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
+        <Route path="/admin/users/new" element={<Protected adminOnly><AdminUserCreate /></Protected>} />
         <Route path="/admin/users/:id" element={<Protected adminOnly><AdminUserDetail /></Protected>} />
         <Route path="/admin/defaults/categories" element={<Protected adminOnly><CategoryManage admin /></Protected>} />
         <Route path="/admin/defaults/sources" element={<Protected adminOnly><SourceManage admin /></Protected>} />
