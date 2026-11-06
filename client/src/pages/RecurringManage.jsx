@@ -303,7 +303,7 @@ export default function RecurringManage() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)', flex: 'none' }}>반복 기간</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <BareDate value={detail.start_date} disabled={saving} onChange={(v) => v && saveRule({ start_date: v })} />
+                    <BareDate value={detail.start_date} disabled={saving} onChange={(v) => v && saveRule({ start_date: v, anchor_day: Number(v.slice(8, 10)) })} />
                     <span style={{ fontSize: 13.25, color: 'var(--k-tx-a29ead)' }}>~</span>
                     <BareDate value={detail.end_date || ''} placeholder="종료일 없음" min={detail.start_date} disabled={saving} onChange={(v) => v && saveEndDate(v)} />
                     {detail.end_date && (
@@ -401,7 +401,9 @@ function withMonthDay(dateStr, month, day) {
 // 일·월을 바꾸면 반복 기준이 되는 시작일의 일·월이 바뀐다(서버 자동 기록도 시작일 기준으로 계산).
 export function PeriodEditor({ rule, disabled, onSave, labelStyle, rowStyle }) {
   const preset = presetOf(rule);
-  const [y, mo, d] = rule.start_date.split('-').map(Number);
+  const [y, mo, d0] = rule.start_date.split('-').map(Number);
+  // 월/연 반복의 기준 일자(30·31일처럼 시작 달에 없어 말일로 저장된 경우에도 원래 일자)
+  const d = Number(rule.anchor_day) || d0;
   const dow = new Date(y, mo - 1, d).getDay();
   const labelFor = (r) => describeRule({ ...r, label: '' });
 
@@ -439,15 +441,15 @@ export function PeriodEditor({ rule, disabled, onSave, labelStyle, rowStyle }) {
           )}
           {(unit === 'month' && shown !== 'daily') && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-              <BareNumber value={d} max={31} disabled={disabled} onCommit={(n) => onSave({ start_date: withMonthDay(rule.start_date, null, n) })} />
+              <BareNumber value={d} max={31} disabled={disabled} onCommit={(n) => onSave({ start_date: withMonthDay(rule.start_date, null, n), anchor_day: n })} />
               <span style={txt}>일</span>
             </span>
           )}
           {unit === 'year' && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-              <BareNumber value={mo} max={12} disabled={disabled} onCommit={(n) => onSave({ start_date: withMonthDay(rule.start_date, n, d) })} />
+              <BareNumber value={mo} max={12} disabled={disabled} onCommit={(n) => onSave({ start_date: withMonthDay(rule.start_date, n, d), anchor_day: d })} />
               <span style={txt}>월</span>
-              <BareNumber value={d} max={31} disabled={disabled} onCommit={(n) => onSave({ start_date: withMonthDay(rule.start_date, null, n) })} />
+              <BareNumber value={d} max={31} disabled={disabled} onCommit={(n) => onSave({ start_date: withMonthDay(rule.start_date, null, n), anchor_day: n })} />
               <span style={txt}>일</span>
             </span>
           )}

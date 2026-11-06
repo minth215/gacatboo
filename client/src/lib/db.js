@@ -626,7 +626,7 @@ export const db = {
         ...((Array.isArray(base.items) && base.items.length && !base.items.some((it) => it?.targetId != null)) ? { items: base.items } : {}),
         ...(base.exclude_performance ? { exclude_performance: true } : {}),
         start_date: r.start_date || payload.date,
-        freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
+        freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none', anchor_day: r.anchor_day ?? null,
       }).select().single());
       recurring_id = rule.id;
     }
@@ -1003,7 +1003,7 @@ export const db = {
       ...ruleCurrency(p),
       ...(p.exclude_performance ? { exclude_performance: true } : {}),
       start_date: p.start_date, end_date: p.end_date || null, freq_unit: p.freq_unit, freq_interval: p.freq_interval, weekdays: p.weekdays || [],
-      label: p.label, business_day_rule: p.business_day_rule || 'none', generate_on_start: true,
+      label: p.label, business_day_rule: p.business_day_rule || 'none', generate_on_start: true, anchor_day: p.anchor_day ?? null,
     }).select().single());
     await this._startGroupRule(rule.id, p.backfill);
     this._notifyRecurringRegistered(p.group_id, p.member_id, userId, p.content || p.label || '');
@@ -1020,7 +1020,7 @@ export const db = {
       ...ruleCurrency(p),
       ...(p.exclude_performance ? { exclude_performance: true } : {}),
       start_date: p.start_date, end_date: p.end_date || null, freq_unit: p.freq_unit, freq_interval: p.freq_interval, weekdays: p.weekdays || [],
-      label: p.label, business_day_rule: p.business_day_rule || 'none', generate_on_start: true,
+      label: p.label, business_day_rule: p.business_day_rule || 'none', generate_on_start: true, anchor_day: p.anchor_day ?? null,
     }).select().single());
     await this._startGroupRule(rule.id, p.backfill);
     return rule;
@@ -1072,7 +1072,7 @@ export const db = {
         source_id: p.source_id || null, source_name: p.source_name || '',
         content: (p.content || '').trim(), memo: (p.memo || '').trim(),
         ...ruleCurrency(p),
-        start_date: r.start_date || p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
+        start_date: r.start_date || p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none', anchor_day: r.anchor_day ?? null,
       }).select().single());
       recurring_id = rule.id;
       unwrap(await supabase.from('transactions').update({ recurring_id }).eq('id', tx.id));
@@ -1106,7 +1106,7 @@ export const db = {
           source_id: p.source_id || null, source_name: p.source_name || '',
           content: (p.content || '').trim(), memo: (p.memo || '').trim(),
           ...ruleCurrency(p),
-          start_date: r.start_date || p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
+          start_date: r.start_date || p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none', anchor_day: r.anchor_day ?? null,
         }).select().single());
         recurring_id = rule.id;
         if (existing.tx_id) unwrap(await supabase.from('transactions').update({ recurring_id }).eq('id', existing.tx_id));
@@ -1185,7 +1185,7 @@ export const db = {
         deposit_source_name: p.deposit_source_name || '',
         content: (p.content || '').trim(), memo: (p.memo || '').trim(),
         ...ruleCurrency(p),
-        start_date: r.start_date || p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
+        start_date: r.start_date || p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none', anchor_day: r.anchor_day ?? null,
       }).select().single());
       const dep = unwrap(await supabase.from('subscription_deposits').update({ recurring_id: rule.id }).eq('id', depId).select('leader_tx_id, member_tx_id').single());
       const txIds = [dep.leader_tx_id, dep.member_tx_id].filter(Boolean);
@@ -1212,7 +1212,7 @@ export const db = {
           deposit_source_name: p.deposit_source_name || '',
           content: (p.content || '').trim(), memo: (p.memo || '').trim(),
           ...ruleCurrency(p),
-          start_date: r.start_date || p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none',
+          start_date: r.start_date || p.date, freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [], label: r.label, business_day_rule: r.business_day_rule || 'none', anchor_day: r.anchor_day ?? null,
         }).select().single());
         recurring_id = rule.id;
         const txIds = [existing.leader_tx_id, existing.member_tx_id].filter(Boolean);
@@ -1848,7 +1848,7 @@ export const db = {
         source_id: r.source_id != null ? (sourceIdMap[r.source_id] ?? null) : null, source_name: r.source_name || '',
         content: r.content || '', memo: r.memo || '', start_date: r.start_date, end_date: r.end_date || null,
         freq_unit: r.freq_unit, freq_interval: r.freq_interval, weekdays: r.weekdays || [],
-        label: r.label || '', active: r.active, business_day_rule: r.business_day_rule || 'none',
+        label: r.label || '', active: r.active, business_day_rule: r.business_day_rule || 'none', anchor_day: r.anchor_day ?? null,
       }).select().single());
       recurringIdMap[r.id] = row.id;
     }

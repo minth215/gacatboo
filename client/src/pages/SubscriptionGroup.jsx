@@ -1367,7 +1367,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
       return await db.previewBackfill({
         target: 'subscription_deposit', group_id: scheduleGroupId, member_id: Number(f.memberId || initial?.member_id), type: 'income',
         content: f.content.trim(), start_date: recurrence.start_date || f.date, freq_unit: recurrence.freq_unit, freq_interval: recurrence.freq_interval,
-        weekdays: recurrence.weekdays || [], business_day_rule: recurrence.business_day_rule || 'none',
+        weekdays: recurrence.weekdays || [], business_day_rule: recurrence.business_day_rule || 'none', anchor_day: recurrence.anchor_day ?? null,
       });
     } catch { return countDueDates(recurrence, recurrence.start_date || f.date, today()); }
   };

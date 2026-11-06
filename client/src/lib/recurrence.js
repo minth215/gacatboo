@@ -43,6 +43,8 @@ export function resolveRecurrence(pending, dateStr) {
     const dd = Math.min(Math.max(1, Number(pending.day) || d), last);
     const start = `${y}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
     if (start !== dateStr) r.start_date = start;
+    // 반복 일자(예: 31)는 따로 저장 — 시작 달에 그 일자가 없어 시작일이 말일로 당겨져도 이후 달은 원래 일자(없으면 말일)
+    if (Number(pending.day)) r.anchor_day = Math.min(Math.max(1, Number(pending.day)), 31);
   }
   return r;
 }
@@ -78,7 +80,9 @@ function resolveRecurrenceBase(pending, dateStr) {
 
 // 어떤 날짜(d, Date 객체)가 이 패턴(freq_unit/freq_interval/weekdays, start 기준)에 해당하는
 // "반복일"인지 — 서버의 generate_recurring_occurrence() SQL 로직과 동일하게 맞춤(월말 보정 포함).
-function isDueOn(d, start, unit, interval, weekdays) {
+// anchorDay: 월/연 반복의 기준 일자(없으면 시작일의 일자). 그 달에 없는 일자(30·31일 등)면 말일.
+function isDueOn(d, start, unit, interval, weekdays, anchorDay) {
+  const day = Number(anchorDay) || start.getDate();
   const MS_DAY = 86400000;
   if (unit === 'day') {
     const days = Math.round((d - start) / MS_DAY);
@@ -93,13 +97,13 @@ function isDueOn(d, start, unit, interval, weekdays) {
   if (unit === 'month') {
     const monthsSince = (d.getFullYear() - start.getFullYear()) * 12 + (d.getMonth() - start.getMonth());
     const lastDayOfDMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-    const targetDay = Math.min(start.getDate(), lastDayOfDMonth);
+    const targetDay = Math.min(day, lastDayOfDMonth);
     return monthsSince >= 0 && monthsSince % interval === 0 && d.getDate() === targetDay;
   }
   // year
   const yearsSince = d.getFullYear() - start.getFullYear();
   const lastDayOfThatMonth = new Date(d.getFullYear(), start.getMonth() + 1, 0).getDate();
-  const targetDay = Math.min(start.getDate(), lastDayOfThatMonth);
+  const targetDay = Math.min(day, lastDayOfThatMonth);
   return yearsSince >= 0 && yearsSince % interval === 0 && d.getMonth() === start.getMonth() && d.getDate() === targetDay;
 }
 
@@ -115,7 +119,7 @@ export function countDueDates(rule, startDateStr, throughDateStr) {
   const cur = new Date(start);
   cur.setDate(cur.getDate() + 1);
   while (cur <= through) {
-    if (isDueOn(cur, start, rule.freq_unit, rule.freq_interval, rule.weekdays)) count++;
+    if (isDueOn(cur, start, rule.freq_unit, rule.freq_interval, rule.weekdays, rule.anchor_day)) count++;
     cur.setDate(cur.getDate() + 1);
   }
   return count;
@@ -139,7 +143,7 @@ export const BUSINESS_DAY_LABELS = { none: '없음', before: '전 영업일', af
 export function periodDetailLabel(rule) {
   if (rule.freq_unit === 'month' || rule.freq_unit === 'year') {
     const d = new Date(`${rule.start_date}T00:00:00`);
-    const day = d.getDate();
+    const day = Number(rule.anchor_day) || d.getDate();
     const base = rule.freq_unit === 'month'
       ? (rule.freq_interval > 1 ? `${rule.freq_interval}개월마다 ${day} 일` : `매월 ${day} 일`)
       : (() => {
@@ -157,9 +161,9 @@ const parseYmd = (v) => { const [y, m, d] = v.split('-').map(Number); return new
 
 // 멤버 시작일자(newStart) 기준 반복 시작일: 월/연 반복은 고른 일자(월)를 유지하고, 시작일자 이전이면 다음 주기로
 // (서버 recurring_align_start 와 동일)
-export function alignStartDate(ruleStart, newStart, unit, interval = 1) {
+export function alignStartDate(ruleStart, newStart, unit, interval = 1, anchorDay = null) {
   if (!newStart) return ruleStart;
-  const day = parseYmd(ruleStart).getDate();
+  const day = Number(anchorDay) || parseYmd(ruleStart).getDate();
   const ns = parseYmd(newStart);
   const step = Math.max(Number(interval) || 1, 1);
   if (unit === 'month' || unit === 'year') {

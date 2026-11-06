@@ -1066,7 +1066,7 @@ const TransactionForm = forwardRef(function TransactionForm({
           ...(backfillTarget || { target: 'transaction', group_id: groupId || null }),
           type: isTransfer ? 'transfer' : type, category_name, content: (contentValue || '').trim(), amount: Math.round(Number(total) || 0),
           start_date: recurrence.start_date || date, freq_unit: recurrence.freq_unit, freq_interval: recurrence.freq_interval,
-          weekdays: recurrence.weekdays || [], business_day_rule: recurrence.business_day_rule || 'none',
+          weekdays: recurrence.weekdays || [], business_day_rule: recurrence.business_day_rule || 'none', anchor_day: recurrence.anchor_day ?? null,
         });
       } catch { n = countDueDates(recurrence, recurrence.start_date || date, today()); }
       if (n > 0) backfillPast = await askBackfill(n);
