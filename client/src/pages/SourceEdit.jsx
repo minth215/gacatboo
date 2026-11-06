@@ -5,14 +5,15 @@ import { useAuth } from '../lib/auth.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { fieldStyle, labelStyle } from './FriendAdd.jsx';
+import BareSelect from '../components/BareSelect.jsx';
 
 const isCardGroup = (t) => t === 'credit' || t === 'check';
 const GROUP_TYPES = [['general', '일반'], ['credit', '신용카드'], ['check', '체크카드'], ['onnuri', '디지털 온누리']];
 const TYPE_LABEL = Object.fromEntries(GROUP_TYPES);
 const BUSINESS_DAY_LABELS = { none: '없음', before: '전 영업일', after: '후 영업일' };
-const OFFSET_LABELS = [['-2', '전전월'], ['-1', '전월'], ['0', '당월']];
 // 청구 기간 기본값(대금 납부일 기준, 수정 가능): 14일 → 전월 1일~전월 말일,
-// 14일 이후 → 전월 (d-13)일~당월 (d-14)일, 14일 이전 → 전전월 (d+17)일~전월 (d+16)일. 일자 31 = 말일
+// 14일 이후 → 전월 (d-13)일~당월 (d-14)일, 14일 이전 → 전전월 (d+17)일~전월 (d+16)일. 일자 31 = 말일.
+// 납부일을 바꾸면(수정 화면 포함) 항상 이 기본값으로 다시 맞춘다.
 function defaultBillPeriod(d) {
   const n = Number(d);
   if (!(n >= 1 && n <= 31)) return { so: '-1', sd: '1', eo: '-1', ed: '31' };
@@ -20,6 +21,27 @@ function defaultBillPeriod(d) {
   if (n > 14) return { so: '-1', sd: String(n - 13), eo: '0', ed: String(n - 14) };
   return { so: '-2', sd: String(n + 17), eo: '-1', ed: String(n + 16) };
 }
+// 청구 기간(한 달 간격): 시작(월 오프셋·일자)만 정하면 끝이 정해짐. 1 일 시작 → 같은 달 말일, N 일 시작 → 다음 달 (N-1) 일
+const OFFSET_NAME = { '-2': '전전월', '-1': '전월', '0': '당월' };
+const dayLabel = (d) => (Number(d) === 31 ? '말일' : `${d} 일`);
+const periodKey = (f) => `${f.so}|${f.sd}`;
+function periodFromKey(k) {
+  const [so, sd] = k.split('|');
+  if (Number(sd) === 1) return { so, sd, eo: so, ed: '31' };
+  return { so, sd, eo: String(Number(so) + 1), ed: String(Number(sd) - 1) };
+}
+const periodLabel = (f) => `${OFFSET_NAME[f.so] || ''} ${dayLabel(f.sd)} ~ ${OFFSET_NAME[f.eo] || ''} ${dayLabel(f.ed)}`;
+const PERIOD_STARTS = [
+  ...Array.from({ length: 30 }, (_, i) => ['-2', String(i + 2)]), // 전전월 2 일 ~ 전월 1 일 … 전전월 31 일
+  ...Array.from({ length: 31 }, (_, i) => ['-1', String(i + 1)]), // 전월 1 일 ~ 전월 말일 … 전월 31 일
+].filter(([so, sd]) => !(so === '-1' && Number(sd) === 31) && !(so === '-2' && Number(sd) === 31));
+function periodOptions(f) {
+  const opts = PERIOD_STARTS.map(([so, sd]) => [`${so}|${sd}`, periodLabel(periodFromKey(`${so}|${sd}`))]);
+  // 예전에 직접 고른 기간이 목록에 없으면 그대로 표시
+  if (!opts.some(([k]) => k === periodKey(f))) opts.unshift([periodKey(f), periodLabel(f)]);
+  return opts;
+}
+
 const todayKst = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 
 // 설정 > 원천 관리 > 원천 그룹 추가/수정, 원천 추가/수정 페이지.
@@ -85,8 +107,8 @@ export default function SourceEdit({ admin = false }) {
       paymentDay: src?.payment_day ? String(src.payment_day) : '14',
       businessRule: src?.payment_business_rule || 'none',
       ...(src?.bill_start_offset != null && src?.bill_end_offset != null
-        ? { so: String(src.bill_start_offset), sd: String(src.bill_start_day ?? 1), eo: String(src.bill_end_offset), ed: String(src.bill_end_day ?? 31), periodTouched: true }
-        : { ...defaultBillPeriod(src?.payment_day || 14), periodTouched: false }),
+        ? { so: String(src.bill_start_offset), sd: String(src.bill_start_day ?? 1), eo: String(src.bill_end_offset), ed: String(src.bill_end_day ?? 31) }
+        : { ...defaultBillPeriod(src?.payment_day || 14) }),
       autoBill: !!src?.auto_bill,
       // 신용카드 그룹: 지출 반영 시점
       expenseTiming: src?.expense_timing || 'usage',
@@ -188,7 +210,8 @@ export default function SourceEdit({ admin = false }) {
   // 대금 납부 영역: 자동 입력 ON 이면 모든 필드 필수(*)
   const req = form.autoBill ? <span style={{ color: '#FF3B5C' }}> *</span> : null;
   const subLabel = { fontSize: 12.5, fontWeight: 700, color: 'var(--k-tx-4a4652)' };
-  const fixedText = { flex: 'none', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-6c6779)' };
+  const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 24 };
+  const bareText = { fontSize: 13.25, color: 'var(--k-tx-191722)' };
   const fmtBalance = (v) => {
     if (v === '' || v === '-') return v;
     const neg = v.startsWith('-');
@@ -320,60 +343,48 @@ export default function SourceEdit({ admin = false }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             <span style={labelStyle}>대금 납부</span>
             <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.07 * var(--k-sha)))', padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <span style={subLabel}>연결 계좌{req}</span>
-            <select value={form.linkedId} onChange={(e) => set({ linkedId: e.target.value })} style={{ ...selectStyle, color: form.linkedId ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>
-                  <option value="">카드값이 빠져나갈 원천 선택</option>
-                  {/* 기록 페이지 원천 셀렉트처럼 원천 그룹 라벨 아래 원천(카드·디지털 온누리 그룹 제외) */}
-                  {tree.filter((t) => !isCardGroup(t.group_type) && t.group_type !== 'onnuri' && t.children?.length).map((t) => (
-                    <optgroup key={t.id} label={t.name}>
-                      {t.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </optgroup>
-                  ))}
-                </select>
-              </label>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <span style={subLabel}>대금 납부일{req}</span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {/* "매월 [일자] 일" — 매월/일은 고정 텍스트 */}
-                  <div style={{ ...fieldStyle, flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '0 14px' }}>
-                    <span style={fixedText}>매월</span>
-                    <input
-                      type="text" inputMode="numeric" value={form.paymentDay} placeholder="14"
-                      onChange={(e) => {
-                        const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
-                        const n = Math.min(31, Number(v) || 0);
-                        const day = v === '' ? '' : String(n || '');
-                        setForm((f) => ({ ...f, paymentDay: day, ...(f.periodTouched || !day ? {} : defaultBillPeriod(day)) }));
-                      }}
-                      style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', padding: '14px 0', textAlign: 'right' }}
-                    />
-                    <span style={fixedText}>일</span>
-                  </div>
-                  {/* 영업일 처리 */}
-                  <select value={form.businessRule} onChange={(e) => set({ businessRule: e.target.value })} aria-label="영업일 처리" style={{ ...selectStyle, flex: 'none', width: 132 }}>
-                    {Object.entries(BUSINESS_DAY_LABELS).map(([v, l]) => <option key={v} value={v}>{v === 'none' ? '영업일 처리 없음' : l}</option>)}
-                  </select>
-                </div>
+              {/* 반복 상세 모달처럼 필드명은 왼쪽, 값은 오른쪽 끝 */}
+              <div style={rowStyle}>
+                <span style={{ ...subLabel, flex: 'none' }}>연결 계좌{req}</span>
+                <BareSelect
+                  value={form.linkedId} onChange={(v) => set({ linkedId: v })} placeholder="원천 선택"
+                  // 기록 페이지 원천 셀렉트처럼 원천 그룹 라벨 아래 원천(카드·디지털 온누리 그룹 제외)
+                  groups={tree.filter((t) => !isCardGroup(t.group_type) && t.group_type !== 'onnuri' && t.children?.length)
+                    .map((t) => ({ label: t.name, options: t.children.map((c) => [String(c.id), c.name]) }))}
+                />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <span style={subLabel}>청구 기간{req}</span>
-                {/* [전월] [1일] ~ [전월] [말일] — 납부일을 바꾸면 기본값으로(직접 고친 뒤에는 유지) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {[['so', 'sd'], ['eo', 'ed']].map(([ok, dk], i) => (
-                    <div key={ok} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {i === 1 && <span style={{ ...fixedText, flex: 'none' }}>~</span>}
-                      <select value={form[ok]} onChange={(e) => set({ [ok]: e.target.value, periodTouched: true })} aria-label={i ? '청구 기간 끝 월' : '청구 기간 시작 월'} style={{ ...selectStyle, flex: 1, minWidth: 0, padding: '14px 26px 14px 10px', backgroundPosition: 'right 8px center' }}>
-                        {OFFSET_LABELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                      </select>
-                      <select value={form[dk]} onChange={(e) => set({ [dk]: e.target.value, periodTouched: true })} aria-label={i ? '청구 기간 끝 일' : '청구 기간 시작 일'} style={{ ...selectStyle, flex: 1, minWidth: 0, padding: '14px 26px 14px 10px', backgroundPosition: 'right 8px center' }}>
-                        {Array.from({ length: 31 }, (_, k) => k + 1).map((d) => <option key={d} value={d}>{d === 31 ? '말일' : `${d}일`}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                </div>
+              <div style={rowStyle}>
+                <span style={{ ...subLabel, flex: 'none' }}>대금 납부일{req}</span>
+                {/* "매월 [일자] 일" — 매월/일은 고정 텍스트. 바꾸면 청구 기간도 납부일 기준 기본값으로 */}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <span style={bareText}>매월</span>
+                  <input
+                    type="text" inputMode="numeric" value={form.paymentDay} placeholder="14"
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
+                      const n = Math.min(31, Number(v) || 0);
+                      const day = v === '' ? '' : String(n || '');
+                      setForm((f) => ({ ...f, paymentDay: day, ...(day ? defaultBillPeriod(day) : {}) }));
+                    }}
+                    style={{ width: 26, border: 'none', outline: 'none', background: 'transparent', padding: 0, margin: 0, fontFamily: 'inherit', fontSize: 13.25, color: 'var(--k-tx-191722)', textAlign: 'right' }}
+                  />
+                  <span style={bareText}>일</span>
+                </span>
+              </div>
+
+              <div style={rowStyle}>
+                <span style={{ ...subLabel, flex: 'none' }}>영업일 처리</span>
+                <BareSelect value={form.businessRule} onChange={(v) => set({ businessRule: v })} options={Object.entries(BUSINESS_DAY_LABELS)} />
+              </div>
+
+              <div style={rowStyle}>
+                <span style={{ ...subLabel, flex: 'none' }}>청구 기간{req}</span>
+                {/* 한 달 간격이라 시작일만 고르면 끝은 정해짐 → 셀렉트박스 하나 */}
+                <BareSelect
+                  value={periodKey(form)} onChange={(v) => set(periodFromKey(v))}
+                  options={periodOptions(form)}
+                />
               </div>
 
               <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
