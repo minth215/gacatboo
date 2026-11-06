@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { fmtNum, dotDate, monthPillLabel } from '../lib/format.js';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
+import FxAmount from '../components/FxAmount.jsx';
 import { tileBg, formatDate, DayCardRow } from '../components/TransactionList.jsx';
 import { groupByMonthThenDate, memberNextDepositDate, ownerNextPaymentDate } from './SubscriptionGroup.jsx';
 import { RuleCard, ruleSubLine } from './RecurringManage.jsx';
@@ -171,7 +172,8 @@ export default function MemberDetail() {
                             </div>
                             <div className="tx-row-sub">{[tileCat, ownerMode ? d.source_name : d.deposit_source_name].filter(Boolean).join(' · ') || '—'}</div>
                           </div>
-                          <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', flex: 'none', color: ownerMode ? 'var(--expense)' : 'var(--income)' }}>{ownerMode ? '-' : '+'}{fmtNum(d.amount)}</span>
+                          {/* 보조 화폐로 입력한 기록은 보조 화폐 금액 아래 주 화폐 금액(가계부·결제 내역 카드와 동일) */}
+                          <FxAmount row={d} sign={ownerMode ? '-' : '+'} color={ownerMode ? 'var(--expense)' : 'var(--income)'} />
                       </DayCardRow>
                     );
                   })}

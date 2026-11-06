@@ -363,6 +363,8 @@ const TransactionForm = forwardRef(function TransactionForm({
   templateMode = false,
   // backfillTarget: 반복 일괄 생성 개수 미리 보기용 대상({ target, group_id }) — 그룹 결제 등 별도 저장 로직일 때
   backfillTarget = null,
+  // periodUnit: 구독 그룹 결제의 1회분(정기 결제 반복 { amount, input_currency, input_amount }) — 회차 자동 계산
+  periodUnit = null,
   // periodField: 날짜 칸 대신 보여줄 노드(반복 수정 화면의 "반복 주기")
   periodField = null,
 }, ref) {
@@ -620,6 +622,28 @@ const TransactionForm = forwardRef(function TransactionForm({
 
   // 항목 행 조작
   const updateItem = (idx, patch) => setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  // 구독 그룹 결제: 회차 = 금액 ÷ 1회분(정기 결제 반복 금액, 내림·최소 1). 반복이 보조 화폐면 같은 화폐 금액 기준.
+  // 정기 결제 설정이 없으면 예전처럼 defaultAmount 기준 반올림.
+  const periodsOf = (it) => {
+    if (!qtyIsPeriods) return null;
+    if (periodUnit) {
+      if (periodUnit.input_currency) {
+        const m = it.currencyMeta;
+        if (Number(periodUnit.input_amount) > 0 && m?.input_currency === periodUnit.input_currency && Number(m.input_amount) > 0) return Math.max(1, Math.floor(Number(m.input_amount) / Number(periodUnit.input_amount)));
+        return null;
+      }
+      if (Number(periodUnit.amount) > 0 && Number(it.amount) > 0) return Math.max(1, Math.floor(Number(it.amount) / Number(periodUnit.amount)));
+      return null;
+    }
+    if (Number(defaultAmount) > 0 && Number(it.amount) > 0) return Math.round(Number(it.amount) / Number(defaultAmount));
+    return null;
+  };
+  const updateItemPeriods = (idx, patch) => setItems((prev) => prev.map((it, i) => {
+    if (i !== idx) return it;
+    const next = { ...it, ...patch };
+    const n = periodsOf(next);
+    return n == null ? next : { ...next, qty: String(n) };
+  }));
   // 대표 "내용"에 먼저 입력하면 첫 번째 항목명이 아직 비어 있는 동안은 그 값을 그대로 따라가다가,
   // 항목명을 직접 건드리는 순간부터는 더 이상 따라가지 않는다. 처음부터 항목명이 이미 채워져
   // 있었던 경우(수정 화면 등)는 "입력 안 한 상태"가 아니므로 애초에 따라가지 않게 한다.
@@ -1397,10 +1421,13 @@ const TransactionForm = forwardRef(function TransactionForm({
             onName={(v) => onItemNameChange(idx, v)}
             itemNameSuggestions={itemNameSuggestions}
             onQty={(v) => updateItem(idx, { qty: v.replace(/[^0-9]/g, '') })}
-            onAmount={(v) => updateItem(idx, (qtyIsPeriods && Number(defaultAmount) > 0 && Number(v) > 0)
-              ? { amount: v, qty: String(Math.round(Number(v) / Number(defaultAmount))) }
-              : { amount: v })}
-            onCurrencyChange={(meta) => updateItem(idx, { currencyMeta: meta })}
+            onAmount={(v) => updateItemPeriods(idx, { amount: v })}
+            onCurrencyChange={(meta) => {
+              // 화면 진입 시 초기화 호출 등 값이 그대로면 회차를 다시 계산하지 않음(직접 고친 회차 유지)
+              const cur = items[idx]?.currencyMeta;
+              const same = (cur?.input_currency || '') === (meta?.input_currency || '') && Number(cur?.input_amount ?? -1) === Number(meta?.input_amount ?? -1);
+              (same ? updateItem : updateItemPeriods)(idx, { currencyMeta: meta });
+            }}
             onRemove={() => removeItem(idx)}
             onToggleExpand={() => toggleItemExpand(idx)}
             onToggleMember={(mid) => toggleItemMember(idx, mid)}

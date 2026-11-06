@@ -75,6 +75,15 @@ export default function TransactionEdit() {
 
   // 입금 내역 전용 부가 데이터
   const [sub, setSub] = useState(null);
+  // 구독 그룹 결제: 정기 결제 반복의 1회분(회차 자동 계산용)
+  const [payUnit, setPayUnit] = useState(null);
+  useEffect(() => {
+    if (!isPayment || !groupId) return;
+    db.listGroupRecurringSchedule(groupId).then((rs) => {
+      const r = rs.find((x) => x.target === 'subscription_payment');
+      if (r) setPayUnit({ amount: r.amount, input_currency: r.input_currency || '', input_amount: r.input_amount });
+    }).catch(() => {});
+  }, [isPayment, groupId]);
   // 그룹 결제/입금 신규 작성: 구독 설정(내용 기본값 등)이 도착한 뒤 폼을 띄워 기본값·포커스가 처음부터 맞게
   const [subLoaded, setSubLoaded] = useState(false);
   const [cats, setCats] = useState([]);
@@ -360,6 +369,7 @@ export default function TransactionEdit() {
             transferMembers={transferMembers}
             defaultTransferMemberId={defaultTransferMemberId}
             backfillTarget={isPayment ? { target: 'subscription_payment', group_id: groupId } : undefined}
+            periodUnit={isPayment && isSubscription(group?.category) ? payUnit : null}
             onSubmit={isPooledExpense ? savePooledExpense : isPooledTransfer ? savePooledTransfer : (isPayment ? savePayment : undefined)}
             showPeriods={isPayment && isSubscription(group?.category)}
             qtyLabel={isPayment && isSubscription(group?.category) ? '회차' : '수량'}
