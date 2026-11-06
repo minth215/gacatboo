@@ -37,6 +37,13 @@ export default function GroupCreate() {
   // 스텝 2: 내 정보
   const [nickname, setNickname] = useState(user.display_name || '');
   const [depositSourceId, setDepositSourceId] = useState('');
+  // 정산 수단 기본값(주 정산 수단 등). 공금 그룹의 공금 통장은 직접 고르도록 비워 둠(직접 고른 뒤에는 유지)
+  const [autoDepositId, setAutoDepositId] = useState('');
+  const [depositTouched, setDepositTouched] = useState(false);
+  useEffect(() => {
+    if (depositTouched) return;
+    setDepositSourceId(category === '공금' ? '' : autoDepositId);
+  }, [category, autoDepositId, depositTouched]);
   const [withdrawSourceId, setWithdrawSourceId] = useState(''); // 공금 그룹: 공금 통장에 입금할 때 돈이 빠져나갈 원천
 
   // 스텝 3: 멤버 추가(그룹 상세 > 멤버 추가 페이지와 같은 구성)
@@ -55,7 +62,7 @@ export default function GroupCreate() {
       const isCardItem = (x) => !x.allow_deposit && ['credit', 'check'].includes(s.tree.find((t) => t.id === x.parent_id)?.group_type);
       const settle = primarySettleSource(s.flat.filter((x) => !isCardItem(x)));
       const dep = settle || s.flat.find((x) => x.parent_id != null && x.is_primary_deposit && !isCardItem(x));
-      if (dep) setDepositSourceId(String(dep.id));
+      if (dep) setAutoDepositId(String(dep.id));
       const pay = settle || s.flat.find((x) => x.parent_id != null && x.is_primary_payment && !isCardItem(x));
       if (pay) setWithdrawSourceId(String(pay.id));
     }).catch(() => {});
@@ -255,7 +262,7 @@ export default function GroupCreate() {
               <span style={{ fontSize: 11, color: 'var(--k-tx-a29ead)', marginTop: -3 }}>
                 {category === '공금' ? '초대되는 멤버의 원천에 자동으로 추가됩니다' : '정산 시 입금받을 원천을 선택해 주세요'}
               </span>
-              <SourcePick tree={sources.tree} value={depositSourceId} onChange={setDepositSourceId} placeholder="입금 수단 선택" />
+              <SourcePick tree={sources.tree} value={depositSourceId} onChange={(v) => { setDepositTouched(true); setDepositSourceId(v); }} placeholder={category === '공금' ? '공금 통장 선택' : '입금 수단 선택'} />
             </label>
             {category === '공금' && (
               <label style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 18 }}>

@@ -37,7 +37,8 @@ export default function GroupMyMember() {
       setForm({
         nickname: owner ? (m.owner_nickname || m.nickname || '') : (m.self_nickname || m.owner_nickname || m.nickname || ''),
         sourceId: m.withdraw_source_id ? String(m.withdraw_source_id) : (settle ? String(settle.id) : ''),
-        depositSourceId: sb?.deposit_source_id ? String(sb.deposit_source_id) : (owner && settle ? String(settle.id) : ''),
+        // 공금 그룹의 공금 통장은 기본값 없이 직접 선택
+        depositSourceId: sb?.deposit_source_id ? String(sb.deposit_source_id) : (owner && settle && g.category !== '공금' ? String(settle.id) : ''),
       });
     }).catch((e) => { alert(e.message); nav(-1); });
   }, [gid, user.id, nav]);
