@@ -1345,12 +1345,21 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     if (!multiSub || templateMode || !scheduleGroupId) return;
     db.listGroupRecurringSchedule(scheduleGroupId).then(setSchedule).catch(() => {});
   }, [multiSub, templateMode, scheduleGroupId]);
-  const unitAmountOf = (memberId) => Number(schedule.find((r) => r.target === 'subscription_deposit' && String(r.member_id) === String(memberId))?.amount) || 0;
-  const onSubRowAmountChange = (idx, v) => {
-    const amount = v.replace(/[^0-9]/g, '');
-    const unit = unitAmountOf(f.memberId || initial?.member_id);
-    updateSubRow(idx, { amount, ...(unit > 0 && Number(amount) > 0 ? { periods: String(Math.max(1, Math.floor(Number(amount) / unit))) } : {}) });
+  // 회차 = 입금액 ÷ 1회분(내림, 최소 1). 반복이 보조 화폐(예: 200달러)면 같은 화폐로 입력한 금액 기준
+  const withPeriods = (row) => {
+    const rule = schedule.find((r) => r.target === 'subscription_deposit' && String(r.member_id) === String(f.memberId || initial?.member_id));
+    if (!rule) return row;
+    let n = null;
+    if (rule.input_currency) {
+      const m = row.currencyMeta;
+      if (Number(rule.input_amount) > 0 && m?.input_currency === rule.input_currency && Number(m.input_amount) > 0) n = Math.floor(Number(m.input_amount) / Number(rule.input_amount));
+    } else if (Number(rule.amount) > 0 && Number(row.amount) > 0) {
+      n = Math.floor(Number(row.amount) / Number(rule.amount));
+    }
+    return n == null ? row : { ...row, periods: String(Math.max(1, n)) };
   };
+  const updateSubRowCalc = (idx, patch) => setSubRows((prev) => prev.map((r, i) => (i === idx ? withPeriods({ ...r, ...patch }) : r)));
+  const onSubRowAmountChange = (idx, v) => updateSubRowCalc(idx, { amount: v.replace(/[^0-9]/g, '') });
   // 지난 회차 일괄 생성 개수: 서버에서 실제 규칙대로 계산(영업일 보정·이미 기록된 달 건너뛰기)
   const previewCount = async (recurrence) => {
     try {
@@ -2110,7 +2119,12 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                 <CalcAmountInput
                   compact value={r.amount} onChange={(v) => onSubRowAmountChange(idx, v)}
                   initialCurrency={r.currencyMeta?.input_currency} initialForeignAmount={r.currencyMeta?.input_amount}
-                  onCurrencyChange={(m) => updateSubRow(idx, { currencyMeta: m })}
+                  onCurrencyChange={(m) => {
+                    // 화면 진입 시 초기화 호출 등 값이 그대로면 회차를 다시 계산하지 않음(직접 고친 회차 유지)
+                    const cur = r.currencyMeta;
+                    const same = (cur?.input_currency || '') === (m?.input_currency || '') && Number(cur?.input_amount ?? -1) === Number(m?.input_amount ?? -1);
+                    (same ? updateSubRow : updateSubRowCalc)(idx, { currencyMeta: m });
+                  }}
                   onCurrencySelect={(c) => updateSubRow(idx, { liveCurrency: c })}
                 />
                 {subRows.length > 1 ? (

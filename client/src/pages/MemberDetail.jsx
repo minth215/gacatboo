@@ -94,7 +94,7 @@ export default function MemberDetail() {
 
       {/* 정기 입금 설정(반복) — 총무/총대와 멤버 본인만. 없으면 점선 영역 + 버튼 */}
       {canEditDep && rules && (rules.length === 0 ? (
-        <div style={{ marginTop: 14, border: '1.5px dashed var(--k-bd-cfccd4)', borderRadius: 18, padding: '20px 16px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+        <div style={{ border: '1.5px dashed var(--k-bd-cfccd4)', borderRadius: 18, padding: '20px 16px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
           <button
             type="button" aria-label={`정기 ${noun} 설정`} onClick={() => nav(`/groups/${gid}/member/${mid}/deposit-rule`)}
             style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'var(--k-bg-efeef2)', color: 'var(--k-tx-a29ead)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}
@@ -106,7 +106,7 @@ export default function MemberDetail() {
           </div>
         </div>
       ) : (
-        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {rules.map((r) => {
             const rr = { ...r, group: { owner_id: group.owner_id } };
             return (
