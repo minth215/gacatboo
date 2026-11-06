@@ -839,7 +839,7 @@ export const db = {
     const { data: sess } = await supabase.auth.getSession();
     const viewerIsOwner = sess?.session?.user?.id === group.owner_id;
     const members = rows.map((m) => ({
-      id: m.id, user_id: m.user_id, role: m.role,
+      id: m.id, group_id: group.id, user_id: m.user_id, role: m.role,
       nickname: (!viewerIsOwner && m.self_nickname) || m.nickname || m.profiles?.display_name || '멤버',
       owner_nickname: m.nickname || '', self_nickname: m.self_nickname || '',
       withdraw_source_id: m.withdraw_source_id ?? null,
@@ -972,6 +972,14 @@ export const db = {
       ? q.eq('group_id', groupId).eq('target', 'subscription_payment')
       : q.eq('member_id', member.id).eq('target', 'subscription_deposit');
     return unwrap(await q.order('created_at'));
+  },
+  // 지난 회차 일괄 생성 개수 미리 보기(서버에서 실제로 생성해 보고 되돌림 — 영업일 보정·건너뛰기 규칙 그대로)
+  // rule: { target, group_id, member_id, type, category_name, content, amount, start_date, end_date,
+  //         freq_unit, freq_interval, weekdays, business_day_rule, generate_on_start }
+  async previewBackfill(rule) {
+    const { data, error } = await supabase.rpc('preview_recurring_backfill', { p_rule: rule });
+    if (error) throw new Error(error.message);
+    return Number(data) || 0;
   },
   // 새 그룹 반복 규칙 저장 후: 지난 회차 일괄 생성(선택) 또는 오늘 회차만 바로 생성
   async _startGroupRule(ruleId, backfill) {

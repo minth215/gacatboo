@@ -1337,8 +1337,29 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     name: '', targetId: '', periods: preset?.periods ? String(preset.periods) : '1', amount: preset?.amount ? String(preset.amount) : '',
   }]));
   const updateSubRow = (idx, patch) => setSubRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  // 멤버의 정기 입금 1회분 금액(반복 설정) — 금액을 바꾸면 회차 = 금액 ÷ 1회분(내림, 최소 1)
+  // 예: 1회분 6000원에 20000원 입금 → 3회분(남은 2000원은 다음 자동 입금에서 차감)
+  const [schedule, setSchedule] = useState([]);
+  const scheduleGroupId = members[0]?.group_id || null;
+  useEffect(() => {
+    if (!multiSub || templateMode || !scheduleGroupId) return;
+    db.listGroupRecurringSchedule(scheduleGroupId).then(setSchedule).catch(() => {});
+  }, [multiSub, templateMode, scheduleGroupId]);
+  const unitAmountOf = (memberId) => Number(schedule.find((r) => r.target === 'subscription_deposit' && String(r.member_id) === String(memberId))?.amount) || 0;
   const onSubRowAmountChange = (idx, v) => {
-    updateSubRow(idx, { amount: v.replace(/[^0-9]/g, '') });
+    const amount = v.replace(/[^0-9]/g, '');
+    const unit = unitAmountOf(f.memberId || initial?.member_id);
+    updateSubRow(idx, { amount, ...(unit > 0 && Number(amount) > 0 ? { periods: String(Math.max(1, Math.floor(Number(amount) / unit))) } : {}) });
+  };
+  // 지난 회차 일괄 생성 개수: 서버에서 실제 규칙대로 계산(영업일 보정·이미 기록된 달 건너뛰기)
+  const previewCount = async (recurrence) => {
+    try {
+      return await db.previewBackfill({
+        target: 'subscription_deposit', group_id: scheduleGroupId, member_id: Number(f.memberId || initial?.member_id), type: 'income',
+        content: f.content.trim(), start_date: recurrence.start_date || f.date, freq_unit: recurrence.freq_unit, freq_interval: recurrence.freq_interval,
+        weekdays: recurrence.weekdays || [], business_day_rule: recurrence.business_day_rule || 'none',
+      });
+    } catch { return countDueDates(recurrence, recurrence.start_date || f.date, today()); }
   };
   const onSubTargetChange = (idx, targetId) => {
     const target = recentExpenses.find((x) => String(x.id) === targetId);
@@ -1699,7 +1720,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
       if ((isLeaderSettlement || rows.length === 1) && !recurringId && pendingRecurrence) {
         recurrence = resolveRecurrence(pendingRecurrence, f.date);
         if (recurrence && (recurrence.start_date || f.date) < today()) {
-          const n = countDueDates(recurrence, recurrence.start_date || f.date, today());
+          const n = await previewCount(recurrence);
           if (n > 0) backfillPast = await askBackfill(n);
         }
       }
@@ -1783,7 +1804,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
       if (rows.length === 1 && !recurringId && pendingRecurrence) {
         recurrence = resolveRecurrence(pendingRecurrence, f.date);
         if (recurrence && (recurrence.start_date || f.date) < today()) {
-          const n = countDueDates(recurrence, recurrence.start_date || f.date, today());
+          const n = await previewCount(recurrence);
           if (n > 0) backfillPast = await askBackfill(n);
         }
       }
@@ -1845,7 +1866,7 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
     // 과거 날짜로 반복을 새로 걸면, 그동안 밀린 회차를 한 번에 생성할지 물어봄
     let backfillPast = false;
     if (recurrence && (recurrence.start_date || f.date) < today()) {
-      const n = countDueDates(recurrence, recurrence.start_date || f.date, today());
+      const n = await previewCount(recurrence);
       if (n > 0) backfillPast = await askBackfill(n);
     }
 

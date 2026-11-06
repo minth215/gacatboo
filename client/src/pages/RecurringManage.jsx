@@ -19,6 +19,43 @@ function viewOf(r, userId) {
   return { dispType, dispName, dispEmoji, dispSource };
 }
 
+
+// 반복 관리 카드(그룹 멤버 상세의 정기 입금/결제 카드도 같은 모양)
+export function RuleCard({ r, userId, subLine, isOpen, onOpenChange, onTap, onDelete }) {
+  const { dispType, dispName, dispEmoji } = viewOf(r, userId);
+  return (
+      <DayCardRow
+        index={0} count={1} clickable
+        isOpen={isOpen} onOpenChange={onOpenChange}
+        onTap={onTap} onDelete={onDelete}
+        background={r.group_id ? 'linear-gradient(135deg, var(--k-bg-fff1f3) 0%, var(--k-bg-fff6ea) 100%)' : 'var(--k-bg-fff)'}
+      >
+        <span className="tx-tile" style={{ background: r.category_color || (r.group_id ? 'rgba(255,255,255,.7)' : (dispType === 'income' ? '#E5FBF6' : dispType === 'transfer' ? '#EFEDF5' : '#FFE9EF')) }}>
+          {dispEmoji || (dispType === 'income' ? '💰' : dispType === 'transfer' ? '🔁' : '💸')}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="tx-row-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="ttext">{r.content || dispName || (dispType === 'income' ? '수입' : dispType === 'transfer' ? '이체' : '지출')}</span>
+          </div>
+          <div className="tx-row-sub">{subLine}</div>
+        </div>
+        {/* 보조 화폐로 입력한 반복이면 가계부 카드처럼 보조 화폐 금액 + 아래 작은 원화 금액 */}
+        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flex: 'none' }}>
+          <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: dispType === 'income' ? '#2CDDB9' : dispType === 'transfer' ? 'var(--k-tx-4b4752)' : '#FF4358' }}>
+            {dispType === 'transfer' ? '' : (dispType === 'income' ? '+' : '-')}{r.input_currency ? fmtForeign(r.input_amount, r.input_currency) : fmtNum(r.amount)}
+          </span>
+          {/* 보조 화폐 반복: 주 화폐 금액은 회차마다 결제 당일 환율로 계산 */}
+          {r.input_currency && <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', marginTop: 1 }}>당일 환율 적용</span>}
+        </span>
+      </DayCardRow>
+  );
+}
+// 카드 아래 줄: 분류 · 원천 · 반복 주기(보는 사람 기준)
+export function ruleSubLine(r, userId) {
+  const { dispName, dispSource } = viewOf(r, userId);
+  return [dispName, dispSource, periodDetailLabel(r)].filter(Boolean).join(' · ');
+}
+
 export default function RecurringManage() {
   const nav = useNavigate();
   const { user } = useAuth();
@@ -142,33 +179,13 @@ export default function RecurringManage() {
           <div key={key} style={{ marginTop: si === 0 ? 14 : 22 }}>
             <div style={{ padding: '0 8px 0 18px', marginBottom: 8, fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{label}</div>
             {items.map((r, i) => {
-          const { dispType, dispName, dispEmoji } = viewOf(r, user.id);
           return (
             <div key={r.id} className="tx-daygroup" style={{ marginTop: i === 0 ? 0 : 10 }}>
-              <DayCardRow
-                index={0} count={1} clickable
+              <RuleCard
+                r={r} userId={user.id} subLine={subLineOf(r)}
                 isOpen={openId === r.id} onOpenChange={(open) => setOpenId(open ? r.id : null)}
                 onTap={() => openDetail(r)} onDelete={() => del(r)}
-                background={r.group_id ? 'linear-gradient(135deg, var(--k-bg-fff1f3) 0%, var(--k-bg-fff6ea) 100%)' : 'var(--k-bg-fff)'}
-              >
-                <span className="tx-tile" style={{ background: r.category_color || (r.group_id ? 'rgba(255,255,255,.7)' : (dispType === 'income' ? '#E5FBF6' : dispType === 'transfer' ? '#EFEDF5' : '#FFE9EF')) }}>
-                  {dispEmoji || (dispType === 'income' ? '💰' : dispType === 'transfer' ? '🔁' : '💸')}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="tx-row-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span className="ttext">{r.content || dispName || (dispType === 'income' ? '수입' : dispType === 'transfer' ? '이체' : '지출')}</span>
-                  </div>
-                  <div className="tx-row-sub">{subLineOf(r)}</div>
-                </div>
-                {/* 보조 화폐로 입력한 반복이면 가계부 카드처럼 보조 화폐 금액 + 아래 작은 원화 금액 */}
-                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flex: 'none' }}>
-                  <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: dispType === 'income' ? '#2CDDB9' : dispType === 'transfer' ? 'var(--k-tx-4b4752)' : '#FF4358' }}>
-                    {dispType === 'transfer' ? '' : (dispType === 'income' ? '+' : '-')}{r.input_currency ? fmtForeign(r.input_amount, r.input_currency) : fmtNum(r.amount)}
-                  </span>
-                  {/* 보조 화폐 반복: 주 화폐 금액은 회차마다 결제 당일 환율로 계산 */}
-                  {r.input_currency && <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', marginTop: 1 }}>당일 환율 적용</span>}
-                </span>
-              </DayCardRow>
+              />
             </div>
           );
             })}

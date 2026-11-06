@@ -361,6 +361,8 @@ const TransactionForm = forwardRef(function TransactionForm({
   readOnly = false,
   // templateMode: 반복 규칙(반복으로 등록될 내용) 수정 화면 — 즐겨찾기 별·반복 아이콘을 숨김
   templateMode = false,
+  // backfillTarget: 반복 일괄 생성 개수 미리 보기용 대상({ target, group_id }) — 그룹 결제 등 별도 저장 로직일 때
+  backfillTarget = null,
   // periodField: 날짜 칸 대신 보여줄 노드(반복 수정 화면의 "반복 주기")
   periodField = null,
 }, ref) {
@@ -1032,7 +1034,16 @@ const TransactionForm = forwardRef(function TransactionForm({
     // 과거 날짜로 반복을 새로 걸면, 그동안 밀린 회차를 한 번에 생성할지 물어봄
     let backfillPast = false;
     if (recurrence && (recurrence.start_date || date) < today()) {
-      const n = countDueDates(recurrence, recurrence.start_date || date, today());
+      // 생성될 개수는 서버에서 실제 규칙(영업일 보정·이미 기록된 달 건너뛰기)대로 계산
+      let n = 0;
+      try {
+        n = await db.previewBackfill({
+          ...(backfillTarget || { target: 'transaction', group_id: groupId || null }),
+          type: isTransfer ? 'transfer' : type, category_name, content: (contentValue || '').trim(), amount: Math.round(Number(total) || 0),
+          start_date: recurrence.start_date || date, freq_unit: recurrence.freq_unit, freq_interval: recurrence.freq_interval,
+          weekdays: recurrence.weekdays || [], business_day_rule: recurrence.business_day_rule || 'none',
+        });
+      } catch { n = countDueDates(recurrence, recurrence.start_date || date, today()); }
       if (n > 0) backfillPast = await askBackfill(n);
     }
 

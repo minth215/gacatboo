@@ -359,6 +359,7 @@ export default function TransactionEdit() {
             fixedSourceName={isPooledExpense ? sub?.deposit_source_name : undefined}
             transferMembers={transferMembers}
             defaultTransferMemberId={defaultTransferMemberId}
+            backfillTarget={isPayment ? { target: 'subscription_payment', group_id: groupId } : undefined}
             onSubmit={isPooledExpense ? savePooledExpense : isPooledTransfer ? savePooledTransfer : (isPayment ? savePayment : undefined)}
             showPeriods={isPayment && isSubscription(group?.category)}
             qtyLabel={isPayment && isSubscription(group?.category) ? '회차' : '수량'}

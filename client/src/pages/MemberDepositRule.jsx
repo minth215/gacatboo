@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { today } from '../lib/format.js';
-import { alignStartDate, countMissedOccurrences } from '../lib/recurrence.js';
+import { alignStartDate } from '../lib/recurrence.js';
 import Spinner from '../components/Spinner.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import TransactionForm from '../components/TransactionForm.jsx';
@@ -48,10 +48,17 @@ export default function MemberDepositRule() {
   const done = () => nav(-1);
 
   // 저장 직전: 시작일 정리 + 지난 회차 일괄 생성 여부
-  const prepare = async () => {
+  const prepare = async (p) => {
     const start = alignStartDate(period.start_date, data.memberStart, period.freq_unit, period.freq_interval);
     const rule = { ...period, start_date: start, end_date: data.member.end_date || null };
-    const n = start <= today() ? countMissedOccurrences(rule, data.records, today()) : 0;
+    // 생성될 개수는 서버에서 실제 규칙(영업일 보정·이미 기록된 달 건너뛰기·선입금)대로 계산
+    const n = start <= today() ? await db.previewBackfill({
+      target: data.ownerMode ? 'subscription_payment' : 'subscription_deposit', group_id: gid,
+      member_id: data.ownerMode ? null : mid, type: data.ownerMode ? 'expense' : 'income',
+      category_name: p.category_name || '', content: (p.content || '').trim(), amount: p.amount,
+      start_date: rule.start_date, end_date: rule.end_date, freq_unit: rule.freq_unit, freq_interval: rule.freq_interval,
+      weekdays: rule.weekdays || [], business_day_rule: rule.business_day_rule || 'none', generate_on_start: true,
+    }) : 0;
     let backfill = false;
     if (n > 0) backfill = await new Promise((resolve) => { askRef.current = resolve; setAsk({ n }); });
     return {
@@ -87,7 +94,7 @@ export default function MemberDepositRule() {
         content: group.name || '', memo: '',
       };
       const onSubmit = async (payload) => {
-        const extra = await prepare();
+        const extra = await prepare(payload);
         const items = Array.isArray(payload.items) && payload.items.length && !payload.items.some((it) => it?.targetId != null) ? payload.items : null;
         await db.createGroupPaymentRule({ ...payload, items, group_id: gid, ...extra }, user.id);
       };
@@ -112,7 +119,7 @@ export default function MemberDepositRule() {
         content: group.name || '', memo: '', items: null,
       };
       const onSave = async (p) => {
-        const extra = await prepare();
+        const extra = await prepare(p);
         await db.createMemberDepositRule({ ...p, group_id: gid, member_id: member.id, ...extra }, user.id);
       };
       body = (
