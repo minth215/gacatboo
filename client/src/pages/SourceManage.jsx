@@ -176,9 +176,9 @@ function DragHandle({ label, active, onStart, inline = false }) {
 // 배지: 주결제(코랄핑크), 주입금(민트), 디지털 온누리 연결 카드(주황 "온누리"), 집계 제외(회색)
 const PrimaryBadges = ({ src }) => (
   <>
-    {src.is_primary_payment && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: '#FDE8EE', borderRadius: 999, padding: '2px 6px' }}>주결제</span>}
-    {src.is_primary_deposit && <span style={{ fontSize: 9, fontWeight: 700, color: '#1FB597', background: '#E5FBF6', borderRadius: 999, padding: '2px 6px' }}>주입금</span>}
-    {src.is_primary_settle && <span style={{ fontSize: 9, fontWeight: 700, color: '#7B61FF', background: '#EEEBFE', borderRadius: 999, padding: '2px 6px' }}>주정산</span>}
+    {src.is_primary_payment && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B5C', background: '#FDE8EE', borderRadius: 999, padding: '2px 6px' }}>결제</span>}
+    {src.is_primary_deposit && <span style={{ fontSize: 9, fontWeight: 700, color: '#1FB597', background: '#E5FBF6', borderRadius: 999, padding: '2px 6px' }}>입금</span>}
+    {src.is_primary_settle && <span style={{ fontSize: 9, fontWeight: 700, color: '#7B61FF', background: '#EEEBFE', borderRadius: 999, padding: '2px 6px' }}>정산</span>}
     {src.onnuri_linked && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF8A00', background: '#FFF1DC', borderRadius: 999, padding: '2px 6px' }}>온누리</span>}
     {/* "집계 포함" OFF 원천 */}
     {src.include_in_totals === false && <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--k-tx-8b8798)', background: 'var(--k-bg-f4f2f0)', borderRadius: 999, padding: '2px 6px' }}>집계 제외</span>}

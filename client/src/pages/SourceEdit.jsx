@@ -130,7 +130,8 @@ export default function SourceEdit({ admin = false }) {
   const set = (patch) => setForm((f) => {
     const next = { ...f, ...patch };
     const nextParentType = tree.find((t) => t.id === Number(next.parentId))?.group_type || 'general';
-    if (isCardGroup(isGroup ? next.groupType : nextParentType) && (isGroup || admin || !next.allowDeposit)) { next.deposit = false; next.settle = false; }
+    if (isCardGroup(isGroup ? next.groupType : nextParentType)) next.settle = false; // 카드 원천은 주 정산 수단 지정 불가
+    if (isCardGroup(isGroup ? next.groupType : nextParentType) && (isGroup || admin || !next.allowDeposit)) next.deposit = false;
     return next;
   });
   const typeLabel = (t) => TYPE_LABEL[t] || '';
@@ -149,7 +150,7 @@ export default function SourceEdit({ admin = false }) {
     if (busy) return;
     setBusy(true);
     const deposit = depositDisabled ? false : form.deposit;
-    const settle = depositDisabled ? false : form.settle;
+    const settle = cardItem ? false : form.settle;
     try {
       let sid = src?.id;
       let groupRowId = isGroup ? src?.id : null;
@@ -165,9 +166,9 @@ export default function SourceEdit({ admin = false }) {
       // 그룹을 카드 그룹으로 바꾸면 원천의 주입금수단 지정도 해제
       if (!isNew && isGroup && isCardGroup(form.groupType)) {
         for (const c of src.children || []) {
+          if (c.is_primary_settle) await api.setPrimary(c.id, 'settle', false);
           if (c.allow_deposit) continue;
           if (c.is_primary_deposit) await api.setPrimary(c.id, 'deposit', false);
-          if (c.is_primary_settle) await api.setPrimary(c.id, 'settle', false);
         }
       }
       // 원천 그룹 변경(원천)
@@ -227,7 +228,7 @@ export default function SourceEdit({ admin = false }) {
 
   const primaryPills = (
         <div style={{ display: 'flex', gap: 8 }}>
-          {[['payment', '주 결제 수단', '#FF3B5C', '#FDE8EE'], ['deposit', '주 입금 수단', '#1FB597', '#E5FBF6'], ['settle', '주 정산 수단', '#7B61FF', '#EEEBFE']].map(([key, label, fg, bg]) => {
+          {[['payment', '주 결제 수단', '#FF3B5C', '#FDE8EE'], ['deposit', '주 입금 수단', '#1FB597', '#E5FBF6'], ['settle', '주 정산 수단', '#7B61FF', '#EEEBFE']].filter(([key]) => !(key === 'settle' && cardItem)).map(([key, label, fg, bg]) => {
             // 카드 원천은 입금 허용을 켜야 주 입금/정산 수단으로 지정 가능
             const disabled = key !== 'payment' && depositDisabled;
             const on = !disabled && form[key];
