@@ -152,30 +152,63 @@ export function periodDetailLabel(rule) {
   return describeRule(rule);
 }
 
-// 규칙의 다음 반복일: fromStr(포함) 이후 처음으로 이 패턴에 해당하는 날짜(시작일 이전·종료일 이후 제외).
-// 영업일 보정은 반영하지 않은 명목상 날짜. 2년 안에 없으면 null.
-export function nextRuleDate(rule, fromStr) {
-  if (!rule?.start_date || !fromStr) return null;
-  const parse = (v) => { const [y, m, d] = v.split('-').map(Number); return new Date(y, m - 1, d); };
-  const start = parse(rule.start_date);
-  const end = rule.end_date ? parse(rule.end_date) : null;
-  const cur = parse(fromStr < rule.start_date ? rule.start_date : fromStr);
-  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  for (let i = 0; i < 800; i++) {
-    if (end && cur > end) return null;
-    if (isDueOn(cur, start, rule.freq_unit, rule.freq_interval, rule.weekdays)) return fmt(cur);
-    cur.setDate(cur.getDate() + 1);
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const parseYmd = (v) => { const [y, m, d] = v.split('-').map(Number); return new Date(y, m - 1, d); };
+
+// 멤버 시작일자(newStart) 기준 반복 시작일: 월/연 반복은 고른 일자(월)를 유지하고, 시작일자 이전이면 다음 주기로
+// (서버 recurring_align_start 와 동일)
+export function alignStartDate(ruleStart, newStart, unit, interval = 1) {
+  if (!newStart) return ruleStart;
+  const day = parseYmd(ruleStart).getDate();
+  const ns = parseYmd(newStart);
+  const step = Math.max(Number(interval) || 1, 1);
+  if (unit === 'month' || unit === 'year') {
+    const month0 = unit === 'year' ? parseYmd(ruleStart).getMonth() : ns.getMonth();
+    for (let i = 0; i <= 24; i++) {
+      const y = unit === 'year' ? ns.getFullYear() + i * step : ns.getFullYear();
+      const m = unit === 'year' ? month0 : month0 + i * step;
+      const last = new Date(y, m + 1, 0).getDate();
+      const cand = new Date(y, m, Math.min(day, last));
+      if (cand >= ns) return ymd(cand);
+    }
   }
-  return null;
+  return newStart;
 }
 
-// 여러 규칙 중 가장 가까운 다음 반복일. 마지막 기록일(lastStr)이 있으면 그다음 날부터, 오늘 이전은 보지 않음.
-export function nextDueFromRules(rules, todayStr, lastStr) {
-  let from = todayStr;
-  if (lastStr && lastStr >= todayStr) {
-    const [y, m, d] = lastStr.split('-').map(Number);
-    const n = new Date(y, m - 1, d + 1);
-    from = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+// 시작일(포함)~throughStr(포함) 사이의 반복일(영업일 보정 전 명목 날짜)
+export function dueDatesBetween(rule, fromStr, throughStr) {
+  const start = parseYmd(rule.start_date);
+  const cur = parseYmd(fromStr < rule.start_date ? rule.start_date : fromStr);
+  const through = parseYmd(throughStr);
+  const out = [];
+  for (let i = 0; cur <= through && i < 4000; i++) {
+    if (isDueOn(cur, start, rule.freq_unit, rule.freq_interval, rule.weekdays)) out.push(ymd(cur));
+    cur.setDate(cur.getDate() + 1);
   }
-  return (rules || []).map((r) => nextRuleDate(r, from)).filter(Boolean).sort()[0] || null;
+  return out;
+}
+
+// 정기 입금/결제 설정 저장 시 "기록이 없는 지난 회차" 개수(서버 backfill_group_rule 과 같은 규칙:
+// 같은 달(연 반복은 같은 해) 기록이 있으면 건너뛰고, 여러 회차를 미리 낸 기록이면 그만큼 건너뜀)
+export function countMissedOccurrences(rule, records, todayStr) {
+  const until = rule.end_date && rule.end_date < todayStr ? rule.end_date : todayStr;
+  const dates = dueDatesBetween(rule, rule.start_date, until);
+  const bucket = (v) => (rule.freq_unit === 'month' ? v.slice(0, 7) : rule.freq_unit === 'year' ? v.slice(0, 4) : v);
+  const all = (records || []).map((r) => ({ date: r.date, periods: Number(r.periods) || 1 }));
+  let n = 0;
+  for (const d of dates) {
+    if (all.some((r) => bucket(r.date) === bucket(d))) continue;
+    const prev = all.filter((r) => r.date < d).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+    if (prev && prev.periods > 1) {
+      const nd = parseYmd(prev.date);
+      const k = rule.freq_interval * prev.periods;
+      if (rule.freq_unit === 'day') nd.setDate(nd.getDate() + k);
+      else if (rule.freq_unit === 'week') nd.setDate(nd.getDate() + k * 7 - 3);
+      else { if (rule.freq_unit === 'year') nd.setFullYear(nd.getFullYear() + k); else nd.setMonth(nd.getMonth() + k); nd.setDate(nd.getDate() - 7); }
+      if (d < ymd(nd)) continue;
+    }
+    n++;
+    all.push({ date: d, periods: 1 });
+  }
+  return n;
 }

@@ -43,7 +43,7 @@ export default function RecurringEdit() {
     db.getSubscription(rule.group_id).then(setSub).catch(() => {});
     db.listCategories('expense').then(setCats).catch(() => {});
     db.listCategories('income').then(setIncomeCats).catch(() => {});
-    db.listSources().then(setSources).catch(() => {});
+    db.listSources().then((x) => setSources({ ...x, loaded: true })).catch(() => setSources({ tree: [], flat: [], loaded: true }));
   }, [rule?.group_id, isDeposit]);
 
   const done = () => nav(-1);
@@ -101,14 +101,16 @@ export default function RecurringEdit() {
 
   let body;
   if (error) body = <div className="empty">{error}</div>;
-  else if (!rule || (rule.group_id && !group)) body = <Spinner />;
+  else if (!rule || (rule.group_id && !group) || (isDeposit && !sources.loaded)) body = <Spinner />;
   else if (isDeposit) {
     const isOwner = group.owner_id === user.id;
     const member = members.find((m) => m.id === rule.member_id);
     const initial = {
       id: rule.id, member_id: rule.member_id, member: { nickname: member?.nickname },
       date: rule.start_date, amount: rule.amount, periods: 1,
-      category_name: rule.category_name, category_emoji: rule.category_emoji, source_name: rule.source_name,
+      // 총대가 대신 설정해 멤버 쪽 원천이 비어 있으면, 멤버 화면에서는 그룹에 지정한 내 출금 수단으로 채워 보여 줌
+      category_name: rule.category_name, category_emoji: rule.category_emoji,
+      source_name: rule.source_name || (!isOwner && member?.withdraw_source_id ? (sources.flat.find((x) => x.id === member.withdraw_source_id)?.name || '') : ''),
       leader_category_name: rule.leader_category_name, leader_category_emoji: rule.leader_category_emoji,
       deposit_source_name: rule.deposit_source_name, leader_settlement_target_id: null,
       content: rule.content, memo: rule.memo, items: null,

@@ -964,12 +964,26 @@ export const db = {
     if (error) throw new Error(error.message);
     return data || [];
   },
-  // 멤버의 정기 입금 설정(반복 규칙) — 총무/총대와 그 멤버 본인만 보임(0026 RLS)
-  async listMemberDepositRules(memberId) {
-    return unwrap(await supabase.from('recurring_rules').select('*')
-      .eq('member_id', memberId).eq('target', 'subscription_deposit').eq('active', true).order('created_at'));
+  // 멤버의 정기 입금 설정(반복 규칙) — 총무/총대와 그 멤버 본인만 보임(0026 RLS).
+  // 총대(owner) 멤버는 그룹의 정기 결제 설정(subscription_payment 반복).
+  async listMemberRules(member, groupId) {
+    let q = supabase.from('recurring_rules').select('*').eq('active', true);
+    q = member.role === 'owner'
+      ? q.eq('group_id', groupId).eq('target', 'subscription_payment')
+      : q.eq('member_id', member.id).eq('target', 'subscription_deposit');
+    return unwrap(await q.order('created_at'));
+  },
+  // 새 그룹 반복 규칙 저장 후: 지난 회차 일괄 생성(선택) 또는 오늘 회차만 바로 생성
+  async _startGroupRule(ruleId, backfill) {
+    if (backfill) {
+      const { error } = await supabase.rpc('backfill_group_rule', { p_rule_id: ruleId });
+      if (error) throw new Error(error.message);
+    } else {
+      await supabase.rpc('run_recurring_rule_today', { p_rule_id: ruleId });
+    }
   },
   // 정기 입금 설정(멤버 상세): 입금 기록 없이 반복 규칙만 만든다. 시작일 당일 회차도 자동 생성(generate_on_start).
+  // 멤버 쪽 원천을 비워 두면 자동 생성 시 멤버의 그룹 출금 수단이 들어간다(0104).
   async createMemberDepositRule(p, userId) {
     const rule = unwrap(await supabase.from('recurring_rules').insert({
       user_id: userId, group_id: p.group_id, member_id: p.member_id, target: 'subscription_deposit', type: 'income',
@@ -980,12 +994,27 @@ export const db = {
       content: (p.content || '').trim(), memo: (p.memo || '').trim(),
       ...ruleCurrency(p),
       ...(p.exclude_performance ? { exclude_performance: true } : {}),
-      start_date: p.start_date, freq_unit: p.freq_unit, freq_interval: p.freq_interval, weekdays: p.weekdays || [],
+      start_date: p.start_date, end_date: p.end_date || null, freq_unit: p.freq_unit, freq_interval: p.freq_interval, weekdays: p.weekdays || [],
       label: p.label, business_day_rule: p.business_day_rule || 'none', generate_on_start: true,
     }).select().single());
-    // 시작일이 오늘이면 오늘 회차를 바로 생성(오늘 자동 실행이 이미 지났을 수 있으므로)
-    await supabase.rpc('run_recurring_rule_today', { p_rule_id: rule.id });
+    await this._startGroupRule(rule.id, p.backfill);
     this._notifyRecurringRegistered(p.group_id, p.member_id, userId, p.content || p.label || '');
+    return rule;
+  },
+  // 정기 결제 설정(총대 상세): 결제 기록 없이 그룹 결제 반복 규칙만 만든다.
+  async createGroupPaymentRule(p, userId) {
+    const rule = unwrap(await supabase.from('recurring_rules').insert({
+      user_id: userId, group_id: p.group_id, target: 'subscription_payment', type: 'expense',
+      amount: p.amount,
+      category_id: p.category_id || null, category_name: p.category_name || '', category_emoji: p.category_emoji || '', category_color: p.category_color || '',
+      source_id: p.source_id || null, source_name: p.source_name || '',
+      content: (p.content || '').trim(), memo: (p.memo || '').trim(), items: p.items || null,
+      ...ruleCurrency(p),
+      ...(p.exclude_performance ? { exclude_performance: true } : {}),
+      start_date: p.start_date, end_date: p.end_date || null, freq_unit: p.freq_unit, freq_interval: p.freq_interval, weekdays: p.weekdays || [],
+      label: p.label, business_day_rule: p.business_day_rule || 'none', generate_on_start: true,
+    }).select().single());
+    await this._startGroupRule(rule.id, p.backfill);
     return rule;
   },
   async upsertSubscription(groupId, s) {

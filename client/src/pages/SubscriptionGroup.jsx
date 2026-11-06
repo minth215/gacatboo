@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { fmtWon, fmtNum, today, dotDate, dotDateWithWeekday, monthPillLabel, isSettlement } from '../lib/format.js';
-import { resolveRecurrence, countDueDates, nextDueFromRules } from '../lib/recurrence.js';
+import { resolveRecurrence, countDueDates } from '../lib/recurrence.js';
 import MembersPanel from '../components/MembersPanel.jsx';
 import SwipeRow from '../components/SwipeRow.jsx';
 import RecurrenceModal from '../components/RecurrenceModal.jsx';
@@ -68,13 +68,16 @@ function SettleTargetSelect({ value, onChange, options, label, style }) {
 }
 
 // 멤버의 다음 입금일(구독 현황 탭·멤버 상세 화면 공용): 직접 지정한 날짜가 있으면 그 날짜,
-// 아니면 그 멤버의 정기 입금 설정(반복 규칙) 기준 다음 회차(오늘 이후, 마지막 입금일 이후).
-export function memberNextDepositDate(member, memberDeposits, rules) {
+// 아니면 그 멤버의 정기 입금 설정 기준 다음 회차(서버에서 영업일 보정·선입금까지 반영한 next_date).
+export function memberNextDepositDate(member, rules) {
   if (member?.next_due_override) return member.next_due_override;
-  const mine = (rules || []).filter((r) => r.target === 'subscription_deposit' && r.member_id === member?.id && r.active !== false);
-  if (!mine.length) return null;
-  const last = (memberDeposits || []).map((d) => d.date).sort().slice(-1)[0] || null;
-  return nextDueFromRules(mine, today(), last);
+  return (rules || []).filter((r) => r.target === 'subscription_deposit' && r.member_id === member?.id && r.next_date)
+    .map((r) => r.next_date).sort()[0] || null;
+}
+// 총대의 다음 결제일: 직접 지정한 날짜 또는 그룹 결제 반복 설정의 다음 회차
+export function ownerNextPaymentDate(owner, rules) {
+  if (owner?.next_due_override) return owner.next_due_override;
+  return (rules || []).filter((r) => r.target === 'subscription_payment' && r.next_date).map((r) => r.next_date).sort()[0] || null;
 }
 
 // 날짜별로 묶기 (가계부 페이지와 동일한 카드 스타일에 사용)
@@ -1105,16 +1108,14 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
       const periods = payments.reduce((s, p) => s + Number(p.periods || 0), 0);
       const lastPay = payments.length ? [...payments].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)).slice(-1)[0] : null;
       const last = lastPay ? lastPay.date : null;
-      // 다음 결제일 = 그룹 결제 반복 설정 기준 다음 회차(직접 지정한 날짜가 있으면 그 날짜)
-      const auto = nextDueFromRules(groupRules.filter((r) => r.target === 'subscription_payment' && r.active !== false), todayStr, last);
-      const next = m.next_due_override || auto;
+      const next = ownerNextPaymentDate(m, groupRules);
       return { id: m.id, nickname: m.nickname, isOwner: true, cum, periods, last, next, lastLabel: '마지막 결제일', nextLabel: '다음 결제일', overdue: !!(next && next < todayStr), dueToday: next === todayStr };
     }
     const ds = [...deposits.filter((d) => d.member_id === m.id)].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     const cum = ds.reduce((s, d) => s + Number(d.amount), 0);
     const periods = ds.reduce((s, d) => s + Number(d.periods || 0), 0);
     const last = ds.length ? ds[ds.length - 1].date : null;
-    const next = memberNextDepositDate(m, ds, groupRules);
+    const next = memberNextDepositDate(m, groupRules);
     return { id: m.id, nickname: m.nickname, isOwner: false, cum, periods, last, next, lastLabel: '마지막 입금일', nextLabel: '다음 입금일', overdue: !!(next && next < todayStr), dueToday: next === todayStr };
   });
 
@@ -1193,7 +1194,7 @@ export default function SubscriptionGroup({ gid, group, members, isOwner, leader
             <div className="col"><div className="lbl">잔여 금액</div><div className="val">{fmtNum(remain)}</div></div>
           </div>
           {memberStats.length === 0 ? <div className="empty">멤버가 없습니다.</div> : memberStats.map((m) => (
-            <div key={m.id} className="tx-daycard" style={{ borderRadius: 16, padding: '14px 16px', marginTop: 10, cursor: m.isOwner ? 'default' : 'pointer' }} onClick={() => !m.isOwner && nav(`/groups/${gid}/member/${m.id}`)}>
+            <div key={m.id} className="tx-daycard" style={{ borderRadius: 16, padding: '14px 16px', marginTop: 10, cursor: 'pointer' }} onClick={() => nav(`/groups/${gid}/member/${m.id}`)}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{m.nickname}</span>
