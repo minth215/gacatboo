@@ -141,6 +141,7 @@ export default function Stats() {
   const [prefs] = useState(() => loadPrefs(user?.id));
   const [settleReflect, setSettleReflect] = useState(prefs.statsSettle);
   const [showBudget, setShowBudget] = useState(prefs.statsBudget); // 분류별 예산 게이지 보기
+  const [showExcluded, setShowExcluded] = useState(prefs.statsShowExcluded !== false); // 원천별: 집계 제외 원천(회색) 보기
   const [chartMode, setChartMode] = useState(prefs.statsView === 'table' ? 'table' : 'donut'); // donut | table
   const [sort, setSort] = useState({ key: 'amount', dir: 'desc' });
   const [hoverIdx, setHoverIdx] = useState(null);
@@ -208,7 +209,7 @@ export default function Stats() {
   // ---------- 집계 ----------
   const groups = useMemo(() => {
     const map = new Map();
-    rowsForView(rows, statView).filter((r) => r.type === tab && statAmount(r, statView, settleReflect) > 0).forEach((r) => {
+    rowsForView(rows, statView).filter((r) => r.type === tab && statAmount(r, statView, settleReflect) > 0 && !(statView === 'source' && !showExcluded && r.excluded)).forEach((r) => {
       const { key, name } = keyOf(r, statView);
       const cur = map.get(key) || { key, name, total: 0, count: 0, sourceId: r.source_id ?? null, excluded: statView === 'source' && !!r.excluded };
       cur.total += statAmount(r, statView, settleReflect);
@@ -218,7 +219,7 @@ export default function Stats() {
     return [...map.values()]
       .sort((a, b) => b.total - a.total)
       .map((g, i) => ({ ...g, color: g.excluded ? '#C7C3CC' : PALETTE[i % PALETTE.length] }));
-  }, [rows, tab, statView, settleReflect]);
+  }, [rows, tab, statView, settleReflect, showExcluded]);
 
   const total = groups.reduce((s, g) => s + g.total, 0);
 
@@ -639,11 +640,11 @@ export default function Stats() {
 
         {/* "정산 반영" 토글은 제 자리를 차지하지 않고 그 아래(원형 그래프 위쪽)에 겹쳐서 뜬다.
             분류별/원천별/항목별 모두 원형 그래프 시작 높이가 같아지도록. */}
-        {statView === 'category' && (
-          // 분류별 보기: 오른쪽 끝 회색 톱니바퀴 버튼 → 드롭다운에서 정산 반영 / 예산 토글
+        {(statView === 'category' || statView === 'source') && (
+          // 오른쪽 끝 회색 톱니바퀴 버튼 → 드롭다운 토글(분류별: 정산 반영 / 예산, 원천별: 집계 제외 원천)
           <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, zIndex: 3 }}>
             <button
-              type="button" aria-label="분류별 통계 설정" onClick={() => setCatMenuOpen((o) => !o)}
+              type="button" aria-label={statView === 'source' ? '원천별 통계 설정' : '분류별 통계 설정'} onClick={() => setCatMenuOpen((o) => !o)}
               style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-8b8798)', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -658,7 +659,9 @@ export default function Stats() {
                   position: 'absolute', top: 36, right: 0, background: 'var(--k-bg-fff)', borderRadius: 14,
                   boxShadow: '0 10px 30px rgb(var(--k-sh) / calc(.15 * var(--k-sha)))', padding: '6px 12px', zIndex: 20, minWidth: 140,
                 }}>
-                  {[['정산 반영', settleReflect, setSettleReflect], ['예산', showBudget, setShowBudget]].map(([label, on, set], i) => (
+                  {(statView === 'source'
+                    ? [['집계 제외 원천', showExcluded, setShowExcluded]]
+                    : [['정산 반영', settleReflect, setSettleReflect], ['예산', showBudget, setShowBudget]]).map(([label, on, set], i) => (
                     <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, padding: '9px 0', borderTop: i === 0 ? 'none' : '1px solid var(--k-divider)' }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--k-tx-4a4640)', whiteSpace: 'nowrap' }}>{label}</span>
                       <button

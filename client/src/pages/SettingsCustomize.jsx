@@ -24,8 +24,9 @@ const SECTIONS = [
     label: '통계',
     rows: [
       { key: 'statsView', label: '기본 뷰', options: [['donut', '원형 그래프'], ['table', '테이블']] },
-      { key: 'statsSettle', label: '분류별 통계 정산 반영', options: ON_OFF, ...bool('on', 'off') },
-      { key: 'statsBudget', label: '예산', options: SHOW_HIDE, ...bool('show', 'hide') },
+      { key: 'statsSettle', label: '정산 반영', sub: '분류별 통계', options: ON_OFF, ...bool('on', 'off') },
+      { key: 'statsBudget', label: '예산', sub: '분류별 통계', options: SHOW_HIDE, ...bool('show', 'hide') },
+      { key: 'statsShowExcluded', label: '집계 제외 원천', sub: '원천별 통계', options: SHOW_HIDE, ...bool('show', 'hide') },
     ],
   },
   {
@@ -58,7 +59,11 @@ export default function SettingsCustomize() {
                 key={row.key}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '14px 16px', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)' }}
               >
-                <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{row.label}</span>
+                <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)' }}>
+                  {row.label}
+                  {/* 적용되는 화면(회색 작은 글씨) */}
+                  {row.sub && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>{row.sub}</span>}
+                </span>
                 <BareSelect
                   value={row.toSel ? row.toSel(prefs[row.key]) : prefs[row.key]}
                   options={row.options} onChange={(v) => change(row, v)}
