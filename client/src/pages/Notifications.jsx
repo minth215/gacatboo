@@ -142,7 +142,7 @@ export default function Notifications() {
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title="알림" showBack={false} right={
+      <PageHeader title="알림" right={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {hasUnread && <button type="button" className="edit-link" onClick={markAllRead}>모두 읽음</button>}
           <button type="button" className="tb-icon-btn" style={{ color: 'var(--k-tx-6c6779)' }} onClick={() => nav('/settings/notifications')} aria-label="알림 설정">

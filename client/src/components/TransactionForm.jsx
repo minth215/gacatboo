@@ -364,6 +364,10 @@ const TransactionForm = forwardRef(function TransactionForm({
   templateMode = false,
   // backfillTarget: 반복 일괄 생성 개수 미리 보기용 대상({ target, group_id }) — 그룹 결제 등 별도 저장 로직일 때
   backfillTarget = null,
+  // blankDate: 날짜를 비운 채로 시작(장바구니 → 가계부 작성에서 구매 예정일이 미정일 때)
+  blankDate = false,
+  // requireDateAmount: 저장 시 날짜·금액 필수(장바구니 → 가계부 작성)
+  requireDateAmount = false,
   // periodUnit: 구독 그룹 결제의 1회분(정기 결제 반복 { amount, input_currency, input_amount }) — 회차 자동 계산
   periodUnit = null,
   // periodField: 날짜 칸 대신 보여줄 노드(반복 수정 화면의 "반복 주기")
@@ -375,7 +379,7 @@ const TransactionForm = forwardRef(function TransactionForm({
   // 분류/원천 "편집"으로 설정 페이지에 다녀올 때 작성 중이던 내용을 복원하기 위한 구분 키
   const draftSlot = initial?.id ? `tx:${initial.id}` : (groupId ? `g:${groupId}` : 'new');
   const [type, setType] = useState(fixedType || initial?.type || 'expense');
-  const [date, setDate] = useState(initial?.date || today());
+  const [date, setDate] = useState(blankDate ? '' : (initial?.date || today()));
   const [periods] = useState(initial?.periods ? String(initial.periods) : '1');
   // 구독 그룹 결제(showPeriods): 항목 표의 둘째 칸이 "회차" — 입금 내역과 같은 규칙으로, 금액에 곱하지 않고
   // 금액을 정기결제금액으로 나눈 값을 자동으로 채운다(직접 수정 가능). 합계는 금액 그대로, 저장 회차는 행 회차 합.
@@ -996,6 +1000,8 @@ const TransactionForm = forwardRef(function TransactionForm({
     if (isTransfer && !items[0]?.fromSourceId) return promptRequiredSelect('transfer-from-source-select', '출금 수단을 선택해 주세요');
     if (isTransfer && !items[0]?.toSourceId) return promptRequiredSelect('transfer-to-source-select', '입금 수단을 선택해 주세요');
     if (isTransfer && items[0].fromSourceId === items[0].toSourceId) { showToast('입금 수단과 출금 수단이 동일합니다'); return; }
+    if (!date) { showToast('날짜를 선택해 주세요'); return; }
+    if (requireDateAmount && !(total > 0)) { showToast('금액을 입력해 주세요'); return; }
     // 지출 항목은 할인 등 음수 금액을 넣을 수 있지만 합계는 0 이상이어야 함
     if (total < 0) { showToast('합계 금액이 음수입니다'); return; }
     if (transferMembers && !transferMemberId) return setError('멤버를 선택하세요.');
@@ -1124,6 +1130,7 @@ const TransactionForm = forwardRef(function TransactionForm({
       // 온누리 가맹점(연결 카드일 때만 의미. 예전에 ON 이던 기록을 다른 원천으로 바꾸면 해제)
       ...((showOnnuri || initial?.onnuri) ? { onnuri: showOnnuri && onnuriOn } : {}),
     };
+    let savedTx = null;
     try {
       if (installment >= 2) {
         // 할부: 1회차 = 몫 + 나머지, 이후 회차 = 몫. 날짜는 한 달씩(말일 보정). 내용은 입력 그대로,
@@ -1146,6 +1153,7 @@ const TransactionForm = forwardRef(function TransactionForm({
       } else if (onSubmit) await onSubmit(payload);
       else {
         const saved = await db.saveTransaction({ id: initial?.id, userId: user.id, payload, sourcesFlat });
+        savedTx = saved;
         // 할부 개월 수를 바꿨으면 묶음 전체 금액을 다시 나누고 회차를 추가/삭제
         // (묶음 값이 없는 예전 기록은 수정 전 내용·분류·원천으로 같은 묶음을 찾음)
         if (installmentResize && initial?.installment_total) {
@@ -1170,7 +1178,7 @@ const TransactionForm = forwardRef(function TransactionForm({
           }
         }
       }
-      onSaved?.();
+      onSaved?.(savedTx);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -1291,7 +1299,7 @@ const TransactionForm = forwardRef(function TransactionForm({
             <span style={rowLabelStyle}>날짜</span>
             <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <div style={{ position: 'relative' }}>
-                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)' }}>{dotDateWithWeekday(date)}</span>
+                <span style={{ fontSize: 13.5, fontWeight: date ? 600 : 400, color: date ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)' }}>{date ? dotDateWithWeekday(date) : '날짜 선택'}</span>
                 <input
                   type="date" value={date} onChange={(e) => onDateChange(e.target.value)} className="catmodal-date-input" aria-label="날짜 선택"
                 />

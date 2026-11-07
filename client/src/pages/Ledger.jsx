@@ -26,6 +26,14 @@ const SEARCH_PERIOD_OPTIONS = { all: '전체', week: '주별', month: '월별', 
 export default function Ledger() {
   const { user } = useAuth();
   const nav = useNavigate();
+  // 상단바 알림 버튼의 안 읽은 알림 점(알림 화면에서 읽음 처리하면 이벤트로 바로 반영)
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    db.countUnreadNotifications().then(setUnread).catch(() => {});
+    const onUnread = (e) => setUnread(Number(e.detail) || 0);
+    window.addEventListener('gacatboo:unread', onUnread);
+    return () => window.removeEventListener('gacatboo:unread', onUnread);
+  }, []);
   const [params, setParams] = useSearchParams();
   const month = params.get('month') || currentMonth();
   const setMonth = useCallback((m) => {
@@ -425,6 +433,11 @@ export default function Ledger() {
           <div className="lt-title" style={{ opacity: searchOpen ? 0 : 1, transition: 'opacity 0.26s ease', pointerEvents: searchOpen ? 'none' : 'auto' }}>가계부</div>
           <button aria-label="필터" className={`lt-filter${filterActive ? ' on' : ''}`} onClick={onFilterClick}>
             <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 4 21 4 14 13 14 20 10 22 10 13 3 4" /></svg>
+          </button>
+          {/* 알림(검색 버튼 왼쪽) — 안 읽은 알림이 있으면 빨간 점. 검색창이 열리면 숨김 */}
+          <button aria-label="알림" className="lt-bell" onClick={() => nav('/notifications')} style={{ opacity: searchOpen ? 0 : 1, pointerEvents: searchOpen ? 'none' : 'auto' }}>
+            <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+            {unread > 0 && <span style={{ position: 'absolute', top: 9, right: 10, width: 7, height: 7, borderRadius: '50%', background: '#FF3B5C' }} />}
           </button>
           <div className={`lt-search${searchOpen ? ' open' : ''}`}>
             <button aria-label="검색" className="lt-search-icon" onClick={onSearchIcon}>

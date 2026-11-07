@@ -161,6 +161,12 @@ export default function TransactionEdit() {
 
   // 저장 후 이동: 원래 보던 페이지로 돌아감.
   const done = () => nav(location.state?.closeTo ?? -1);
+  // 장바구니 품목 상세에서 "가계부 작성"으로 온 경우: 저장한 기록을 품목에 연결(구매 완료)하고 상세로 돌아감
+  const cartId = !editing ? (location.state?.cartId || null) : null;
+  const onCartSaved = async (saved) => {
+    try { await db.markCartPurchased(cartId, saved?.id); } catch (e) { alert(e.message); }
+    done();
+  };
 
   // 순수 개인 기록(그룹과 무관) 삭제 — 이체면 연결된 수수료 지출도 함께 지움.
   const deleteTx = async (choice) => {
@@ -356,7 +362,9 @@ export default function TransactionEdit() {
           <TransactionForm
             key={location.key}
             ref={formRef} onScanBusyChange={setScanBusy}
-            initial={initial} groupId={(isPayment || isPooledExpense || isPooledTransfer) ? null : groupId} onSaved={done} onClose={() => nav(-1)}
+            initial={initial} groupId={(isPayment || isPooledExpense || isPooledTransfer) ? null : groupId} onSaved={cartId ? onCartSaved : done} onClose={() => nav(-1)}
+            // 장바구니 → 가계부 작성: 구매 예정일이 미정이면 날짜를 비워 두고, 날짜·금액은 직접 채워야 저장
+            blankDate={!!cartId && !!location.state?.blankDate} requireDateAmount={!!cartId}
             fixedType={(isPayment || isPooledExpense || isGroupExpense) ? 'expense' : isPooledTransfer ? 'transfer' : undefined}
             initialPendingRecurrence={pendingRecurrence}
             defaultCategoryName={isPayment ? (isSettlement(group?.category) ? '정산' : '구독') : undefined}

@@ -116,6 +116,15 @@ a { color: inherit; text-decoration: none; }
   display: flex; align-items: center; justify-content: center; padding: 0;
 }
 .lt-filter.on { color: var(--accent); }
+/* 알림: 검색 버튼 왼쪽(검색창이 열리면 그 아래로 가려지고 숨김) */
+.lt-bell {
+  position: absolute; right: 112px; top: 50%; transform: translateY(-50%);
+  width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--k-bg-fff);
+  box-shadow: 0 3px 12px rgb(var(--k-sh) / calc(0.1 * var(--k-sha))); color: var(--k-tx-6c6779);
+  display: flex; align-items: center; justify-content: center; padding: 0;
+  transition: opacity 0.18s ease;
+}
+.lt-bell:focus, .lt-bell:active { outline: none; background: var(--k-bg-fff); }
 /* 검색: 오른쪽 끝(필터 왼쪽)에서 왼쪽으로만 늘어남 */
 .lt-search {
   position: absolute; right: 64px; top: 50%; transform: translateY(-50%);

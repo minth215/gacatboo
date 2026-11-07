@@ -336,6 +336,32 @@ export const db = {
     return unwrap(await supabase.from('default_sources').update({ [col]: !!value }).eq('id', id));
   },
 
+  // ---------- 장바구니(0111) ----------
+  async listCartItems() {
+    return unwrap(await supabase.from('cart_items').select('*').order('created_at', { ascending: false }));
+  },
+  async getCartItem(id) {
+    return unwrap(await supabase.from('cart_items').select('*').eq('id', id).single());
+  },
+  async saveCartItem(id, p) {
+    const row = {
+      content: (p.content || '').trim(), planned_date: p.planned_date || null,
+      category_id: p.category_id || null, category_name: p.category_name || '', category_emoji: p.category_emoji || '',
+      link: (p.link || '').trim(), items: p.items || [], memo: (p.memo || '').trim(), updated_at: new Date().toISOString(),
+    };
+    if (id) return unwrap(await supabase.from('cart_items').update(row).eq('id', id).select().single());
+    return unwrap(await supabase.from('cart_items').insert(row).select().single());
+  },
+  async updateCartChecks(id, items) {
+    return unwrap(await supabase.from('cart_items').update({ items }).eq('id', id));
+  },
+  async markCartPurchased(id, txId) {
+    return unwrap(await supabase.from('cart_items').update({ purchased_tx_id: txId || null, purchased_at: new Date().toISOString() }).eq('id', id));
+  },
+  async deleteCartItem(id) {
+    return unwrap(await supabase.from('cart_items').delete().eq('id', id));
+  },
+
   // ---------- 화폐 설정(보조 화폐) ----------
   // 주 화폐(원화)는 행이 없고 항상 기본값으로 취급. 여기 목록은 "추가로 쓸 수 있는" 보조 화폐만 담는다.
   async listCurrencies() {

@@ -41,6 +41,9 @@ import GroupMemberEdit from './pages/GroupMemberEdit.jsx';
 import SettingsExport from './pages/SettingsExport.jsx';
 import SettingsImport from './pages/SettingsImport.jsx';
 import Notifications from './pages/Notifications.jsx';
+import Cart from './pages/Cart.jsx';
+import CartEdit from './pages/CartEdit.jsx';
+import CartDetail from './pages/CartDetail.jsx';
 import Groups from './pages/Groups.jsx';
 import GroupCreate from './pages/GroupCreate.jsx';
 import GroupDetail from './pages/GroupDetail.jsx';
@@ -57,6 +60,13 @@ function Protected({ children, adminOnly }) {
   if (!user) return <Navigate to="/login" replace />;
   if (adminOnly && user.role !== 'admin') return <Navigate to="/" replace />;
   return children;
+}
+
+// 관리자·테스터 전용 화면(그 외 회원은 가계부로)
+function StaffOnly({ children }) {
+  const { user } = useAuth();
+  if (!user) return null;
+  return user.role === 'admin' || user.role === 'tester' ? children : <Navigate to="/" replace />;
 }
 
 export default function App() {
@@ -119,6 +129,11 @@ export default function App() {
         <Route path="/settings/export" element={<SettingsExport />} />
         <Route path="/settings/import" element={<SettingsImport />} />
         <Route path="/notifications" element={<Notifications />} />
+        {/* 장바구니: 지금은 관리자·테스터만 */}
+        <Route path="/cart" element={<StaffOnly><Cart /></StaffOnly>} />
+        <Route path="/cart/new" element={<StaffOnly><CartEdit /></StaffOnly>} />
+        <Route path="/cart/:id" element={<StaffOnly><CartDetail /></StaffOnly>} />
+        <Route path="/cart/:id/edit" element={<StaffOnly><CartEdit /></StaffOnly>} />
         <Route path="/admin" element={<Protected adminOnly><Admin /></Protected>} />
         <Route path="/admin/users/new" element={<Protected adminOnly><AdminUserCreate /></Protected>} />
         <Route path="/admin/users/:id" element={<Protected adminOnly><AdminUserDetail /></Protected>} />

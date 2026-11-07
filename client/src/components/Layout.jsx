@@ -15,8 +15,8 @@ const Icon = ({ name }) => {
       return (<svg viewBox="0 0 24 24" {...S}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>);
     case 'settings':
       return (<svg viewBox="0 0 24 24" {...S}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>);
-    case 'notifications':
-      return (<svg viewBox="0 0 24 24" {...S}><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>);
+    case 'cart':
+      return (<svg viewBox="0 0 24 24" {...S}><circle cx="9" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /><path d="M2.5 3.5h2.6l2.4 11.2a1.6 1.6 0 0 0 1.6 1.3h8.6a1.6 1.6 0 0 0 1.6-1.2L21 8H6.1" /></svg>);
     default:
       return null;
   }
@@ -26,12 +26,13 @@ const NAV = [
   { to: '/', label: '가계부', icon: 'ledger', end: true },
   { to: '/stats', label: '통계', icon: 'stats' },
   { to: '/groups', label: '그룹', icon: 'groups' },
-  { to: '/notifications', label: '알림', icon: 'notifications' },
+  // 장바구니: 지금은 관리자·테스터만(그 외에는 "아직 준비 중입니다" 토스트)
+  { to: '/cart', label: '장바구니', icon: 'cart', staffOnly: true },
   { to: '/settings', label: '설정', icon: 'settings' },
 ];
 
 // 설정의 상세 메뉴 페이지(드릴다운)와 그룹 만들기(자체 하단 액션 바가 있는 전체 화면 마법사)에서는 하단 탭바를 숨김
-const HIDE_BOTTOMNAV_PREFIXES = ['/settings/profile', '/settings/categories', '/settings/budget', '/settings/sources', '/settings/card-benefits', '/settings/group-categories', '/settings/currency', '/settings/recurring', '/settings/notifications', '/settings/style', '/settings/customize', '/settings/friends/', '/settings/export', '/settings/import', '/groups/new', '/admin/users'];
+const HIDE_BOTTOMNAV_PREFIXES = ['/settings/profile', '/settings/categories', '/settings/budget', '/settings/sources', '/settings/card-benefits', '/settings/group-categories', '/settings/currency', '/settings/recurring', '/settings/notifications', '/settings/style', '/settings/customize', '/settings/friends/', '/settings/export', '/settings/import', '/groups/new', '/admin/users', '/notifications', '/cart/'];
 
 // 그룹 상세의 "그룹 정보" 수정 페이지(/groups/:id/edit)도 하단 탭바를 숨김. id가 경로 중간에
 // 오는 동적 라우트라 접두사만으로는 매칭할 수 없어 별도로 검사한다.
@@ -42,15 +43,10 @@ export default function Layout() {
   const location = useLocation();
   const hideBottomNav = HIDE_BOTTOMNAV_PREFIXES.some((p) => location.pathname.startsWith(p)) || isGroupEditPath(location.pathname);
 
-  // 하단 탭의 알림 배지(안 읽은 개수). 페이지를 이동할 때마다 다시 확인.
-  const [unread, setUnread] = useState(0);
-  useEffect(() => { db.countUnreadNotifications().then(setUnread).catch(() => {}); }, [location.pathname]);
-  // 알림 페이지에서 읽음/삭제/모두 읽음 처리하면 바로 반영(페이지 이동 전에도 점이 즉시 사라지게)
-  useEffect(() => {
-    const onUnread = (e) => setUnread(Number(e.detail) || 0);
-    window.addEventListener('gacatboo:unread', onUnread);
-    return () => window.removeEventListener('gacatboo:unread', onUnread);
-  }, []);
+  const isStaff = user?.role === 'admin' || user?.role === 'tester';
+  const [toast, setToast] = useState('');
+  const [toastKey, setToastKey] = useState(0);
+  useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 2200); return () => clearTimeout(t); }, [toast, toastKey]);
   // 계정이 바뀔 때마다(로그인·계정 전환) 이 기기의 푸시 구독을 그 계정에도 등록 — 한 기기·여러 계정 지원
   useEffect(() => { if (user?.id) syncPushSubscription(db, user.id); }, [user?.id]);
 
@@ -95,18 +91,16 @@ export default function Layout() {
         <Outlet />
       </div>
 
+      {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
       {!hideBottomNav && (
         <nav className="bottomnav">
           {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
+            <NavLink
+              key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}
+              onClick={(e) => { if (n.staffOnly && !isStaff) { e.preventDefault(); setToast('아직 준비 중입니다'); setToastKey((k) => k + 1); } }}
+            >
               <span className="ico" style={{ position: 'relative' }}>
                 <Icon name={n.icon} />
-                {n.icon === 'notifications' && unread > 0 && (
-                  <span style={{
-                    position: 'absolute', top: -3, right: -5, minWidth: 8, height: 8, borderRadius: 999,
-                    background: '#FF3B5C',
-                  }} />
-                )}
               </span>
               {n.label}
             </NavLink>
