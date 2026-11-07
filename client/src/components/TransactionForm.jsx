@@ -366,8 +366,6 @@ const TransactionForm = forwardRef(function TransactionForm({
   backfillTarget = null,
   // blankDate: 날짜를 비운 채로 시작(장바구니 → 가계부 작성에서 구매 예정일이 미정일 때)
   blankDate = false,
-  // requireDateAmount: 저장 시 날짜·금액 필수(장바구니 → 가계부 작성)
-  requireDateAmount = false,
   // periodUnit: 구독 그룹 결제의 1회분(정기 결제 반복 { amount, input_currency, input_amount }) — 회차 자동 계산
   periodUnit = null,
   // periodField: 날짜 칸 대신 보여줄 노드(반복 수정 화면의 "반복 주기")
@@ -1001,7 +999,6 @@ const TransactionForm = forwardRef(function TransactionForm({
     if (isTransfer && !items[0]?.toSourceId) return promptRequiredSelect('transfer-to-source-select', '입금 수단을 선택해 주세요');
     if (isTransfer && items[0].fromSourceId === items[0].toSourceId) { showToast('입금 수단과 출금 수단이 동일합니다'); return; }
     if (!date) { showToast('날짜를 선택해 주세요'); return; }
-    if (requireDateAmount && !(total > 0)) { showToast('금액을 입력해 주세요'); return; }
     // 지출 항목은 할인 등 음수 금액을 넣을 수 있지만 합계는 0 이상이어야 함
     if (total < 0) { showToast('합계 금액이 음수입니다'); return; }
     if (transferMembers && !transferMemberId) return setError('멤버를 선택하세요.');

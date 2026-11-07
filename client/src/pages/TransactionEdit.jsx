@@ -363,8 +363,8 @@ export default function TransactionEdit() {
             key={location.key}
             ref={formRef} onScanBusyChange={setScanBusy}
             initial={initial} groupId={(isPayment || isPooledExpense || isPooledTransfer) ? null : groupId} onSaved={cartId ? onCartSaved : done} onClose={() => nav(-1)}
-            // 장바구니 → 가계부 작성: 구매 예정일이 미정이면 날짜를 비워 두고, 날짜·금액은 직접 채워야 저장
-            blankDate={!!cartId && !!location.state?.blankDate} requireDateAmount={!!cartId}
+            // 장바구니 → 가계부 작성: 구매 예정일이 미정이면 날짜를 비워 두고 직접 고르게(금액은 비우면 0원)
+            blankDate={!!cartId && !!location.state?.blankDate}
             fixedType={(isPayment || isPooledExpense || isGroupExpense) ? 'expense' : isPooledTransfer ? 'transfer' : undefined}
             initialPendingRecurrence={pendingRecurrence}
             defaultCategoryName={isPayment ? (isSettlement(group?.category) ? '정산' : '구독') : undefined}
