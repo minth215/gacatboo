@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './lib/auth.jsx';
 import { usePrimaryCurrency, applyPrimaryCurrency } from './lib/primaryCurrency.js';
 import Layout from './components/Layout.jsx';
+import useScrollMemory from './lib/useScrollMemory.js';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Ledger from './pages/Ledger.jsx';
@@ -61,6 +62,8 @@ function Protected({ children, adminOnly }) {
 export default function App() {
   const { user, loading } = useAuth();
   const location = useLocation();
+  // 목록 → 상세 → 뒤로/닫기/저장으로 돌아오면 원래 스크롤 위치로(새 화면은 맨 위에서)
+  useScrollMemory();
   // 주 화폐: 로그인한 계정의 설정을 적용(합계·통계 환산). 바뀌면 전체 화면을 다시 그림
   usePrimaryCurrency();
   useEffect(() => { applyPrimaryCurrency(user?.primary_currency || 'KRW'); }, [user?.id, user?.primary_currency]);
