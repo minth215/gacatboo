@@ -4,6 +4,7 @@ import { db } from '../lib/db.js';
 import { fmtNum, dotDateWithWeekday } from '../lib/format.js';
 import Spinner from '../components/Spinner.jsx';
 import { cartTotal } from './Cart.jsx';
+import { fieldStyle, labelStyle } from './FriendAdd.jsx';
 
 // 장바구니 담기 / 품목 수정: 기록 페이지와 같은 영수증 카드 모양.
 // 내용 · 구매 예정일(비우면 "미정") · 분류 · 링크 · 항목/수량(기본 1)/금액(비워도 됨) · 메모
@@ -14,7 +15,9 @@ export default function CartEdit() {
   const editing = !!id;
   const nav = useNavigate();
   const [cats, setCats] = useState([]);
-  const [f, setF] = useState(editing ? null : { content: '', planned_date: '', categoryId: '', link: '', memo: '', rows: [emptyRow()] });
+  const [f, setF] = useState(editing ? null : { content: '', planned_date: '', categoryId: '', link: '', linkName: '', showThumb: false, thumbUrl: '', memo: '', rows: [emptyRow()] });
+  const [linkModal, setLinkModal] = useState(null); // 하이퍼링크 모달 입력값 { url, name, thumb } | null
+  const [linkBusy, setLinkBusy] = useState(false);
   const [orig, setOrig] = useState(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
@@ -37,7 +40,7 @@ export default function CartEdit() {
       itemTouched.current = !!r.items?.[0]?.name;
       setF({
         content: r.content || '', planned_date: r.planned_date || '', categoryId: r.category_id ? String(r.category_id) : '',
-        link: r.link || '', memo: r.memo || '',
+        link: r.link || '', linkName: r.link_name || '', showThumb: !!r.show_thumb, thumbUrl: r.thumb_url || '', memo: r.memo || '',
         rows: (r.items || []).length ? r.items.map((it) => ({ name: it.name || '', qty: String(it.qty || 1), amount: it.amount != null ? String(it.amount) : '', checked: !!it.checked })) : [emptyRow()],
       });
     }).catch((e) => { alert(e.message); nav(-1); });
@@ -57,6 +60,28 @@ export default function CartEdit() {
   const total = cartTotal(rowsForSave);
   const hasAmount = rowsForSave.some((r) => r.amount != null);
 
+  // 하이퍼링크 확인: 썸네일 표시가 켜져 있으면(또는 링크명이 비어 있으면) 페이지의 대표 이미지·제목을 가져옴
+  const applyLink = async () => {
+    const url = linkModal.url.trim();
+    if (!url) { showToast('URL을 입력해 주세요'); return; }
+    const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+    let thumbUrl = normalized === f.link ? f.thumbUrl : '';
+    let name = linkModal.name.trim();
+    if ((linkModal.thumb && !thumbUrl) || !name) {
+      setLinkBusy(true);
+      try {
+        const pv = await db.linkPreview(normalized);
+        if (linkModal.thumb && !thumbUrl) thumbUrl = pv.image;
+        if (!name) name = pv.title;
+        if (linkModal.thumb && !thumbUrl) showToast('썸네일 이미지를 찾지 못했어요');
+      } catch (err) {
+        if (linkModal.thumb) showToast(err.message);
+      } finally { setLinkBusy(false); }
+    }
+    set({ link: normalized, linkName: name, showThumb: linkModal.thumb, thumbUrl });
+    setLinkModal(null);
+  };
+
   const save = async (e) => {
     e.preventDefault();
     if (!f.content.trim()) { showToast('내용을 입력해 주세요'); contentRef.current?.focus(); return; }
@@ -69,7 +94,7 @@ export default function CartEdit() {
         category_id: cat ? cat.id : null,
         category_name: cat ? cat.name : (f.categoryId === 'KEEP' ? orig?.category_name : ''),
         category_emoji: cat ? (cat.emoji || '') : (f.categoryId === 'KEEP' ? orig?.category_emoji : ''),
-        link: f.link, items: rowsForSave, memo: f.memo,
+        link: f.link, link_name: f.linkName, show_thumb: f.showThumb, thumb_url: f.thumbUrl, items: rowsForSave, memo: f.memo,
       });
       nav(-1);
     } catch (err) { alert(err.message); setBusy(false); }
@@ -98,7 +123,7 @@ export default function CartEdit() {
 
       <form onSubmit={save} style={{ paddingTop: 6 }}>
         <div className="rcpt-card">
-          <div style={{ paddingBottom: 14 }}>
+          <div style={{ paddingBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
             <input
               ref={contentRef} type="text" value={f.content} placeholder="내용"
               onChange={(e) => {
@@ -106,8 +131,15 @@ export default function CartEdit() {
                 contentTouched.current = true;
                 setF((p) => ({ ...p, content: v, rows: itemTouched.current ? p.rows : p.rows.map((r, j) => (j === 0 ? { ...r, name: v } : r)) }));
               }}
-              style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: 'var(--k-tx-191722)', outline: 'none', padding: 0 }}
+              style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: 'var(--k-tx-191722)', outline: 'none', padding: 0 }}
             />
+            {/* 하이퍼링크(상품 페이지 등) — 입력돼 있으면 진하게 */}
+            <button
+              type="button" aria-label="하이퍼링크" onClick={() => setLinkModal({ url: f.link, name: f.linkName, thumb: f.showThumb })}
+              style={{ flex: 'none', width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: f.link ? 'var(--k-bg-191722)' : 'var(--k-bg-f4f2f0)', color: f.link ? 'var(--k-onink-fff)' : 'var(--k-tx-a29ead)' }}
+            >
+              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>
+            </button>
           </div>
 
           <div style={rowStyle}>
@@ -133,11 +165,6 @@ export default function CartEdit() {
               {catSel === 'KEEP' && <option value="KEEP">{orig?.category_emoji ? `${orig.category_emoji} ` : ''}{orig?.category_name} (기존)</option>}
               {cats.map((c) => <option key={c.id} value={c.id}>{c.emoji ? `${c.emoji} ` : ''}{c.name}</option>)}
             </select>
-          </div>
-
-          <div style={rowStyle}>
-            <span style={rowLabelStyle}>링크</span>
-            <input type="url" inputMode="url" value={f.link} onChange={(e) => set({ link: e.target.value })} placeholder="상품 페이지 주소" style={{ ...rowInputStyle, fontWeight: f.link ? 600 : 400 }} />
           </div>
 
           {/* 항목 / 수량 / 금액(1개 가격, 비워도 됨) */}
@@ -191,6 +218,40 @@ export default function CartEdit() {
           <button type="button" onClick={remove} style={{ display: 'block', width: '100%', marginTop: 12, border: 'none', background: 'transparent', padding: '4px 0', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, color: '#FF6F91', cursor: 'pointer' }}>삭제</button>
         )}
       </form>
+      {linkModal && (
+        <div className="catmodal-overlay" onClick={() => !linkBusy && setLinkModal(null)}>
+          <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--k-tx-191722)' }}>하이퍼링크</div>
+              <button aria-label="닫기" onClick={() => setLinkModal(null)} className="catmodal-icon-btn" disabled={linkBusy}>
+                <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+              </button>
+            </div>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <span style={labelStyle}>URL <span style={{ color: '#FF3B5C' }}>*</span></span>
+              <input type="url" inputMode="url" autoFocus value={linkModal.url} onChange={(e) => setLinkModal({ ...linkModal, url: e.target.value })} placeholder="https://" style={fieldStyle} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <span style={labelStyle}>링크명</span>
+              <input type="text" value={linkModal.name} onChange={(e) => setLinkModal({ ...linkModal, name: e.target.value })} placeholder="비우면 페이지 제목 또는 주소" style={fieldStyle} />
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
+              <span style={labelStyle}>썸네일 표시</span>
+              <button type="button" role="switch" aria-checked={linkModal.thumb} aria-label="썸네일 표시" className={`ios-toggle${linkModal.thumb ? ' on' : ''}`} onClick={() => setLinkModal({ ...linkModal, thumb: !linkModal.thumb })}>
+                <span className="ios-toggle-knob" />
+              </button>
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {f.link && (
+                <button type="button" disabled={linkBusy} onClick={() => { set({ link: '', linkName: '', showThumb: false, thumbUrl: '' }); setLinkModal(null); }}
+                  style={{ flex: 1, height: 42, border: 'none', borderRadius: 999, background: 'var(--k-bg-f4f2f0)', color: '#FF3B5C', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
+              )}
+              <button type="button" disabled={linkBusy} onClick={applyLink}
+                style={{ flex: 1, height: 42, border: 'none', borderRadius: 999, background: 'var(--k-bg-191722)', color: 'var(--k-onink-fff)', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>{linkBusy ? '불러오는 중…' : '확인'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
     </div>
   );

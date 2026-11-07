@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { fmtNum, dotDateWithWeekday } from '../lib/format.js';
@@ -13,6 +13,17 @@ export default function CartDetail() {
   const { id } = useParams();
   const nav = useNavigate();
   const [r, setR] = useState(null);
+  const [toast, setToast] = useState('');
+  const [toastKey, setToastKey] = useState(0);
+  useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 2200); return () => clearTimeout(t); }, [toast, toastKey]);
+  // 체크 저장: 화면은 즉시 바꾸고, 저장은 마지막 상태만 모아서(연달아 눌러도 앞의 체크가 되돌아가지 않게)
+  const latestItems = useRef(null);
+  const saveTimer = useRef(0);
+  const saving = useRef(Promise.resolve());
+  useEffect(() => () => {
+    // 화면을 떠날 때 남은 저장이 있으면 바로 저장
+    if (saveTimer.current && latestItems.current) { clearTimeout(saveTimer.current); db.updateCartChecks(Number(id), latestItems.current).catch(() => {}); }
+  }, [id]);
 
   const load = () => db.getCartItem(Number(id)).then(setR).catch((e) => { alert(e.message); nav(-1); });
   useEffect(() => { load(); }, [id]);
@@ -21,21 +32,33 @@ export default function CartDetail() {
   const items = r.items || [];
   const purchased = !!r.purchased_at;
 
-  const toggle = async (i) => {
-    const next = items.map((it, j) => (j === i ? { ...it, checked: !it.checked } : it));
-    setR((prev) => ({ ...prev, items: next }));
-    try { await db.updateCartChecks(r.id, next); } catch (e) { alert(e.message); load(); }
+  const toggle = (i) => {
+    setR((prev) => {
+      const next = (prev.items || []).map((it, j) => (j === i ? { ...it, checked: !it.checked } : it));
+      latestItems.current = next;
+      return { ...prev, items: next };
+    });
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = 0;
+      const snapshot = latestItems.current;
+      // 저장은 순서대로(이전 저장이 끝난 뒤 다음 저장)
+      saving.current = saving.current.then(() => db.updateCartChecks(Number(id), snapshot)).catch((e) => { alert(e.message); load(); });
+    }, 350);
   };
 
   // 기록 폼으로: 즐겨찾기 템플릿과 같은 경로(location.state.favorite)로 채운다. 날짜·금액이 비어 있으면 직접 입력
   const writeLedger = () => {
+    // 체크한 항목만 가계부로(항목이 없는 품목은 그대로)
+    const bought = items.length ? items.filter((it) => it.checked) : [];
+    if (items.length && !bought.length) { setToast('구매한 항목을 체크해 주세요'); setToastKey((k) => k + 1); return; }
     nav('/new', {
       state: {
         favorite: {
           type: 'expense', content: r.content,
           category_id: r.category_id, category_name: r.category_name, category_emoji: r.category_emoji,
-          amount: cartHasAmount(items) ? cartTotal(items) : null,
-          items: items.map((it) => ({ name: it.name || '', qty: Number(it.qty) || 1, amount: it.amount != null ? Number(it.amount) : null })),
+          amount: cartHasAmount(bought) ? cartTotal(bought) : null,
+          items: bought.map((it) => ({ name: it.name || '', qty: Number(it.qty) || 1, amount: it.amount != null ? Number(it.amount) : null })),
           memo: r.memo || '',
           ...(r.planned_date ? { date: r.planned_date } : {}),
         },
@@ -71,14 +94,24 @@ export default function CartDetail() {
       </div>
 
       <div className="rcpt-card" style={{ marginTop: 6 }}>
-        {row('구매 예정일', r.planned_date ? dotDateWithWeekday(r.planned_date) : '미정', r.planned_date ? {} : { color: 'var(--k-tx-a29ead)', fontWeight: 400 })}
-        {row('분류', r.category_name ? `${r.category_emoji ? `${r.category_emoji} ` : ''}${r.category_name}` : '-')}
+        {/* 하이퍼링크: 썸네일(켜 둔 경우) + 링크 아이콘·링크명 — 어디를 눌러도 링크로 이동 */}
         {r.link && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '7px 0' }}>
-            <span style={{ width: 70, flex: 'none', fontSize: 13.5, color: 'var(--k-tx-8b8798)' }}>링크</span>
-            <a href={href} target="_blank" rel="noreferrer" style={{ flex: 1, minWidth: 0, textAlign: 'right', fontSize: 13.5, fontWeight: 600, color: 'var(--accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'underline' }}>{r.link}</a>
+          <div style={{ paddingBottom: 8 }}>
+            {r.show_thumb && r.thumb_url && (
+              <a href={href} target="_blank" rel="noreferrer" style={{ display: 'block', marginBottom: 10 }}>
+                <img src={r.thumb_url} alt="" referrerPolicy="no-referrer" loading="lazy"
+                  onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+                  style={{ display: 'block', width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 14, background: 'var(--k-bg-f4f2f0)' }} />
+              </a>
+            )}
+            <a href={href} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--k-tx-4a4652)', textDecoration: 'none', minWidth: 0 }}>
+              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>
+              <span style={{ fontSize: 13.5, fontWeight: 600, textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.link_name || r.link}</span>
+            </a>
           </div>
         )}
+        {row('구매 예정일', r.planned_date ? dotDateWithWeekday(r.planned_date) : '미정', r.planned_date ? {} : { color: 'var(--k-tx-a29ead)', fontWeight: 400 })}
+        {row('분류', r.category_name ? `${r.category_emoji ? `${r.category_emoji} ` : ''}${r.category_name}` : '-')}
 
         {/* 항목 체크리스트(장볼 때) — 누르면 바로 저장 */}
         {items.length > 0 && (
@@ -115,6 +148,7 @@ export default function CartDetail() {
         )}
       </div>
 
+      {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
       {!purchased && (
         <button type="button" className="btn-ink-pill" style={{ marginTop: 26 }} onClick={writeLedger}>가계부 작성</button>
       )}

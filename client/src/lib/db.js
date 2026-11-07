@@ -348,6 +348,7 @@ export const db = {
       content: (p.content || '').trim(), planned_date: p.planned_date || null,
       category_id: p.category_id || null, category_name: p.category_name || '', category_emoji: p.category_emoji || '',
       link: (p.link || '').trim(), items: p.items || [], memo: (p.memo || '').trim(), updated_at: new Date().toISOString(),
+      link_name: (p.link_name || '').trim(), show_thumb: !!p.show_thumb, thumb_url: p.thumb_url || '',
     };
     if (id) return unwrap(await supabase.from('cart_items').update(row).eq('id', id).select().single());
     return unwrap(await supabase.from('cart_items').insert(row).select().single());
@@ -357,6 +358,12 @@ export const db = {
   },
   async markCartPurchased(id, txId) {
     return unwrap(await supabase.from('cart_items').update({ purchased_tx_id: txId || null, purchased_at: new Date().toISOString() }).eq('id', id));
+  },
+  // 링크의 대표 이미지·제목(link-preview Edge Function). 실패하면 빈 값
+  async linkPreview(url) {
+    const { data, error } = await supabase.functions.invoke('link-preview', { body: { url } });
+    if (error) throw new Error('썸네일을 불러오지 못했어요');
+    return { image: data?.image || '', title: data?.title || '' };
   },
   async deleteCartItem(id) {
     return unwrap(await supabase.from('cart_items').delete().eq('id', id));
