@@ -20,6 +20,10 @@ export default function CartEdit() {
   const [toast, setToast] = useState('');
   const [toastKey, setToastKey] = useState(0);
   const contentRef = useRef(null);
+  // 대표 "내용" ↔ 첫 번째 항목 이름: 한쪽을 먼저 입력하면 다른 쪽도 같은 글자로 채움(기록 페이지와 동일).
+  // 다른 쪽을 직접 고치면 그때부터는 따로 감(수정 화면은 이미 채워진 쪽을 직접 입력한 것으로 봄)
+  const contentTouched = useRef(false);
+  const itemTouched = useRef(false);
   const memoRef = useRef(null);
   const showToast = (m) => { setToast(m); setToastKey((k) => k + 1); };
   useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 2200); return () => clearTimeout(t); }, [toast, toastKey]);
@@ -29,6 +33,8 @@ export default function CartEdit() {
     if (!editing) { contentRef.current?.focus({ preventScroll: true }); return; }
     db.getCartItem(Number(id)).then((r) => {
       setOrig(r);
+      contentTouched.current = !!r.content;
+      itemTouched.current = !!r.items?.[0]?.name;
       setF({
         content: r.content || '', planned_date: r.planned_date || '', categoryId: r.category_id ? String(r.category_id) : '',
         link: r.link || '', memo: r.memo || '',
@@ -94,7 +100,12 @@ export default function CartEdit() {
         <div className="rcpt-card">
           <div style={{ paddingBottom: 14 }}>
             <input
-              ref={contentRef} type="text" value={f.content} onChange={(e) => set({ content: e.target.value })} placeholder="내용"
+              ref={contentRef} type="text" value={f.content} placeholder="내용"
+              onChange={(e) => {
+                const v = e.target.value;
+                contentTouched.current = true;
+                setF((p) => ({ ...p, content: v, rows: itemTouched.current ? p.rows : p.rows.map((r, j) => (j === 0 ? { ...r, name: v } : r)) }));
+              }}
               style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: 'var(--k-tx-191722)', outline: 'none', padding: 0 }}
             />
           </div>
@@ -136,7 +147,15 @@ export default function CartEdit() {
             </div>
             {f.rows.map((r, i) => (
               <div key={i} style={{ ...grid, padding: '5px 0' }}>
-                <input type="text" placeholder="항목 기입" value={r.name} onChange={(e) => setRow(i, { name: e.target.value })} style={cellInput} />
+                <input
+                  type="text" placeholder="항목 기입" value={r.name} style={cellInput}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (i !== 0) { setRow(i, { name: v }); return; }
+                    itemTouched.current = true;
+                    setF((p) => ({ ...p, content: contentTouched.current ? p.content : v, rows: p.rows.map((row, j) => (j === 0 ? { ...row, name: v } : row)) }));
+                  }}
+                />
                 <input type="text" inputMode="numeric" placeholder="1" value={r.qty} onChange={(e) => setRow(i, { qty: e.target.value.replace(/[^0-9]/g, '') })} style={{ ...cellInput, textAlign: 'center' }} />
                 <input
                   type="text" inputMode="numeric" placeholder="미정" value={r.amount === '' ? '' : fmtNum(r.amount)}

@@ -70,7 +70,7 @@ export default function Cart() {
     <div style={{ padding: '44px 0 104px' }}>
       <PageHeader title="장바구니" showBack={false} />
       {rows.length === 0 ? (
-        <div className="empty empty-center" style={{ whiteSpace: 'pre-line' }}>{'담아 둔 품목이 없습니다.\n+ 버튼으로 살 것을 담아 보세요.'}</div>
+        <div className="empty empty-center">장바구니가 비어 있습니다.</div>
       ) : (
         <>
           {section('구매 예정', planned, true)}
