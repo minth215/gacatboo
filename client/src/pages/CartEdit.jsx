@@ -60,22 +60,21 @@ export default function CartEdit() {
   const total = cartTotal(rowsForSave);
   const hasAmount = rowsForSave.some((r) => r.amount != null);
 
-  // 하이퍼링크 확인: 썸네일 표시가 켜져 있으면(또는 링크명이 비어 있으면) 페이지의 대표 이미지·제목을 가져옴
+  // 하이퍼링크 확인: 썸네일 표시가 켜져 있으면 페이지의 대표 이미지를 가져옴(링크명을 비우면 상세 화면에서 "내용"으로 표시)
   const applyLink = async () => {
     const url = linkModal.url.trim();
     if (!url) { showToast('URL을 입력해 주세요'); return; }
     const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`;
     let thumbUrl = normalized === f.link ? f.thumbUrl : '';
-    let name = linkModal.name.trim();
-    if ((linkModal.thumb && !thumbUrl) || !name) {
+    const name = linkModal.name.trim();
+    if (linkModal.thumb && !thumbUrl) {
       setLinkBusy(true);
       try {
         const pv = await db.linkPreview(normalized);
-        if (linkModal.thumb && !thumbUrl) thumbUrl = pv.image;
-        if (!name) name = pv.title;
-        if (linkModal.thumb && !thumbUrl) showToast('썸네일 이미지를 찾지 못했어요');
+        thumbUrl = pv.image;
+        if (!thumbUrl) showToast('썸네일 이미지를 찾지 못했어요');
       } catch (err) {
-        if (linkModal.thumb) showToast(err.message);
+        showToast(err.message);
       } finally { setLinkBusy(false); }
     }
     set({ link: normalized, linkName: name, showThumb: linkModal.thumb, thumbUrl });
@@ -133,12 +132,12 @@ export default function CartEdit() {
               }}
               style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 20, fontWeight: 800, color: 'var(--k-tx-191722)', outline: 'none', padding: 0 }}
             />
-            {/* 하이퍼링크(상품 페이지 등) — 입력돼 있으면 진하게 */}
+            {/* 하이퍼링크(상품 페이지 등) — 아이콘만. 옅은 회색, 링크가 있으면 먹색 */}
             <button
               type="button" aria-label="하이퍼링크" onClick={() => setLinkModal({ url: f.link, name: f.linkName, thumb: f.showThumb })}
-              style={{ flex: 'none', width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: f.link ? 'var(--k-bg-191722)' : 'var(--k-bg-f4f2f0)', color: f.link ? 'var(--k-onink-fff)' : 'var(--k-tx-a29ead)' }}
+              style={{ flex: 'none', width: 28, height: 28, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: f.link ? 'var(--k-tx-191722)' : 'var(--k-tx-c7c3cc)' }}
             >
-              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>
+              <svg width="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>
             </button>
           </div>
 
@@ -233,7 +232,7 @@ export default function CartEdit() {
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <span style={labelStyle}>링크명</span>
-              <input type="text" value={linkModal.name} onChange={(e) => setLinkModal({ ...linkModal, name: e.target.value })} placeholder="비우면 페이지 제목 또는 주소" style={fieldStyle} />
+              <input type="text" value={linkModal.name} onChange={(e) => setLinkModal({ ...linkModal, name: e.target.value })} placeholder="링크 이름 입력" style={fieldStyle} />
             </label>
             <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
               <span style={labelStyle}>썸네일 표시</span>

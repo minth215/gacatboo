@@ -17,6 +17,7 @@ export default function CartDetail() {
   const [toastKey, setToastKey] = useState(0);
   useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 2200); return () => clearTimeout(t); }, [toast, toastKey]);
   // 체크 저장: 화면은 즉시 바꾸고, 저장은 마지막 상태만 모아서(연달아 눌러도 앞의 체크가 되돌아가지 않게)
+  const tapRef = useRef(null); // 체크 행: 누른 행·위치(손가락을 뗄 때 같은 행이면 토글)
   const latestItems = useRef(null);
   const saveTimer = useRef(0);
   const saving = useRef(Promise.resolve());
@@ -106,7 +107,7 @@ export default function CartDetail() {
             )}
             <a href={href} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--k-tx-4a4652)', textDecoration: 'none', minWidth: 0 }}>
               <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>
-              <span style={{ fontSize: 13.5, fontWeight: 600, textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.link_name || r.link}</span>
+              <span style={{ fontSize: 13.5, fontWeight: 600, textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.link_name || r.content || r.link}</span>
             </a>
           </div>
         )}
@@ -120,8 +121,21 @@ export default function CartDetail() {
               <span /><span>항목</span><span style={{ textAlign: 'center' }}>수량</span><span style={{ textAlign: 'right' }}>금액</span>
             </div>
             {items.map((it, i) => (
-              <div key={i} role="button" onClick={() => toggle(i)} style={{ display: 'grid', gridTemplateColumns: '24px 1fr 40px 84px', gap: 8, alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
-                <span aria-label={it.checked ? '체크 해제' : '체크'} style={{ width: 20, height: 20, borderRadius: '50%', border: it.checked ? 'none' : '1.5px solid var(--k-bd-cfccd4)', background: it.checked ? 'var(--k-bg-191722)' : 'transparent', color: 'var(--k-onink-fff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div
+                key={i} role="checkbox" aria-checked={!!it.checked} tabIndex={0}
+                // 빠르게 연달아 누를 때 iOS 가 두 탭을 "두 번 탭"으로 묶어 두 번째 탭을 첫 번째 행으로 보내는 문제 →
+                // click 대신 그 행에서 손가락을 뗀 순간(pointerup)에 처리하고, 두 번 탭 확대도 끔(touch-action)
+                onPointerDown={(e) => { tapRef.current = { i, x: e.clientX, y: e.clientY }; }}
+                onPointerUp={(e) => {
+                  const t = tapRef.current; tapRef.current = null;
+                  if (!t || t.i !== i || Math.abs(e.clientX - t.x) > 10 || Math.abs(e.clientY - t.y) > 10) return;
+                  toggle(i);
+                }}
+                onPointerCancel={() => { tapRef.current = null; }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(i); } }}
+                style={{ display: 'grid', gridTemplateColumns: '24px 1fr 40px 84px', gap: 8, alignItems: 'center', padding: '8px 0', cursor: 'pointer', touchAction: 'manipulation', userSelect: 'none', WebkitUserSelect: 'none', WebkitTapHighlightColor: 'transparent' }}
+              >
+                <span style={{ width: 20, height: 20, borderRadius: '50%', border: it.checked ? 'none' : '1.5px solid var(--k-bd-cfccd4)', background: it.checked ? 'var(--k-bg-191722)' : 'transparent', color: 'var(--k-onink-fff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {it.checked && <svg width="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 12.5 10 17.5 19 7" /></svg>}
                 </span>
                 <span style={{ fontSize: 13.5, color: it.checked ? 'var(--k-tx-a29ead)' : 'var(--k-tx-191722)', textDecoration: it.checked ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name || '-'}</span>
