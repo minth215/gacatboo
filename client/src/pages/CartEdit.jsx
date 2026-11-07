@@ -98,10 +98,6 @@ export default function CartEdit() {
       nav(-1);
     } catch (err) { alert(err.message); setBusy(false); }
   };
-  const remove = async () => {
-    if (!confirm('이 품목을 장바구니에서 삭제할까요?')) return;
-    try { await db.deleteCartItem(Number(id)); nav(-2); } catch (err) { alert(err.message); }
-  };
 
   const rowStyle = { display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' };
   const rowLabelStyle = { width: 70, flex: 'none', fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' };
@@ -213,9 +209,6 @@ export default function CartEdit() {
         </div>
 
         <button className="btn-ink-pill" style={{ marginTop: 26 }} disabled={busy}>{busy ? '저장 중…' : '저장'}</button>
-        {editing && (
-          <button type="button" onClick={remove} style={{ display: 'block', width: '100%', marginTop: 12, border: 'none', background: 'transparent', padding: '4px 0', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, color: '#FF6F91', cursor: 'pointer' }}>삭제</button>
-        )}
       </form>
       {linkModal && (
         <div className="catmodal-overlay" onClick={() => !linkBusy && setLinkModal(null)}>
