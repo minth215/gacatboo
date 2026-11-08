@@ -284,15 +284,13 @@ export default function Stats() {
         <div style={{ height: 6, borderRadius: 999, background: 'var(--k-bg-f2f1f5)', overflow: 'hidden' }}>
           <div style={{ height: '100%', borderRadius: 999, background: g.color, width: `${Math.min(100, budgetPct)}%` }} />
         </div>
-        {/* 왼쪽: 예산 사용/예산, 오른쪽: 지출은 남은 금액(초과면 음수, 코랄 핑크), 수입은 -남은 금액/+초과(민트) + (비율) */}
+        {/* 왼쪽: 예산 {사용}/{예산} 원 ({%} %), 오른쪽: {남은 금액} 원 남음 또는 {넘은 금액} 원 초과
+            (초과: 지출은 코랄 핑크, 수입은 민트 굵게) — 카드 실적 표기와 같은 모양 */}
         <div style={{ marginTop: 5, display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 10.25, color: 'var(--k-tx-8b8798)' }}>
-          <span>예산 {fmtP(g.total)}/{fmtP(budget)}</span>
-          {tab === 'expense' ? (
-            <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: '#FF3B5C', fontWeight: 700 } : {}) }}>{fmtP(-over)} ({budgetPct} %)</span>
-          ) : (
-            // 수입: 예산까지 남은 금액은 -, 예산보다 많아지면 +(민트)
-            <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: 'var(--income)', fontWeight: 700 } : {}) }}>{over > 0 ? '+' : ''}{fmtP(over)} ({budgetPct} %)</span>
-          )}
+          <span style={{ whiteSpace: 'nowrap' }}>예산 {fmtP(g.total)}/{fmtP(budget)} {unitLabel()} ({budgetPct} %)</span>
+          <span style={{ whiteSpace: 'nowrap', ...(over > 0 ? { color: tab === 'expense' ? '#FF3B5C' : 'var(--income)', fontWeight: 700 } : {}) }}>
+            {over > 0 ? `${fmtP(over)} ${unitLabel()} 초과` : `${fmtP(-over)} ${unitLabel()} 남음`}
+          </span>
         </div>
       </div>
     );
