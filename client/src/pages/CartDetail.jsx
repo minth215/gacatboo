@@ -210,15 +210,16 @@ export default function CartDetail() {
                     <>
                       {/* 수정 모드: 수량·금액 바로 수정(기록 페이지처럼 열자마자 숫자를 치면 새로, 지우기부터 누르면 이어서) */}
                       <FreshNumberInput value={ed.qty} autoFocus={editFocus?.i === i && editFocus.field === 'qty'} onChange={(v) => setDraft(i, { qty: v })}
-                        style={{ width: '100%', minWidth: 0, border: 'none', borderBottom: '1.5px solid var(--k-bd-cfccd4)', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'center', padding: '2px 0' }} />
-                      <div style={{ borderBottom: '1.5px solid var(--k-bd-cfccd4)', padding: '2px 0', minWidth: 0 }}>
+                        style={{ width: '100%', minWidth: 0, height: 20, lineHeight: '20px', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'center', padding: 0, margin: 0 }} />
+                      {/* 행 높이가 바뀌지 않게 보기 모드 글자와 같은 높이(20px) */}
+                      <div className="cart-amt" style={{ height: 20, minWidth: 0 }}>
                         <CalcAmountInput compact allowEmpty value={ed.amount} placeholder="미정" autoFocus={editFocus?.i === i && editFocus.field === 'amount'} onChange={(v) => setDraft(i, { amount: v })} />
                       </div>
                     </>
                   ) : (
                     <>
-                      <span role="button" onClick={() => startEdit(i, 'qty')} style={{ fontSize: 13.5, textAlign: 'center', color: 'var(--k-tx-4a4652)', cursor: 'text' }}>{it.qty || 1}</span>
-                      <span role="button" onClick={() => startEdit(i, 'amount')} style={{ fontSize: 13.5, fontWeight: 600, textAlign: 'right', color: it.amount != null ? 'var(--k-tx-191722)' : 'var(--k-tx-b0b0b8)', cursor: 'text' }}>{it.amount != null ? fmtNum(it.amount) : '미정'}</span>
+                      <span role="button" onClick={() => startEdit(i, 'qty')} style={{ height: 20, lineHeight: '20px', fontSize: 13.5, textAlign: 'center', color: 'var(--k-tx-4a4652)', cursor: 'text' }}>{it.qty || 1}</span>
+                      <span role="button" onClick={() => startEdit(i, 'amount')} style={{ height: 20, lineHeight: '20px', fontSize: 13.5, fontWeight: 600, textAlign: 'right', color: it.amount != null ? 'var(--k-tx-191722)' : 'var(--k-tx-b0b0b8)', cursor: 'text' }}>{it.amount != null ? fmtNum(it.amount) : '미정'}</span>
                     </>
                   )}
                 </div>
@@ -249,7 +250,7 @@ export default function CartDetail() {
         <div style={{ display: 'flex', gap: 8, marginTop: 26 }}>
           <button type="button" onClick={() => { setDrafts(null); setEditFocus(null); }}
             style={{ flex: 1, height: 48, border: 'none', borderRadius: 999, background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-6c6779)', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
-          <button type="button" className="btn-ink-pill" style={{ flex: 1, marginTop: 0 }} onClick={commitEdit}>완료</button>
+          <button type="button" className="btn-ink-pill" style={{ flex: 1, marginTop: 0, height: 48 }} onClick={commitEdit}>완료</button>
         </div>
       ) : !purchased && (
         <button type="button" className="btn-ink-pill" style={{ marginTop: 26 }} onClick={writeLedger}>가계부 작성</button>

@@ -986,3 +986,6 @@ html.theme-dark .rcpt-card {
 .form-readonly * { pointer-events: none; }
 .form-readonly .ro-allow, .form-readonly .ro-allow * { pointer-events: auto; }
 .form-readonly input, .form-readonly select, .form-readonly textarea { caret-color: transparent; }
+
+/* 장바구니 품목 상세: 수정 모드 금액 칸도 보기 모드 글자와 같은 높이(행 높이 유지) */
+.cart-amt input { height: 20px; line-height: 20px; margin: 0; }
