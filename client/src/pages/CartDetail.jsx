@@ -44,7 +44,9 @@ export default function CartDetail() {
   useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 2200); return () => clearTimeout(t); }, [toast, toastKey]);
   // 체크 저장: 화면은 즉시 바꾸고, 저장은 마지막 상태만 모아서(연달아 눌러도 앞의 체크가 되돌아가지 않게)
   const tapRef = useRef(null);
-  const [editRow, setEditRow] = useState(null); // 수량·금액 바로 수정 중인 행 { i, qty, amount, focus } // 체크 행: 누른 행·위치(손가락을 뗄 때 같은 행이면 토글)
+  const [drafts, setDrafts] = useState(null);
+  const [editFocus, setEditFocus] = useState(null);
+  // 수량·금액 수정 모드: 모든 행의 입력값 { [행]: { qty, amount } } + 처음 누른 칸(focus). 취소/완료를 누를 때까지 유지 // 체크 행: 누른 행·위치(손가락을 뗄 때 같은 행이면 토글)
   const latestItems = useRef(null);
   const saveTimer = useRef(0);
   const saving = useRef(Promise.resolve());
@@ -80,22 +82,25 @@ export default function CartDetail() {
     clearTimeout(saveTimer.current); saveTimer.current = 0; latestItems.current = null;
     try { await db.deleteCartItem(r.id); nav(-1); } catch (e) { alert(e.message); }
   };
-  const startEdit = (i, focus) => {
-    const it = items[i];
-    setEditRow({ i, focus, qty: String(it.qty || 1), amount: it.amount != null ? String(it.amount) : '', wasNull: it.amount == null });
+  const startEdit = (i, field) => {
+    if (drafts) return;
+    setDrafts(Object.fromEntries(items.map((it, j) => [j, { qty: String(it.qty || 1), amount: it.amount != null ? String(it.amount) : '' }])));
+    setEditFocus({ i, field });
   };
+  const setDraft = (i, patch) => setDrafts((d) => ({ ...d, [i]: { ...d[i], ...patch } }));
   const commitEdit = () => {
-    const e = editRow;
-    if (!e) return;
-    const qty = Math.max(Number(e.qty) || 1, 1);
-    // 금액을 비우거나, 원래 "미정"이던 칸을 열었다가 0 으로 닫으면 그대로 미정
-    const amount = e.amount === '' || (e.wasNull && Number(e.amount) === 0) ? null : Math.round(Number(e.amount));
+    const d = drafts;
+    if (!d) return;
     setR((prev) => {
-      const next = (prev.items || []).map((it, j) => (j === e.i ? { ...it, qty, amount } : it));
+      const next = (prev.items || []).map((it, j) => {
+        if (!d[j]) return it;
+        // 금액 칸을 다 지우고 완료하면 "미정"
+        return { ...it, qty: Math.max(Number(d[j].qty) || 1, 1), amount: d[j].amount === '' ? null : Math.round(Number(d[j].amount)) };
+      });
       latestItems.current = next;
       return { ...prev, items: next };
     });
-    setEditRow(null);
+    setDrafts(null); setEditFocus(null);
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       saveTimer.current = 0;
@@ -180,9 +185,9 @@ export default function CartDetail() {
               <span /><span>항목</span><span style={{ textAlign: 'center' }}>수량</span><span style={{ textAlign: 'right' }}>금액</span>
             </div>
             {items.map((it, i) => {
-              const ed = editRow?.i === i ? editRow : null;
+              const ed = drafts?.[i];
               return (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: ed ? '24px 1fr 40px 76px auto' : '24px 1fr 40px 84px', gap: 8, alignItems: 'center', padding: '8px 0', touchAction: 'manipulation', userSelect: 'none', WebkitUserSelect: 'none', WebkitTapHighlightColor: 'transparent' }}>
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '24px 1fr 40px 84px', gap: 8, alignItems: 'center', padding: '8px 0', touchAction: 'manipulation', userSelect: 'none', WebkitUserSelect: 'none', WebkitTapHighlightColor: 'transparent' }}>
                   {/* 체크 + 항목명: 누르면 체크(빠르게 연달아 눌러도 그 행만 — pointerup 기준) */}
                   <div
                     role="checkbox" aria-checked={!!it.checked} tabIndex={0}
@@ -204,19 +209,11 @@ export default function CartDetail() {
                   {ed ? (
                     <>
                       {/* 수정 모드: 수량·금액 바로 수정(기록 페이지처럼 열자마자 숫자를 치면 새로, 지우기부터 누르면 이어서) */}
-                      <FreshNumberInput value={ed.qty} autoFocus={ed.focus === 'qty'} onChange={(v) => setEditRow((e) => ({ ...e, qty: v }))}
+                      <FreshNumberInput value={ed.qty} autoFocus={editFocus?.i === i && editFocus.field === 'qty'} onChange={(v) => setDraft(i, { qty: v })}
                         style={{ width: '100%', minWidth: 0, border: 'none', borderBottom: '1.5px solid var(--k-bd-cfccd4)', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'center', padding: '2px 0' }} />
-                      <div style={{ borderBottom: '1.5px solid var(--k-bd-cfccd4)', padding: '2px 0' }}>
-                        <CalcAmountInput compact value={ed.amount} placeholder="미정" autoFocus={ed.focus === 'amount'} onChange={(v) => setEditRow((e) => ({ ...e, amount: v }))} />
+                      <div style={{ borderBottom: '1.5px solid var(--k-bd-cfccd4)', padding: '2px 0', minWidth: 0 }}>
+                        <CalcAmountInput compact allowEmpty value={ed.amount} placeholder="미정" autoFocus={editFocus?.i === i && editFocus.field === 'amount'} onChange={(v) => setDraft(i, { amount: v })} />
                       </div>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                        <button type="button" aria-label="수정 취소" onClick={() => setEditRow(null)} style={{ width: 26, height: 26, border: 'none', background: 'transparent', color: 'var(--k-tx-b0b0b8)', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <svg width="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
-                        </button>
-                        <button type="button" aria-label="수정 완료" onClick={commitEdit} style={{ width: 26, height: 26, border: 'none', background: 'transparent', color: '#2CDDB9', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="4.5 12.5 9.5 17.5 19.5 7" /></svg>
-                        </button>
-                      </span>
                     </>
                   ) : (
                     <>
@@ -247,7 +244,14 @@ export default function CartDetail() {
       </div>
 
       {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
-      {!purchased && (
+      {drafts ? (
+        // 수량·금액 수정 모드: 가계부 작성 자리에 취소 / 완료
+        <div style={{ display: 'flex', gap: 8, marginTop: 26 }}>
+          <button type="button" onClick={() => { setDrafts(null); setEditFocus(null); }}
+            style={{ flex: 1, height: 48, border: 'none', borderRadius: 999, background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-6c6779)', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+          <button type="button" className="btn-ink-pill" style={{ flex: 1, marginTop: 0 }} onClick={commitEdit}>완료</button>
+        </div>
+      ) : !purchased && (
         <button type="button" className="btn-ink-pill" style={{ marginTop: 26 }} onClick={writeLedger}>가계부 작성</button>
       )}
     </div>
