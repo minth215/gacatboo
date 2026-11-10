@@ -402,8 +402,9 @@ const TransactionForm = forwardRef(function TransactionForm({
       ? [{ ...emptyItem(), currencyMeta: recordCurrencyMeta, amount: initial?.amount ? String(initial.amount) : '', fromSourceId: initial?.source_id ? String(initial.source_id) : '', toSourceId: initial?.to_source_id ? String(initial.to_source_id) : '' }]
       // 분류=정산: 정산 대상을 여러 건 담은 기록은 items[].targetId 로 행을 복원하고, 그 외에는
       // settlement_target_id 컬럼이 기준값(과거 한때 빈 이름의 항목이 잘못 같이 저장된 적이 있어도 무시).
-      : (initial?.category_name === '정산' && Array.isArray(initial?.items) && initial.items.some((it) => it?.targetId != null))
-        ? initial.items.filter((it) => it?.targetId != null).map((it) => ({ ...emptyItem(), targetId: String(it.targetId), amount: it.amount ? String(it.amount) : '' }))
+      // 정산 대상을 고르지 않은 행도 targetId: null 로 함께 저장되므로 그대로 복원(키가 없는 예전 일반 항목은 제외)
+      : (initial?.category_name === '정산' && Array.isArray(initial?.items) && initial.items.some((it) => it && 'targetId' in it))
+        ? initial.items.filter((it) => it && 'targetId' in it).map((it) => ({ ...emptyItem(), targetId: it.targetId != null ? String(it.targetId) : '', amount: it.amount ? String(it.amount) : '' }))
       : (Array.isArray(initial?.items) && initial.items.length && initial?.category_name !== '정산')
         ? (() => {
           const rows = initial.items.map((it) => ({ ...emptyItem(), name: it.name || '', qty: String(it.qty || 1), amount: it.amount ? String(it.amount) : '', currencyMeta: itemCurrencyMeta(it) }));
@@ -892,7 +893,7 @@ const TransactionForm = forwardRef(function TransactionForm({
   // 실제로 50,000원을 받음 → 차액은 정산 초과분 수입). 비우면 다시 자동 합계로 돌아간다.
   const [totalOverride, setTotalOverride] = useState(() => {
     if (initial?.category_name !== '정산' || !Array.isArray(initial?.items)) return null;
-    const rows = initial.items.filter((it) => it?.targetId != null);
+    const rows = initial.items.filter((it) => it && 'targetId' in it);
     if (!rows.length) return null;
     const sum = rows.reduce((t, it) => t + (Number(it.amount) || 0), 0);
     return Number(initial.amount) !== sum ? String(initial.amount) : null;
