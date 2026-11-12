@@ -58,6 +58,10 @@ export default function BudgetSet() {
   const [monthAmounts, setMonthAmounts] = useState({});
   const [loading, setLoading] = useState(true);
   // 검사용: 이 종류의 분류 id, 그 해 분류별 예산 전체, 그 해 전체 예산
+  const [toast, setToast] = useState('');
+  const [toastKey, setToastKey] = useState(0);
+  const showToast = (m) => { setToast(m); setToastKey((k) => k + 1); };
+  useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 2600); return () => clearTimeout(t); }, [toast, toastKey]);
   const [catIds, setCatIds] = useState([]);
   const [catRows, setCatRows] = useState([]);
   const [totalRows, setTotalRows] = useState([]);
@@ -110,8 +114,11 @@ export default function BudgetSet() {
     const nextCat = isTotal ? catRows : apply(catRows, (r) => r.category_id === cid && r.month === month, { category_id: cid });
     const c = findBudgetConflict(nextTotal, nextCat, catIds);
     if (!c) return false;
-    alert(`${c.month}월 ${typeLabel} 전체 예산(${fmtNum(c.total)}원)은 분류별 예산 합계(${fmtNum(c.sum)}원)보다 커야 해요.`);
-    load();
+    showToast(`${c.month}월 ${typeLabel} 전체 예산(${fmtNum(c.total)}원)은 분류별 예산 합계(${fmtNum(c.sum)}원)보다 커야 해요`);
+    // 입력값을 저장된 값으로 되돌림(다시 불러오지 않아 화면이 깜빡이지 않음)
+    const own = (isTotal ? totalRows : catRows.filter((r) => r.category_id === cid));
+    if (month === 0) { const b = own.find((r) => r.month === 0); setDefaultAmount(b ? String(b.amount) : ''); }
+    else { const o = own.find((r) => r.month === month); setMonthAmounts((prev) => ({ ...prev, [month]: o ? String(o.amount) : '' })); }
     return true;
   };
   const upsert = (m, v) => (isTotal ? db.upsertTotalBudget(user.id, type, Number(year), m, Number(v)) : db.upsertCategoryBudget(user.id, cid, Number(year), m, Number(v)));
@@ -142,7 +149,7 @@ export default function BudgetSet() {
     <div style={{ padding: '44px 0 12px' }}>
       <PageHeader title={isTotal ? `${typeLabel} 전체 예산 설정` : `${category.name} 예산 설정`} flat />
 
-      <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         <button aria-label="이전" onClick={() => setYearAndUrl(String(Number(year) - 1))} style={roundBtn}>{arrow('15 6 9 12 15 18')}</button>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 60 }}>
           <span style={{ fontSize: 13.25, fontWeight: 700, color: 'var(--k-tx-191722)', letterSpacing: '-.2px', whiteSpace: 'nowrap' }}>{year}년</span>
@@ -153,13 +160,12 @@ export default function BudgetSet() {
         <button aria-label="다음" onClick={() => setYearAndUrl(String(Number(year) + 1))} style={roundBtn}>{arrow('9 6 15 12 9 18')}</button>
       </div>
 
-      <div className="tx-daycard">
+      <div className="tx-daycard" style={{ marginTop: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px' }}>
           <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--k-tx-191722)' }}>기본 예산</span>
           <AmountField value={defaultAmount} placeholder="0" onChange={setDefaultAmount} onBlur={saveDefault} />
         </div>
       </div>
-      <p className="small muted" style={{ margin: '8px 2px 0' }}>기본 예산을 바꾸면 따로 정하지 않은 달에 모두 적용돼요.{isTotal ? ' 전체 예산은 그 달 분류별 예산 합계보다 커야 해요.' : ''}</p>
 
       <div className="tx-daycard" style={{ marginTop: 18 }}>
         {MONTHS.map((m, i) => (
@@ -174,6 +180,7 @@ export default function BudgetSet() {
           </div>
         ))}
       </div>
+      {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
     </div>
   );
 }
