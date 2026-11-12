@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { db } from '../lib/db.js';
+import { db, countedRows, isCardBill } from '../lib/db.js';
+import BudgetBar from '../components/BudgetBar.jsx';
+import { effectiveOf } from '../lib/budget.js';
 import { fmtNum, currentMonth, shiftMonth } from '../lib/format.js';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
@@ -28,6 +30,24 @@ export default function Cart() {
   const [month, setMonthState] = useState(() => { try { return sessionStorage.getItem(MONTH_KEY) || currentMonth(); } catch { return currentMonth(); } });
   const setMonth = (m) => { setMonthState(m); try { sessionStorage.setItem(MONTH_KEY, m); } catch { /* ignore */ } };
 
+  // 그 달 전체 지출 예산 + 확정 지출(통계 분류별과 같은 기준: 결제 대금 제외, 집계 제외 원천 제외, 정산 반영)
+  const [budget, setBudget] = useState(undefined); // undefined=불러오는 중, null=미설정
+  const [spent, setSpent] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const [y, m] = month.split('-').map(Number);
+    const start = `${month}-01`;
+    const next = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
+    setBudget(undefined);
+    db.listTotalBudgetsForYear(y, 'expense').then((rs) => { if (alive) setBudget(effectiveOf(rs, m)); }).catch(() => { if (alive) setBudget(null); });
+    db.statsRows({ start, endExclusive: next }).then((list) => {
+      if (!alive) return;
+      const sum = countedRows(list.filter((r) => !isCardBill(r))).filter((r) => r.type === 'expense').reduce((t, r) => t + Math.max(Number(r.eff ?? r.amount) || 0, 0), 0);
+      setSpent(sum);
+    }).catch(() => { if (alive) setSpent(0); });
+    return () => { alive = false; };
+  }, [month]);
+
   const load = () => db.listCartItems().then(setRows).catch((e) => { alert(e.message); setRows([]); });
   useEffect(() => { load(); db.listCategories('expense').then(setCats).catch(() => {}); }, []);
 
@@ -48,6 +68,8 @@ export default function Cart() {
   const dates = [...new Set(inMonth.map((r) => r.planned_date))].sort();
   const undated = rows.filter((r) => !r.planned_date).sort(order);
   const [yy, mm] = month.split('-');
+  // 이 달 구매 예정(아직 구매하지 않은 품목) 금액 합
+  const plannedSum = inMonth.filter((r) => !r.purchased_at).reduce((t, r) => t + cartTotal(r.items), 0);
 
   const card = (r, i, list) => {
     const items = r.items || [];
@@ -105,6 +127,26 @@ export default function Cart() {
         <button aria-label="다음 달" onClick={() => setMonth(shiftMonth(month, 1))} style={roundBtn(32)}>
           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
         </button>
+      </div>
+
+      {/* 이번 달 전체 지출 예산: 확정 지출(코랄 핑크) + 이 달 구매 예정(옅은 코랄 핑크, 이어서) */}
+      <div style={{ marginTop: 12, background: 'var(--k-bg-fff)', borderRadius: 16, padding: '12px 14px', boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))' }}>
+        {budget === undefined ? (
+          <div style={{ height: 34 }} />
+        ) : budget ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>지출 전체 예산</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtNum(budget)}원</span>
+            </div>
+            <BudgetBar budget={budget} spent={spent} planned={plannedSum} color="#FF4358" />
+          </>
+        ) : (
+          <button type="button" onClick={() => nav('/settings/budget/expense/total')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', fontFamily: 'inherit' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>지출 전체 예산</span>
+            <span style={{ fontSize: 12, color: 'var(--k-tx-a29ead)' }}>설정하기 ›</span>
+          </button>
+        )}
       </div>
 
       {dates.length === 0 && undated.length === 0 ? (

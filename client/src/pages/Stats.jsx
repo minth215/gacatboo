@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { fmtP, fmtPUnit, getPrimary } from '../lib/primaryCurrency.js';
+import BudgetBar from '../components/BudgetBar.jsx';
+import { effectiveOf } from '../lib/budget.js';
 // 금액 단위(주 화폐가 원화면 "원")
 const unitLabel = () => (getPrimary().code === 'KRW' ? '원' : getPrimary().code);
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -191,12 +193,14 @@ export default function Stats() {
   // 분류별 예산(설정 > 예산 관리). 예산은 월 단위라 월/연 기간에서만 게이지를 보여준다.
   const [allCats, setAllCats] = useState([]);
   const [budgetRows, setBudgetRows] = useState([]);
+  const [totalBudgetRows, setTotalBudgetRows] = useState([]); // 수입/지출 전체 예산(0113)
   const budgetYear = periodMode === 'month' ? Number(month.slice(0, 4)) : periodMode === 'year' ? Number(year) : null;
   useEffect(() => { db.listCategories().then(setAllCats).catch(() => setAllCats([])); }, []);
   useEffect(() => {
-    if (budgetYear == null) { setBudgetRows([]); return; }
+    if (budgetYear == null) { setBudgetRows([]); setTotalBudgetRows([]); return; }
     let alive = true;
     db.listCategoryBudgetsForYear(budgetYear).then((r) => { if (alive) setBudgetRows(r); }).catch(() => { if (alive) setBudgetRows([]); });
+    db.listTotalBudgetsForYear(budgetYear).then((r) => { if (alive) setTotalBudgetRows(r); }).catch(() => { if (alive) setTotalBudgetRows([]); });
     return () => { alive = false; };
   }, [budgetYear]);
 
@@ -272,6 +276,26 @@ export default function Stats() {
     const amount = vals.reduce((a, b) => a + b, 0);
     return amount > 0 ? amount : null;
   };
+
+  // 수입/지출 전체 예산(분류별 보기 + 예산 보기일 때): 그 달 값, 연 기간은 설정된 달의 합
+  const totalBudget = (() => {
+    if (!showBudget || statView !== 'category' || budgetYear == null) return null;
+    const rowsT = totalBudgetRows.filter((r) => r.type === tab);
+    if (!rowsT.length) return null;
+    const months = periodMode === 'month' ? [Number(month.slice(5, 7))] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const vals = months.map((m) => effectiveOf(rowsT, m)).filter((v) => v != null);
+    const sum = vals.reduce((a, b) => a + b, 0);
+    return sum > 0 ? sum : null;
+  })();
+  const totalBudgetCard = (style) => totalBudget && (
+    <div style={{ background: 'var(--k-bg-fff)', borderRadius: 16, padding: '12px 14px', boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', ...style }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{tab === 'expense' ? '지출' : '수입'} 전체 예산</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{fmtP(total)}</span>
+      </div>
+      <BudgetBar budget={totalBudget} spent={total} color={tab === 'expense' ? '#FF4358' : '#2CDDB9'} overColor={tab === 'expense' ? '#FF3B5C' : 'var(--income)'} />
+    </div>
+  );
 
   // 분류별 예산 게이지(원형 그래프 카드·테이블 행 공용). 예산이 없으면 null.
   const budgetGauge = (g) => {
@@ -732,6 +756,8 @@ export default function Stats() {
           </div>
 
           <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* 전체 예산(예산 보기일 때) — 분류 카드 목록 맨 위 */}
+            {totalBudgetCard()}
             {groups.map((g) => {
               const tier = tierOf(g.sourceId);
               return (
@@ -770,7 +796,9 @@ export default function Stats() {
           </div>
         </>
       ) : (
-        <div style={{ marginTop: statView === 'category' ? 34 : 22, background: 'var(--k-bg-fff)', borderRadius: 16, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', overflow: 'hidden' }}>
+        <>
+        {totalBudgetCard({ marginTop: statView === 'category' ? 34 : 22 })}
+        <div style={{ marginTop: totalBudget ? 10 : (statView === 'category' ? 34 : 22), background: 'var(--k-bg-fff)', borderRadius: 16, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.05 * var(--k-sha)))', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid var(--k-divider)' }}>
             {[['name', '내용', { flex: 1 }], ['count', '건수', { width: 52 }], ['amount', '금액', { minWidth: 84 }]].map(([key, label, style]) => (
               <button key={key} onClick={() => setSort((s) => ({
@@ -804,6 +832,7 @@ export default function Stats() {
             </div>
           ))}
         </div>
+        </>
       )}
     </div>
   );
