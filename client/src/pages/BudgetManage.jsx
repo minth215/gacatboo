@@ -5,7 +5,7 @@ import { fmtNum, currentMonth, periodLabel, shiftPeriod } from '../lib/format.js
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { tileBg } from '../components/TransactionList.jsx';
-import { effectiveOf, categorySum } from '../lib/budget.js';
+import { effectiveOf } from '../lib/budget.js';
 
 // 통계 페이지와 동일한 원형 화살표 버튼 / 수입·지출 탭 스타일
 const roundBtn = {
@@ -89,7 +89,6 @@ export default function BudgetManage() {
           {/* 전체 예산(분류별 예산을 정하지 않은 분류까지 포함한 이 달 전체) */}
           {(() => {
             const total = effectiveOf(totalRows, monthNum);
-            const sum = categorySum(budgetRows, categories.map((c) => c.id), monthNum);
             return (
               <>
                 <div className="tx-daycard" style={{ marginTop: 14 }}>
@@ -101,7 +100,6 @@ export default function BudgetManage() {
                     <span style={{ fontSize: 13.5, fontWeight: 700, color: total == null ? 'var(--k-tx-c7c3cc)' : 'var(--k-tx-191722)', whiteSpace: 'nowrap' }}>{total == null ? '-' : `${fmtNum(total)}원`}</span>
                   </button>
                 </div>
-                <p className="small muted" style={{ margin: '8px 2px 0' }}>분류별 예산 합계 {fmtNum(sum)}원 · 전체 예산은 이보다 커야 해요.</p>
               </>
             );
           })()}
