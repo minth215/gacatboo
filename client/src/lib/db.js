@@ -189,6 +189,21 @@ export const db = {
     return unwrap(await supabase.from('category_budgets').delete().eq('category_id', categoryId).eq('year', year).eq('month', month));
   },
 
+  // ---------- 수입/지출 전체 예산(0113) — 분류별 예산과 같은 규칙(month 0 = 기본) ----------
+  async listTotalBudgetsForYear(year, type) {
+    let q = supabase.from('total_budgets').select('*').eq('year', year);
+    if (type) q = q.eq('type', type);
+    return unwrap(await q);
+  },
+  async upsertTotalBudget(userId, type, year, month, amount) {
+    return unwrap(await supabase.from('total_budgets')
+      .upsert({ user_id: userId, type, year, month, amount, updated_at: new Date().toISOString() }, { onConflict: 'user_id,type,year,month' })
+      .select().single());
+  },
+  async deleteTotalBudget(type, year, month) {
+    return unwrap(await supabase.from('total_budgets').delete().eq('type', type).eq('year', year).eq('month', month));
+  },
+
   // ---------- 원천 ----------
   async listSources() {
     const raw = unwrap(await supabase.from('sources').select('*').order('sort_order').order('id'));

@@ -5,6 +5,7 @@ import { fmtNum, currentMonth, periodLabel, shiftPeriod } from '../lib/format.js
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { tileBg } from '../components/TransactionList.jsx';
+import { effectiveOf, categorySum } from '../lib/budget.js';
 
 // 통계 페이지와 동일한 원형 화살표 버튼 / 수입·지출 탭 스타일
 const roundBtn = {
@@ -22,6 +23,7 @@ export default function BudgetManage() {
   const [month, setMonth] = useState(currentMonth()); // YYYY-MM
   const [categories, setCategories] = useState([]);
   const [budgetRows, setBudgetRows] = useState([]); // 선택한 연도의 category_budgets 전체(월=0 기본 포함)
+  const [totalRows, setTotalRows] = useState([]);   // 선택한 연도의 이 종류 전체 예산(0113)
   const [loading, setLoading] = useState(true);
 
   const year = Number(month.slice(0, 4));
@@ -32,10 +34,12 @@ export default function BudgetManage() {
     Promise.all([
       db.listCategories(type),
       db.listCategoryBudgetsForYear(year),
-    ]).then(([cats, rows]) => {
+      db.listTotalBudgetsForYear(year, type).catch(() => []),
+    ]).then(([cats, rows, tRows]) => {
       setCategories(cats);
       setBudgetRows(rows);
-    }).catch(() => { setCategories([]); setBudgetRows([]); }).finally(() => setLoading(false));
+      setTotalRows(tRows);
+    }).catch(() => { setCategories([]); setBudgetRows([]); setTotalRows([]); }).finally(() => setLoading(false));
   }, [type, year]);
   useEffect(() => { load(); }, [load]);
 
@@ -81,26 +85,47 @@ export default function BudgetManage() {
       ) : categories.length === 0 ? (
         <div className="empty empty-center">등록된 분류가 없습니다.</div>
       ) : (
-        <div className="ntpl-list" style={{ marginTop: 14 }}>
-          {categories.map((c) => {
-            const amt = effectiveBudget(c.id);
+        <>
+          {/* 전체 예산(분류별 예산을 정하지 않은 분류까지 포함한 이 달 전체) */}
+          {(() => {
+            const total = effectiveOf(totalRows, monthNum);
+            const sum = categorySum(budgetRows, categories.map((c) => c.id), monthNum);
             return (
-              <button
-                key={c.id} type="button" className="ntpl-card ntpl-card-btn"
-                style={{ padding: '8px 14px' }}
-                onClick={() => nav(`/settings/budget/${type}/${c.id}?year=${year}`)}
-              >
-                <span className="ntpl-emoji" style={{ width: 32, height: 32, fontSize: 14, background: c.color || tileBg(c.name) }}>{c.emoji}</span>
-                <span className="ntpl-main" style={{ cursor: 'default' }}>
-                  <span className="ntpl-title">{c.name}</span>
-                </span>
-                <span style={{ fontSize: 13.5, fontWeight: 700, color: amt == null ? 'var(--k-tx-c7c3cc)' : 'var(--k-tx-191722)', whiteSpace: 'nowrap' }}>
-                  {amt == null ? '-' : `${fmtNum(amt)}원`}
-                </span>
-              </button>
+              <>
+                <div className="tx-daycard" style={{ marginTop: 14 }}>
+                  <button
+                    type="button" onClick={() => nav(`/settings/budget/${type}/total?year=${year}`)}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}
+                  >
+                    <span style={{ flex: 1, fontSize: 13.5, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{type === 'income' ? '수입' : '지출'} 전체 예산</span>
+                    <span style={{ fontSize: 13.5, fontWeight: 700, color: total == null ? 'var(--k-tx-c7c3cc)' : 'var(--k-tx-191722)', whiteSpace: 'nowrap' }}>{total == null ? '-' : `${fmtNum(total)}원`}</span>
+                  </button>
+                </div>
+                <p className="small muted" style={{ margin: '8px 2px 0' }}>분류별 예산 합계 {fmtNum(sum)}원 · 전체 예산은 이보다 커야 해요.</p>
+              </>
             );
-          })}
-        </div>
+          })()}
+
+          {/* 분류별 예산: 가계부의 같은 날짜 카드처럼 한 카드를 나눠 쓰는 목록 */}
+          <div className="tx-daycard" style={{ marginTop: 18 }}>
+            {categories.map((c, i) => {
+              const amt = effectiveBudget(c.id);
+              return (
+                <button
+                  key={c.id} type="button"
+                  onClick={() => nav(`/settings/budget/${type}/${c.id}?year=${year}`)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', border: 'none', borderTop: i === 0 ? 'none' : '1.5px solid var(--k-divider)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}
+                >
+                  <span style={{ width: 32, height: 32, flex: 'none', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, background: c.color || tileBg(c.name) }}>{c.emoji}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: amt == null ? 'var(--k-tx-c7c3cc)' : 'var(--k-tx-191722)', whiteSpace: 'nowrap' }}>
+                    {amt == null ? '-' : `${fmtNum(amt)}원`}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );

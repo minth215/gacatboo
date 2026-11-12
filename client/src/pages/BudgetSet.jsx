@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { fmtNum, currentYear } from '../lib/format.js';
 import PageHeader from '../components/PageHeader.jsx';
 import Spinner from '../components/Spinner.jsx';
+import { findBudgetConflict } from '../lib/budget.js';
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 const onlyDigits = (v) => v.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
@@ -40,9 +41,13 @@ function AmountField({ value, placeholder, onChange, onBlur }) {
   );
 }
 
+// /settings/budget/:type/:categoryId — categoryId 가 'total' 이면 그 종류(수입/지출)의 전체 예산.
+// 전체 예산은 그 달 분류별 예산 합보다 커야 해서, 어느 쪽을 바꾸든 저장 전에 검사한다(어긋나면 되돌림).
 export default function BudgetSet() {
-  const { categoryId } = useParams();
-  const cid = Number(categoryId);
+  const { type, categoryId } = useParams();
+  const isTotal = categoryId === 'total';
+  const cid = isTotal ? null : Number(categoryId);
+  const typeLabel = type === 'income' ? '수입' : '지출';
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
   const { user } = useAuth();
@@ -52,6 +57,10 @@ export default function BudgetSet() {
   const [defaultAmount, setDefaultAmount] = useState('');
   const [monthAmounts, setMonthAmounts] = useState({});
   const [loading, setLoading] = useState(true);
+  // 검사용: 이 종류의 분류 id, 그 해 분류별 예산 전체, 그 해 전체 예산
+  const [catIds, setCatIds] = useState([]);
+  const [catRows, setCatRows] = useState([]);
+  const [totalRows, setTotalRows] = useState([]);
 
   const setYearAndUrl = (y) => {
     setYear(y);
@@ -72,38 +81,66 @@ export default function BudgetSet() {
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
-      db.getCategory(cid),
-      db.listCategoryBudgetsForCategoryYear(cid, Number(year)),
-    ]).then(([cat, rows]) => {
+      isTotal ? Promise.resolve({ name: `${typeLabel} 전체` }) : db.getCategory(cid),
+      db.listCategories(type),
+      db.listCategoryBudgetsForYear(Number(year)),
+      db.listTotalBudgetsForYear(Number(year), type),
+    ]).then(([cat, cats, allCatRows, tRows]) => {
       setCategory(cat);
+      setCatIds(cats.map((c) => c.id));
+      setCatRows(allCatRows);
+      setTotalRows(tRows);
+      const rows = isTotal ? tRows : allCatRows.filter((r) => r.category_id === cid);
       const base = rows.find((r) => r.month === 0);
       setDefaultAmount(base ? String(base.amount) : '');
       const m = {};
       for (const row of rows) { if (row.month >= 1 && row.month <= 12) m[row.month] = String(row.amount); }
       setMonthAmounts(m);
     }).catch((e) => { alert(e.message); nav('/settings/budget'); }).finally(() => setLoading(false));
-  }, [cid, year, nav]);
+  }, [cid, isTotal, type, year, nav]);
   useEffect(() => { load(); }, [load]);
 
   if (loading || !category) return <Spinner />;
 
+  // 바꾼 값을 반영했을 때 전체 예산 ≤ 분류별 합이 되는 달이 있으면 막고 되돌림
+  const violates = (month, v) => {
+    const y = Number(year);
+    const apply = (rows, match, extra) => [...rows.filter((r) => !match(r)), ...(v ? [{ ...extra, year: y, month, amount: Number(v) }] : [])];
+    const nextTotal = isTotal ? apply(totalRows, (r) => r.month === month, {}) : totalRows;
+    const nextCat = isTotal ? catRows : apply(catRows, (r) => r.category_id === cid && r.month === month, { category_id: cid });
+    const c = findBudgetConflict(nextTotal, nextCat, catIds);
+    if (!c) return false;
+    alert(`${c.month}월 ${typeLabel} 전체 예산(${fmtNum(c.total)}원)은 분류별 예산 합계(${fmtNum(c.sum)}원)보다 커야 해요.`);
+    load();
+    return true;
+  };
+  const upsert = (m, v) => (isTotal ? db.upsertTotalBudget(user.id, type, Number(year), m, Number(v)) : db.upsertCategoryBudget(user.id, cid, Number(year), m, Number(v)));
+  const remove = (m) => (isTotal ? db.deleteTotalBudget(type, Number(year), m) : db.deleteCategoryBudget(cid, Number(year), m));
+  // 저장 성공 후 검사용 목록만 갱신(다시 불러오면 화면이 깜빡이고 다음 칸 포커스가 풀림)
+  const syncLocal = (month, v) => {
+    const y = Number(year);
+    if (isTotal) setTotalRows((rows) => [...rows.filter((r) => r.month !== month), ...(v ? [{ year: y, month, amount: Number(v) }] : [])]);
+    else setCatRows((rows) => [...rows.filter((r) => !(r.category_id === cid && r.month === month)), ...(v ? [{ category_id: cid, year: y, month, amount: Number(v) }] : [])]);
+  };
   const saveDefault = async () => {
+    if (violates(0, defaultAmount)) return;
     try {
-      if (defaultAmount) await db.upsertCategoryBudget(user.id, cid, Number(year), 0, Number(defaultAmount));
-      else await db.deleteCategoryBudget(cid, Number(year), 0);
+      if (defaultAmount) await upsert(0, defaultAmount); else await remove(0);
+      syncLocal(0, defaultAmount);
     } catch (e) { alert(e.message); load(); }
   };
   const saveMonth = async (m) => {
     const v = monthAmounts[m];
+    if (violates(m, v)) return;
     try {
-      if (v) await db.upsertCategoryBudget(user.id, cid, Number(year), m, Number(v));
-      else await db.deleteCategoryBudget(cid, Number(year), m);
+      if (v) await upsert(m, v); else await remove(m);
+      syncLocal(m, v);
     } catch (e) { alert(e.message); load(); }
   };
 
   return (
     <div style={{ padding: '44px 0 12px' }}>
-      <PageHeader title={`${category.name} 예산 설정`} flat />
+      <PageHeader title={isTotal ? `${typeLabel} 전체 예산 설정` : `${category.name} 예산 설정`} flat />
 
       <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         <button aria-label="이전" onClick={() => setYearAndUrl(String(Number(year) - 1))} style={roundBtn}>{arrow('15 6 9 12 15 18')}</button>
@@ -122,7 +159,7 @@ export default function BudgetSet() {
           <AmountField value={defaultAmount} placeholder="0" onChange={setDefaultAmount} onBlur={saveDefault} />
         </div>
       </div>
-      <p className="small muted" style={{ margin: '8px 2px 0' }}>기본 예산을 바꾸면 따로 정하지 않은 달에 모두 적용돼요.</p>
+      <p className="small muted" style={{ margin: '8px 2px 0' }}>기본 예산을 바꾸면 따로 정하지 않은 달에 모두 적용돼요.{isTotal ? ' 전체 예산은 그 달 분류별 예산 합계보다 커야 해요.' : ''}</p>
 
       <div className="tx-daycard" style={{ marginTop: 18 }}>
         {MONTHS.map((m, i) => (
