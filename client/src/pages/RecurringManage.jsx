@@ -21,7 +21,15 @@ function viewOf(r, userId) {
 
 
 // 반복 관리 카드(그룹 멤버 상세의 정기 입금/결제 카드도 같은 모양)
-export function RuleCard({ r, userId, subLine, isOpen, onOpenChange, onTap, onDelete, badge = null }) {
+// 이모지 배경: 지금 보는 사람의 분류 관리에서 지정한 색(보이는 분류 이름·수입/지출로 찾음).
+// 그룹 반복(입금·결제)은 규칙에 색 스냅샷이 없거나 상대방 색이라 항상 내 분류에서 찾는다.
+export function ruleTileColor(r, userId, cats) {
+  const { dispType, dispName } = viewOf(r, userId);
+  const mine = dispType !== 'transfer' ? (cats || []).find((c) => c.type === dispType && c.name === dispName)?.color : null;
+  return mine || (!r.group_id && r.category_color) || (r.group_id ? 'rgba(255,255,255,.7)' : (dispType === 'income' ? '#E5FBF6' : dispType === 'transfer' ? '#EFEDF5' : '#FFE9EF'));
+}
+
+export function RuleCard({ r, userId, subLine, isOpen, onOpenChange, onTap, onDelete, badge = null, cats = [] }) {
   const { dispType, dispName, dispEmoji } = viewOf(r, userId);
   return (
       <DayCardRow
@@ -30,7 +38,7 @@ export function RuleCard({ r, userId, subLine, isOpen, onOpenChange, onTap, onDe
         onTap={onTap} onDelete={onDelete}
         background={r.group_id ? 'linear-gradient(135deg, var(--k-bg-fff1f3) 0%, var(--k-bg-fff6ea) 100%)' : 'var(--k-bg-fff)'}
       >
-        <span className="tx-tile" style={{ background: r.category_color || (r.group_id ? 'rgba(255,255,255,.7)' : (dispType === 'income' ? '#E5FBF6' : dispType === 'transfer' ? '#EFEDF5' : '#FFE9EF')) }}>
+        <span className="tx-tile" style={{ background: ruleTileColor(r, userId, cats) }}>
           {dispEmoji || (dispType === 'income' ? '💰' : dispType === 'transfer' ? '🔁' : '💸')}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -120,6 +128,8 @@ export default function RecurringManage() {
   const shownRules = shownRulesRaw;
 
   const load = useCallback(() => db.listRecurringRules().then(setRules).catch((e) => alert(e.message)), []);
+  const [cats, setCats] = useState([]); // 내 수입/지출 분류(이모지 배경색)
+  useEffect(() => { db.listCategories().then(setCats).catch(() => {}); }, []);
   useEffect(() => { load(); }, [load]);
 
   const del = async (r) => {
@@ -214,6 +224,7 @@ export default function RecurringManage() {
           const card = (
             <div className="tx-daygroup" style={{ marginTop: n > 1 ? 0 : (i === 0 ? 0 : 10), position: 'relative', zIndex: 1 }}>
               <RuleCard
+                cats={cats}
                 r={r} userId={user.id} subLine={subLineOf(r)}
                 isOpen={openId === r.id} onOpenChange={(open) => setOpenId(open ? r.id : null)}
                 onTap={() => openDetail(r)} onDelete={() => del(r)}
@@ -264,7 +275,7 @@ export default function RecurringManage() {
                 role="button" onClick={() => nav(`/settings/recurring/${detail.id}/edit`)}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, background: detail.group_id ? 'linear-gradient(135deg, var(--k-bg-fff1f3) 0%, var(--k-bg-fff6ea) 100%)' : 'var(--k-bg-faf9f8)', borderRadius: 14, padding: '12px 14px', cursor: 'pointer' }}
               >
-                <span className="tx-tile" style={{ background: detail.category_color || (dispType === 'income' ? '#E5FBF6' : dispType === 'transfer' ? '#EFEDF5' : '#FFE9EF') }}>
+                <span className="tx-tile" style={{ background: ruleTileColor(detail, user.id, cats) }}>
                   {dispEmoji || (dispType === 'income' ? '💰' : dispType === 'transfer' ? '🔁' : '💸')}
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>

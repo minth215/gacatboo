@@ -113,6 +113,7 @@ export default function MemberDetail() {
             return (
               <div key={r.id} className="tx-daygroup">
                 <RuleCard
+                  cats={[...incomeCats, ...expenseCats]}
                   r={rr} userId={user.id} subLine={ruleSubLine(rr, user.id)}
                   isOpen={openId === `r${r.id}`} onOpenChange={(open) => setOpenId(open ? `r${r.id}` : null)}
                   onTap={() => nav(`/settings/recurring/${r.id}/edit`)} onDelete={() => delRule(r)}
