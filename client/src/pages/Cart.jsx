@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db, countedRows, isCardBill } from '../lib/db.js';
 import BudgetBar from '../components/BudgetBar.jsx';
 import { effectiveOf } from '../lib/budget.js';
 import { fmtNum, currentMonth, shiftMonth } from '../lib/format.js';
-import PageHeader from '../components/PageHeader.jsx';
+import CartFilterSheet from '../components/CartFilterSheet.jsx';
 import Spinner from '../components/Spinner.jsx';
 import { DayCardRow, tileBg, formatDate } from '../components/TransactionList.jsx';
 
@@ -48,6 +48,17 @@ export default function Cart() {
     return () => { alive = false; };
   }, [month]);
 
+  // 상단바 검색(전체 기간, 내용·항목·메모·분류) + 필터(상태·분류)
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const searchRef = useRef(null);
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterCats, setFilterCats] = useState([]);
+  const [status, setStatus] = useState('all');
+  const filterActive = filterCats.length > 0 || status !== 'all';
+  const openSearch = () => { setSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 260); };
+  const closeSearch = () => { setSearchOpen(false); setQ(''); };
+
   const load = () => db.listCartItems().then(setRows).catch((e) => { alert(e.message); setRows([]); });
   useEffect(() => { load(); db.listCategories('expense').then(setCats).catch(() => {}); }, []);
 
@@ -64,18 +75,25 @@ export default function Cart() {
   };
   // 같은 날짜 안에서는 구매 전 → 구매 완료, 그다음 최근 담은 순
   const order = (a, b) => (!!a.purchased_at - !!b.purchased_at) || b.id - a.id;
-  const inMonth = rows.filter((r) => r.planned_date && r.planned_date.slice(0, 7) === month);
+  const term = q.trim().toLowerCase();
+  const passFilter = (r) => (status === 'all' || (status === 'done' ? !!r.purchased_at : !r.purchased_at))
+    && (!filterCats.length || filterCats.includes(r.category_name));
+  const matches = (r) => !term || [r.content, r.memo, r.category_name, r.link_name, ...(r.items || []).map((it) => it.name)]
+    .filter(Boolean).join(' ').toLowerCase().includes(term);
+  const shown = rows.filter((r) => passFilter(r) && (!searchOpen || matches(r)));
+  // 검색 중에는 전체 기간, 아니면 고른 달
+  const inMonth = shown.filter((r) => r.planned_date && (searchOpen || r.planned_date.slice(0, 7) === month));
   const dates = [...new Set(inMonth.map((r) => r.planned_date))].sort();
-  const undated = rows.filter((r) => !r.planned_date).sort(order);
+  const undated = shown.filter((r) => !r.planned_date).sort(order);
   const [yy, mm] = month.split('-');
   // 이 달 구매 예정(아직 구매하지 않은 품목) 금액 합
-  const plannedSum = inMonth.filter((r) => !r.purchased_at).reduce((t, r) => t + cartTotal(r.items), 0);
+  const plannedSum = rows.filter((r) => !r.purchased_at && r.planned_date && r.planned_date.slice(0, 7) === month).reduce((t, r) => t + cartTotal(r.items), 0);
 
   const card = (r, i, list) => {
     const items = r.items || [];
     const checked = items.filter((it) => it.checked).length;
     const total = cartTotal(items);
-    const sub = [r.category_name, items.length ? `항목 ${checked}/${items.length}` : ''].filter(Boolean).join(' · ') || '—';
+    const sub = r.category_name || '—';
     return (
       <DayCardRow
         key={r.id} index={i} count={list.length} clickable dimmed={!!r.purchased_at}
@@ -86,6 +104,8 @@ export default function Cart() {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="tx-row-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span className="ttext">{r.content || '품목'}</span>
+            {/* 항목이 여러 개면 체크한 개수/전체(회색 가는 글씨) */}
+            {items.length > 1 && <span style={{ flex: 'none', fontSize: 12, fontWeight: 400, color: 'var(--k-tx-a29ead)' }}>{checked}/{items.length}</span>}
             {r.purchased_at && <span style={{ flex: 'none', fontSize: 10, fontWeight: 700, color: 'var(--k-tx-8b8798)', background: 'var(--k-bg-efeef2)', borderRadius: 999, padding: '2px 7px' }}>구매 완료</span>}
           </div>
           <div className="tx-row-sub">{sub}</div>
@@ -114,7 +134,32 @@ export default function Cart() {
 
   return (
     <div style={{ padding: '44px 0 104px' }}>
-      <PageHeader title="장바구니" showBack={false} />
+      {/* 상단바: 가계부와 같은 제목 + 검색(필터 왼쪽에서 늘어남) + 필터 */}
+      <div className="ledger-topbar">
+        <div className="lt-title" style={{ opacity: searchOpen ? 0 : 1, transition: 'opacity 0.26s ease', pointerEvents: searchOpen ? 'none' : 'auto' }}>장바구니</div>
+        <button aria-label="필터" className={`lt-filter${filterActive ? ' on' : ''}`} onClick={() => setShowFilter(true)}>
+          <svg width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 4 21 4 14 13 14 20 10 22 10 13 3 4" /></svg>
+        </button>
+        <div className={`lt-search${searchOpen ? ' open' : ''}`}>
+          <button aria-label="검색" className="lt-search-icon" onClick={() => (searchOpen ? searchRef.current?.focus() : openSearch())}>
+            <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="16.2" y1="16.2" x2="21" y2="21" /></svg>
+          </button>
+          <form onSubmit={(e) => { e.preventDefault(); searchRef.current?.blur(); }} style={{ flex: 1, minWidth: 0, display: 'flex' }}>
+            <input
+              ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} type="search" enterKeyHint="search" autoComplete="off"
+              placeholder="검색어 입력" tabIndex={searchOpen ? 0 : -1} onKeyDown={(e) => { if (e.key === 'Escape') closeSearch(); }}
+            />
+          </form>
+          {searchOpen && (
+            <button aria-label="닫기" className="lt-search-close" onClick={closeSearch}>
+              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 6 L18 18 M18 6 L6 18" /></svg>
+            </button>
+          )}
+        </div>
+      </div>
+      {showFilter && <CartFilterSheet categories={cats} filterCats={filterCats} setFilterCats={setFilterCats} status={status} setStatus={setStatus} onClose={() => setShowFilter(false)} />}
+
+      {!searchOpen && (<>
       {/* 연월 컨트롤바(가계부와 같은 위치·모양) */}
       <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 8 }}>
         <button aria-label="이전 달" onClick={() => setMonth(shiftMonth(month, -1))} style={roundBtn(32)}>
@@ -148,18 +193,20 @@ export default function Cart() {
           </button>
         )}
       </div>
+      </>)}
 
       {dates.length === 0 && undated.length === 0 ? (
-        <div className="empty empty-center">장바구니가 비어 있습니다.</div>
+        <div className="empty empty-center">{searchOpen && term ? '검색 결과가 없습니다.' : filterActive ? '조건에 맞는 품목이 없습니다.' : '장바구니가 비어 있습니다.'}</div>
       ) : (
         <>
-          {dates.map((d) => group(d, formatDate(d), inMonth.filter((r) => r.planned_date === d).sort(order)))}
+          {/* 검색 중에는 여러 달이 섞이므로 연·월까지 표시 */}
+          {dates.map((d) => group(d, formatDate(d, searchOpen ? 'full' : undefined), inMonth.filter((r) => r.planned_date === d).sort(order)))}
           {undated.length > 0 && group('undated', '미정', undated)}
         </>
       )}
-      <button className="fab" onClick={() => nav('/cart/new')} aria-label="장바구니 담기">
+      {!searchOpen && <button className="fab" onClick={() => nav('/cart/new')} aria-label="장바구니 담기">
         <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-      </button>
+      </button>}
     </div>
   );
 }

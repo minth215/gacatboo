@@ -166,7 +166,7 @@ export default function CartDetail() {
               <a href={href} target="_blank" rel="noreferrer" style={{ display: 'block', marginBottom: 10 }}>
                 <img src={r.thumb_url} alt="" referrerPolicy="no-referrer" loading="lazy"
                   onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
-                  style={{ display: 'block', width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 14, background: 'var(--k-bg-f4f2f0)' }} />
+                  style={{ display: 'block', width: '100%', maxHeight: 220, objectFit: 'cover', background: 'var(--k-bg-f4f2f0)' }} />
               </a>
             )}
             <a href={href} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--k-tx-4a4652)', textDecoration: 'none', minWidth: 0 }}>
