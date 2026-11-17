@@ -77,6 +77,10 @@ export default function CartDetail() {
     }, 350);
   };
 
+  const revertPurchase = async () => {
+    if (!confirm('구매 예정 상태로 되돌립니다.')) return;
+    try { await db.unmarkCartPurchased(r.id); setR((prev) => ({ ...prev, purchased_at: null, purchased_tx_id: null })); } catch (e) { alert(e.message); }
+  };
   const removeItem = async () => {
     if (!confirm('이 품목을 장바구니에서 삭제할까요?')) return;
     clearTimeout(saveTimer.current); saveTimer.current = 0; latestItems.current = null;
@@ -149,9 +153,16 @@ export default function CartDetail() {
           {purchased && <span style={{ flex: 'none', fontSize: 10.5, fontWeight: 700, letterSpacing: 0, color: 'var(--k-tx-8b8798)', background: 'var(--k-bg-efeef2)', borderRadius: 999, padding: '3px 8px' }}>구매 완료</span>}
         </div>
         <div className="topbar-right" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <button className="tb-icon-btn" onClick={() => nav(`/cart/${r.id}/edit`)} aria-label="품목 수정">
-            <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-          </button>
+          {/* 구매 완료면 수정 대신 되돌리기(구매 예정으로) */}
+          {purchased ? (
+            <button className="tb-icon-btn" onClick={revertPurchase} aria-label="구매 예정으로 되돌리기">
+              <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+            </button>
+          ) : (
+            <button className="tb-icon-btn" onClick={() => nav(`/cart/${r.id}/edit`)} aria-label="품목 수정">
+              <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+            </button>
+          )}
           <button className="tb-icon-btn" onClick={removeItem} aria-label="품목 삭제">
             <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
           </button>

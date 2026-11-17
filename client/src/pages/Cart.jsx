@@ -62,6 +62,10 @@ export default function Cart() {
   const load = () => db.listCartItems().then(setRows).catch((e) => { alert(e.message); setRows([]); });
   useEffect(() => { load(); db.listCategories('expense').then(setCats).catch(() => {}); }, []);
 
+  const revert = async (r) => {
+    if (!confirm('구매 예정 상태로 되돌립니다.')) return;
+    try { await db.unmarkCartPurchased(r.id); setOpenId(null); load(); } catch (e) { alert(e.message); }
+  };
   const del = async (r) => {
     if (!confirm(`'${r.content || '품목'}'을(를) 장바구니에서 삭제할까요?`)) return;
     try { await db.deleteCartItem(r.id); load(); } catch (e) { alert(e.message); }
@@ -99,6 +103,9 @@ export default function Cart() {
         key={r.id} index={i} count={list.length} clickable dimmed={!!r.purchased_at}
         isOpen={openId === r.id} onOpenChange={(open) => setOpenId(open ? r.id : null)}
         onTap={() => nav(`/cart/${r.id}`)} onDelete={() => del(r)}
+        // 밀면: 구매 예정은 편집·삭제, 구매 완료는 되돌리기·삭제
+        onEdit={r.purchased_at ? undefined : () => nav(`/cart/${r.id}/edit`)}
+        onRevert={r.purchased_at ? () => revert(r) : undefined}
       >
         <span className="tx-tile" style={{ background: tileColorOf(r) }}>{r.category_emoji || '🛒'}</span>
         <div style={{ flex: 1, minWidth: 0 }}>

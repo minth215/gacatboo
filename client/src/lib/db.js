@@ -380,6 +380,10 @@ export const db = {
     if (error) throw new Error('썸네일을 불러오지 못했어요');
     return { image: data?.image || '', title: data?.title || '' };
   },
+  // 구매 완료 → 구매 예정으로 되돌리기(가계부에 남긴 기록은 그대로, 연결만 해제)
+  async unmarkCartPurchased(id) {
+    return unwrap(await supabase.from('cart_items').update({ purchased_tx_id: null, purchased_at: null }).eq('id', id));
+  },
   async deleteCartItem(id) {
     return unwrap(await supabase.from('cart_items').delete().eq('id', id));
   },

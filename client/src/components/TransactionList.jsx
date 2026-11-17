@@ -33,13 +33,14 @@ const marqueeOff = (e) => {
 // onInvite: (그룹 멤버 카드) 삭제 아이콘 왼쪽의 초대 버튼
 // deleteBlocked: 삭제할 수 없는 카드 — 휴지통 버튼에 빗금(누르면 onDelete 로 안내만)
 // dimmed: 내용을 옅은 회색으로(지출 합계에 포함되지 않는 기록 등)
-export function DayCardRow({ dimmed = false, index, count, isOpen, onOpenChange, onTap, onDelete, deleteBlocked = false, onCopy, onInvite, onTravel, onLongPress, clickable, background = 'var(--k-bg-fff)', children }) {
+// onEdit / onRevert: (장바구니) 삭제 왼쪽의 편집(연필) / 되돌리기(반시계 화살표) 버튼
+export function DayCardRow({ dimmed = false, index, count, isOpen, onOpenChange, onTap, onDelete, deleteBlocked = false, onCopy, onInvite, onTravel, onEdit, onRevert, onLongPress, clickable, background = 'var(--k-bg-fff)', children }) {
   const first = index === 0;
   const last = index === count - 1;
   return (
     <SwipeRow
-      onTap={onTap} onLongPress={onLongPress} isOpen={isOpen} onOpenChange={onOpenChange} actionsWidth={52 * ([onCopy, onInvite, onTravel, onDelete].filter(Boolean).length || 1)}
-      actions={(onDelete || onCopy || onInvite || onTravel) ? (progress) => (
+      onTap={onTap} onLongPress={onLongPress} isOpen={isOpen} onOpenChange={onOpenChange} actionsWidth={52 * ([onCopy, onInvite, onTravel, onEdit, onRevert, onDelete].filter(Boolean).length || 1)}
+      actions={(onDelete || onCopy || onInvite || onTravel || onEdit || onRevert) ? (progress) => (
         <div className="tx-swipe-actions" style={{ opacity: progress }}>
           {onCopy && (
             <button type="button" className="settle-icon-btn" onClick={onCopy} aria-label="복사">
@@ -62,6 +63,16 @@ export function DayCardRow({ dimmed = false, index, count, isOpen, onOpenChange,
               <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
               </svg>
+            </button>
+          )}
+          {onEdit && (
+            <button type="button" className="settle-icon-btn" onClick={onEdit} aria-label="편집">
+              <svg width="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+            </button>
+          )}
+          {onRevert && (
+            <button type="button" className="settle-icon-btn" onClick={onRevert} aria-label="되돌리기">
+              <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
             </button>
           )}
           {onDelete && (
