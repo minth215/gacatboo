@@ -132,11 +132,6 @@ export default function MemberDetail() {
         <div className="divider" />
         <div className="col"><div className="lbl">다음 {noun}일</div><div className="val">{nextDue ? dotDate(nextDue) : '-'}</div></div>
       </div>
-      {isOwner && member.memo && (
-        <div className="small muted" style={{ margin: '10px 4px 0' }}>
-          {isOwner && member.memo && <div style={{ marginTop: 2 }}>📝 {member.memo}</div>}
-        </div>
-      )}
 
       {/* 입금 내역 — 가계부 페이지와 동일한 카드 스타일(왼쪽으로 스와이프 시 삭제 버튼) */}
       {deposits.length === 0 ? <div className="empty">{noun} 내역이 없습니다.</div> : groupByMonthThenDate(deposits).map(([mo, dateGroups]) => (
