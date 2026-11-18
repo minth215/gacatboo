@@ -75,7 +75,7 @@ export default function MemberDetail() {
   };
 
   return (
-    <div style={{ padding: '44px 0 12px' }}>
+    <div style={{ padding: '44px 0 104px' }}>
       <PageHeader
         flat
         title={(
@@ -180,6 +180,15 @@ export default function MemberDetail() {
         </div>
       ))}
 
+      {/* 이 멤버의 기록 바로 입력(총대 페이지 = 결제 내역, 멤버 페이지 = 그 멤버로 선택된 입금 내역) — 총대·본인만 */}
+      {canEditDep && (
+        <button
+          className="fab" aria-label={ownerMode ? '결제 추가' : '입금 추가'}
+          onClick={() => nav(`/new?group=${gid}&kind=${ownerMode ? 'payment' : 'deposit'}`, ownerMode ? undefined : { state: { presetMemberId: mid } })}
+        >
+          <svg width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
+      )}
     </div>
   );
 }
