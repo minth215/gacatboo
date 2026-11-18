@@ -7,6 +7,7 @@ import Spinner from '../components/Spinner.jsx';
 import { fieldStyle, labelStyle } from './FriendAdd.jsx';
 import BareSelect from '../components/BareSelect.jsx';
 import HelpTip from '../components/HelpTip.jsx';
+import { getPrimary } from '../lib/primaryCurrency.js';
 
 const isCardGroup = (t) => t === 'credit' || t === 'check';
 const GROUP_TYPES = [['general', '일반'], ['credit', '신용카드'], ['check', '체크카드'], ['onnuri', '디지털 온누리']];
@@ -75,6 +76,9 @@ export default function SourceEdit({ admin = false }) {
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
+  // 금액 화폐 선택지: 주 화폐 + 보조 화폐(화폐 설정)
+  const [userCurrencies, setUserCurrencies] = useState([]);
+  useEffect(() => { if (!admin) db.listCurrencies().then(setUserCurrencies).catch(() => {}); }, []);
   const [toastKey, setToastKey] = useState(0);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 2000); return () => clearTimeout(t); }, [toast, toastKey]);
 
@@ -101,7 +105,9 @@ export default function SourceEdit({ admin = false }) {
       deposit: !!src?.is_primary_deposit,
       settle: !!src?.is_primary_settle,
       // 현재 금액(기준 금액 + 기록 반영)을 보여 주고, 바꾸면 그 값이 새 기준 금액(수정 시각 기준)
-      balance: src?.current_balance != null ? String(src.current_balance) : '',
+      balance: src?.current_balance != null ? String(Number(src.current_balance)) : '',
+      // 금액 화폐: 저장된 값 → 예전 원천(금액만 있음)은 원화 → 새 원천은 주 화폐
+      balanceCurrency: src?.balance_currency || (src?.balance != null ? 'KRW' : getPrimary().code),
       linkedId: src?.linked_source_id ? String(src.linked_source_id) : '',
       onnuri: !!src?.onnuri_linked,
       // 카드 원천 입금 허용(기본 OFF): 켜면 주입금수단 지정·입금 쪽 원천 목록에 포함
@@ -185,7 +191,9 @@ export default function SourceEdit({ admin = false }) {
         const newBal = cardItem || form.balance === '' || form.balance === '-' ? null : Number(form.balance);
         // 금액을 직접 바꾸면 그 값이 새 기준 금액, 수정 시각이 기준 시점(그 날짜 이전 기록은 이미 반영된 것으로 봄).
         // 비우면 기준 없음(모든 기록 반영).
-        const balanceChanged = !cardItem && newBal !== (src?.current_balance ?? null);
+        const prevCur = src?.balance_currency || (src?.balance != null ? 'KRW' : null);
+        const curChanged = !cardItem && newBal != null && form.balanceCurrency !== prevCur;
+        const balanceChanged = !cardItem && (newBal !== (src?.current_balance != null ? Number(src.current_balance) : null) || curChanged);
         const details = {
           linked_source_id: cardItem && form.linkedId ? Number(form.linkedId) : null,
           payment_day: creditItem && Number(form.paymentDay) >= 1 ? Math.min(31, Number(form.paymentDay)) : null,
@@ -199,7 +207,7 @@ export default function SourceEdit({ admin = false }) {
           onnuri_linked: cardItem && hasOnnuri && !!form.onnuri,
           allow_deposit: cardItem && !!form.allowDeposit,
           include_in_totals: !!form.includeTotals,
-          ...(balanceChanged ? { balance: newBal, balance_set_at: newBal == null ? null : new Date().toISOString() } : {}),
+          ...(balanceChanged ? { balance: newBal, balance_currency: newBal == null ? null : form.balanceCurrency, balance_set_at: newBal == null ? null : new Date().toISOString() } : {}),
         };
         const changed = creditItem || balanceChanged || details.linked_source_id !== (src?.linked_source_id ?? null)
           || details.payment_day !== (src?.payment_day ?? null) || details.onnuri_linked !== !!src?.onnuri_linked
@@ -223,11 +231,15 @@ export default function SourceEdit({ admin = false }) {
   const subLabel = { fontSize: 12.5, fontWeight: 700, color: 'var(--k-tx-4a4652)' };
   const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 24 };
   const bareText = { fontSize: 13.25, color: 'var(--k-tx-191722)' };
+  const currencyOptions = [...new Set([getPrimary().code, ...userCurrencies.map((c) => c.code), form.balanceCurrency])].map((c) => [c, c === 'KRW' ? '원' : c]);
+  // 원화는 정수, 외화는 소수 둘째 자리까지(입력 중인 "12." 같은 값은 그대로 보여 줌)
   const fmtBalance = (v) => {
     if (v === '' || v === '-') return v;
     const neg = v.startsWith('-');
-    return (neg ? '-' : '') + Number(v.replace('-', '')).toLocaleString('ko-KR');
+    const [i, d] = v.replace('-', '').split('.');
+    return (neg ? '-' : '') + Number(i || 0).toLocaleString('ko-KR') + (d != null ? `.${d}` : '');
   };
+  const balanceDecimals = form.balanceCurrency !== 'KRW';
 
   const primaryPills = (
         <div style={{ display: 'flex', gap: 8 }}>
@@ -340,10 +352,17 @@ export default function SourceEdit({ admin = false }) {
             <div style={{ ...fieldStyle, display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px' }}>
               <input
                 type="text" inputMode="decimal" value={fmtBalance(form.balance)} placeholder="0"
-                onChange={(e) => { const raw = e.target.value.replace(/[^0-9-]/g, '').replace(/(?!^)-/g, ''); set({ balance: raw.replace(/^(-?)0+(?=\d)/, '$1') }); }}
+                onChange={(e) => {
+                  let raw = e.target.value.replace(balanceDecimals ? /[^0-9.-]/g : /[^0-9-]/g, '').replace(/(?!^)-/g, '');
+                  if (balanceDecimals) { const [a, ...b] = raw.split('.'); raw = b.length ? `${a}.${b.join('').slice(0, 2)}` : a; }
+                  set({ balance: raw.replace(/^(-?)0+(?=\d)/, '$1') });
+                }}
                 style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 13.75, color: 'var(--k-tx-191722)', padding: '14px 0', textAlign: 'right' }}
               />
-              <span style={{ flex: 'none', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-6c6779)' }}>원</span>
+              {/* 화폐 단위: 주 화폐(기본) / 보조 화폐 */}
+              <span style={{ flex: 'none', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-6c6779)' }}>
+                <BareSelect value={form.balanceCurrency} options={currencyOptions} onChange={(v) => set({ balanceCurrency: v, ...(v === 'KRW' && form.balance.includes('.') ? { balance: String(Math.round(Number(form.balance) || 0)) } : {}) })} />
+              </span>
             </div>
           </label>
         )}
