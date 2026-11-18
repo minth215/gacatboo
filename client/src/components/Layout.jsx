@@ -26,8 +26,7 @@ const NAV = [
   { to: '/', label: '가계부', icon: 'ledger', end: true },
   { to: '/stats', label: '통계', icon: 'stats' },
   { to: '/groups', label: '그룹', icon: 'groups' },
-  // 장바구니: 지금은 관리자·테스터만(그 외에는 "아직 준비 중입니다" 토스트)
-  { to: '/cart', label: '장바구니', icon: 'cart', staffOnly: true },
+  { to: '/cart', label: '장바구니', icon: 'cart' },
   { to: '/settings', label: '설정', icon: 'settings' },
 ];
 
@@ -43,10 +42,6 @@ export default function Layout() {
   const location = useLocation();
   const hideBottomNav = HIDE_BOTTOMNAV_PREFIXES.some((p) => location.pathname.startsWith(p)) || isGroupEditPath(location.pathname);
 
-  const isStaff = user?.role === 'admin' || user?.role === 'tester';
-  const [toast, setToast] = useState('');
-  const [toastKey, setToastKey] = useState(0);
-  useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 2200); return () => clearTimeout(t); }, [toast, toastKey]);
   // 계정이 바뀔 때마다(로그인·계정 전환) 이 기기의 푸시 구독을 그 계정에도 등록 — 한 기기·여러 계정 지원
   useEffect(() => { if (user?.id) syncPushSubscription(db, user.id); }, [user?.id]);
 
@@ -91,14 +86,10 @@ export default function Layout() {
         <Outlet />
       </div>
 
-      {toast && <div key={toastKey} className="settle-toast">{toast}</div>}
       {!hideBottomNav && (
         <nav className="bottomnav">
           {NAV.map((n) => (
-            <NavLink
-              key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}
-              onClick={(e) => { if (n.staffOnly && !isStaff) { e.preventDefault(); setToast('아직 준비 중입니다'); setToastKey((k) => k + 1); } }}
-            >
+            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
               <span className="ico" style={{ position: 'relative' }}>
                 <Icon name={n.icon} />
               </span>
