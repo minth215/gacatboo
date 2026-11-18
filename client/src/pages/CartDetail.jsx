@@ -77,6 +77,13 @@ export default function CartDetail() {
     }, 350);
   };
 
+  // 가계부 작성 없이 구매 완료(연결 기록 없음)
+  const completeWithoutLedger = async () => {
+    try {
+      await db.markCartPurchased(r.id, null);
+      setR((prev) => ({ ...prev, purchased_at: new Date().toISOString(), purchased_tx_id: null }));
+    } catch (e) { alert(e.message); }
+  };
   const revertPurchase = async () => {
     if (!confirm('구매 예정 상태로 되돌립니다.')) return;
     try { await db.unmarkCartPurchased(r.id); setR((prev) => ({ ...prev, purchased_at: null, purchased_tx_id: null })); } catch (e) { alert(e.message); }
@@ -263,7 +270,18 @@ export default function CartDetail() {
             style={{ flex: 1, height: 48, border: 'none', borderRadius: 999, background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-6c6779)', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
           <button type="button" className="btn-ink-pill" style={{ flex: 1, marginTop: 0, height: 48 }} onClick={commitEdit}>완료</button>
         </div>
-      ) : !purchased && (
+      ) : !purchased ? (
+        // 구매 예정: 가계부 없이 바로 구매 완료 / 가계부 작성(저장하면 구매 완료)
+        <div style={{ display: 'flex', gap: 8, marginTop: 26 }}>
+          <button type="button" onClick={completeWithoutLedger}
+            style={{ flex: 1, height: 48, border: 'none', borderRadius: 999, background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-191722)', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>구매 완료</button>
+          <button type="button" className="btn-ink-pill" style={{ flex: 1, marginTop: 0, height: 48 }} onClick={writeLedger}>가계부 작성</button>
+        </div>
+      ) : r.purchased_tx_id ? (
+        // 구매 완료 + 연결된 가계부 기록 → 그 기록으로
+        <button type="button" className="btn-ink-pill" style={{ marginTop: 26 }} onClick={() => nav(`/tx/${r.purchased_tx_id}`)}>가계부로 이동</button>
+      ) : (
+        // 가계부 없이 구매 완료한 경우: 나중에라도 가계부 작성 가능
         <button type="button" className="btn-ink-pill" style={{ marginTop: 26 }} onClick={writeLedger}>가계부 작성</button>
       )}
     </div>
