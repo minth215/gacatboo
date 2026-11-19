@@ -1517,16 +1517,12 @@ const TransactionForm = forwardRef(function TransactionForm({
                   ) : null))}
                 </select>
                 <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--k-tx-191722)', textAlign: 'center' }}>{sign}</span>
-                  <input
-                    type="text" inputMode="decimal" placeholder="0" aria-label={key === 'from' ? '출금 금액' : '입금 금액'} readOnly={readOnly}
-                    value={amt === '' ? '' : (() => { const [i, d] = String(amt).split('.'); return Number(i || 0).toLocaleString('ko-KR') + (d != null ? `.${d}` : ''); })()}
-                    onChange={(e) => {
-                      let raw = e.target.value.replace(cur === 'KRW' ? /[^0-9]/g : /[^0-9.]/g, '');
-                      if (cur !== 'KRW') { const [a, ...b] = raw.split('.'); raw = b.length ? `${a}.${b.join('').slice(0, 2)}` : a; }
-                      onAmt(raw.replace(/^0+(?=\d)/, ''));
-                    }}
-                    style={{ width: '100%', minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'right', padding: 0 }}
-                  />
+                  {/* 금액: 전용 키패드(화폐는 원천의 금액 화폐로 고정) */}
+                  {readOnly ? (
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', textAlign: 'right' }}>{amt === '' ? '' : Number(amt).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}</span>
+                  ) : (
+                    <CalcAmountInput compact hideUnit allowEmpty fixedCurrency={cur} value={amt} onChange={(v) => { const nv = v === '' ? '' : String(Math.round(Number(v) * 100) / 100); if (nv !== String(amt)) onAmt(nv); }} />
+                  )}
                   {tfUnit(cur)}
               </div>
             ))}

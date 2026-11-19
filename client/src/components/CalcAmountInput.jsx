@@ -110,9 +110,12 @@ const KeyBtn = ({ label, onClick, bg, color, style }) => (
 // 원래 입력했던 외화 금액을 복원하기 위한 값이고, onCurrencyChange 는 저장용 스냅샷
 // ({ input_currency, input_amount, fx_rate } 또는 원화면 null)을 매 확정 시점에 알려준다.
 // hideUnit=true(compact): 금액 칸 안에 화폐 코드를 붙이지 않음(바깥 단위 칸에서 표시할 때)
+// fixedCurrency: 화폐를 그 코드로 고정(이체 — 원천의 금액 화폐). value/onChange 가 그 화폐 금액 그대로이고
+//   환산 줄이 없으며, 키패드의 다른 화폐 칩은 비활성화된다.
 // compact=true: 영수증형 기록의 좁은 항목 행에 들어갈 때 쓰는 테두리 없는 작은 표시(원 단위
 // 접미사·환산 금액 미리보기 줄은 생략하고, 펼쳐지는 계산기 키패드는 그대로 동작).
-export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange, onCurrencySelect, compact = false, allowNegative = false, defaultCurrency, allowEmpty = false, hideUnit = false }) {
+export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange, onCurrencySelect, compact = false, allowNegative = false, defaultCurrency, allowEmpty = false, hideUnit = false, fixedCurrency = null }) {
+  const raw = !!fixedCurrency; // 화폐 고정(이체): 값 자체가 그 화폐 금액 — 환산 없음, 다른 화폐 칩은 비활성
   const [focused, setFocused] = useState(false);
   const [expr, setExpr] = useState('');
   const justEvaluatedRef = useRef(false);
@@ -124,7 +127,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
 
   const [userCurrencies, setUserCurrencies] = useState([]);
   // defaultCurrency: 금액이 비어 있는 새 입력의 기본 화폐(주 화폐)
-  const [currency, setCurrency] = useState(initialCurrency || (!value && defaultCurrency) || 'KRW');
+  const [currency, setCurrency] = useState(fixedCurrency || initialCurrency || (!value && defaultCurrency) || 'KRW');
   const [foreignAmount, setForeignAmount] = useState(initialForeignAmount != null ? String(initialForeignAmount) : '');
   const [rate, setRate] = useState(currency === 'KRW' ? 1 : null);
   const [rateLoading, setRateLoading] = useState(false);
@@ -136,13 +139,14 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   const freshKrwRef = useRef(false);
 
   useEffect(() => { db.listCurrencies().then(setUserCurrencies).catch(() => {}); }, []);
+  useEffect(() => { if (fixedCurrency) setCurrency(fixedCurrency); }, [fixedCurrency]);
   // 화폐 선택 칩: 주 화폐 + 보조 화폐(KRW 는 주 화폐이거나 보조 화폐에 있을 때만) + 지금 고른 화폐(예전 기록 복원용)
   const chipCodes = [...new Set([getPrimary().code, ...userCurrencies.map((c) => c.code), currency])];
   // 키패드에서 화폐를 고르는 즉시(확정 전에도) 부모에 알림 — 항목 행이 환산 줄 높이를 바로 확보하도록
   useEffect(() => { onCurrencySelect?.(currency); }, [currency]);
 
   useEffect(() => {
-    if (currency === 'KRW') { setRate(1); setRateError(''); return; }
+    if (raw || currency === 'KRW') { setRate(1); setRateError(''); setRateLoading(false); return; }
     let cancelled = false;
     setRateLoading(true); setRateError('');
     fetchKrwRate(currency)
@@ -156,7 +160,9 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   useEffect(() => { setManualKrw(null); setEditingKrw(false); }, [typedAmount, currency]);
 
   const open = () => {
-    if (firstOpenRef.current && currency !== 'KRW' && initialForeignAmount != null) {
+    if (raw) {
+      setExpr(value === '' || value == null ? '' : String(value));
+    } else if (firstOpenRef.current && currency !== 'KRW' && initialForeignAmount != null) {
       setExpr(String(initialForeignAmount));
     } else {
       setExpr(currency === 'KRW' ? (value || '') : (foreignAmount || ''));
@@ -170,6 +176,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   const commitAndNotify = () => {
     // allowEmpty: 다 지우고 닫으면 0 이 아니라 빈 값(장바구니 금액 "미정")
     if (allowEmpty && !String(expr).trim()) { onChange(''); onCurrencyChange?.(null); return; }
+    if (raw) { onChange(String(typedAmount)); return; }
     if (currency === 'KRW') {
       onChange(String(typedAmount));
       onCurrencyChange?.(null);
@@ -276,7 +283,9 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
   };
 
   // 닫혀 있을 때도(처음 진입했을 때 포함) 외화로 입력된 거래면 그 통화로 표시(값은 항상 원화 그대로 유지)
-  const displayValue = focused
+  const displayValue = raw
+    ? (focused ? formatExpr(expr) : (value === '' || value == null ? '' : Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 })))
+    : focused
     ? (compact && !hideUnit && currency !== 'KRW' ? `${formatExpr(expr) || '0'} ${currency}` : formatExpr(expr))
     : (currency !== 'KRW' && foreignAmount
         ? `${Number(foreignAmount).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}${compact && !hideUnit ? ` ${currency}` : ''}`
@@ -308,7 +317,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
 
       {/* 원화 환산 금액 — 키패드가 닫혀 있어도 금액 필드 바로 아래 항상 표시, 눌러서 직접 수정 가능.
           compact 에서는 좁은 항목 행 칸을 벗어나지 않도록 절대위치로 오른쪽 아래에 떠 있게 한다. */}
-      {currency !== 'KRW' && (
+      {!raw && currency !== 'KRW' && (
         <div style={compact
           ? { position: 'absolute', top: '100%', right: 0, marginTop: 2, lineHeight: '14px', textAlign: 'right', fontSize: 10.5, color: 'var(--k-tx-a29ead)', whiteSpace: 'nowrap' }
           : { padding: '6px 2px 0', fontSize: 12.5, color: 'var(--k-tx-a29ead)' }
@@ -368,9 +377,10 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
               <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 2px 10px' }}>
                 {chipCodes.map((code) => (
                   <button
-                    key={code} type="button" className="calc-key"
-                    onPointerDown={(e) => { e.preventDefault(); setCurrency(code); }}
+                    key={code} type="button" className="calc-key" disabled={raw && code !== currency}
+                    onPointerDown={(e) => { e.preventDefault(); if (!raw || code === currency) setCurrency(code); }}
                     style={{
+                      ...(raw && code !== currency ? { opacity: 0.35, cursor: 'default' } : {}),
                       flex: 'none', padding: '6px 14px', borderRadius: 999, border: 'none', fontSize: 12.5, fontWeight: 700,
                       background: currency === code ? 'var(--k-bg-191722)' : 'var(--k-bg-f4f2f0)', color: currency === code ? 'var(--k-onink-fff)' : 'var(--k-tx-191722)',
                     }}
