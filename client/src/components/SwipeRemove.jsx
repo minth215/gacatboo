@@ -69,13 +69,13 @@ export default function SwipeRemove({ enabled = true, onRemove, children }) {
           type="button" data-swipe-remove aria-label="행 삭제"
           onClick={() => { setOpen(false); onRemove?.(); }}
           style={{
-            position: 'absolute', right: (W - 24) / 2, top: '50%', transform: 'translateY(-50%)',
-            width: 24, height: 24, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer',
-            background: 'var(--k-tx-c2bfc6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'absolute', right: (W - 18) / 2, top: '50%', transform: 'translateY(-50%)',
+            width: 18, height: 18, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer',
+            background: 'var(--k-bg-e4e2e6)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
             opacity: Math.min(1, -dx / W),
           }}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
         </button>
       )}
     </div>
