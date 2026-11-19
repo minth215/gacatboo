@@ -12,6 +12,7 @@ import ConfirmModal from '../components/ConfirmModal.jsx';
 import { tileBg, formatDate, DayCardRow } from '../components/TransactionList.jsx';
 import { ClearButton, SuggestList, rankSuggestions, StarIcon, fileToResizedBase64 } from '../components/TransactionForm.jsx';
 import { saveTxDraft, takeTxDraft } from '../lib/txDraft.js';
+import SwipeRemove from '../components/SwipeRemove.jsx';
 import CalcAmountInput from '../components/CalcAmountInput.jsx';
 import FxAmount from '../components/FxAmount.jsx';
 import { useFavoriteToggle } from '../lib/useFavoriteToggle.js';
@@ -2011,13 +2012,13 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
         {/* 멤버 정산 입금: 결제 내역 셀렉트 + 내 몫 금액(행 추가·X 로 행 삭제). 고른 결제 오른쪽 ">" 로 기록 상세 */}
         {memberSettle && (
           <div style={{ padding: '6px 0' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px', gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>내용</span>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'right' }}>금액</span>
-              <span />
             </div>
             {settleRows.map((r, idx) => (
-              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '5px 0' }}>
+              <SwipeRemove key={idx} enabled={settleRows.length > 1} onRemove={() => removeSettleRow(idx)}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px', gap: 8, alignItems: 'center', padding: '5px 0' }}>
                 <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <SettleTargetSelect
                     value={r.targetId} onChange={(e) => onSettleTargetChange(idx, e.target.value)}
@@ -2033,32 +2034,27 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                   )}
                 </span>
                 <CalcAmountInput compact value={r.amount} onChange={(v) => updateSettleRow(idx, { amount: v })} />
-                {settleRows.length > 1 ? (
-                  <button type="button" aria-label="행 삭제" onClick={() => removeSettleRow(idx)} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--k-tx-c2bfc6)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
-                  </button>
-                ) : <span />}
               </div>
+              </SwipeRemove>
             ))}
             {targetOptionsFor(settleRows.length).length > 0 && <button type="button" onClick={addSettleRow} className="rcpt-add-row">+ 행 추가</button>}
             {/* 합계(멤버 입장에선 지출이라 코랄핑크) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)' }}>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>합계</span>
               <span style={{ fontSize: 15.5, fontWeight: 800, color: '#FF4358', textAlign: 'right' }}>{fmtNum(settleTotal)}</span>
-              <span />
             </div>
           </div>
         )}
 
         {isOwner && (multiSettle ? (
           <div style={{ padding: '6px 0' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px', gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>내용</span>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'right' }}>금액</span>
-              <span />
             </div>
             {settleRows.map((r, idx) => (
-              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: (r.liveCurrency || r.currencyMeta?.input_currency || 'KRW') !== 'KRW' ? '5px 0 21px' : '5px 0' }}>
+              <SwipeRemove key={idx} enabled={settleRows.length > 1} onRemove={() => removeSettleRow(idx)}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px', gap: 8, alignItems: 'center', padding: (r.liveCurrency || r.currencyMeta?.input_currency || 'KRW') !== 'KRW' ? '5px 0 21px' : '5px 0' }}>
                 {isLeaderSettlement ? (
                   <SettleTargetSelect
                     value={r.targetId} onChange={(e) => onSettleTargetChange(idx, e.target.value)}
@@ -2076,32 +2072,27 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                   onCurrencyChange={(m) => updateSettleRow(idx, { currencyMeta: m })}
                   onCurrencySelect={(c) => updateSettleRow(idx, { liveCurrency: c })}
                 />
-                {settleRows.length > 1 ? (
-                  <button type="button" aria-label="행 삭제" onClick={() => removeSettleRow(idx)} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--k-tx-c2bfc6)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
-                  </button>
-                ) : <span />}
               </div>
+              </SwipeRemove>
             ))}
             {(!editing || isLeaderSettlement) && <button type="button" onClick={addSettleRow} className="rcpt-add-row">+ 행 추가</button>}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)' }}>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>합계</span>
               <span style={{ fontSize: 13.75, fontWeight: 800, color: '#2CDDB9', textAlign: 'right' }}>{fmtNum(settleTotal)}</span>
-              <span />
             </div>
           </div>
         ) : null)}
 
         {multiSub ? (
           <div style={{ padding: '6px 0' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px', gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>내용</span>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'center' }}>회차</span>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'right' }}>금액</span>
-              <span />
             </div>
             {subRows.map((r, idx) => (
-              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: (r.liveCurrency || r.currencyMeta?.input_currency || 'KRW') !== 'KRW' ? '5px 0 21px' : '5px 0' }}>
+              <SwipeRemove key={idx} enabled={subRows.length > 1} onRemove={() => removeSubRow(idx)}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px', gap: 8, alignItems: 'center', padding: (r.liveCurrency || r.currencyMeta?.input_currency || 'KRW') !== 'KRW' ? '5px 0 21px' : '5px 0' }}>
                 {isLeaderSettlement ? (
                   <SettleTargetSelect
                     value={r.targetId} onChange={(e) => onSubTargetChange(idx, e.target.value)}
@@ -2128,19 +2119,14 @@ export const DepositForm = forwardRef(function DepositForm({ initial, sub, cats,
                   }}
                   onCurrencySelect={(c) => updateSubRow(idx, { liveCurrency: c })}
                 />
-                {subRows.length > 1 ? (
-                  <button type="button" aria-label="행 삭제" onClick={() => removeSubRow(idx)} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--k-tx-c2bfc6)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
-                  </button>
-                ) : <span />}
               </div>
+              </SwipeRemove>
             ))}
             {!editing && <button type="button" onClick={addSubRow} className="rcpt-add-row">+ 행 추가</button>}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px 18px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 46px 84px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)' }}>
               <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>합계</span>
               <span />
               <span style={{ fontSize: 13.75, fontWeight: 800, color: '#2CDDB9', textAlign: 'right' }}>{fmtNum(subTotal)}</span>
-              <span />
             </div>
           </div>
         ) : !multiSettle && !memberSettle && ( // 멤버 정산 입금은 위 표(합계)로 입력하므로 금액 칸 숨김

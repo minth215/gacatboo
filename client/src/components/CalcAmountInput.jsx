@@ -109,9 +109,10 @@ const KeyBtn = ({ label, onClick, bg, color, style }) => (
 // 그 금액은 눌러서 직접 수정할 수 있다. initialCurrency/initialForeignAmount 는 기존 거래 수정 시
 // 원래 입력했던 외화 금액을 복원하기 위한 값이고, onCurrencyChange 는 저장용 스냅샷
 // ({ input_currency, input_amount, fx_rate } 또는 원화면 null)을 매 확정 시점에 알려준다.
+// hideUnit=true(compact): 금액 칸 안에 화폐 코드를 붙이지 않음(바깥 단위 칸에서 표시할 때)
 // compact=true: 영수증형 기록의 좁은 항목 행에 들어갈 때 쓰는 테두리 없는 작은 표시(원 단위
 // 접미사·환산 금액 미리보기 줄은 생략하고, 펼쳐지는 계산기 키패드는 그대로 동작).
-export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange, onCurrencySelect, compact = false, allowNegative = false, defaultCurrency, allowEmpty = false }) {
+export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange, onCurrencySelect, compact = false, allowNegative = false, defaultCurrency, allowEmpty = false, hideUnit = false }) {
   const [focused, setFocused] = useState(false);
   const [expr, setExpr] = useState('');
   const justEvaluatedRef = useRef(false);
@@ -276,9 +277,9 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
 
   // 닫혀 있을 때도(처음 진입했을 때 포함) 외화로 입력된 거래면 그 통화로 표시(값은 항상 원화 그대로 유지)
   const displayValue = focused
-    ? (compact && currency !== 'KRW' ? `${formatExpr(expr) || '0'} ${currency}` : formatExpr(expr))
+    ? (compact && !hideUnit && currency !== 'KRW' ? `${formatExpr(expr) || '0'} ${currency}` : formatExpr(expr))
     : (currency !== 'KRW' && foreignAmount
-        ? `${Number(foreignAmount).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}${compact ? ` ${currency}` : ''}`
+        ? `${Number(foreignAmount).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}${compact && !hideUnit ? ` ${currency}` : ''}`
         : (value ? Number(value).toLocaleString('ko-KR') : ''));
   // 회색 환산 금액 미리보기: 입력 중엔 실시간 수식 결과, 닫혀 있으면 마지막으로 확정된 외화 금액 기준
   const previewAmount = focused ? typedAmount : Number(foreignAmount || 0);

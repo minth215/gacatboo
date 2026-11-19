@@ -14,15 +14,13 @@ import RecurrenceModal from './RecurrenceModal.jsx';
 import { getPrimary, fmtP } from '../lib/primaryCurrency.js';
 import { useInstallmentDeleteChoice } from './InstallmentDeleteModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
+import SwipeRemove from './SwipeRemove.jsx';
 
 // "반복 관리" 메뉴와 동일한 반복 아이콘(채워진 순환 화살표)
 export const RepeatIcon = ({ color }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill={color}>
     <path d="M12,4V1L8,5l4,4V6c3.31,0,6,2.69,6,6c0,1.01-0.25,1.97-0.7,2.8l1.46,1.46C19.54,15.03,20,13.57,20,12C20,7.58,16.42,4,12,4z M6,12c0-1.01,0.25-1.97,0.7-2.8L5.24,7.74C4.46,8.97,4,10.43,4,12c0,4.42,3.58,8,8,8v3l4-4l-4-4v3c-3.31,0-6-2.69-6-6z" />
   </svg>
-);
-const RemoveIcon = () => (
-  <svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
 );
 // 즐겨찾기 등록 별 아이콘 — 미등록이면 속이 빈 옅은 회색 테두리, 등록되면 노란색으로 채워짐
 export const StarIcon = ({ filled }) => (
@@ -199,10 +197,12 @@ function ItemRow({
   const [liveCurrency, setLiveCurrency] = useState(item.currencyMeta?.input_currency || 'KRW');
   const rankedNameSuggestions = nameSuggestOpen ? rankSuggestions(itemNameSuggestions || [], item.name) : [];
   const hasSplit = !!settlementMembers?.length;
-  const cols = (isTransfer || isSettlement) ? '1fr 84px 18px' : hasSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
+  const cols = (isTransfer || isSettlement) ? '1fr 84px' : hasSplit ? '1fr 14px 46px 84px' : '1fr 46px 84px';
   const sourceSelectStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 12.5, color: 'var(--k-tx-191722)', outline: 'none', appearance: 'none' };
   return (
     <div>
+      {/* 행 삭제: 왼쪽으로 밀면 오른쪽 끝에 삭제 버튼(행이 하나뿐이면 스와이프 없음) */}
+      <SwipeRemove enabled={canRemove} onRemove={onRemove}>
       {/* 보조 화폐로 입력한 행: 원화 환산 줄(금액 칸 아래 작은 회색 글씨)이 들어갈 높이를 아래쪽에 더 확보 —
           내용/수량/보조 화폐 금액은 같은 줄에 그대로 정렬되고, 환산 줄만 그 아래에 놓인다 */}
       <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: liveCurrency !== 'KRW' ? '5px 0 21px' : '5px 0' }}>
@@ -290,17 +290,13 @@ function ItemRow({
           initialCurrency={item.currencyMeta?.input_currency} initialForeignAmount={item.currencyMeta?.input_amount}
           onCurrencyChange={onCurrencyChange} onCurrencySelect={setLiveCurrency} defaultCurrency={defaultCurrency}
         />
-        {canRemove ? (
-          <button type="button" aria-label="행 삭제" onClick={onRemove} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--k-tx-c2bfc6)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <RemoveIcon />
-          </button>
-        ) : <span />}
       </div>
+      </SwipeRemove>
       {hasSplit && item.expanded && (
         <div style={{ padding: '2px 0 6px 14px' }}>
           {memberRowsFor(item, settlementMembers, itemTotalOf(item)).map((m) => (
-            <div key={m.id} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '2px 0' }}>
-              <span style={{ gridColumn: '1 / span 3', display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, fontSize: 11.5, color: 'var(--k-tx-6c6779)' }}>
+            <div key={m.id} style={{ display: 'grid', gridTemplateColumns: '14px 1fr 84px', gap: 8, alignItems: 'center', padding: '2px 0' }}>
+              <span style={{ gridColumn: 2, gridRow: 1, display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, fontSize: 11.5, color: 'var(--k-tx-6c6779)' }}>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
                 {m.isOwner && <span style={{ flex: 'none', fontSize: 8, fontWeight: 700, color: '#FF3B5C', background: 'linear-gradient(90deg,#FDE2E8,#FFE9D6)', borderRadius: 999, padding: '1px 6px' }}>총무</span>}
               </span>
@@ -322,11 +318,11 @@ function ItemRow({
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                 // 직접 입력한(고정) 금액은 먹색, 자동 계산 금액은 회색
-                style={{ gridColumn: 4, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, fontWeight: (m.pinned || (memberFocus === m.id && memberDraft !== '')) ? 700 : 400, color: (m.pinned || (memberFocus === m.id && memberDraft !== '')) ? 'var(--k-tx-191722)' : 'var(--k-tx-8b8798)', textAlign: 'right', outline: 'none', minWidth: 0, padding: 0, opacity: m.checked ? 1 : 0.4 }}
+                style={{ gridColumn: 3, gridRow: 1, width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 11.5, fontWeight: (m.pinned || (memberFocus === m.id && memberDraft !== '')) ? 700 : 400, color: (m.pinned || (memberFocus === m.id && memberDraft !== '')) ? 'var(--k-tx-191722)' : 'var(--k-tx-8b8798)', textAlign: 'right', outline: 'none', minWidth: 0, padding: 0, opacity: m.checked ? 1 : 0.4 }}
               />
               <input
                 type="checkbox" checked={m.checked} onChange={() => onToggleMember(m.id)}
-                style={{ gridColumn: 5, width: 14, height: 14, cursor: 'pointer', justifySelf: 'center', accentColor: 'var(--k-tx-6c6779)' }}
+                style={{ gridColumn: 1, gridRow: 1, width: 14, height: 14, margin: 0, cursor: 'pointer', justifySelf: 'center', accentColor: 'var(--k-tx-6c6779)' }}
               />
             </div>
           ))}
@@ -436,6 +432,7 @@ const TransactionForm = forwardRef(function TransactionForm({
   const [feeEnabled, setFeeEnabled] = useState(false);
   const [feeName, setFeeName] = useState('수수료');
   const [feeAmount, setFeeAmount] = useState('');
+  const [feeCur, setFeeCur] = useState('KRW'); // 수수료 키패드에서 고른 화폐(단위 칸 표시용)
   const feeInitRef = useRef(false);
   // 반복 설정: 이미 저장된 반복(recurringId)이거나, 아직 저장 전인 선택값(pendingRecurrence) 중 하나만 있을 수 있음
   const [recurringId, setRecurringId] = useState(initial?.recurring?.id || null);
@@ -1269,13 +1266,13 @@ const TransactionForm = forwardRef(function TransactionForm({
   // 이체 표(출금·입금·수수료 줄): [내용][부호][금액][단위][삭제] — 금액 오른쪽 끝·부호 위치가 줄마다 같도록 고정 칸.
   // 출금·입금 수단이 모두 주 화폐면 단위 칸을 없앤다.
   const tfShowUnit = !(fromCur === primaryCode && toCur === primaryCode);
-  const tfGrid = { display: 'grid', gridTemplateColumns: `minmax(0,1fr) 14px 96px ${tfShowUnit ? '34px' : '0px'} 26px`, alignItems: 'center' };
+  const tfGrid = { display: 'grid', gridTemplateColumns: `minmax(0,1fr) 14px 96px ${tfShowUnit ? '36px' : '0px'}`, alignItems: 'center' };
   const tfUnit = (cur) => (
     <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--k-tx-8b8798)', paddingLeft: tfShowUnit ? 4 : 0, overflow: 'hidden', whiteSpace: 'nowrap' }}>
-      {tfShowUnit ? (cur === 'KRW' ? '원' : cur) : ''}
+      {tfShowUnit ? cur : ''}
     </span>
   );
-  const tableCols = (isTransfer || isSettlement) ? '1fr 84px 18px' : showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
+  const tableCols = (isTransfer || isSettlement) ? '1fr 84px' : showMemberSplit ? '1fr 14px 46px 84px' : '1fr 46px 84px';
 
   return (
     <form onSubmit={readOnly ? (e) => e.preventDefault() : submit}>
@@ -1500,7 +1497,6 @@ const TransactionForm = forwardRef(function TransactionForm({
           {showMemberSplit && <span />}
           {!isTransfer && !isSettlement && <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'center' }}>{qtyLabel}</span>}
           <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'right' }}>금액</span>
-          <span />
         </div>
 
         {isTransfer && (
@@ -1532,7 +1528,6 @@ const TransactionForm = forwardRef(function TransactionForm({
                     style={{ width: '100%', minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'right', padding: 0 }}
                   />
                   {tfUnit(cur)}
-                  <span />
               </div>
             ))}
           </div>
@@ -1577,22 +1572,18 @@ const TransactionForm = forwardRef(function TransactionForm({
         {!isTransfer && !readOnly && <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>}
 
         {isTransfer && !onSubmit && feeEnabled && (
-          <div style={{ ...tfGrid, padding: '5px 0' }}>
+          <SwipeRemove onRemove={() => { setFeeEnabled(false); setFeeName('수수료'); setFeeAmount(''); setFeeCur('KRW'); }}>
+          <div style={{ ...tfGrid, padding: feeCur !== 'KRW' ? '5px 0 21px' : '5px 0' }}>
             <input
               type="text" placeholder="수수료" value={feeName} onChange={(e) => setFeeName(e.target.value)}
               style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', outline: 'none', minWidth: 0 }}
             />
             <span />
-            <CalcAmountInput compact value={feeAmount} onChange={setFeeAmount} />
-            {tfUnit('KRW')}
-            <button
-              type="button" aria-label="수수료 삭제"
-              onClick={() => { setFeeEnabled(false); setFeeName('수수료'); setFeeAmount(''); }}
-              style={{ justifySelf: 'end', width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--k-tx-c2bfc6)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <RemoveIcon />
-            </button>
+            {/* 단위 칸이 있으면 수수료 화폐도 그 칸에만 표시(금액 칸 안의 화폐 표기는 숨김) */}
+            <CalcAmountInput compact hideUnit={tfShowUnit} value={feeAmount} onChange={setFeeAmount} onCurrencySelect={setFeeCur} />
+            {tfUnit(feeCur)}
           </div>
+          </SwipeRemove>
         )}
         {isTransfer && !onSubmit && !feeEnabled && (
           <button type="button" onClick={() => setFeeEnabled(true)} className="rcpt-add-row">+ 수수료 추가</button>
@@ -1615,7 +1606,6 @@ const TransactionForm = forwardRef(function TransactionForm({
           ) : (
             <span style={{ fontSize: 15.5, fontWeight: 800, color: isTransfer ? 'var(--k-tx-4b4752)' : (type === 'expense' ? '#FF4358' : '#2CDDB9'), textAlign: 'right' }}>{personalPrimary ? `${fmtP(total)} ${primaryCode}` : fmtNum(total)}</span>
           )}
-          <span />
         </div>
         )}
         {/* 할부 기록: 합계 밑에 "{누적 결제 금액}/{총 금액} 원 결제"(이 회차는 지금 입력 중인 합계로 계산) */}
