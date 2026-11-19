@@ -805,15 +805,25 @@ const TransactionForm = forwardRef(function TransactionForm({
     && (Number(onnuriItem?.current_balance) > 0 || !!initial?.onnuri);
   // 환전 시점 환율: 고른 원천(카드면 연결 계좌)이 "환전 시점" 환율의 보조 화폐 원천이면, 그 화폐로 입력한 지출은
   // 잔액만큼은 환전 시점 환율, 넘는 부분은 실시간 환율로 주 화폐 금액을 계산(항목 순서대로 잔액 차감)
-  const bookFxBase = (() => {
+  const bookAcct = (() => {
     if (type !== 'expense' || isTransfer || !selectedSourceItem) return null;
     const acct = selectedSourceItem.linked_source_id ? sourcesFlat.find((x) => x.id === selectedSourceItem.linked_source_id) : selectedSourceItem;
     const cur = acct?.balance_currency;
-    if (!acct || acct.fx_mode !== 'book' || !(Number(acct.fx_book_rate) > 0) || !cur || cur === 'KRW') return null;
-    // 수정 중인 기록이 이미 잔액에서 빠져 있으면 되돌려 계산
-    const addBack = (editing && initial?.type === 'expense' && initial?.input_currency === cur && String(initial?.source_id) === String(acct.id))
-      ? (Number(initial.input_amount) || 0) : 0;
-    return { currency: cur, rate: Number(acct.fx_book_rate), balance: Math.max(0, (Number(acct.current_balance) || 0) + addBack) };
+    return acct && acct.fx_mode === 'book' && cur && cur !== 'KRW' ? acct : null;
+  })();
+  // 수정 중이면 이 기록을 뺀 환율·잔액을 다시 계산(원천 목록의 값에는 이 기록이 이미 반영돼 있음)
+  const [bookFxEdit, setBookFxEdit] = useState(null);
+  useEffect(() => {
+    setBookFxEdit(null);
+    if (!bookAcct || !editing) return undefined;
+    let off = false;
+    db.sourceBookFx(bookAcct, sourcesFlat, { excludeId: initial.id }).then((fx) => { if (!off) setBookFxEdit(fx ? { ...fx, acctId: bookAcct.id } : null); }).catch(() => {});
+    return () => { off = true; };
+  }, [bookAcct?.id, editing]); // eslint-disable-line react-hooks/exhaustive-deps
+  const bookFxBase = (() => {
+    if (!bookAcct) return null;
+    if (editing) return bookFxEdit && bookFxEdit.acctId === bookAcct.id && bookFxEdit.rate > 0 ? { currency: bookFxEdit.currency, rate: bookFxEdit.rate, balance: bookFxEdit.balance } : null;
+    return Number(bookAcct.book_rate) > 0 ? { currency: bookAcct.balance_currency, rate: Number(bookAcct.book_rate), balance: Math.max(0, Number(bookAcct.book_balance) || 0) } : null;
   })();
   const bookFxFor = (idx) => {
     if (!bookFxBase) return null;

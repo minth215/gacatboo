@@ -251,6 +251,11 @@ export const db = {
     const { data: bal } = await supabase.rpc('my_source_balances');
     const balMap = new Map((bal || []).map((b) => [b.source_id, Number(b.current_balance)]));
     const flat = raw.map((s) => ({ ...s, current_balance: balMap.has(s.id) ? balMap.get(s.id) : s.balance }));
+    // 환전 시점 환율 원천: 현재 환율·적용 잔액(book_rate, book_balance)
+    await Promise.all(flat.filter((s) => s.fx_mode === 'book').map(async (s) => {
+      const fx = await this.sourceBookFx(s, flat).catch(() => null);
+      if (fx) { s.book_rate = fx.rate; s.book_balance = fx.balance; }
+    }));
     const tops = flat.filter((s) => s.parent_id == null).map((t) => ({ ...t, children: flat.filter((c) => c.parent_id === t.id) }));
     return { tree: tops, flat };
   },
@@ -332,18 +337,75 @@ export const db = {
     return Number(data) || 0;
   },
   // 세부 항목 상세(0082): { balance, linked_source_id, payment_day }
-  // 환전 시점 환율 갱신: (기존 잔액 × 기존 환율 + 이번 환전 금액 × 이번 환율) ÷ (기존 잔액 + 이번 환전 금액).
-  // 기존 잔액이 없으면(다 썼으면) 이번 환율 그대로. 잔액은 이번 기록이 반영된 뒤 값에서 이번 금액을 빼서 구함.
-  async applyExchangeBookRate(sourceId, toAmount, krw) {
-    const src = unwrap(await supabase.from('sources').select('id, fx_mode, fx_book_rate').eq('id', sourceId).single());
-    if (src.fx_mode !== 'book' || !(toAmount > 0) || !(krw > 0)) return;
-    const { data: bal } = await supabase.rpc('my_source_balances');
-    const row = (bal || []).find((b) => b.source_id === sourceId);
-    const before = row ? Math.max(0, Number(row.current_balance) - toAmount) : 0;
-    const oldRate = Number(src.fx_book_rate) || 0;
-    const exch = krw / toAmount;
-    const next = before > 0 && oldRate > 0 ? (before * oldRate + toAmount * exch) / (before + toAmount) : exch;
-    await supabase.from('sources').update({ fx_book_rate: Math.round(next * 10000) / 10000 }).eq('id', sourceId);
+  // 환전 시점 환율 계산(금액처럼 기준 시점 관리): 사용자가 정한 환율(fx_book_rate)·시점(fx_rate_set_at) 이후의
+  // 기록을 날짜순으로 다시 훑어 현재 환율과 그 환율이 적용되는 잔액을 구한다.
+  //   · 환전(다른 화폐에서 이 원천으로 이체): (잔액 × 환율 + 환전 금액 × 그 환전의 환율) ÷ (잔액 + 환전 금액)
+  //     — 잔액이 없으면(다 썼으면) 그 환전의 환율로 새로 시작
+  //   · 지출·출금(이 원천 또는 연결된 카드): 잔액만 줄어듦(0 아래로는 내려가지 않음)
+  //   · 그 밖의 입금(같은 화폐 이체·수입): 잔액만 늘어남
+  // 시작 잔액 = 현재 금액 − (기준 시점 이후 금액에 반영된 기록들의 합). excludeId: 수정 중인 기록은 빼고 계산.
+  async sourceBookFx(acct, flat, { excludeId = null } = {}) {
+    if (!acct || acct.fx_mode !== 'book') return null;
+    const cur = acct.balance_currency || 'KRW';
+    if (cur === 'KRW') return null;
+    const { data: sess } = await supabase.auth.getSession();
+    const uid = sess?.session?.user?.id;
+    const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    const kstDate = (ts) => (ts ? new Date(new Date(ts).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10) : null);
+    const fxFrom = kstDate(acct.fx_rate_set_at);
+    const balFrom = kstDate(acct.balance_set_at);
+    const cards = (flat || []).filter((c) => c.linked_source_id === acct.id).map((c) => c.id);
+    const ors = [`source_id.eq.${acct.id}`, `to_source_id.eq.${acct.id}`, ...(cards.length ? [`source_id.in.(${cards.join(',')})`] : [])];
+    let q = supabase.from('transactions').select('id, date, type, amount, input_currency, input_amount, source_id, to_source_id, to_amount, to_currency, card_bill_source_id')
+      .or(ors.join(',')).lte('date', today).order('date').order('id');
+    if (uid) q = q.eq('user_id', uid);
+    if (fxFrom) q = q.gte('date', fxFrom);
+    const rows = unwrap(await q);
+    let live = null;
+    const liveRate = async () => { if (live == null) live = await fetchKrwRate(cur).catch(() => 0); return live; };
+    // 이 원천 화폐로 환산한 금액
+    const inCur = async (t, side) => {
+      if (side === 'to' && t.to_amount != null && (t.to_currency || 'KRW') === cur) return Number(t.to_amount);
+      if ((t.input_currency || '') === cur && t.input_amount != null) return Number(t.input_amount);
+      const r = await liveRate();
+      return r ? Number(t.amount) / r : 0;
+    };
+    const events = [];
+    for (const t of rows) {
+      const isCard = cards.includes(t.source_id);
+      if (t.to_source_id === acct.id && t.type === 'transfer') {
+        const amt = await inCur(t, 'to');
+        const fromCur = t.input_currency || 'KRW';
+        events.push({ t, d: amt, counted: true, rate: fromCur !== cur && amt > 0 ? Number(t.amount) / amt : null });
+      } else if (t.source_id === acct.id) {
+        // 이 원천에서 낸 카드 대금 중 연결 카드의 대금은 카드 사용 기록으로 이미 반영
+        if (t.card_bill_source_id != null && cards.includes(t.card_bill_source_id)) {
+          events.push({ t, d: -(await inCur(t, 'from')), counted: true, skipBook: true });
+          continue;
+        }
+        const amt = await inCur(t, 'from');
+        events.push({ t, d: t.type === 'income' ? amt : -amt, counted: true });
+      } else if (isCard && (t.type === 'expense' || t.type === 'income')) {
+        const amt = await inCur(t, 'from');
+        events.push({ t, d: t.type === 'income' ? amt : -amt, counted: false });
+      }
+    }
+    // 시작 잔액: 현재 금액에서 기준 시점 이후 금액에 반영된 기록을 되돌림
+    let bal = Number(acct.current_balance) || 0;
+    for (const e of events) if (e.counted && (!balFrom || e.t.date >= balFrom)) bal -= e.d;
+    // (수정 중인 기록도 현재 금액에서는 되돌리고, 아래 다시 훑을 때는 빼서 계산)
+    bal = Math.max(0, bal);
+    let rate = Number(acct.fx_book_rate) || 0;
+    for (const e of events) {
+      if (e.skipBook || e.t.id === excludeId) continue;
+      if (e.rate != null) {
+        rate = bal > 0 && rate > 0 ? (bal * rate + e.d * e.rate) / (bal + e.d) : e.rate;
+        bal += e.d;
+      } else {
+        bal = Math.max(0, bal + e.d);
+      }
+    }
+    return { currency: cur, rate, balance: Math.round(bal * 100) / 100 };
   },
   async updateSourceDetails(id, patch) {
     return unwrap(await supabase.from('sources').update(patch).eq('id', id));
@@ -749,11 +811,6 @@ export const db = {
     } else {
       const insert = { ...base, user_id: userId, created_by: userId, group_id: payload.group_id || null, ...(recurring_id ? { recurring_id } : {}) };
       saved = unwrap(await supabase.from('transactions').insert(insert).select(TX_SELECT).single());
-      // 환전(화폐가 다른 이체)을 새로 입력: 입금 원천이 "환전 시점 환율"이면 환율을 가중 평균으로 갱신
-      if (base.type === 'transfer' && base.to_source_id && Number(base.to_amount) > 0 && base.to_currency
-        && base.to_currency !== (base.input_currency || 'KRW')) {
-        await this.applyExchangeBookRate(base.to_source_id, Number(base.to_amount), Number(base.amount)).catch(() => {});
-      }
     }
     // 과거 날짜로 반복을 새로 걸었고 사용자가 일괄 생성을 선택한 경우: 밀린 회차를 한 번에 생성
     if (recurring_id && payload.backfillPast) await this.backfillRecurringRule(recurring_id);

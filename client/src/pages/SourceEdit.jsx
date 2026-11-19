@@ -112,7 +112,12 @@ export default function SourceEdit({ admin = false }) {
       linkedId: src?.linked_source_id ? String(src.linked_source_id) : '',
       // 보조 화폐 원천의 환율: 시점(실시간/환전 시점) + 환전 시점 환율(표시 단위 기준, 예: 100엔당 원)
       fxMode: src?.fx_mode === 'book' ? 'book' : 'live',
-      fxRate: src?.fx_book_rate != null ? String(Math.round(Number(src.fx_book_rate) * fxRateUnit(src?.balance_currency || 'KRW') * 100) / 100) : '',
+      // 현재 환율(기준 환율 + 기준 시점 이후 환전·지출 반영)을 보여 주고, 바꾸면 그 값이 새 기준 환율(수정 시각 기준)
+      ...(() => {
+        const r = src?.book_rate ?? src?.fx_book_rate;
+        const v = r != null && Number(r) > 0 ? String(Math.round(Number(r) * fxRateUnit(src?.balance_currency || 'KRW') * 100) / 100) : '';
+        return { fxRate: v, fxRate0: v };
+      })(),
       onnuri: !!src?.onnuri_linked,
       // 카드 원천 입금 허용(기본 OFF): 켜면 주입금수단 지정·입금 쪽 원천 목록에 포함
       allowDeposit: !!src?.allow_deposit,
@@ -202,11 +207,16 @@ export default function SourceEdit({ admin = false }) {
         const fxShown = !cardItem && form.balanceCurrency !== 'KRW' && form.balanceCurrency !== getPrimary().code;
         let fxDetails = {};
         if (fxShown) {
-          let rate = form.fxRate === '' ? null : Number(form.fxRate) / fxRateUnit(form.balanceCurrency);
+          // 환율을 그대로 두면 계산된 현재 환율(반올림 전 값) 유지
+          let rate = form.fxRate === '' ? null
+            : (form.fxRate === form.fxRate0 && (src?.book_rate ?? src?.fx_book_rate) != null && !curChanged) ? Number(src.book_rate ?? src.fx_book_rate)
+            : Number(form.fxRate) / fxRateUnit(form.balanceCurrency);
           if (form.fxMode === 'book' && rate == null) rate = await fetchKrwRate(form.balanceCurrency).catch(() => null);
-          fxDetails = { fx_mode: form.fxMode, fx_book_rate: form.fxMode === 'book' ? rate : (src?.fx_book_rate ?? null) };
+          // 환율을 직접 바꿨거나, 환전 시점으로 새로 켰거나, 금액(기준 금액)을 바꾼 경우 지금 환율·시각을 새 기준으로 저장
+          const reset = form.fxMode === 'book' && (form.fxRate !== form.fxRate0 || src?.fx_mode !== 'book' || balanceChanged);
+          fxDetails = { fx_mode: form.fxMode, ...(reset ? { fx_book_rate: rate, fx_rate_set_at: new Date().toISOString() } : {}) };
         }
-        const fxChanged = fxShown && (fxDetails.fx_mode !== (src?.fx_mode || 'live') || Number(fxDetails.fx_book_rate ?? -1) !== Number(src?.fx_book_rate ?? -1));
+        const fxChanged = fxShown && (fxDetails.fx_mode !== (src?.fx_mode || 'live') || 'fx_book_rate' in fxDetails);
         const details = {
           ...fxDetails,
           linked_source_id: cardItem && form.linkedId ? Number(form.linkedId) : null,
