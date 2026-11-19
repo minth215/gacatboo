@@ -159,7 +159,7 @@ export default function TransactionList({
             const depositIncomeColor = (t.type === 'income' && t.origin_type === 'deposit') ? incomeCatColors[t.category_name]
               : (t.type === 'expense' && t.origin_type) ? expenseCatColors[t.category_name] : '';
             const sub = t.type === 'transfer'
-              ? [t.category_name || '이체', (t.source_name && t.to_source_name) ? `${t.source_name} → ${t.to_source_name}` : ''].filter(Boolean).join(' · ') || '—'
+              ? [tfLabel(t), (t.source_name && t.to_source_name) ? `${t.source_name} → ${t.to_source_name}` : ''].filter(Boolean).join(' · ') || '—'
               // 일부라도 디지털 온누리에서 차감된 온누리 가맹점 결제: 원천 옆에 "(디지털 온누리)" — 예: 식당 · 롯데카드(디지털 온누리)
               : [t.category_name, (!hideSource && t.source_name) ? `${t.source_name}${t.onnuri_deduct > 0 ? '(디지털 온누리)' : ''}${t.exclude_performance ? ' (실적 제외)' : ''}` : ''].filter(Boolean).join(' · ') || '—';
             const selected = selectionMode && selectedIds?.has(t.id);
@@ -196,7 +196,7 @@ export default function TransactionList({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="tx-row-title" onMouseEnter={marqueeOn} onMouseLeave={marqueeOff}>
                       <span className="ttext">
-                        {t.content || t.category_name || (t.type === 'income' ? '수입' : t.type === 'transfer' ? '이체' : '지출')}
+                        {t.content || (t.type === 'transfer' ? tfLabel(t) : t.category_name) || (t.type === 'income' ? '수입' : '지출')}
                         {/* 할부 회차 */}
                         {t.installment_total ? ` (${t.installment_no}/${t.installment_total})` : ''}
                         {/* 구독 그룹 결제/입금이 반영된 항목: 몇 회분인지 배지(그룹 화면과 동일) */}
@@ -250,6 +250,14 @@ export function formatDate(d, fmt) {
   const w = `${days[dt.getDay()]}요일`;
   if (fmt === 'full') return `${d.slice(0, 4)} 년 ${Number(d.slice(5, 7))} 월 ${Number(d.slice(8, 10))} 일 ${w}`;
   return `${Number(d.slice(8, 10))} 일 ${w}`;
+}
+
+// 이체 분류 표기: 출금·입금 화폐가 다르면 "환전"(분류가 기본 "이체"이거나 비어 있을 때)
+function tfLabel(t) {
+  const fromCur = t.input_currency || 'KRW';
+  const fx = t.to_amount != null && t.to_currency && t.to_currency !== fromCur;
+  if (fx && (!t.category_name || t.category_name === '이체')) return '환전';
+  return t.category_name || '이체';
 }
 
 // 이체 금액: 출금 = 입력 화폐(input_currency, 없으면 원화) 금액, 입금 = to_amount/to_currency(없으면 출금과 같음).
