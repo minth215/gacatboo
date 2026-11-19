@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { addMonthsClamped, newUuid } from './format.js';
+import { fetchKrwRate } from './currency.js';
 
 // supabase 쿼리 에러를 통일된 형태로 던짐
 function unwrap({ data, error }) {
@@ -44,6 +45,24 @@ function currentNames(r) {
     source_name: src?.name ?? r.source_name,
     ...(r.to_source_id != null || r.to_source_name !== undefined ? { to_source_name: toSrc?.name ?? r.to_source_name } : {}),
   };
+}
+
+// 출금·입금 화폐가 다른 이체인데 입금 금액(to_amount)이 비어 있는 기록(예: 반복 이체 과거 회차 일괄 생성)을
+// 실시간 환율로 채운다: 입금 금액 = 원화 금액(amount) ÷ 입금 화폐 1단위의 원화 값(원화면 amount 그대로).
+// rows 를 주면 그 안에서만, 없으면 내 기록 전체에서 찾는다. 채운 행은 rows 객체에도 반영.
+async function fillMissingTransferToAmounts(rows = null) {
+  const list = rows || unwrap(await supabase.from('transactions').select('id, amount, input_currency, to_currency, to_amount')
+    .eq('type', 'transfer').is('to_amount', null).not('to_currency', 'is', null).limit(1000));
+  const targets = list.filter((r) => r.type === undefined || r.type === 'transfer')
+    .filter((r) => r.to_amount == null && r.to_currency && r.to_currency !== (r.input_currency || 'KRW'));
+  for (const r of targets) {
+    try {
+      const rate = await fetchKrwRate(r.to_currency);
+      const toAmount = r.to_currency === 'KRW' ? Math.round(Number(r.amount) || 0) : Math.round(((Number(r.amount) || 0) / rate) * 100) / 100;
+      const { error } = await supabase.from('transactions').update({ to_amount: toAmount }).eq('id', r.id);
+      if (!error) r.to_amount = toAmount;
+    } catch { /* 환율 조회 실패: 다음 조회 때 다시 시도 */ }
+  }
 }
 
 // 집계용 기록(0089): "집계 포함" OFF 원천 기록은 빼고, 카드 결제 중 집계 제외 디지털 온누리로 차감된 금액은
@@ -459,6 +478,8 @@ export const db = {
     if (error) throw new Error(error.message);
     // 오늘까지 처리했음을 표시 — 매일 자동 실행의 "놓친 회차 따라잡기"가 같은 기간을 다시 훑지 않게(0060)
     await supabase.rpc('mark_recurring_rule_run', { p_rule_id: ruleId }); // 실패(마이그레이션 전)해도 무시 — 오류는 반환값으로만 옴
+    // 화폐가 다른 이체 회차의 입금 금액을 실시간 환율로 채움
+    await fillMissingTransferToAmounts().catch(() => {});
     return data;
   },
 
@@ -493,6 +514,7 @@ export const db = {
     const rows = unwrap(await supabase.from('transactions').select(TX_SELECT)
       .gte('date', start).lt('date', endExclusive)
       .order('date', { ascending: false }).order('id', { ascending: false }));
+    await fillMissingTransferToAmounts(rows).catch(() => {}); // 입금 금액이 빈 환전 기록이 남아 있으면 채움
     return this.attachExcluded(await this.attachOnnuri(await this.attachSubscriptionPeriods(sortByTouched(flattenTx(hideOthersSettlementPayments(rows, userId))))));
   },
   // 구독 그룹의 결제/입금이 가계부에 반영된 항목에 회차(몇 회분) 정보를 붙인다.
