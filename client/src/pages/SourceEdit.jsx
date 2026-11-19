@@ -8,6 +8,7 @@ import { fieldStyle, labelStyle } from './FriendAdd.jsx';
 import BareSelect from '../components/BareSelect.jsx';
 import HelpTip from '../components/HelpTip.jsx';
 import { getPrimary } from '../lib/primaryCurrency.js';
+import { fetchKrwRate, fxRateUnit } from '../lib/currency.js';
 
 const isCardGroup = (t) => t === 'credit' || t === 'check';
 const GROUP_TYPES = [['general', '일반'], ['credit', '신용카드'], ['check', '체크카드'], ['onnuri', '디지털 온누리']];
@@ -109,6 +110,9 @@ export default function SourceEdit({ admin = false }) {
       // 금액 화폐: 저장된 값 → 예전 원천(금액만 있음)은 원화 → 새 원천은 주 화폐
       balanceCurrency: src?.balance_currency || (src?.balance != null ? 'KRW' : getPrimary().code),
       linkedId: src?.linked_source_id ? String(src.linked_source_id) : '',
+      // 보조 화폐 원천의 환율: 시점(실시간/환전 시점) + 환전 시점 환율(표시 단위 기준, 예: 100엔당 원)
+      fxMode: src?.fx_mode === 'book' ? 'book' : 'live',
+      fxRate: src?.fx_book_rate != null ? String(Math.round(Number(src.fx_book_rate) * fxRateUnit(src?.balance_currency || 'KRW') * 100) / 100) : '',
       onnuri: !!src?.onnuri_linked,
       // 카드 원천 입금 허용(기본 OFF): 켜면 주입금수단 지정·입금 쪽 원천 목록에 포함
       allowDeposit: !!src?.allow_deposit,
@@ -194,7 +198,17 @@ export default function SourceEdit({ admin = false }) {
         const prevCur = src?.balance_currency || (src?.balance != null ? 'KRW' : null);
         const curChanged = !cardItem && newBal != null && form.balanceCurrency !== prevCur;
         const balanceChanged = !cardItem && (newBal !== (src?.current_balance != null ? Number(src.current_balance) : null) || curChanged);
+        // 환율(보조 화폐 원천만): 환전 시점이면 입력한 환율(비우면 지금 실시간 환율)
+        const fxShown = !cardItem && form.balanceCurrency !== 'KRW' && form.balanceCurrency !== getPrimary().code;
+        let fxDetails = {};
+        if (fxShown) {
+          let rate = form.fxRate === '' ? null : Number(form.fxRate) / fxRateUnit(form.balanceCurrency);
+          if (form.fxMode === 'book' && rate == null) rate = await fetchKrwRate(form.balanceCurrency).catch(() => null);
+          fxDetails = { fx_mode: form.fxMode, fx_book_rate: form.fxMode === 'book' ? rate : (src?.fx_book_rate ?? null) };
+        }
+        const fxChanged = fxShown && (fxDetails.fx_mode !== (src?.fx_mode || 'live') || Number(fxDetails.fx_book_rate ?? -1) !== Number(src?.fx_book_rate ?? -1));
         const details = {
+          ...fxDetails,
           linked_source_id: cardItem && form.linkedId ? Number(form.linkedId) : null,
           payment_day: creditItem && Number(form.paymentDay) >= 1 ? Math.min(31, Number(form.paymentDay)) : null,
           ...(creditItem ? {
@@ -209,7 +223,7 @@ export default function SourceEdit({ admin = false }) {
           include_in_totals: !!form.includeTotals,
           ...(balanceChanged ? { balance: newBal, balance_currency: newBal == null ? null : form.balanceCurrency, balance_set_at: newBal == null ? null : new Date().toISOString() } : {}),
         };
-        const changed = creditItem || balanceChanged || details.linked_source_id !== (src?.linked_source_id ?? null)
+        const changed = creditItem || balanceChanged || fxChanged || details.linked_source_id !== (src?.linked_source_id ?? null)
           || details.payment_day !== (src?.payment_day ?? null) || details.onnuri_linked !== !!src?.onnuri_linked
           || details.allow_deposit !== !!src?.allow_deposit
           || details.include_in_totals !== (src ? src.include_in_totals !== false : true);
@@ -366,6 +380,52 @@ export default function SourceEdit({ admin = false }) {
             </div>
           </label>
         )}
+
+        {/* 보조 화폐 원천: 환율(시점 + 환전 시점 환율) */}
+        {!admin && !isGroup && !cardItem && form.balanceCurrency !== 'KRW' && form.balanceCurrency !== getPrimary().code && (() => {
+          const unit = fxRateUnit(form.balanceCurrency);
+          const unitLabel = `${getPrimary().code === 'KRW' ? '원' : 'KRW'} / ${unit === 1 ? '' : `${unit} `}${form.balanceCurrency}`;
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <span style={labelStyle}>환율</span>
+              <div style={{ background: 'var(--k-bg-fff)', borderRadius: 18, boxShadow: '0 4px 16px rgb(var(--k-sh) / calc(.07 * var(--k-sha)))', padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={rowStyle}>
+                  <span style={subLabel}>시점</span>
+                  <span style={bareText}>
+                    <BareSelect
+                      value={form.fxMode} options={[['live', '실시간'], ['book', '환전 시점']]}
+                      onChange={(v) => {
+                        set({ fxMode: v });
+                        // 환전 시점으로 바꿨는데 환율이 비어 있으면 지금 실시간 환율로 채워 둠(직접 수정 가능)
+                        if (v === 'book' && form.fxRate === '') {
+                          fetchKrwRate(form.balanceCurrency).then((r) => setForm((f) => (f.fxRate === '' ? { ...f, fxRate: String(Math.round(r * unit * 100) / 100) } : f))).catch(() => {});
+                        }
+                      }}
+                    />
+                  </span>
+                </div>
+                {form.fxMode === 'book' && (
+                  <div style={rowStyle}>
+                    <span style={subLabel}>환전 시점 환율</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'flex-end', minWidth: 0 }}>
+                      <input
+                        type="text" inputMode="decimal" placeholder="0" aria-label="환전 시점 환율"
+                        value={fmtBalance(form.fxRate)}
+                        onChange={(e) => {
+                          let raw = e.target.value.replace(/[^0-9.]/g, '');
+                          const [a, ...b] = raw.split('.'); raw = b.length ? `${a}.${b.join('').slice(0, 2)}` : a;
+                          set({ fxRate: raw.replace(/^0+(?=\d)/, '') });
+                        }}
+                        style={{ width: 110, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontFamily: 'inherit', fontSize: 13.25, color: 'var(--k-tx-191722)', textAlign: 'right', padding: 0 }}
+                      />
+                      <span style={{ flex: 'none', fontSize: 12.5, color: 'var(--k-tx-8b8798)' }}>{unitLabel}</span>
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* 체크카드 원천: 연결 계좌 */}
         {!admin && cardItem && !creditItem && (

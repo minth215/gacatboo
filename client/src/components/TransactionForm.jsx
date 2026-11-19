@@ -185,7 +185,7 @@ function transferSources(tree, excludeTypes, selectedId) {
 
 function ItemRow({
   item, idx, canRemove, qtyLabel, settlementMembers, isTransfer, sources, itemNameSuggestions, onName, onQty, onAmount, onCurrencyChange, onRemove, onToggleExpand, onToggleMember, onMemberAmount, onFromSource, onToSource,
-  isSettlement, recentExpenses, onTarget, usedTargetIds, allowNegative, autoFocusAmount, onMemberRestore, onMemberUnpin, defaultCurrency,
+  isSettlement, recentExpenses, onTarget, usedTargetIds, allowNegative, autoFocusAmount, onMemberRestore, onMemberUnpin, defaultCurrency, bookFx,
 }) {
   const [nameFocused, setNameFocused] = useState(false);
   // 참여 멤버 금액 입력: 누르면 지금 금액이 placeholder 가 되고 새로 입력(정산 현황 금액 수정과 같은 동작)
@@ -288,7 +288,7 @@ function ItemRow({
         <CalcAmountInput
           compact value={item.amount} onChange={onAmount} allowNegative={allowNegative} autoFocus={autoFocusAmount}
           initialCurrency={item.currencyMeta?.input_currency} initialForeignAmount={item.currencyMeta?.input_amount}
-          onCurrencyChange={onCurrencyChange} onCurrencySelect={setLiveCurrency} defaultCurrency={defaultCurrency}
+          onCurrencyChange={onCurrencyChange} onCurrencySelect={setLiveCurrency} defaultCurrency={defaultCurrency} bookFx={bookFx}
         />
       </div>
       </SwipeRemove>
@@ -803,6 +803,27 @@ const TransactionForm = forwardRef(function TransactionForm({
   const showOnnuri = type === 'expense' && !isTransfer && !!selectedSourceItem?.onnuri_linked
     && (selectedItemTop?.group_type === 'credit' || selectedItemTop?.group_type === 'check')
     && (Number(onnuriItem?.current_balance) > 0 || !!initial?.onnuri);
+  // 환전 시점 환율: 고른 원천(카드면 연결 계좌)이 "환전 시점" 환율의 보조 화폐 원천이면, 그 화폐로 입력한 지출은
+  // 잔액만큼은 환전 시점 환율, 넘는 부분은 실시간 환율로 주 화폐 금액을 계산(항목 순서대로 잔액 차감)
+  const bookFxBase = (() => {
+    if (type !== 'expense' || isTransfer || !selectedSourceItem) return null;
+    const acct = selectedSourceItem.linked_source_id ? sourcesFlat.find((x) => x.id === selectedSourceItem.linked_source_id) : selectedSourceItem;
+    const cur = acct?.balance_currency;
+    if (!acct || acct.fx_mode !== 'book' || !(Number(acct.fx_book_rate) > 0) || !cur || cur === 'KRW') return null;
+    // 수정 중인 기록이 이미 잔액에서 빠져 있으면 되돌려 계산
+    const addBack = (editing && initial?.type === 'expense' && initial?.input_currency === cur && String(initial?.source_id) === String(acct.id))
+      ? (Number(initial.input_amount) || 0) : 0;
+    return { currency: cur, rate: Number(acct.fx_book_rate), balance: Math.max(0, (Number(acct.current_balance) || 0) + addBack) };
+  })();
+  const bookFxFor = (idx) => {
+    if (!bookFxBase) return null;
+    let used = 0;
+    for (let j = 0; j < idx; j++) {
+      const m = items[j]?.currencyMeta;
+      if (m?.input_currency === bookFxBase.currency) used += (Number(m.input_amount) || 0) * (qtyIsPeriods ? 1 : (Number(items[j].qty) || 1));
+    }
+    return { ...bookFxBase, balance: Math.max(0, bookFxBase.balance - used), qty: qtyIsPeriods ? 1 : (Number(items[idx]?.qty) || 1) };
+  };
   const transferFromName = sourcesFlat.find((s) => String(s.id) === items[0]?.fromSourceId)?.name || '';
   const transferToName = sourcesFlat.find((s) => String(s.id) === items[0]?.toSourceId)?.name || '';
 
@@ -1541,6 +1562,7 @@ const TransactionForm = forwardRef(function TransactionForm({
             allowNegative={type === 'expense' && !isSettlement}
             // 개인 기록(그룹 제외)의 새 금액은 주 화폐로 입력
             // 여행 중인 보조 화폐가 있으면 그 화폐가 기본(주 화폐·환산은 그대로)
+            bookFx={bookFxFor(idx)}
             defaultCurrency={(!groupId && !onSubmit && !isSettlement) ? (travelCurrency || (primaryCode !== 'KRW' ? primaryCode : undefined)) : undefined}
             onTarget={(v) => onItemTargetChange(idx, v)}
             onName={(v) => onItemNameChange(idx, v)}

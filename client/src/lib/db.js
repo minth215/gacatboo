@@ -332,6 +332,19 @@ export const db = {
     return Number(data) || 0;
   },
   // 세부 항목 상세(0082): { balance, linked_source_id, payment_day }
+  // 환전 시점 환율 갱신: (기존 잔액 × 기존 환율 + 이번 환전 금액 × 이번 환율) ÷ (기존 잔액 + 이번 환전 금액).
+  // 기존 잔액이 없으면(다 썼으면) 이번 환율 그대로. 잔액은 이번 기록이 반영된 뒤 값에서 이번 금액을 빼서 구함.
+  async applyExchangeBookRate(sourceId, toAmount, krw) {
+    const src = unwrap(await supabase.from('sources').select('id, fx_mode, fx_book_rate').eq('id', sourceId).single());
+    if (src.fx_mode !== 'book' || !(toAmount > 0) || !(krw > 0)) return;
+    const { data: bal } = await supabase.rpc('my_source_balances');
+    const row = (bal || []).find((b) => b.source_id === sourceId);
+    const before = row ? Math.max(0, Number(row.current_balance) - toAmount) : 0;
+    const oldRate = Number(src.fx_book_rate) || 0;
+    const exch = krw / toAmount;
+    const next = before > 0 && oldRate > 0 ? (before * oldRate + toAmount * exch) / (before + toAmount) : exch;
+    await supabase.from('sources').update({ fx_book_rate: Math.round(next * 10000) / 10000 }).eq('id', sourceId);
+  },
   async updateSourceDetails(id, patch) {
     return unwrap(await supabase.from('sources').update(patch).eq('id', id));
   },
@@ -736,6 +749,11 @@ export const db = {
     } else {
       const insert = { ...base, user_id: userId, created_by: userId, group_id: payload.group_id || null, ...(recurring_id ? { recurring_id } : {}) };
       saved = unwrap(await supabase.from('transactions').insert(insert).select(TX_SELECT).single());
+      // 환전(화폐가 다른 이체)을 새로 입력: 입금 원천이 "환전 시점 환율"이면 환율을 가중 평균으로 갱신
+      if (base.type === 'transfer' && base.to_source_id && Number(base.to_amount) > 0 && base.to_currency
+        && base.to_currency !== (base.input_currency || 'KRW')) {
+        await this.applyExchangeBookRate(base.to_source_id, Number(base.to_amount), Number(base.amount)).catch(() => {});
+      }
     }
     // 과거 날짜로 반복을 새로 걸었고 사용자가 일괄 생성을 선택한 경우: 밀린 회차를 한 번에 생성
     if (recurring_id && payload.backfillPast) await this.backfillRecurringRule(recurring_id);

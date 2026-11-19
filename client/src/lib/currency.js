@@ -52,3 +52,6 @@ export async function fetchKrwRate(code) {
   try { sessionStorage.setItem(cacheKey, String(rate)); } catch {}
   return rate;
 }
+
+// 환율 표시 단위: 엔화 등은 100 단위로 표기(예: 830원 / 100 JPY)
+export const fxRateUnit = (code) => (['JPY', 'VND', 'IDR'].includes(code) ? 100 : 1);
