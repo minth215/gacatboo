@@ -9,6 +9,7 @@ import { saveTxDraft, takeTxDraft } from '../lib/txDraft.js';
 import { useFavoriteToggle } from '../lib/useFavoriteToggle.js';
 import { loadPrefs } from '../lib/prefs.js';
 import CalcAmountInput from './CalcAmountInput.jsx';
+import { fetchKrwRate } from '../lib/currency.js';
 import RecurrenceModal from './RecurrenceModal.jsx';
 import { getPrimary, fmtP } from '../lib/primaryCurrency.js';
 import { useInstallmentDeleteChoice } from './InstallmentDeleteModal.jsx';
@@ -898,7 +899,78 @@ const TransactionForm = forwardRef(function TransactionForm({
     const sum = rows.reduce((t, it) => t + (Number(it.amount) || 0), 0);
     return Number(initial.amount) !== sum ? String(initial.amount) : null;
   });
-  const total = (isSettlement && totalOverride != null && totalOverride !== '') ? Number(totalOverride) : rowsTotal;
+  // ---------- 이체: 출금(윗줄, -) / 입금(아랫줄, +) 금액을 각 원천의 금액 화폐로 ----------
+  // 한쪽을 입력하면 다른 쪽을 자동으로 채움(같은 화폐면 같은 금액, 다르면 실시간 환율로 환산).
+  // 자동으로 채운 값을 사용자가 직접 고치면 그때부터는 따로 둔다.
+  const curOfSource = (id) => { const s = sourcesFlat.find((x) => String(x.id) === String(id)); return s?.balance_currency || 'KRW'; };
+  const fromCur = curOfSource(items[0]?.fromSourceId);
+  const toCur = curOfSource(items[0]?.toSourceId);
+  const [fxRates, setFxRates] = useState({ KRW: 1 });
+  useEffect(() => {
+    if (!isTransfer) return;
+    [fromCur, toCur].filter((c) => c !== 'KRW' && fxRates[c] == null).forEach((c) => {
+      fetchKrwRate(c).then((r) => setFxRates((prev) => ({ ...prev, [c]: r }))).catch(() => {});
+    });
+  }, [isTransfer, fromCur, toCur]);
+  const roundCur = (v, c) => (c === 'KRW' ? Math.round(v) : Math.round(v * 100) / 100);
+  const convertAmt = (v, a, b) => {
+    if (v === '' || v == null) return '';
+    if (a === b) return String(v);
+    const ra = fxRates[a]; const rb = fxRates[b];
+    if (!ra || !rb) return null; // 환율을 아직 못 가져옴
+    return String(roundCur((Number(v) * ra) / rb, b));
+  };
+  const [tfFrom, setTfFrom] = useState('');
+  const [tfTo, setTfTo] = useState('');
+  const autoTfTo = useRef(null);   // 자동으로 채운 입금 금액(같으면 계속 자동 갱신)
+  const autoTfFrom = useRef(null);
+  const tfInitRef = useRef(false);
+  // 수정 화면: 저장된 이체에서 출금/입금 금액 복원(원천·환율이 도착한 뒤 한 번)
+  useEffect(() => {
+    if (!isTransfer || tfInitRef.current) return;
+    if (!(initial?.type === 'transfer' || initial?.amount)) { tfInitRef.current = true; return; }
+    if (!sourcesFlat.length || !items[0]?.fromSourceId) return;
+    const needRates = [fromCur, toCur].filter((c) => c !== 'KRW');
+    if (needRates.some((c) => fxRates[c] == null) && !(initial?.to_amount != null && (fromCur === 'KRW' || initial?.input_currency === fromCur))) return;
+    tfInitRef.current = true;
+    const krw = Number(initial.amount) || 0;
+    const fromV = fromCur === 'KRW' ? krw : (initial.input_currency === fromCur && initial.input_amount != null ? Number(initial.input_amount) : (fxRates[fromCur] ? roundCur(krw / fxRates[fromCur], fromCur) : ''));
+    const toV = initial.to_amount != null && (initial.to_currency || 'KRW') === toCur ? Number(initial.to_amount)
+      : toCur === 'KRW' ? krw : (initial.input_currency === toCur && initial.input_amount != null ? Number(initial.input_amount) : (fxRates[toCur] ? roundCur(krw / fxRates[toCur], toCur) : ''));
+    setTfFrom(fromV === '' ? '' : String(fromV));
+    setTfTo(toV === '' ? '' : String(toV));
+  }, [isTransfer, sourcesFlat, items[0]?.fromSourceId, items[0]?.toSourceId, fxRates]);
+  const onTfFrom = (v) => {
+    setTfFrom(v);
+    autoTfFrom.current = null;
+    if (tfTo === '' || tfTo === autoTfTo.current) {
+      const c = convertAmt(v, fromCur, toCur);
+      if (c != null) { setTfTo(c); autoTfTo.current = c; }
+    }
+  };
+  const onTfTo = (v) => {
+    setTfTo(v);
+    autoTfTo.current = null;
+    if (tfFrom === '' || tfFrom === autoTfFrom.current) {
+      const c = convertAmt(v, toCur, fromCur);
+      if (c != null) { setTfFrom(c); autoTfFrom.current = c; }
+    }
+  };
+  // 원천(화폐)이 바뀌면 자동으로 채운 쪽만 다시 환산
+  useEffect(() => {
+    if (!isTransfer) return;
+    if (tfFrom !== '' && (tfTo === '' || tfTo === autoTfTo.current)) {
+      const c = convertAmt(tfFrom, fromCur, toCur); if (c != null) { setTfTo(c); autoTfTo.current = c; }
+    } else if (tfTo !== '' && tfFrom === autoTfFrom.current) {
+      const c = convertAmt(tfTo, toCur, fromCur); if (c != null) { setTfFrom(c); autoTfFrom.current = c; }
+    }
+  }, [fromCur, toCur, fxRates]);
+  // 기록의 원화 금액: 출금이 원화면 출금 금액, 입금이 원화면 입금 금액, 둘 다 외화면 출금 금액 × 환율
+  const transferKrw = fromCur === 'KRW' ? (Number(tfFrom) || 0)
+    : toCur === 'KRW' ? (Number(tfTo) || 0)
+      : Math.round((Number(tfFrom) || 0) * (fxRates[fromCur] || 0));
+
+  const total = isTransfer ? transferKrw : (isSettlement && totalOverride != null && totalOverride !== '') ? Number(totalOverride) : rowsTotal;
   // 정산 대상을 고른 항목의 "내용"(지출 쪽 내용/분류명) — 내용 필드 자동 채움에 사용
   const settlementTargetLabel = (it) => {
     const x = recentExpenses.find((e) => String(e.id) === it.targetId);
@@ -1104,9 +1176,17 @@ const TransactionForm = forwardRef(function TransactionForm({
       ...(isTransfer ? { to_source_id, to_source_name } : {}),
       content: (contentValue || '').trim(), memo,
       items: isTransfer ? null : isSettlement ? settleItems : (savedItems.length ? savedItems : null),
-      input_currency: currencyItem?.currencyMeta?.input_currency || null,
-      input_amount: currencyItem?.currencyMeta?.input_amount ?? null,
-      fx_rate: currencyItem?.currencyMeta?.fx_rate ?? null,
+      // 이체: 출금 원천이 외화면 그 화폐/금액, 입금 쪽은 to_currency/to_amount(0115)
+      ...(isTransfer ? {
+        input_currency: fromCur !== 'KRW' ? fromCur : null,
+        input_amount: fromCur !== 'KRW' ? (Number(tfFrom) || 0) : null,
+        fx_rate: fromCur !== 'KRW' && Number(tfFrom) ? Math.round((transferKrw / Number(tfFrom)) * 10000) / 10000 : null,
+        to_currency: toCur, to_amount: tfTo === '' ? null : Number(tfTo),
+      } : {
+        input_currency: currencyItem?.currencyMeta?.input_currency || null,
+        input_amount: currencyItem?.currencyMeta?.input_amount ?? null,
+        fx_rate: currencyItem?.currencyMeta?.fx_rate ?? null,
+      }),
       recurrence, backfillPast,
       settlement_target_id: isSettlement ? (settleRows.find((r) => r.targetId)?.targetId ?? null) : null,
       group_id: groupId || null,
@@ -1406,6 +1486,43 @@ const TransactionForm = forwardRef(function TransactionForm({
           </div>
         )}
 
+        {isTransfer && (
+          // 이체: 윗줄 출금 수단(-), 아랫줄 입금 수단(+). 금액 단위는 각 원천의 금액 화폐(원천 관리)
+          <div style={{ marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)', padding: '4px 0' }}>
+            {[
+              ['from', '출금 수단 선택', 'transfer-from-source-select', items[0]?.fromSourceId, transferSources(sources, ['credit'], items[0]?.fromSourceId), (v) => updateItem(0, { fromSourceId: v }), tfFrom, onTfFrom, fromCur, '-'],
+              ['to', '입금 수단 선택', 'transfer-to-source-select', items[0]?.toSourceId, depositableTree(sources, items[0]?.toSourceId), (v) => updateItem(0, { toSourceId: v }), tfTo, onTfTo, toCur, '+'],
+            ].map(([key, ph, sid, val, tree, onSrc, amt, onAmt, cur, sign]) => (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0' }}>
+                <select id={sid} value={val || ''} onChange={(e) => onSrc(e.target.value)} disabled={readOnly}
+                  style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: val ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)', outline: 'none', appearance: 'none' }}>
+                  <option value="">{ph}</option>
+                  {tree.map((top) => (top.children?.length ? (
+                    <optgroup key={top.id} label={top.name}>
+                      {top.children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </optgroup>
+                  ) : null))}
+                </select>
+                <span style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: sign === '-' ? '#FF4358' : '#2CDDB9' }}>{sign}</span>
+                  <input
+                    type="text" inputMode="decimal" placeholder="0" aria-label={key === 'from' ? '출금 금액' : '입금 금액'} readOnly={readOnly}
+                    value={amt === '' ? '' : (() => { const [i, d] = String(amt).split('.'); return Number(i || 0).toLocaleString('ko-KR') + (d != null ? `.${d}` : ''); })()}
+                    onChange={(e) => {
+                      let raw = e.target.value.replace(cur === 'KRW' ? /[^0-9]/g : /[^0-9.]/g, '');
+                      if (cur !== 'KRW') { const [a, ...b] = raw.split('.'); raw = b.length ? `${a}.${b.join('').slice(0, 2)}` : a; }
+                      onAmt(raw.replace(/^0+(?=\d)/, ''));
+                    }}
+                    style={{ width: 96, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'right', padding: 0 }}
+                  />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--k-tx-8b8798)', minWidth: 14 }}>{cur === 'KRW' ? '원' : cur}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!isTransfer && (<>
         <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: tableCols, gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
           <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>내용</span>
           {showMemberSplit && <span />}
@@ -1446,6 +1563,7 @@ const TransactionForm = forwardRef(function TransactionForm({
             onToSource={(v) => updateItem(idx, { toSourceId: v })}
           />
         ))}
+        </>)}
 
         {!isTransfer && !readOnly && <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>}
 
@@ -1469,6 +1587,8 @@ const TransactionForm = forwardRef(function TransactionForm({
           <button type="button" onClick={() => setFeeEnabled(true)} className="rcpt-add-row">+ 수수료 추가</button>
         )}
 
+        {/* 이체는 출금·입금 줄에 금액이 있어 합계 줄을 두지 않음(수수료가 있으면 그 위 경계선만) */}
+        {isTransfer ? <div style={{ marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)' }} /> : (
         <div style={{ display: 'grid', gridTemplateColumns: tableCols, gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)' }}>
           <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>합계</span>
           {showMemberSplit && <span />}
@@ -1486,6 +1606,7 @@ const TransactionForm = forwardRef(function TransactionForm({
           )}
           <span />
         </div>
+        )}
         {/* 할부 기록: 합계 밑에 "{누적 결제 금액}/{총 금액} 원 결제"(이 회차는 지금 입력 중인 합계로 계산) */}
         {initial?.installment_total && installmentParts?.length ? (() => {
           const others = installmentParts.filter((p) => p.id !== initial.id);

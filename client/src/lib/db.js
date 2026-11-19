@@ -642,6 +642,8 @@ export const db = {
       source_id: payload.source_id || null,
       source_name,
       ...(payload.type === 'transfer' ? { to_source_id: payload.to_source_id || null, to_source_name: payload.to_source_name || '' } : {}),
+      // 이체 입금 쪽 금액·화폐(0115) — 폼이 값을 보낼 때만
+      ...(payload.type === 'transfer' && payload.to_amount !== undefined ? { to_amount: payload.to_amount ?? null, to_currency: payload.to_currency || null } : {}),
       content: (payload.content || '').trim(),
       memo: (payload.memo || '').trim(),
       items: payload.items ?? null,
