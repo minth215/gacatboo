@@ -253,7 +253,7 @@ export function formatDate(d, fmt) {
 }
 
 // 이체 금액: 출금 = 입력 화폐(input_currency, 없으면 원화) 금액, 입금 = to_amount/to_currency(없으면 출금과 같음).
-// · 화폐가 다르면 입금 금액(먹색) + 아래 작은 회색으로 출금 금액
+// · 화폐가 다르면 출금 금액(먹색) + 아래 작은 회색으로 → 입금 금액
 // · 같은 화폐·같은 금액이면 금액만
 // · 같은 화폐인데 금액이 다르면 출금 금액(먹색) + 아래 가는 글씨로 차액(입금이 많으면 민트 +, 적으면 코랄핑크 -)
 function TransferAmount({ t }) {
@@ -269,8 +269,11 @@ function TransferAmount({ t }) {
   if (toCur !== fromCur) {
     return (
       <span style={wrap}>
-        <span style={main}>{fmt(toAmt, toCur)}</span>
-        <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', marginTop: 1, whiteSpace: 'nowrap' }}>{fmt(fromAmt, fromCur)}</span>
+        <span style={main}>{fmt(fromAmt, fromCur)}</span>
+        <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', marginTop: 1, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="4" y1="12" x2="19" y2="12" /><polyline points="13 6 19 12 13 18" /></svg>
+          {fmt(toAmt, toCur)}
+        </span>
       </span>
     );
   }

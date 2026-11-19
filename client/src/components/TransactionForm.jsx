@@ -1266,6 +1266,15 @@ const TransactionForm = forwardRef(function TransactionForm({
 
   const rowLabelStyle = { width: 46, flex: 'none', fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' };
   const rowInputStyle = { flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'right', padding: 0 };
+  // 이체 표(출금·입금·수수료 줄): [내용][부호][금액][단위][삭제] — 금액 오른쪽 끝·부호 위치가 줄마다 같도록 고정 칸.
+  // 출금·입금 수단이 모두 주 화폐면 단위 칸을 없앤다.
+  const tfShowUnit = !(fromCur === primaryCode && toCur === primaryCode);
+  const tfGrid = { display: 'grid', gridTemplateColumns: `minmax(0,1fr) 14px 96px ${tfShowUnit ? '34px' : '0px'} 26px`, alignItems: 'center' };
+  const tfUnit = (cur) => (
+    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--k-tx-8b8798)', paddingLeft: tfShowUnit ? 4 : 0, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+      {tfShowUnit ? (cur === 'KRW' ? '원' : cur) : ''}
+    </span>
+  );
   const tableCols = (isTransfer || isSettlement) ? '1fr 84px 18px' : showMemberSplit ? '1fr 14px 46px 84px 18px' : '1fr 46px 84px 18px';
 
   return (
@@ -1501,9 +1510,9 @@ const TransactionForm = forwardRef(function TransactionForm({
               ['from', '출금 수단 선택', 'transfer-from-source-select', items[0]?.fromSourceId, transferSources(sources, ['credit'], items[0]?.fromSourceId), (v) => updateItem(0, { fromSourceId: v }), tfFrom, onTfFrom, fromCur, '-'],
               ['to', '입금 수단 선택', 'transfer-to-source-select', items[0]?.toSourceId, depositableTree(sources, items[0]?.toSourceId), (v) => updateItem(0, { toSourceId: v }), tfTo, onTfTo, toCur, '+'],
             ].map(([key, ph, sid, val, tree, onSrc, amt, onAmt, cur, sign]) => (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0' }}>
+              <div key={key} style={{ ...tfGrid, padding: '7px 0' }}>
                 <select id={sid} value={val || ''} onChange={(e) => onSrc(e.target.value)} disabled={readOnly}
-                  style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: val ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)', outline: 'none', appearance: 'none' }}>
+                  style={{ minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: val ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)', outline: 'none', appearance: 'none' }}>
                   <option value="">{ph}</option>
                   {tree.map((top) => (top.children?.length ? (
                     <optgroup key={top.id} label={top.name}>
@@ -1511,8 +1520,7 @@ const TransactionForm = forwardRef(function TransactionForm({
                     </optgroup>
                   ) : null))}
                 </select>
-                <span style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{sign}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--k-tx-191722)', textAlign: 'center' }}>{sign}</span>
                   <input
                     type="text" inputMode="decimal" placeholder="0" aria-label={key === 'from' ? '출금 금액' : '입금 금액'} readOnly={readOnly}
                     value={amt === '' ? '' : (() => { const [i, d] = String(amt).split('.'); return Number(i || 0).toLocaleString('ko-KR') + (d != null ? `.${d}` : ''); })()}
@@ -1521,10 +1529,10 @@ const TransactionForm = forwardRef(function TransactionForm({
                       if (cur !== 'KRW') { const [a, ...b] = raw.split('.'); raw = b.length ? `${a}.${b.join('').slice(0, 2)}` : a; }
                       onAmt(raw.replace(/^0+(?=\d)/, ''));
                     }}
-                    style={{ width: 96, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'right', padding: 0 }}
+                    style={{ width: '100%', minWidth: 0, border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'right', padding: 0 }}
                   />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--k-tx-8b8798)', minWidth: 14 }}>{cur === 'KRW' ? '원' : cur}</span>
-                </span>
+                  {tfUnit(cur)}
+                  <span />
               </div>
             ))}
           </div>
@@ -1569,16 +1577,18 @@ const TransactionForm = forwardRef(function TransactionForm({
         {!isTransfer && !readOnly && <button type="button" onClick={addItem} className="rcpt-add-row">+ 행 추가</button>}
 
         {isTransfer && !onSubmit && feeEnabled && (
-          <div style={{ display: 'grid', gridTemplateColumns: tableCols, gap: 8, alignItems: 'center', padding: '5px 0' }}>
+          <div style={{ ...tfGrid, padding: '5px 0' }}>
             <input
               type="text" placeholder="수수료" value={feeName} onChange={(e) => setFeeName(e.target.value)}
               style={{ border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', outline: 'none', minWidth: 0 }}
             />
+            <span />
             <CalcAmountInput compact value={feeAmount} onChange={setFeeAmount} />
+            {tfUnit('KRW')}
             <button
               type="button" aria-label="수수료 삭제"
               onClick={() => { setFeeEnabled(false); setFeeName('수수료'); setFeeAmount(''); }}
-              style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--k-tx-c2bfc6)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ justifySelf: 'end', width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--k-tx-c2bfc6)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               <RemoveIcon />
             </button>
