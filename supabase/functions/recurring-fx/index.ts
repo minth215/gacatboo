@@ -8,6 +8,7 @@
 //     개인 가계부의 미러 거래에도 그대로 반영한다.
 //   · 개인/그룹 일반 기록(transactions, 미러가 아닌 것): 항목(items)별 화폐 정보가 있으면 항목마다
 //     다시 계산해 합계를 맞추고, 없으면 기록 단위 금액만 다시 계산한다.
+//   · 반복 이체 중 출금·입금 화폐가 다른 것: 입금 금액(to_amount)을 그날 환율로 채운다(0116).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -60,7 +61,7 @@ Deno.serve(async (req) => {
     return rates[code];
   };
 
-  const result = { date, payments: 0, deposits: 0, transactions: 0, skipped: 0 };
+  const result = { date, payments: 0, deposits: 0, transactions: 0, transfers: 0, skipped: 0 };
 
   // 그룹 결제 · 입금
   for (const table of ['subscription_payments', 'subscription_deposits'] as const) {
@@ -100,6 +101,25 @@ Deno.serve(async (req) => {
       await admin.from('transactions').update({ amount: Math.round(Number(t.input_amount) * rate), fx_rate: rate }).eq('id', t.id);
     }
     result.transactions++;
+  }
+
+  // 화폐가 다른 반복 이체: 입금 금액(to_amount)을 그날 환율로 채움(같은 화폐 이체는 DB 트리거가 출금 금액 그대로 채움, 0116)
+  const { data: tfs } = await admin.from('transactions').select('id, amount, input_currency, input_amount, to_currency')
+    .eq('date', date).eq('type', 'transfer').not('recurring_id', 'is', null).not('to_currency', 'is', null);
+  for (const t of tfs ?? []) {
+    const fromCur = t.input_currency || 'KRW';
+    const toCur = t.to_currency;
+    if (!toCur || toCur === fromCur) continue;
+    const krw = Number(t.amount) || 0; // 위에서 보조 화폐 출금 금액은 이미 그날 환율로 다시 계산됨
+    let toAmount: number;
+    if (toCur === 'KRW') toAmount = Math.round(krw);
+    else {
+      const r = await rateOf(toCur);
+      if (!r) { result.skipped++; continue; }
+      toAmount = Math.round((krw / r) * 100) / 100;
+    }
+    await admin.from('transactions').update({ to_amount: toAmount }).eq('id', t.id);
+    result.transfers++;
   }
 
   return json(result);

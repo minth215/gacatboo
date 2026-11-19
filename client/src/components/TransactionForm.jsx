@@ -1486,9 +1486,17 @@ const TransactionForm = forwardRef(function TransactionForm({
           </div>
         )}
 
+        <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: tableCols, gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
+          <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>내용</span>
+          {showMemberSplit && <span />}
+          {!isTransfer && !isSettlement && <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'center' }}>{qtyLabel}</span>}
+          <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'right' }}>금액</span>
+          <span />
+        </div>
+
         {isTransfer && (
-          // 이체: 윗줄 출금 수단(-), 아랫줄 입금 수단(+). 금액 단위는 각 원천의 금액 화폐(원천 관리)
-          <div style={{ marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)', padding: '4px 0' }}>
+          // 이체: 표 안에 윗줄 출금 수단(-), 아랫줄 입금 수단(+). 금액 단위는 각 원천의 금액 화폐(원천 관리)
+          <div style={{ padding: '2px 0' }}>
             {[
               ['from', '출금 수단 선택', 'transfer-from-source-select', items[0]?.fromSourceId, transferSources(sources, ['credit'], items[0]?.fromSourceId), (v) => updateItem(0, { fromSourceId: v }), tfFrom, onTfFrom, fromCur, '-'],
               ['to', '입금 수단 선택', 'transfer-to-source-select', items[0]?.toSourceId, depositableTree(sources, items[0]?.toSourceId), (v) => updateItem(0, { toSourceId: v }), tfTo, onTfTo, toCur, '+'],
@@ -1504,7 +1512,7 @@ const TransactionForm = forwardRef(function TransactionForm({
                   ) : null))}
                 </select>
                 <span style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 700, color: sign === '-' ? '#FF4358' : '#2CDDB9' }}>{sign}</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--k-tx-191722)' }}>{sign}</span>
                   <input
                     type="text" inputMode="decimal" placeholder="0" aria-label={key === 'from' ? '출금 금액' : '입금 금액'} readOnly={readOnly}
                     value={amt === '' ? '' : (() => { const [i, d] = String(amt).split('.'); return Number(i || 0).toLocaleString('ko-KR') + (d != null ? `.${d}` : ''); })()}
@@ -1523,13 +1531,6 @@ const TransactionForm = forwardRef(function TransactionForm({
         )}
 
         {!isTransfer && (<>
-        <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: tableCols, gap: 8, padding: '8px 0', borderTop: '1px dashed var(--k-bd-cfccd4)', borderBottom: '1px dashed var(--k-bd-cfccd4)' }}>
-          <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)' }}>내용</span>
-          {showMemberSplit && <span />}
-          {!isTransfer && !isSettlement && <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'center' }}>{qtyLabel}</span>}
-          <span style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--k-tx-8b8798)', textAlign: 'right' }}>금액</span>
-          <span />
-        </div>
 
         {items.map((it, idx) => (
           <ItemRow

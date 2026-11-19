@@ -48,8 +48,29 @@ function currentNames(r) {
 
 // 집계용 기록(0089): "집계 포함" OFF 원천 기록은 빼고, 카드 결제 중 집계 제외 디지털 온누리로 차감된 금액은
 // 그만큼 금액(amount, eff)을 줄인다. 가계부 합계·검색 합계·분류별/항목별 통계에서 사용.
+// 같은 화폐끼리의 이체인데 출금·입금 금액이 다르면 그 차이(원화 환산, 부호: 입금이 많으면 +)를 반환. 그 외 0.
+export function transferDiffKrw(r) {
+  if (r?.type !== 'transfer' || r.to_amount == null) return 0;
+  const fromCur = r.input_currency || 'KRW';
+  if ((r.to_currency || fromCur) !== fromCur) return 0;
+  const fromAmt = r.input_currency ? Number(r.input_amount) : Number(r.amount);
+  const diff = Number(r.to_amount) - (Number(fromAmt) || 0);
+  if (!diff) return 0;
+  if (fromCur === 'KRW') return Math.round(diff);
+  const rate = Number(r.fx_rate) || (fromAmt ? Number(r.amount) / fromAmt : 0);
+  return Math.round(diff * rate);
+}
+// 이체 차액 → 수입(입금이 많음)/지출(입금이 적음) 행으로 바꿔 집계에 넣는다. 차액이 없으면 이체 그대로.
+// tf_amount: 원래 이체 금액(검색 합계의 이체 합계용)
+export function withTransferDiff(r) {
+  const d = transferDiffKrw(r);
+  if (!d) return r;
+  const a = Math.abs(d);
+  return { ...r, type: d > 0 ? 'income' : 'expense', amount: a, ...(r.eff != null ? { eff: a } : {}), transfer_diff: true, tf_amount: Number(r.amount) || 0 };
+}
+
 export function countedRows(list, { ledger = false } = {}) {
-  return list.filter((r) => !r.excluded).flatMap((r) => {
+  return list.filter((r) => !r.excluded).map(withTransferDiff).flatMap((r) => {
     const amt = Number(r.amount) || 0;
     const deduct = Number(r.onnuri_deduct) || 0;
     // 가계부 합계: 신용카드 지출 반영 시점이 "대금 납부일"이면 카드 사용 기록은 빼고(대금 납부 기록으로 반영),

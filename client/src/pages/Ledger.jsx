@@ -294,7 +294,7 @@ export default function Ledger() {
   const sCounted = useMemo(() => countedRows(sFiltered, { ledger: true }), [sFiltered]);
   const sIncome = sCounted.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
   const sExpense = sCounted.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
-  const sTransfer = sCounted.filter((t) => t.type === 'transfer').reduce((s, t) => s + Number(t.amount), 0);
+  const sTransfer = sCounted.filter((t) => t.type === 'transfer' || t.transfer_diff).reduce((s, t) => s + Number(t.transfer_diff ? t.tf_amount : t.amount), 0);
 
   
   // 검색창 열기: 탭한 순간 바로 포커스(모바일 키보드가 뜨도록) + 펼침 애니메이션 후 한 번 더

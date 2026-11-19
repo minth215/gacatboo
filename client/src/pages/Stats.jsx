@@ -5,7 +5,7 @@ import { effectiveOf } from '../lib/budget.js';
 // 금액 단위(주 화폐가 원화면 "원")
 const unitLabel = () => (getPrimary().code === 'KRW' ? '원' : getPrimary().code);
 import { useNavigate, useLocation } from 'react-router-dom';
-import { db, countedRows, isCardBill } from '../lib/db.js';
+import { db, countedRows, isCardBill, withTransferDiff } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
 import { loadPrefs } from '../lib/prefs.js';
 import {
@@ -106,7 +106,7 @@ const splitOnnuri = (list) => list.flatMap((r) => {
 // "결제 대금" 분류 기록(카드 대금 납부)은 지출 반영 시점과 무관하게 통계에서 제외
 const rowsForView = (list, view) => {
   const base = list.filter((r) => !isCardBill(r));
-  return view === 'source' ? splitOnnuri(base) : countedRows(base);
+  return view === 'source' ? splitOnnuri(base.map(withTransferDiff)) : countedRows(base);
 };
 
 const statAmount = (r, view, settleReflect = true) => (view === 'category' && settleReflect ? r.eff : Number(r.amount));

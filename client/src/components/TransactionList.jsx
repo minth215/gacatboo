@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/db.js';
+import { db, transferDiffKrw } from '../lib/db.js';
 import { fmtNum, fmtForeign, monthPillLabel } from '../lib/format.js';
 import { getPrimary, fmtP } from '../lib/primaryCurrency.js';
 import SwipeRow from './SwipeRow.jsx';
@@ -141,7 +141,8 @@ export default function TransactionList({
   const renderDateGroup = (date) => {
     const items = groups[date];
     // 이체는 수입/지출이 아니라 통계(일별 합계)에 잡히지 않음
-    const net = items.reduce((s, t) => s + (t.type === 'transfer' ? 0 : t.type === 'income' ? Number(t.amount) : -Number(t.amount)), 0);
+    // (같은 화폐 이체의 출금·입금 차액만 수입/지출로 반영)
+    const net = items.reduce((s, t) => s + (t.type === 'transfer' ? transferDiffKrw(t) : t.type === 'income' ? Number(t.amount) : -Number(t.amount)), 0);
     return (
       <div key={date}>
         <div style={{ margin: '18px 0 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 8px' }}>
@@ -206,13 +207,15 @@ export default function TransactionList({
                     </div>
                     <div className="tx-row-sub">{sub}</div>
                   </div>
+                  {t.type === 'transfer' ? <TransferAmount t={t} /> : (
                   <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flex: 'none' }}>
                     {/* 신용카드 지출 반영 시점 "대금 납부일": 카드 사용 기록 금액은 코랄핑크 대신 먹색 */}
-                    <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : (t.type === 'transfer' || t.deferred) ? 'var(--k-tx-191722)' : '#FF4358', ...(t.type === 'transfer' ? { color: 'var(--k-tx-4b4752)' } : {}) }}>
-                      {t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{amountMain(t)}
+                    <span style={{ fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: t.type === 'income' ? '#2CDDB9' : t.deferred ? 'var(--k-tx-191722)' : '#FF4358' }}>
+                      {t.type === 'income' ? '+' : '-'}{amountMain(t)}
                     </span>
-                    {amountSub(t) && <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', marginTop: 1 }}>{t.type === 'transfer' ? '' : (t.type === 'income' ? '+' : '-')}{amountSub(t)}</span>}
+                    {amountSub(t) && <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', marginTop: 1 }}>{t.type === 'income' ? '+' : '-'}{amountSub(t)}</span>}
                   </span>
+                  )}
               </DayCardRow>
             );
           })}
@@ -247,6 +250,41 @@ export function formatDate(d, fmt) {
   const w = `${days[dt.getDay()]}요일`;
   if (fmt === 'full') return `${d.slice(0, 4)} 년 ${Number(d.slice(5, 7))} 월 ${Number(d.slice(8, 10))} 일 ${w}`;
   return `${Number(d.slice(8, 10))} 일 ${w}`;
+}
+
+// 이체 금액: 출금 = 입력 화폐(input_currency, 없으면 원화) 금액, 입금 = to_amount/to_currency(없으면 출금과 같음).
+// · 화폐가 다르면 입금 금액(먹색) + 아래 작은 회색으로 출금 금액
+// · 같은 화폐·같은 금액이면 금액만
+// · 같은 화폐인데 금액이 다르면 출금 금액(먹색) + 아래 가는 글씨로 차액(입금이 많으면 민트 +, 적으면 코랄핑크 -)
+function TransferAmount({ t }) {
+  const P = getPrimary().code;
+  const fromCur = t.input_currency || 'KRW';
+  const fromAmt = t.input_currency ? Number(t.input_amount) : Number(t.amount);
+  // 입금 금액이 아직 없으면(예: 환율 반영 전) 출금 금액만 표시
+  const toCur = t.to_amount != null ? (t.to_currency || fromCur) : fromCur;
+  const toAmt = t.to_amount != null ? Number(t.to_amount) : fromAmt;
+  const fmt = (v, cur) => (cur === 'KRW' && P === 'KRW' ? fmtNum(v) : fmtForeign(v, cur));
+  const main = { fontSize: 14.5, fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-.3px', color: 'var(--k-tx-191722)' };
+  const wrap = { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flex: 'none' };
+  if (toCur !== fromCur) {
+    return (
+      <span style={wrap}>
+        <span style={main}>{fmt(toAmt, toCur)}</span>
+        <span style={{ fontSize: 10.5, color: 'var(--k-tx-a29ead)', marginTop: 1, whiteSpace: 'nowrap' }}>{fmt(fromAmt, fromCur)}</span>
+      </span>
+    );
+  }
+  const diff = Math.round((toAmt - fromAmt) * 100) / 100;
+  return (
+    <span style={wrap}>
+      <span style={main}>{fmt(fromAmt, fromCur)}</span>
+      {diff !== 0 && (
+        <span style={{ fontSize: 10.5, fontWeight: 400, color: diff > 0 ? '#2CDDB9' : '#FF4358', marginTop: 1, whiteSpace: 'nowrap' }}>
+          {diff > 0 ? '+' : '-'}{fmt(Math.abs(diff), fromCur)}
+        </span>
+      )}
+    </span>
+  );
 }
 
 // 카드 금액: 기록을 입력한 화폐 그대로(주 화폐와 같으면 단위 생략) + 주 화폐와 다르면 주 화폐 환산 금액(회색)
