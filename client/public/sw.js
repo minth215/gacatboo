@@ -1,5 +1,5 @@
 // 가캣부 PWA 서비스 워커 — 같은 출처 정적 자원만 캐시, Supabase 등 외부 요청은 건드리지 않음.
-const CACHE = 'gacatboo-v551';
+const CACHE = 'gacatboo-v552';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => {
@@ -31,7 +31,11 @@ self.addEventListener('push', (e) => {
 // 알림 탭 → 해당 링크로 이동(이미 열린 탭이 있으면 포커스하고 그 탭을 이동).
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-  const link = e.notification.data?.link || self.registration.scope;
+  // 알림 링크(예: /tx/123)는 앱 경로 기준. GitHub Pages 는 앱 안쪽 경로로 바로 열면 404 이므로
+  // 앱 첫 화면(scope)을 ?go=<경로> 로 열고, 앱이 시작하면서 그 경로로 이동한다.
+  const raw = e.notification.data?.link || '';
+  const scope = self.registration.scope; // 예: https://…/gacatboo/
+  const link = raw && raw.startsWith('/') ? `${scope}?go=${encodeURIComponent(raw)}` : (raw || scope);
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const client of list) {

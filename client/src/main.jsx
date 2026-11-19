@@ -24,6 +24,12 @@ if (typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matc
 // base('/gacatboo/')를 라우터 basename 으로 사용 (GitHub Pages 프로젝트 페이지 대응)
 const basename = import.meta.env.BASE_URL.replace(/\/$/, '');
 
+// 푸시 알림에서 연 경우(?go=/tx/123): 라우터가 뜨기 전에 그 앱 경로로 바꿔 둔다(서비스 워커 notificationclick)
+try {
+  const go = new URLSearchParams(window.location.search).get('go');
+  if (go && go.startsWith('/') && !go.startsWith('//')) window.history.replaceState(null, '', `${basename}${go}`);
+} catch { /* 무시 */ }
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter basename={basename}>

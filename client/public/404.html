@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>가캣부</title>
+<script>
+  // GitHub Pages: 앱 안쪽 경로(예: /gacatboo/tx/123)로 바로 들어오면 이 페이지가 뜬다 →
+  // 앱 첫 화면으로 보내면서 원래 경로를 ?go= 로 넘기면, 앱이 시작하면서 그 경로로 이동한다.
+  (function () {
+    var base = '/gacatboo';
+    var l = window.location;
+    var path = l.pathname.indexOf(base) === 0 ? l.pathname.slice(base.length) : l.pathname;
+    var go = (path || '/') + l.search + l.hash;
+    l.replace(base + '/?go=' + encodeURIComponent(go));
+  })();
+</script>
+</head>
+<body></body>
+</html>
