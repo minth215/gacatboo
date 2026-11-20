@@ -7,6 +7,7 @@ import Spinner from '../components/Spinner.jsx';
 import GroupFilterSheet from '../components/GroupFilterSheet.jsx';
 import { loadPrefs } from '../lib/prefs.js';
 import SwipeRow from '../components/SwipeRow.jsx';
+import { InviteButton } from '../components/MemberPicker.jsx';
 
 export default function Groups() {
   const nav = useNavigate();
@@ -18,15 +19,33 @@ export default function Groups() {
   const [openId, setOpenId] = useState(null);
   const [copyTarget, setCopyTarget] = useState(null);
   const [copying, setCopying] = useState(false);
+  // 그대로 복사: 설정값을 불러와 초대장을 받을 멤버가 있으면 확인 모달(초대 여부 변경 가능), 없으면 바로 생성
+  const [copyTpl, setCopyTpl] = useState(null);
+  const runCopy = async (gid, tpl) => {
+    setCopying(true);
+    try {
+      const { group, errors } = await db.copyGroup(gid, user.id, tpl);
+      if (errors.length) alert('일부 멤버를 추가하지 못했습니다.\n' + errors.join('\n'));
+      setCopyTarget(null); setCopyTpl(null);
+      nav(`/groups/${group.id}`);
+    } catch (e) { alert(e.message); } finally { setCopying(false); }
+  };
   const copyAsIs = async () => {
     if (!copyTarget || copying) return;
     setCopying(true);
-    try {
-      const { group, errors } = await db.copyGroup(copyTarget.id, user.id);
-      if (errors.length) alert('일부 멤버를 추가하지 못했습니다.\n' + errors.join('\n'));
-      setCopyTarget(null);
-      nav(`/groups/${group.id}`);
-    } catch (e) { alert(e.message); } finally { setCopying(false); }
+    let tpl;
+    try { tpl = await db.groupCopyTemplate(copyTarget.id, user.id); } catch (e) { alert(e.message); setCopying(false); return; }
+    setCopying(false);
+    const keys = tpl.members.map((m, i) => (m.invite ? i : -1)).filter((i) => i >= 0);
+    if (keys.length) { setCopyTpl({ ...tpl, inviteableKeys: keys }); return; }
+    runCopy(copyTarget.id, tpl);
+  };
+  const toggleCopyInvite = (i) => setCopyTpl((t) => ({ ...t, members: t.members.map((m, j) => (j === i ? { ...m, invite: !m.invite } : m)) }));
+  // 복사 버튼: 내가 총무/총대인 그룹만 복사 방식 선택, 아니면 바로 그룹 만들기(복사 범위 설정과 같음)
+  const onCopy = (g) => {
+    setOpenId(null);
+    if (g.owner_id === user.id) setCopyTarget(g);
+    else nav('/groups/new', { state: { copyFrom: g.id } });
   };
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -110,7 +129,7 @@ export default function Groups() {
             onTap={() => nav(`/groups/${g.id}`)} isOpen={openId === g.id} onOpenChange={(o) => setOpenId(o ? g.id : null)} actionsWidth={60}
             actions={(progress) => (
               <div className="tx-swipe-actions" style={{ opacity: progress }}>
-                <button type="button" className="settle-icon-btn" aria-label="복사" onClick={() => { setOpenId(null); setCopyTarget(g); }}>
+                <button type="button" className="settle-icon-btn" aria-label="복사" onClick={() => onCopy(g)}>
                   <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2" />
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
@@ -151,7 +170,7 @@ export default function Groups() {
       )}
 
       {/* 복사 방식 선택(헤더 없는 모달) */}
-      {copyTarget && (
+      {copyTarget && !copyTpl && (
         <div className="catmodal-overlay" onClick={() => !copying && setCopyTarget(null)}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -164,6 +183,24 @@ export default function Groups() {
                 복사 범위 설정
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 그대로 복사: 초대장 발송 확인(멤버별로 보내지 않도록 변경 가능) */}
+      {copyTarget && copyTpl && (
+        <div className="catmodal-overlay" onClick={() => { if (!copying) { setCopyTpl(null); setCopyTarget(null); } }}>
+          <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--k-tx-191722)', textAlign: 'center', padding: '6px 0 2px' }}>다음 멤버에게 초대장이 발송됩니다.</div>
+            <div style={{ background: 'var(--k-bg-faf9f8)', borderRadius: 14, maxHeight: '45vh', overflowY: 'auto' }}>
+              {copyTpl.members.map((m, i) => ({ m, i })).filter(({ i }) => copyTpl.inviteableKeys.includes(i)).map(({ m, i }, k) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px 10px 16px', borderTop: k === 0 ? 'none' : '1px solid var(--k-divider)' }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13.25, fontWeight: 600, color: m.invite ? 'var(--k-tx-191722)' : 'var(--k-tx-a29ead)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.nickname}</span>
+                  <InviteButton on={m.invite} onClick={() => toggleCopyInvite(i)} />
+                </div>
+              ))}
+            </div>
+            <button type="button" className="btn-ink-pill" style={{ marginTop: 0, height: 46, fontSize: 14 }} disabled={copying} onClick={() => runCopy(copyTarget.id, copyTpl)}>{copying ? '복사 중…' : '복사'}</button>
           </div>
         </div>
       )}

@@ -1137,10 +1137,11 @@ export const db = {
     return {
       name: group.name || '', description: group.description || '', category: group.category || '',
       category_emoji: group.category_emoji || '', color: group.color || '',
-      // 내 정보: 내가 총무/총대면 그 설정 그대로, 아니면 내 멤버 닉네임만(원천은 기본값)
-      nickname: (isOwner ? me?.owner_nickname : (me?.self_nickname || me?.owner_nickname)) || me?.nickname || '',
+      isOwner,
+      // 내 정보(총무/총대 정보): 내가 총무/총대일 때만 그 설정 그대로 — 아니면 비워 둠(그룹 만들기 기본값)
+      nickname: isOwner ? (me?.owner_nickname || me?.nickname || '') : '',
       depositSourceId: isOwner && sub?.deposit_source_id ? String(sub.deposit_source_id) : '',
-      withdrawSourceId: me?.withdraw_source_id ? String(me.withdraw_source_id) : '',
+      withdrawSourceId: isOwner && me?.withdraw_source_id ? String(me.withdraw_source_id) : '',
       members: others.map((m) => {
         const p = m.user_id ? profOf(m.user_id) : null;
         const username = p?.username || m.username || m.external_username || '';
@@ -1156,8 +1157,9 @@ export const db = {
     };
   },
   // 그룹 그대로 복사: 위 설정값으로 새 그룹을 만들고(시작일 = 오늘) 멤버를 추가. 실패한 멤버 사유 목록과 함께 반환.
-  async copyGroup(groupId, userId) {
-    const t = await this.groupCopyTemplate(groupId, userId);
+  // template: 미리 만든 설정값(초대 여부를 바꾼 멤버 목록 포함). 없으면 새로 만듦.
+  async copyGroup(groupId, userId, template = null) {
+    const t = template || await this.groupCopyTemplate(groupId, userId);
     const start = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     const g = await this.createGroup(userId, {
       name: t.name, description: t.description, category: t.category, category_emoji: t.category_emoji, color: t.color,
