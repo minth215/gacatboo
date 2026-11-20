@@ -133,6 +133,8 @@ export function useMemberPicker({ userId, existingMembers = [] }) {
     setGuestName(''); setGuestMemo('');
   };
 
+  // 그룹 복사: 원본 그룹의 멤버를 미리 채움([{ nickname, username, memo, contact, invite, blocked }])
+  const presetMembers = (ms) => setCustomMembers((ms || []).map((m) => ({ nickname: m.nickname, username: m.username || '', memo: m.memo || '', contact: m.contact || '', invite: !!m.invite, blocked: !!m.blocked })));
   // 고른 멤버를 그룹에 추가. 실패한 멤버는 "닉네임: 사유" 목록으로 돌려준다.
   const addAll = async (groupId, startDate) => {
     const errors = [];
@@ -147,7 +149,7 @@ export function useMemberPicker({ userId, existingMembers = [] }) {
     }
     for (const cm of customMembers) {
       try {
-        await db.addMember(groupId, { nickname: cm.nickname, username: cm.username && cm.invite ? cm.username : '', externalUsername: cm.username && !cm.invite ? cm.username : '', start_date: startDate, end_date: '', contact: '', memo: cm.memo || '' });
+        await db.addMember(groupId, { nickname: cm.nickname, username: cm.username && cm.invite ? cm.username : '', externalUsername: cm.username && !cm.invite ? cm.username : '', start_date: startDate, end_date: '', contact: cm.contact || '', memo: cm.memo || '' });
       } catch (e) { errors.push(`${cm.nickname}: ${e.message}`); }
     }
     return errors;
@@ -356,7 +358,7 @@ export function useMemberPicker({ userId, existingMembers = [] }) {
 
   const toastEl = toast ? <div key={toastKey} className="settle-toast">{toast}</div> : null;
 
-  return { header, body, confirmModal, toastEl, hasInvites, selectedCount, addAll, memberTab };
+  return { header, body, confirmModal, toastEl, hasInvites, selectedCount, addAll, memberTab, presetMembers };
 }
 
 // 본문 스크롤 영역: 내용이 화면 안에 다 들어오면 스크롤(=바운스) 자체를 끄고, 넘칠 때만 스크롤.

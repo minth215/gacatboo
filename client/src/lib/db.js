@@ -1124,6 +1124,63 @@ export const db = {
 
   // ---------- 구독 설정 ----------
   // 총무/총대 본인의 그룹 멤버 행 갱신(닉네임·출금 수단 등)
+  // 그룹 복사용 설정값: 그룹 정보(시작일 = 오늘, 종료일 없음) + 내 정보(닉네임·정산 수단·공금 출금 수단) + 멤버(나 제외).
+  // 회원 멤버는 아이디로 다시 초대(초대 비허용이면 외부 멤버), 외부 멤버·비회원은 그대로. 기록은 복사하지 않음.
+  async groupCopyTemplate(groupId, userId) {
+    const { group, members } = await this.getGroup(groupId);
+    const sub = await this.getSubscription(groupId).catch(() => null);
+    const me = members.find((m) => m.user_id === userId);
+    const isOwner = group.owner_id === userId;
+    const others = members.filter((m) => m.user_id !== userId);
+    const profs = await this.listProfilesByIds([...new Set(others.map((m) => m.user_id).filter(Boolean))]).catch(() => []);
+    const profOf = (id) => profs.find((p) => p.id === id);
+    return {
+      name: group.name || '', description: group.description || '', category: group.category || '',
+      category_emoji: group.category_emoji || '', color: group.color || '',
+      // 내 정보: 내가 총무/총대면 그 설정 그대로, 아니면 내 멤버 닉네임만(원천은 기본값)
+      nickname: (isOwner ? me?.owner_nickname : (me?.self_nickname || me?.owner_nickname)) || me?.nickname || '',
+      depositSourceId: isOwner && sub?.deposit_source_id ? String(sub.deposit_source_id) : '',
+      withdrawSourceId: me?.withdraw_source_id ? String(me.withdraw_source_id) : '',
+      members: others.map((m) => {
+        const p = m.user_id ? profOf(m.user_id) : null;
+        const username = p?.username || m.username || m.external_username || '';
+        const blocked = !!p && p.allow_group_invite === false;
+        return {
+          // 총무/총대가 정한 닉네임 우선
+          nickname: (isOwner ? m.owner_nickname : '') || m.nickname || '멤버',
+          username, memo: m.memo || '', contact: m.contact || '',
+          // 회원(아이디 연결) 멤버는 다시 초대, 외부 멤버로 있던 회원은 외부 멤버 그대로
+          invite: !!m.user_id && !blocked && !!username, blocked,
+        };
+      }),
+    };
+  },
+  // 그룹 그대로 복사: 위 설정값으로 새 그룹을 만들고(시작일 = 오늘) 멤버를 추가. 실패한 멤버 사유 목록과 함께 반환.
+  async copyGroup(groupId, userId) {
+    const t = await this.groupCopyTemplate(groupId, userId);
+    const start = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    const g = await this.createGroup(userId, {
+      name: t.name, description: t.description, category: t.category, category_emoji: t.category_emoji, color: t.color,
+      start_date: start, end_date: '', nickname: t.nickname,
+    });
+    if (t.depositSourceId) {
+      const src = unwrap(await supabase.from('sources').select('name').eq('id', Number(t.depositSourceId)).maybeSingle());
+      try { await this.upsertSubscription(g.id, { deposit_source_id: Number(t.depositSourceId), deposit_source_name: src?.name || '' }); } catch { /* 무시 */ }
+    }
+    if (t.category === '공금' && t.withdrawSourceId) {
+      try { await this.updateOwnerMember(g.id, userId, { withdraw_source_id: Number(t.withdrawSourceId) }); } catch { /* 무시 */ }
+    }
+    const errors = [];
+    for (const m of t.members) {
+      try {
+        await this.addMember(g.id, {
+          nickname: m.nickname, username: m.invite ? m.username : '', externalUsername: !m.invite ? m.username : '',
+          start_date: start, end_date: '', contact: m.contact, memo: m.memo,
+        });
+      } catch (e) { errors.push(`${m.nickname}: ${e.message}`); }
+    }
+    return { group: g, errors };
+  },
   async updateOwnerMember(groupId, userId, patch) {
     return unwrap(await supabase.from('group_members').update(patch).eq('group_id', groupId).eq('user_id', userId));
   },

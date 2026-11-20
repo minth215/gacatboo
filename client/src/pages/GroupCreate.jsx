@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { primarySettleSource } from '../lib/sourceFilter.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -19,6 +19,9 @@ const fieldStyle = {
 export default function GroupCreate() {
   const { user } = useAuth();
   const nav = useNavigate();
+  const location = useLocation();
+  // 그룹 목록 > 복사 > "복사 범위 설정": 원본 그룹 설정을 미리 채움(시작일 = 오늘, 종료일 없음)
+  const copyFrom = location.state?.copyFrom || null;
   const [step, setStep] = useState(1);
   const [groupCats, setGroupCats] = useState([]);
   const [sources, setSources] = useState({ tree: [], flat: [] });
@@ -51,6 +54,21 @@ export default function GroupCreate() {
   const [confirmOpen, setConfirmOpen] = useState(false); // 만들기 전 초대장 발송 확인 모달
   const picker = useMemberPicker({ userId: user.id });
 
+  const copiedRef = useRef(false);
+  useEffect(() => {
+    if (!copyFrom || copiedRef.current) return;
+    copiedRef.current = true;
+    db.groupCopyTemplate(copyFrom, user.id).then((t) => {
+      setName(t.name); setCategory(t.category); setComment(t.description);
+      setEmoji(t.category_emoji); setColor(t.color);
+      setStartDate(today()); setEndDate('');
+      if (t.nickname) setNickname(t.nickname);
+      if (t.depositSourceId) { setDepositTouched(true); setDepositSourceId(t.depositSourceId); }
+      if (t.withdrawSourceId) setWithdrawSourceId(t.withdrawSourceId);
+      picker.presetMembers(t.members);
+    }).catch((e) => setError(e.message));
+  }, [copyFrom]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     db.listGroupCategories().then((cs) => {
       setGroupCats(cs);
@@ -64,7 +82,7 @@ export default function GroupCreate() {
       const dep = settle || s.flat.find((x) => x.parent_id != null && x.is_primary_deposit && !isCardItem(x));
       if (dep) setAutoDepositId(String(dep.id));
       const pay = settle || s.flat.find((x) => x.parent_id != null && x.is_primary_payment && !isCardItem(x));
-      if (pay) setWithdrawSourceId(String(pay.id));
+      if (pay) setWithdrawSourceId((v) => v || String(pay.id));
     }).catch(() => {});
   }, []);
 
@@ -218,6 +236,8 @@ export default function GroupCreate() {
               ) : (
                 <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ ...fieldStyle, appearance: 'none' }}>
                   {groupCats.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  {/* 복사한 그룹의 카테고리가 내 카테고리 목록에 없을 때 */}
+                  {category && !groupCats.some((c) => c.name === category) && <option value={category}>{category}</option>}
                 </select>
               )}
             </label>

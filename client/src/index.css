@@ -379,6 +379,8 @@ html.theme-dark .btn-ink-pill:hover { background: #E2DFE8; }
 /* 가계부 날짜 묶음: 묶음 자체는 배경/그림자 없이 각 행(카드)이 흰 배경·그림자를 가짐.
    행 경계에서 자르지 않아 밀린 카드는 왼쪽 화면 끝까지 이어지고, 오른쪽엔 페이지 배경이 보임. */
 .tx-daygroup .swipe-wrap { margin: 0; border-radius: 0; overflow: visible; }
+.group-swipe .swipe-wrap { margin-bottom: 12px; border-radius: 20px; overflow: visible; clip-path: inset(-20px 0 -20px 0); }
+.group-swipe .group-card { margin-bottom: 0; }
 .tx-swipe-actions { display: flex; align-items: center; gap: 8px; padding-left: 8px; transition: opacity .2s; }
 
 .tx-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--k-bg-fff); }

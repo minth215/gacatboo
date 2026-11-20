@@ -6,6 +6,7 @@ import { leaderLabel, dotDate } from '../lib/format.js';
 import Spinner from '../components/Spinner.jsx';
 import GroupFilterSheet from '../components/GroupFilterSheet.jsx';
 import { loadPrefs } from '../lib/prefs.js';
+import SwipeRow from '../components/SwipeRow.jsx';
 
 export default function Groups() {
   const nav = useNavigate();
@@ -13,6 +14,20 @@ export default function Groups() {
   const [groups, setGroups] = useState([]);
   const [groupCats, setGroupCats] = useState([]);
   const [loading, setLoading] = useState(true);
+  // 스와이프 복사: 한 번에 한 카드만 열림 / 복사 방식 선택 모달 / 그대로 복사 진행 중
+  const [openId, setOpenId] = useState(null);
+  const [copyTarget, setCopyTarget] = useState(null);
+  const [copying, setCopying] = useState(false);
+  const copyAsIs = async () => {
+    if (!copyTarget || copying) return;
+    setCopying(true);
+    try {
+      const { group, errors } = await db.copyGroup(copyTarget.id, user.id);
+      if (errors.length) alert('일부 멤버를 추가하지 못했습니다.\n' + errors.join('\n'));
+      setCopyTarget(null);
+      nav(`/groups/${group.id}`);
+    } catch (e) { alert(e.message); } finally { setCopying(false); }
+  };
 
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef(null);
@@ -89,8 +104,23 @@ export default function Groups() {
         </div>
       ) : (
         filteredGroups.map((g) => (
+          // 왼쪽으로 밀면 복사 버튼
+          <div key={g.id} className="group-swipe">
+          <SwipeRow
+            onTap={() => nav(`/groups/${g.id}`)} isOpen={openId === g.id} onOpenChange={(o) => setOpenId(o ? g.id : null)} actionsWidth={60}
+            actions={(progress) => (
+              <div className="tx-swipe-actions" style={{ opacity: progress }}>
+                <button type="button" className="settle-icon-btn" aria-label="복사" onClick={() => { setOpenId(null); setCopyTarget(g); }}>
+                  <svg width="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          >
           <div
-            key={g.id} className="group-card" onClick={() => nav(`/groups/${g.id}`)}
+            className="group-card"
             style={{ display: 'flex', gap: 12, alignItems: 'center', opacity: isEnded(g) ? 0.55 : 1 }}
           >
             <span style={{ width: 38, height: 38, borderRadius: 12, background: g.color || 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16.5, flex: 'none' }}>{g.category_emoji || '💸'}</span>
@@ -115,7 +145,27 @@ export default function Groups() {
               </div>
             </div>
           </div>
+          </SwipeRow>
+          </div>
         ))
+      )}
+
+      {/* 복사 방식 선택(헤더 없는 모달) */}
+      {copyTarget && (
+        <div className="catmodal-overlay" onClick={() => !copying && setCopyTarget(null)}>
+          <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button type="button" disabled={copying} onClick={copyAsIs}
+                style={{ width: '100%', height: 44, border: 'none', borderRadius: 999, fontFamily: 'inherit', fontWeight: 700, fontSize: 14, cursor: 'pointer', background: 'var(--k-bg-191722)', color: 'var(--k-onink-fff)', opacity: copying ? 0.6 : 1 }}>
+                {copying ? '복사 중…' : '그대로 복사'}
+              </button>
+              <button type="button" disabled={copying} onClick={() => { const id = copyTarget.id; setCopyTarget(null); nav('/groups/new', { state: { copyFrom: id } }); }}
+                style={{ width: '100%', height: 44, border: 'none', borderRadius: 999, fontFamily: 'inherit', fontWeight: 700, fontSize: 14, cursor: 'pointer', background: 'var(--k-bg-f4f2f0)', color: 'var(--k-tx-191722)' }}>
+                복사 범위 설정
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <button className="fab" onClick={() => nav('/groups/new')} aria-label="그룹 만들기">
