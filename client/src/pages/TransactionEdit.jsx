@@ -160,7 +160,13 @@ export default function TransactionEdit() {
   }, [isGroupKind, editing, initial]);
 
   // 저장 후 이동: 원래 보던 페이지로 돌아감.
-  const done = () => nav(location.state?.closeTo ?? -1);
+  // 닫기/저장 후 이전 화면으로. 앱 안에서 돌아갈 화면이 없으면(알림을 눌러 바로 열린 경우 등) 가계부로
+  const back = (delta = location.state?.closeTo ?? -1) => {
+    const idx = window.history.state?.idx ?? 0;
+    if (typeof delta === 'number' && idx + delta < 0) nav('/', { replace: true });
+    else nav(delta);
+  };
+  const done = () => back();
   // 장바구니 품목 상세에서 "가계부 작성"으로 온 경우: 저장한 기록을 품목에 연결(구매 완료)하고 상세로 돌아감
   const cartId = !editing ? (location.state?.cartId || null) : null;
   const onCartSaved = async (saved) => {
@@ -174,7 +180,7 @@ export default function TransactionEdit() {
     if (choice === 'all' && initial?.installment_total) await db.deleteInstallmentGroup(initial);
     else if (choice === 'after' && initial?.installment_total) await db.deleteInstallmentAfter(initial);
     else await db.deleteTransaction(initial.id);
-    nav(location.state?.closeTo ?? -1);
+    back();
   };
 
   // 결제 내역 저장은 subscription_payments 테이블을 사용(일반 거래와 별도)
@@ -297,7 +303,7 @@ export default function TransactionEdit() {
   return (
     <div style={{ padding: '44px 0 32px' }}>
       <div className="simple-topbar flat">
-        <button className="tb-icon-btn" onClick={() => nav(location.state?.closeTo ?? -1)} aria-label="닫기">
+        <button className="tb-icon-btn" onClick={() => back()} aria-label="닫기">
           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
         </button>
         <div className="title">{viewOnly ? '기록 상세' : editing ? '기록 수정' : '기록'}</div>
@@ -362,7 +368,7 @@ export default function TransactionEdit() {
           <TransactionForm
             key={location.key}
             ref={formRef} onScanBusyChange={setScanBusy}
-            initial={initial} groupId={(isPayment || isPooledExpense || isPooledTransfer) ? null : groupId} onSaved={cartId ? onCartSaved : done} onClose={() => nav(-1)}
+            initial={initial} groupId={(isPayment || isPooledExpense || isPooledTransfer) ? null : groupId} onSaved={cartId ? onCartSaved : done} onClose={() => back(-1)}
             // 장바구니 → 가계부 작성: 구매 예정일이 미정이면 날짜를 비워 두고 직접 고르게(금액은 비우면 0원)
             blankDate={!!cartId && !!location.state?.blankDate}
             fixedType={(isPayment || isPooledExpense || isGroupExpense) ? 'expense' : isPooledTransfer ? 'transfer' : undefined}

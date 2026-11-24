@@ -230,6 +230,25 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
     setFocused(false);
   };
   // close 는 매 렌더마다 새로 만들어지므로 ref 에 최신 버전을 담아 두고 바깥 클릭 리스너에서 참조한다.
+  // 키패드가 금액 칸을 가리면: 키패드 높이만큼 페이지 아래 여백을 잠시 늘리고 칸이 키패드 위로 오도록 스크롤
+  const padRef = useRef(null);
+  useEffect(() => {
+    if (!focused) return undefined;
+    const body = document.body;
+    const prevPad = body.style.paddingBottom;
+    const raf = requestAnimationFrame(() => {
+      const pad = padRef.current; const root = rootRef.current;
+      if (!pad || !root) return;
+      const kh = pad.getBoundingClientRect().height;
+      const rect = root.getBoundingClientRect();
+      const limit = window.innerHeight - kh - 12;
+      if (rect.bottom > limit) {
+        body.style.paddingBottom = `${kh + 24}px`;
+        window.scrollBy({ top: rect.bottom - limit, behavior: 'smooth' });
+      }
+    });
+    return () => { cancelAnimationFrame(raf); body.style.paddingBottom = prevPad; };
+  }, [focused]);
   const closeRef = useRef(close);
   closeRef.current = close;
 
@@ -386,7 +405,7 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
 
       {focused && (
         <>
-          <div style={{
+          <div ref={padRef} style={{
             position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 100,
             background: 'var(--k-bg-fff)', borderRadius: '20px 20px 0 0', boxShadow: '0 -4px 20px rgb(var(--k-sh) / calc(.12 * var(--k-sha)))',
             padding: '10px 12px calc(32px + env(safe-area-inset-bottom, 0px))',
