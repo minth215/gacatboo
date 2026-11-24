@@ -237,12 +237,12 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
     setFocused(false);
   };
   // close 는 매 렌더마다 새로 만들어지므로 ref 에 최신 버전을 담아 두고 바깥 클릭 리스너에서 참조한다.
-  // 키패드가 금액 칸을 가리면: 키패드 높이만큼 페이지 아래 여백을 잠시 늘리고 칸이 키패드 위로 오도록 스크롤
+  // 키패드가 금액 칸을 가리면: 페이지 맨 아래에 키패드 높이만큼 빈 공간을 잠시 붙이고 칸이 키패드 위로 오도록 스크롤
+  // (html/body 높이가 100% 고정이라 body 여백으로는 스크롤 범위가 늘지 않아 body 끝에 빈 요소를 붙임)
   const padRef = useRef(null);
   useEffect(() => {
     if (!focused) return undefined;
-    const body = document.body;
-    const prevPad = body.style.paddingBottom;
+    let spacer = null;
     const raf = requestAnimationFrame(() => {
       const pad = padRef.current; const root = rootRef.current;
       if (!pad || !root) return;
@@ -250,11 +250,14 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
       const rect = root.getBoundingClientRect();
       const limit = window.innerHeight - kh - 12;
       if (rect.bottom > limit) {
-        body.style.paddingBottom = `${kh + 24}px`;
+        spacer = document.createElement('div');
+        spacer.setAttribute('aria-hidden', 'true');
+        spacer.style.height = `${kh + 24}px`;
+        document.body.appendChild(spacer);
         window.scrollBy({ top: rect.bottom - limit, behavior: 'smooth' });
       }
     });
-    return () => { cancelAnimationFrame(raf); body.style.paddingBottom = prevPad; };
+    return () => { cancelAnimationFrame(raf); spacer?.remove(); };
   }, [focused]);
   const closeRef = useRef(close);
   closeRef.current = close;
