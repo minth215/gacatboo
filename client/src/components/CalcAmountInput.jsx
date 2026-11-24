@@ -114,9 +114,10 @@ const KeyBtn = ({ label, onClick, bg, color, style }) => (
 //   환산 줄이 없으며, 키패드의 다른 화폐 칩은 비활성화된다.
 // bookFx: { currency, rate, balance, qty } — 환전 시점 환율 원천으로 그 화폐 지출을 입력할 때. 잔액(balance)까지는
 //   rate(원/1단위), 넘는 부분은 실시간 환율로 원화 금액을 계산한다(qty 는 행 수량: 행 합계 기준으로 잔액 차감).
+// onLive: 키패드로 입력하는 동안 바뀌는 금액(원화 칸 기준, 다 지우면 '')을 실시간으로 알림 — 합계 즉시 반영용
 // compact=true: 영수증형 기록의 좁은 항목 행에 들어갈 때 쓰는 테두리 없는 작은 표시(원 단위
 // 접미사·환산 금액 미리보기 줄은 생략하고, 펼쳐지는 계산기 키패드는 그대로 동작).
-export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange, onCurrencySelect, compact = false, allowNegative = false, defaultCurrency, allowEmpty = false, hideUnit = false, fixedCurrency = null, bookFx = null }) {
+export default function CalcAmountInput({ value, onChange, placeholder = '0', autoFocus, initialCurrency, initialForeignAmount, onCurrencyChange, onCurrencySelect, compact = false, allowNegative = false, defaultCurrency, allowEmpty = false, hideUnit = false, fixedCurrency = null, bookFx = null, onLive = null }) {
   const raw = !!fixedCurrency; // 화폐 고정(이체): 값 자체가 그 화폐 금액 — 환산 없음, 다른 화폐 칩은 비활성
   const [focused, setFocused] = useState(false);
   const [expr, setExpr] = useState('');
@@ -185,6 +186,12 @@ export default function CalcAmountInput({ value, onChange, placeholder = '0', au
     onChange(String(krw));
     onCurrencyChange?.({ input_currency: currency, input_amount: amt, fx_rate: amt ? krw / amt : rate });
   }, [bookKey, rate]);
+
+  useEffect(() => {
+    if (!focused || !onLive) return;
+    if (!String(expr).trim()) { onLive(''); return; }
+    onLive(currency === 'KRW' || raw ? typedAmount : krwOf(typedAmount));
+  }, [focused, expr]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const open = () => {
     if (raw) {

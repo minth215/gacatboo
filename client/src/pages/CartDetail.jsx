@@ -231,7 +231,7 @@ export default function CartDetail() {
                         style={{ width: '100%', minWidth: 0, height: 20, lineHeight: '20px', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--k-tx-191722)', outline: 'none', textAlign: 'center', padding: 0, margin: 0 }} />
                       {/* 행 높이가 바뀌지 않게 보기 모드 글자와 같은 높이(20px) */}
                       <div className="cart-amt" style={{ height: 20, minWidth: 0 }}>
-                        <CalcAmountInput compact allowEmpty value={ed.amount} placeholder="미정" autoFocus={editFocus?.i === i && editFocus.field === 'amount'} onChange={(v) => setDraft(i, { amount: v })} />
+                        <CalcAmountInput compact allowEmpty value={ed.amount} placeholder="미정" autoFocus={editFocus?.i === i && editFocus.field === 'amount'} onChange={(v) => setDraft(i, { amount: v })} onLive={(v) => setDraft(i, { amount: v === '' ? '' : String(v) })} />
                       </div>
                     </>
                   ) : (
@@ -245,7 +245,11 @@ export default function CartDetail() {
             })}
             <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr 40px 84px', gap: 8, alignItems: 'center', padding: '8px 0 0', marginTop: 6, borderTop: '1px dashed var(--k-bd-cfccd4)' }}>
               <span /><span style={{ fontSize: 13.5, color: 'var(--k-tx-8b8798)' }}>합계</span><span />
-              <span style={{ fontSize: 13.75, fontWeight: 800, textAlign: 'right', color: cartHasAmount(items) ? '#FF4358' : 'var(--k-tx-b0b0b8)' }}>{cartHasAmount(items) ? fmtNum(cartTotal(items)) : '미정'}</span>
+              {(() => {
+                // 수정 중이면 입력 중인 수량·금액으로 합계를 바로 계산
+                const shown = drafts ? items.map((it, j) => (drafts[j] ? { ...it, qty: Math.max(Number(drafts[j].qty) || 1, 1), amount: drafts[j].amount === '' ? null : Number(drafts[j].amount) } : it)) : items;
+                return <span style={{ fontSize: 13.75, fontWeight: 800, textAlign: 'right', color: cartHasAmount(shown) ? '#FF4358' : 'var(--k-tx-b0b0b8)' }}>{cartHasAmount(shown) ? fmtNum(cartTotal(shown)) : '미정'}</span>;
+              })()}
             </div>
           </div>
         )}

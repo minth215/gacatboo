@@ -4,6 +4,7 @@ import { db } from '../lib/db.js';
 import { fmtNum, dotDateWithWeekday } from '../lib/format.js';
 import Spinner from '../components/Spinner.jsx';
 import { cartTotal } from './Cart.jsx';
+import CalcAmountInput from '../components/CalcAmountInput.jsx';
 import { fieldStyle, labelStyle } from './FriendAdd.jsx';
 
 // 장바구니 담기 / 품목 수정: 기록 페이지와 같은 영수증 카드 모양.
@@ -179,10 +180,11 @@ export default function CartEdit() {
                   }}
                 />
                 <input type="text" inputMode="numeric" placeholder="1" value={r.qty} onChange={(e) => setRow(i, { qty: e.target.value.replace(/[^0-9]/g, '') })} style={{ ...cellInput, textAlign: 'center' }} />
-                <input
-                  type="text" inputMode="numeric" placeholder="미정" value={r.amount === '' ? '' : fmtNum(r.amount)}
-                  onChange={(e) => setRow(i, { amount: e.target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '') })}
-                  style={{ ...cellInput, textAlign: 'right', fontWeight: 600 }}
+                {/* 금액: 전용 키패드(다른 기록 화면과 같은 수정 규칙), 입력 중에도 합계 즉시 반영 */}
+                <CalcAmountInput
+                  compact allowEmpty placeholder="미정" value={r.amount === '' || r.amount == null ? '' : String(r.amount)}
+                  onChange={(v) => setRow(i, { amount: v === '' ? '' : String(v) })}
+                  onLive={(v) => setRow(i, { amount: v === '' ? '' : String(v) })}
                 />
                 {f.rows.length > 1 ? (
                   <button type="button" aria-label="행 삭제" onClick={() => setF((p) => ({ ...p, rows: p.rows.filter((_, j) => j !== i) }))} style={{ width: 18, height: 18, border: 'none', background: 'transparent', color: 'var(--k-tx-c2bfc6)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
