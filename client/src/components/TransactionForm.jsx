@@ -61,6 +61,21 @@ function memberRowsFor(item, members, total) {
     return { id: m.id, name: m.nickname, isOwner: m.role === 'owner', checked: on, pinned: isPinned, amount };
   });
 }
+// 저장된 분담 중 지금 멤버 목록에 없는 멤버(그룹에서 내보낸 멤버·그 몫이 옮겨진 짤짤이)의 금액은
+// 남아 있는 체크된 멤버들에게 똑같이 나눠 더한다(1원 단위 자투리는 앞 멤버부터) — 수정 화면에서 저장하면 그대로 확정.
+// (내보낸 멤버의 분담 행이 이미 지워졌어도, 금액 합계에서 남은 멤버들의 몫을 뺀 만큼을 다시 나눔)
+function redistributeOrphans(savedRows, members, memberChecked, total) {
+  const present = new Set(members.map((m) => m.id));
+  const amounts = {};
+  for (const r of savedRows) if (present.has(r.member_id)) amounts[r.member_id] = Number(r.amount) || 0;
+  const kept = Object.values(amounts).reduce((a, b) => a + b, 0);
+  const orphan = Math.max(0, Math.round((Number(total) || 0) - kept));
+  const targets = members.filter((m) => memberChecked[m.id] !== false && amounts[m.id] != null);
+  if (orphan > 0 && targets.length) {
+    equalSplitAmounts(targets.length, orphan).forEach((a, i) => { amounts[targets[i].id] += a; });
+  }
+  return amounts;
+}
 const itemTotalOf = (it) => (Number(it.amount) || 0) * (Number(it.qty) || 1);
 const emptyItem = () => ({
   name: '', qty: '1', amount: '', currencyMeta: null, expanded: false, memberChecked: {}, memberAmountOverride: {}, memberHeld: null,
@@ -900,21 +915,20 @@ const TransactionForm = forwardRef(function TransactionForm({
         const saved = initial.items[i];
         if (!saved || !Array.isArray(saved.members)) return it;
         // 저장된 금액은 고정이 아닌 보류 스냅샷으로 복원(그대로 보이되, 다른 멤버를 수정하면 자동 재계산)
-        const memberChecked = {}; const amounts = {};
+        const memberChecked = {};
         const checkedIds = new Set(saved.members.map((r) => r.member_id));
         for (const m of settlementMembers) memberChecked[m.id] = checkedIds.has(m.id);
-        for (const r of saved.members) amounts[r.member_id] = Number(r.amount);
+        const amounts = redistributeOrphans(saved.members, settlementMembers, memberChecked, itemTotalOf(it));
         return { ...it, memberChecked, memberAmountOverride: {}, memberHeld: { total: itemTotalOf(it), amounts } };
       }));
       return;
     }
     if (!initialSettlementSplit?.length) return; // 신규이거나 저장된 분담이 없으면 기본값(전원 체크) 유지
     // 이 기능 이전에 저장된 기록(항목별 체크 정보가 없음): 기존처럼 첫 행에만 전체 분담을 복원
-    const memberChecked = {}; const amounts = {};
+    const memberChecked = {};
     const checkedIds = new Set(initialSettlementSplit.map((r) => r.member_id));
     for (const m of settlementMembers) memberChecked[m.id] = checkedIds.has(m.id);
-    for (const r of initialSettlementSplit) amounts[r.member_id] = Number(r.amount);
-    setItems((prev) => prev.map((it, i) => (i === 0 ? { ...it, memberChecked, memberAmountOverride: {}, memberHeld: { total: itemTotalOf(it), amounts } } : it)));
+    setItems((prev) => prev.map((it, i) => (i === 0 ? { ...it, memberChecked, memberAmountOverride: {}, memberHeld: { total: itemTotalOf(it), amounts: redistributeOrphans(initialSettlementSplit, settlementMembers, memberChecked, itemTotalOf(it)) } } : it)));
   }, [showMemberSplit, initialSettlementSplit, editing]);
 
   const rowsTotal = items.reduce((s, it) => s + lineTotal(it), 0);
