@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { db } from '../lib/db.js';
 import { useAuth } from '../lib/auth.jsx';
-import { isSubscription, isSettlement } from '../lib/format.js';
+import { isSubscription, isSettlement, isPooledFund } from '../lib/format.js';
 import TransactionForm from '../components/TransactionForm.jsx';
 import { DepositForm, isLeftoverName } from './SubscriptionGroup.jsx';
 import Spinner from '../components/Spinner.jsx';
@@ -167,6 +167,19 @@ export default function TransactionEdit() {
     else nav(delta);
   };
   const done = () => back();
+  // 전환(개인 ↔ 그룹, 그룹 → 다른 그룹)으로 열린 새 기록 화면: 저장되면 원래 기록을 지우고, 수정 화면을 건너뛰어 돌아감
+  const convertFrom = !editing ? (location.state?.convertFrom || null) : null;
+  const onConvertSaved = async () => {
+    try {
+      if (convertFrom.kind === 'payment') await db.deletePayment(convertFrom.id);
+      else if (convertFrom.kind === 'pooled') await db.deletePooledFundExpense(convertFrom.id);
+      else {
+        if (convertFrom.linkedFeeId) await db.deleteLinkedFee(convertFrom.linkedFeeId);
+        await db.deleteTransaction(convertFrom.id);
+      }
+    } catch (e) { alert(`새 기록은 저장됐지만 원래 기록을 지우지 못했습니다.\n${e.message}`); }
+    back();
+  };
   // 장바구니 품목 상세에서 "가계부 작성"으로 온 경우: 저장한 기록을 품목에 연결(구매 완료)하고 상세로 돌아감
   const cartId = !editing ? (location.state?.cartId || null) : null;
   const onCartSaved = async (saved) => {
@@ -259,9 +272,45 @@ export default function TransactionEdit() {
   // 상단바 버튼은 개인/그룹 기록 화면 모두 동일: 영수증으로 채우기 + (신규) 즐겨찾기 / (수정) 복사
   // 일반 멤버가 그룹 결제 내역을 열면 조회 전용(기록 상세): 입력·수정·삭제·복사·영수증 채우기 불가
   const viewOnly = (isPayment || isGroupExpense) && !!group && group.owner_id !== user.id;
-  const showReceiptBtn = !viewOnly;
+  // 영수증 채우기는 새 기록에서만(수정 화면은 그 자리에 전환 버튼)
+  const showReceiptBtn = !viewOnly && !editing;
   const showFavoriteBtn = !editing && !viewOnly;
   const showCopyBtn = editing && !!initial && !viewOnly;
+  // 전환: 개인 기록 ↔ 그룹 기록, 그룹 기록 → 다른 그룹. 입금 내역·공금 이체·미러 기록(그룹에서 반영된 개인 기록)은 제외
+  const currentGroupId = isGroupKind ? groupId : (initial?.group_id || null);
+  const showConvertBtn = editing && !!initial && !viewOnly && !isDeposit && !isPooledTransfer && !(!isGroupKind && initial?.origin_type);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [convertGroups, setConvertGroups] = useState(null);
+  const openConvert = () => {
+    setConvertOpen(true);
+    if (!convertGroups) db.listGroups(user.id).then(setConvertGroups).catch(() => setConvertGroups([]));
+  };
+  const todayStr = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  // 그룹 종류별 새 기록 경로 + 지출만 가능한지 + 내가 기록할 수 있는지
+  const convertTarget = (g) => {
+    const owner = g.owner_id === user.id;
+    if (isSubscription(g.category)) return { path: `/new?group=${g.id}&kind=payment`, expenseOnly: true, allowed: owner };
+    if (isSettlement(g.category)) return { path: `/new?group=${g.id}&kind=expense`, expenseOnly: true, allowed: owner };
+    if (isPooledFund(g.category)) return { path: `/new?group=${g.id}&kind=pooled-expense`, expenseOnly: true, allowed: true };
+    return { path: `/new?group=${g.id}`, expenseOnly: false, allowed: true };
+  };
+  const convertTo = (path) => {
+    if (!initial) return;
+    const snapshot = {
+      type: initial.type, date: initial.date, amount: initial.amount,
+      category_id: initial.category_id, category_name: initial.category_name,
+      category_emoji: initial.category_emoji, category_color: initial.category_color,
+      source_id: initial.source_id, source_name: initial.source_name,
+      to_source_id: initial.to_source_id, to_source_name: initial.to_source_name,
+      to_amount: initial.to_amount, to_currency: initial.to_currency,
+      content: initial.content, memo: initial.memo, items: initial.items || null,
+      input_currency: initial.input_currency, input_amount: initial.input_amount, fx_rate: initial.fx_rate,
+      exclude_performance: initial.exclude_performance, onnuri: initial.onnuri,
+    };
+    const kindOf = isPayment ? 'payment' : isPooledExpense ? 'pooled' : 'tx';
+    setConvertOpen(false);
+    nav(path, { state: { favorite: snapshot, closeTo: -2, convertFrom: { kind: kindOf, id: initial.id, linkedFeeId: initialLinkedFee?.id || null } } });
+  };
   // 즐겨찾기 목록에서 항목을 고르면 지금 보고 있는 이 기록 화면(그룹 결제/입금 등 URL 그대로)으로
   // 돌아와 채워지도록 현재 경로를 함께 넘긴다.
   const openFavorites = () => nav('/favorites', { state: { returnTo: location.pathname + location.search } });
@@ -307,7 +356,7 @@ export default function TransactionEdit() {
           <svg width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
         </button>
         <div className="title">{viewOnly ? '기록 상세' : editing ? '기록 수정' : '기록'}</div>
-        {(showReceiptBtn || showFavoriteBtn || showCopyBtn) && (
+        {(showReceiptBtn || showFavoriteBtn || showCopyBtn || showConvertBtn) && (
           <div className="topbar-right" style={{ display: 'flex', gap: 8 }}>
             {showFavoriteBtn && (
               <button type="button" className="tb-icon-btn" onClick={openFavorites} aria-label="즐겨찾기">
@@ -321,6 +370,14 @@ export default function TransactionEdit() {
                 <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="9" y="9" width="13" height="13" rx="2" />
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+              </button>
+            )}
+            {showConvertBtn && (
+              <button type="button" className="tb-icon-btn" onClick={openConvert} aria-label="전환">
+                <svg width="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                  <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
                 </svg>
               </button>
             )}
@@ -342,6 +399,43 @@ export default function TransactionEdit() {
           </div>
         )}
       </div>
+
+      {convertOpen && (
+        <div className="catmodal-overlay" onClick={() => setConvertOpen(false)}>
+          <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--k-tx-191722)', textAlign: 'center', padding: '6px 0 2px' }}>어디로 전환할까요?</div>
+            <div style={{ fontSize: 11.5, color: 'var(--k-tx-a29ead)', textAlign: 'center', marginTop: -4 }}>전환할 곳의 기록 화면에서 저장하면 지금 기록은 삭제됩니다</div>
+            <div style={{ background: 'var(--k-bg-faf9f8)', borderRadius: 14, maxHeight: '50vh', overflowY: 'auto' }}>
+              {(() => {
+                const rows = [];
+                if (currentGroupId) rows.push({ key: 'me', emoji: '👤', color: 'var(--k-bg-efeef2)', name: '개인 기록', sub: '내 가계부', path: '/new', ok: true });
+                for (const g of convertGroups || []) {
+                  if (g.id === currentGroupId) continue;
+                  if (g.end_date && g.end_date < todayStr) continue; // 종료된 그룹 제외
+                  const t = convertTarget(g);
+                  if (!t.allowed) continue;
+                  const ok = !t.expenseOnly || initial?.type === 'expense';
+                  rows.push({ key: g.id, emoji: g.category_emoji || '💸', color: g.color || 'var(--k-bg-efeef2)', name: g.name, sub: ok ? g.category : `${g.category} · 지출 기록만 전환할 수 있어요`, path: t.path, ok });
+                }
+                if (convertGroups === null) return <div style={{ padding: 16, textAlign: 'center', fontSize: 12.5, color: 'var(--k-tx-a29ead)' }}>불러오는 중…</div>;
+                if (!rows.length) return <div style={{ padding: 16, textAlign: 'center', fontSize: 12.5, color: 'var(--k-tx-a29ead)' }}>전환할 수 있는 곳이 없습니다.</div>;
+                return rows.map((r, i) => (
+                  <button
+                    key={r.key} type="button" disabled={!r.ok} onClick={() => convertTo(r.path)}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: 'none', borderTop: i === 0 ? 'none' : '1px solid var(--k-divider)', background: 'transparent', fontFamily: 'inherit', textAlign: 'left', cursor: r.ok ? 'pointer' : 'default', opacity: r.ok ? 1 : 0.45 }}
+                  >
+                    <span style={{ width: 32, height: 32, flex: 'none', borderRadius: 10, background: r.color, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>{r.emoji}</span>
+                    <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--k-tx-191722)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                      <span style={{ fontSize: 11, color: 'var(--k-tx-8b8798)' }}>{r.sub}</span>
+                    </span>
+                  </button>
+                ));
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ padding: '6px 0 0' }}>
         {(loading || waitingGroup || (isGroupKind && groupId && !subLoaded)) ? (
@@ -368,14 +462,14 @@ export default function TransactionEdit() {
           <TransactionForm
             key={location.key}
             ref={formRef} onScanBusyChange={setScanBusy}
-            initial={initial} groupId={(isPayment || isPooledExpense || isPooledTransfer) ? null : groupId} onSaved={cartId ? onCartSaved : done} onClose={() => back(-1)}
+            initial={initial} groupId={(isPayment || isPooledExpense || isPooledTransfer) ? null : groupId} onSaved={cartId ? onCartSaved : convertFrom ? onConvertSaved : done} onClose={() => back(-1)}
             // 장바구니 → 가계부 작성: 구매 예정일이 미정이면 날짜를 비워 두고 직접 고르게(금액은 비우면 0원)
             blankDate={!!cartId && !!location.state?.blankDate}
             fixedType={(isPayment || isPooledExpense || isGroupExpense) ? 'expense' : isPooledTransfer ? 'transfer' : undefined}
             initialPendingRecurrence={pendingRecurrence}
             defaultCategoryName={isPayment ? (isSettlement(group?.category) ? '정산' : '구독') : undefined}
             // 구독 그룹 결제 내용 기본값 = 그룹명
-            defaultContentTemplate={(isPayment && !isSettlement(group?.category)) ? (group?.name || undefined) : isPooledTransfer ? `${group?.name || ''} 입금` : undefined}
+            defaultContentTemplate={convertFrom ? undefined : (isPayment && !isSettlement(group?.category)) ? (group?.name || undefined) : isPooledTransfer ? `${group?.name || ''} 입금` : undefined}
             defaultTransferToName={isPooledTransfer ? sub?.deposit_source_name : undefined}
             // 공금 그룹 이체: 출금 원천 기본값 = 그룹에 지정한 내 출금 수단(총무는 "내 정보", 멤버는 수락 시 지정)
             // 지정한 출금 수단이 없으면 주 정산 수단('settle')
