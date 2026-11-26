@@ -404,7 +404,6 @@ export default function TransactionEdit() {
         <div className="catmodal-overlay" onClick={() => setConvertOpen(false)}>
           <div className="catmodal-sheet" onClick={(e) => e.stopPropagation()}>
             <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--k-tx-191722)', textAlign: 'center', padding: '6px 0 2px' }}>어디로 전환할까요?</div>
-            <div style={{ fontSize: 11.5, color: 'var(--k-tx-a29ead)', textAlign: 'center', marginTop: -4 }}>전환할 곳의 기록 화면에서 저장하면 지금 기록은 삭제됩니다</div>
             <div style={{ background: 'var(--k-bg-faf9f8)', borderRadius: 14, maxHeight: '50vh', overflowY: 'auto' }}>
               {(() => {
                 const rows = [];
